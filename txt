@@ -1,0 +1,4542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aniocean - Show Details</title>
+  <meta name="description" content="Stream anime, movies, and TV shows on Aniocean">
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+  
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Shared CSS/JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/shared.js"></script>
+  
+  <!-- Page-specific CSS -->
+  <style>
+ /* ========================================
+   ANIOCEAN - SHOW INFO PAGE STYLES
+   Uses CSS Variables from shared.js theme
+   Layout matched to index.html
+   ======================================== */
+
+:root {
+  /* Layout - MATCHED TO index.html (68% main, 32% sidebar) */
+  --max-width: 100%;
+  --main-width: 68%;
+  --sidebar-width: 32%;
+  --gutter: 16px;
+  --content-padding: 16px;
+  
+  --bg-body: #0a1929;
+  --bg-header: #0f2440;
+  --bg-card: #132f4c;
+  --bg-surface: #1a3a5c;
+  --bg-popup: #102a44;
+  --text-primary: #ffffff;
+  --text-secondary: #b0c7e3;
+  --text-muted: #94a3b8;
+  --text-widget-title: #a2c4de;
+  --btn-primary: #2b6cb0;
+  --btn-primary-hover: #1d4e89;
+  --btn-primary-text: #ffffff;
+  --btn-secondary: #334e68;
+  --btn-secondary-hover: #243b53;
+  --popup-btn: #5c6ac4;
+  --popup-btn-text: #ffffff;
+  --popup-btn-hover: #4955b5;
+  --genre-tag-bg: #4c51bf;
+  --link-accent: #ed64a6;
+  --accent-gold: #ecc94b;
+  --accent-blue: #4299e1;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-medium: rgba(255, 255, 255, 0.16);
+  --font-title: 'Archivo Black', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --font-meta: 'Poppins', sans-serif;
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-pill: 50px;
+  --radius-circle: 50%;
+  --shadow-lg: 0 20px 60px rgba(0,0,0,0.5);
+  --transition-fast: 0.18s ease;
+}
+
+/* Prevent browser smooth-scroll from causing perceived auto-scroll on load */
+html { scroll-behavior: auto; }
+
+/* Prevent tab radio inputs from pulling the page when they receive focus/checked state */
+.tabs-radio input[type="radio"] {
+  position: absolute !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  scroll-margin: 0 !important;
+  scroll-margin-top: 0 !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+}
+
+/* Reset & Base */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { 
+  font-family: 'Inter', system-ui, sans-serif; 
+  background: var(--bg-body); 
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+a { color: inherit; text-decoration: none; }
+button { font: inherit; cursor: pointer; background: none; border: none; color: inherit; }
+img { max-width: 100%; height: auto; display: block; }
+
+/* Breadcrumbs */
+.breadcrumbs {
+  padding: 16px var(--gutter);
+  max-width: var(--max-width);
+  margin: 0 auto;
+}
+.breadcrumbs ol {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  font-size: 0.85rem;
+  list-style: none;
+}
+.breadcrumbs li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.breadcrumbs a {
+  color: var(--text-secondary);
+  transition: color 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.breadcrumbs a:hover { color: var(--text-primary); }
+.breadcrumbs .current { color: var(--text-muted); font-weight: 500; }
+.breadcrumbs-separator {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  opacity: 0.7;
+}
+.breadcrumb-current {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 280px;
+  display: block;
+}
+
+/* Backdrop */
+.backdrop-container {
+  position: relative;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 5.5;
+  min-height: 300px;
+  max-height: 450px;
+  overflow: hidden;
+}
+.backdrop-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 30%;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}
+.backdrop-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(10, 25, 41, 0.4) 40%,
+    var(--bg-body) 100%
+  );
+  pointer-events: none;
+}
+
+/* Main grid layout - MATCHED TO INDEX.HTML */
+.info-grid {
+  display: flex;
+  gap: 0;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 0 var(--gutter) var(--gutter);
+  width: 100%;
+}
+
+/* Main content wrapper - 68% like index.html */
+.main-content {
+  flex: 0 0 var(--main-width);
+  max-width: var(--main-width);
+  padding: 0 var(--content-padding);
+  min-width: 0;
+}
+
+/* Sidebar - 32% like index.html */
+.sidebar {
+  flex: 0 0 var(--sidebar-width);
+  max-width: var(--sidebar-width);
+  padding: 0 var(--content-padding) 0 8px;
+  position: sticky;
+  top: 80px;
+  align-self: start;
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+}
+
+/* Combined sidebar container - ALL SECTIONS IN ONE */
+.sidebar-combined {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-section {
+  margin: 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.sidebar-section:last-child {
+  border-bottom: none;
+}
+
+.sidebar-section h4 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--bg-surface);
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #fff;
+  margin: 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.sidebar-list {
+  padding: 8px;
+  max-height: 280px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Custom scrollbar for sidebar lists */
+.sidebar-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.sidebar-list::-webkit-scrollbar-track {
+  background: rgba(255,255,255,0.05);
+}
+
+.sidebar-list::-webkit-scrollbar-thumb {
+  background: var(--border-medium);
+  border-radius: 2px;
+}
+
+.sidebar-list::-webkit-scrollbar-thumb:hover {
+  background: var(--btn-primary);
+}
+
+.sidebar-list-item {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+  margin-bottom: 4px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.sidebar-list-item:hover {
+  background: var(--bg-surface);
+}
+
+.sidebar-list-item:last-child {
+  margin-bottom: 0;
+}
+
+.sidebar-rank {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.12);
+  width: 30px;
+  text-align: center;
+  flex-shrink: 0;
+  font-family: var(--font-title);
+}
+
+.sidebar-poster {
+  width: 50px;
+  height: 70px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+  background: var(--bg-card);
+}
+
+.sidebar-info h4 {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #fff;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: normal;
+  line-height: 1.3;
+  margin: 0;
+}
+
+.side-meta {
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* Hero Section */
+.hero-section {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 24px;
+  align-items: start;
+  margin-top: -60px;
+  position: relative;
+  z-index: 10;
+  padding-bottom: 24px;
+}
+
+.poster-wrapper {
+  position: relative;
+  width: 220px;
+  flex-shrink: 0;
+}
+.poster-img {
+  width: 100%;
+  border-radius: 12px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.75);
+  aspect-ratio: 2/3;
+  object-fit: cover;
+  background: var(--bg-surface);
+}
+
+.language-badges {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 2;
+}
+.lang-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #fff;
+  backdrop-filter: blur(4px);
+}
+.lang-badge.sub {
+  background: rgba(49, 132, 192, 0.2);
+  border: 1px solid #3184c4;
+}
+.lang-badge.dub {
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid #ef4444;
+}
+
+.episode-badge {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  padding: 6px 12px;
+  background: rgba(0,0,0,0.7);
+  border: 1px solid var(--border-medium);
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--accent-gold);
+}
+
+.title-meta-container {
+  padding-top: 8px;
+}
+.show-title {
+  font-family: 'Archivo Black', sans-serif;
+  font-size: 2rem;
+  line-height: 1.2;
+  margin-bottom: 12px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Metadata Row */
+.metadata-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+}
+.metadata-row::before { content: ''; }
+.metadata-row span:not(:last-child)::after {
+  content: '•';
+  margin-left: 8px;
+  color: var(--text-muted);
+}
+
+/* Action Buttons */
+.action-buttons {
+  flex-direction: row;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.btn { width: auto; }
+.btn-icon-only {
+  width: 40px;
+  height: 40px;
+}
+.btn-primary {
+  background: var(--btn-primary);
+  color: #fff;
+}
+.btn-primary:hover {
+  background: var(--btn-primary-hover);
+  transform: translateY(-1px);
+}
+.btn-secondary {
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  border: none;
+}
+.btn-secondary:hover {
+  background: rgba(255,255,255,0.1);
+  color: var(--text-primary);
+}
+.btn-icon-only {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  transition: all 0.18s;
+}
+.btn-icon-only:hover {
+  background: var(--btn-primary);
+  color: #fff;
+}
+
+/* Dropdown Menu */
+.dropdown-container { position: relative; }
+.dropdown-arrow { transition: transform 0.2s; font-size: 0.7rem; }
+.dropdown-container.open .dropdown-arrow { transform: rotate(180deg); }
+
+.dropdown-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border-medium);
+  border-radius: 12px;
+  padding: 8px;
+  min-width: 220px;
+  z-index: 100;
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+}
+.dropdown-menu.show { display: flex; }
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  transition: background 0.15s;
+  cursor: pointer;
+}
+.dropdown-item:hover {
+  background: rgba(255,255,255,0.08);
+  color: var(--text-primary);
+}
+.dropdown-item.selected {
+  background: rgba(43, 108, 176, 0.2);
+  color: #68d391;
+}
+.dropdown-item.selected .bk-check-icon {
+  margin-left: auto;
+  color: #48bb78;
+  font-size: 0.85rem;
+}
+.status-icon { flex-shrink: 0; }
+
+/* Stats Container */
+.stats-container {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  padding: 16px 20px;
+  margin-bottom: 24px;
+}
+.stat-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 8px;
+}
+.stat-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+}
+.stat-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.stat-value-rating {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+.star-icon { color: var(--accent-gold); }
+
+/* Synopsis */
+.synopsis-container {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  margin-bottom: 24px;
+  overflow: hidden;
+}
+.synopsis-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.synopsis-header h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+.expand-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8rem;
+  color: var(--accent-cyan);
+  font-weight: 600;
+}
+.expand-icon { transition: transform 0.2s; }
+.expand-btn.expanded .expand-icon { transform: rotate(180deg); }
+
+.synopsis-content {
+  max-height: 120px;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+  padding: 0 20px;
+}
+.synopsis-content.expanded { max-height: 2000px; }
+.synopsis-content p {
+  padding: 16px 0;
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+
+/* Details Section */
+.details-section {
+  margin-bottom: 32px;
+}
+.details-section h3 {
+  font-size: 1.2rem;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.details-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px 24px;
+}
+.detail-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 4px 0;
+}
+.detail-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  min-width: 100px;
+  flex-shrink: 0;
+}
+.detail-value {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  text-align: right;
+  flex: 1;
+  word-break: break-word;
+}
+.detail-value a {
+  color: var(--accent-cyan);
+  transition: color 0.15s;
+}
+.detail-value a:hover { color: var(--btn-primary-hover); }
+
+/* Genre Tags */
+.genre-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.genre-tag {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-medium);
+  transition: background 0.15s;
+}
+.genre-tag:hover {
+  background: rgba(43, 108, 176, 0.2);
+  border-color: var(--btn-primary);
+}
+.genre-tag[data-start="a"] { background: rgba(49, 132, 192, 0.15); border-color: rgba(49, 132, 192, 0.4); }
+.genre-tag[data-start="b"] { background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.4); }
+.genre-tag[data-start="c"] { background: rgba(236, 201, 75, 0.15); border-color: rgba(236, 201, 75, 0.4); }
+.genre-tag[data-start="d"] { background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.4); }
+.genre-tag[data-start="f"] { background: rgba(139, 92, 246, 0.15); border-color: rgba(139, 92, 246, 0.4); }
+.genre-tag[data-start="h"] { background: rgba(249, 115, 22, 0.15); border-color: rgba(249, 115, 22, 0.4); }
+.genre-tag[data-start="m"] { background: rgba(59, 130, 246, 0.15); border-color: rgba(59, 130, 246, 0.4); }
+.genre-tag[data-start="r"] { background: rgba(236, 72, 153, 0.15); border-color: rgba(236, 72, 153, 0.4); }
+.genre-tag[data-start="s"] { background: rgba(34, 197, 94, 0.15); border-color: rgba(34, 197, 94, 0.4); }
+
+/* External Links */
+.external-links {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+.ext-link-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-medium);
+  transition: all 0.18s;
+}
+.ext-link-btn:hover {
+  background: var(--btn-primary);
+  border-color: var(--btn-primary);
+  transform: translateY(-1px);
+}
+.ext-link-btn.mal { color: #2e51a2; }
+.ext-link-btn.tmdb { color: #01b4e4; }
+
+/* Seasons Section */
+.seasons-section { margin-bottom: 32px; }
+.seasons-section h3 { margin-bottom: 16px; }
+.seasons-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+.season-card {
+  position: relative;
+  aspect-ratio: 16/7;
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.season-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+}
+.season-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 30%, rgba(0,0,0,0.85) 100%);
+  z-index: 1;
+}
+.season-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: brightness(0.85);
+}
+.season-number {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #fff;
+  text-align: center;
+  padding: 6px 20px;
+  background: rgba(43, 108, 176, 0.95);
+  border-radius: 20px;
+  backdrop-filter: blur(4px);
+  max-width: 90%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Tabs Section ─────────────────────────────────── */
+.tabs-section { margin-bottom: 32px; }
+
+/* ── Desktop: radio + glider sliding tabs ── */
+.tabs-radio-wrap {
+  display: none; /* hidden on mobile */
+  justify-content: center;
+  margin-bottom: 20px;
+}
+@media (min-width: 769px) {
+  .tabs-radio-wrap { display: flex; }
+  .tabs-mobile-only { display: none !important; }
+}
+
+.tabs-radio {
+  display: flex;
+  align-items: center;
+  position: relative;
+  background: var(--bg-surface);
+  border-radius: 99px;
+  padding: 4px;
+  gap: 0;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+}
+
+/* Hide native radio buttons */
+.tabs-radio input[type="radio"] {
+  display: none;
+}
+
+.tab-radio-label {
+  display: flex;
+  align-items: center;
+  padding: 9px 20px;
+  border-radius: 99px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+  position: relative;
+  z-index: 2;
+  transition: color 0.25s ease;
+  user-select: none;
+}
+
+/* Active label text turns white */
+.tabs-radio input[type="radio"]:checked + .tab-radio-label {
+  color: #fff;
+}
+
+/* Glider — the sliding pill */
+.tab-glider {
+  position: absolute;
+  height: calc(100% - 8px);
+  top: 4px;
+  left: 4px;
+  border-radius: 99px;
+  background: var(--btn-primary);
+  z-index: 1;
+  pointer-events: none;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(43,108,176,0.4);
+}
+
+/* ── Mobile: original pill button tabs ── */
+.tabs-mobile-only {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px;
+  background: var(--bg-surface);
+  border-radius: 50px;
+  margin-bottom: 20px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tabs-mobile-only::-webkit-scrollbar { display: none; }
+.tab-btn {
+  padding: 10px 18px;
+  border-radius: 50px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  position: relative;
+  z-index: 2;
+  transition: color 0.15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.tab-btn.active, .tab-btn:hover { color: var(--text-primary); }
+.tab-indicator {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  border-radius: 50px;
+  background: var(--btn-primary);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s;
+  z-index: 1;
+  pointer-events: none;
+}
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* ── Cast List Grid (image-3 style) ─────────────────── */
+.cast-list-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+}
+
+    /* Vertically scrolling warp container for Cast/Crew tab */
+    /* Vertically scrolling warp container for Cast/Crew tab – no borders */
+.cast-warp-container {
+  max-height: 500px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  border-radius: var(--radius-md, 12px);
+  border: none;                    /* removes outer border */
+  scrollbar-width: thin;
+  scrollbar-color: var(--btn-primary, #2b6cb0) rgba(255,255,255,0.05);
+}
+
+.cast-warp-container::-webkit-scrollbar {
+  width: 5px;
+}
+.cast-warp-container::-webkit-scrollbar-track {
+  background: rgba(255,255,255,0.04);
+  border-radius: 3px;
+}
+.cast-warp-container::-webkit-scrollbar-thumb {
+  background: var(--btn-primary, #2b6cb0);
+  border-radius: 3px;
+}
+
+/* Remove all inner borders (row separators and vertical divider) */
+.cast-warp-container .cast-list-grid {
+  border: none;
+}
+
+.cast-warp-container .cast-row {
+  border-bottom: none;
+}
+
+.cast-warp-container .cast-va-side,
+.cast-warp-container .cast-va-empty {
+  border-left: none;
+}
+
+.cast-row {
+  display: flex;
+  align-items: stretch;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-subtle);
+  min-height: 72px;
+  transition: background var(--transition-fast);
+}
+.cast-row:last-child { border-bottom: none; }
+.cast-row:hover { background: var(--bg-surface); }
+
+/* Left side: character */
+.cast-char-side {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  padding: 10px 12px;
+  text-decoration: none;
+  color: inherit;
+  min-width: 0;
+}
+
+/* Right side: voice actor */
+.cast-va-side {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  padding: 10px 12px;
+  text-decoration: none;
+  color: inherit;
+  justify-content: flex-end;
+  min-width: 0;
+  border-left: 1px solid var(--border-subtle);
+}
+.cast-va-empty { border-left: 1px solid var(--border-subtle); }
+
+.cast-portrait {
+  width: 46px;
+  height: 66px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+  background: var(--bg-surface);
+}
+
+/* Character info (left-aligned) */
+.cast-char-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.cast-char-name {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cast-role-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 2px 7px;
+  border-radius: 4px;
+  display: inline-block;
+  width: fit-content;
+}
+.role-main {
+  background: rgba(43, 108, 176, 0.25);
+  color: #7ec8f7;
+  border: 1px solid rgba(43, 108, 176, 0.45);
+}
+.role-supporting {
+  background: rgba(148, 163, 184, 0.12);
+  color: var(--text-muted);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+/* VA info (right-aligned) */
+.cast-va-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  text-align: right;
+  min-width: 0;
+}
+.cast-va-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cast-va-lang {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+/* Season placeholder */
+.season-img-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-surface);
+  z-index: 0;
+}
+
+/* Season relation tag */
+.season-info-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 8px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  z-index: 2;
+}
+.season-relation-tag {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: rgba(236, 201, 75, 0.2);
+  border: 1px solid rgba(236, 201, 75, 0.5);
+  color: var(--accent-gold);
+  text-transform: uppercase;
+}
+
+@media (max-width: 480px) {
+  .cast-portrait { width: 38px; height: 56px; }
+  .cast-char-side, .cast-va-side { padding: 8px 10px; gap: 8px; }
+  .cast-char-name, .cast-va-name { font-size: 0.8rem; }
+}
+
+/* ── Legacy cast card styles (kept for any remaining references) ── */
+.cast-scroll-container {
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--btn-primary) rgba(255,255,255,0.1);
+  padding: 5px 5px 15px 5px;
+  margin: 0 -5px;
+  position: relative;
+}
+.cast-scroll-container::-webkit-scrollbar { height: 6px; }
+.cast-scroll-container::-webkit-scrollbar-track {
+  background: rgba(255,255,255,0.05);
+  border-radius: 3px;
+}
+.cast-scroll-container::-webkit-scrollbar-thumb {
+  background: var(--btn-primary);
+  border-radius: 3px;
+}
+.cast-scroll-inner {
+  display: flex;
+  flex-direction: row;
+  gap: 20px;
+  min-width: min-content;
+  padding: 0 5px;
+}
+.cast-card {
+  text-decoration: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 140px;
+  padding: 15px 12px;
+  border-radius: 16px;
+  background: rgba(255,255,255,0.05);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: none;
+  transition: none;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.cast-card-img {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  border: 3px solid var(--btn-primary);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  margin-bottom: 12px;
+}
+.cast-card-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.cast-card-name {
+  color: white;
+  font-weight: 600;
+  font-size: 0.95rem;
+  margin-bottom: 4px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+}
+.cast-card-role {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+}
+.cast-nav-arrow {
+  position: absolute;
+  top: 55%;
+  transform: translateY(-50%);
+  z-index: 10;
+  display: none;
+  cursor: pointer;
+  background: rgba(0,0,0,0.3);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255,255,255,0.2);
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+}
+.cast-nav-arrow.left-arrow { left: -15px; }
+.cast-nav-arrow.right-arrow { right: -15px; }
+.cast-nav-arrow:hover {
+  background: rgba(43, 108, 176, 0.4);
+  border-color: var(--btn-primary);
+}
+.cast-nav-arrow svg {
+  stroke: white;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Artwork Grid */
+.artwork-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.artwork-item {
+  border-radius: 10px;
+  overflow: hidden;
+  cursor: pointer;
+  position: relative;
+  aspect-ratio: 2/3; /* default: poster */
+  background: var(--bg-surface);
+}
+.artwork-item--backdrop {
+  aspect-ratio: 16/9;
+  grid-column: span 2;
+}
+.artwork-item--logo {
+  aspect-ratio: 2/1;
+  grid-column: span 2;
+}
+.artwork-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.2s;
+  display: block;
+}
+.artwork-item:hover img { transform: scale(1.04); }
+.artwork-type-badge {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(0,0,0,0.65);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+/* Theme tab — vertically scrollable so long OP/ED lists are easy to browse */
+#themesTab {
+  max-height: 700px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--btn-primary) rgba(255,255,255,0.06);
+  padding-right: 4px;
+}
+#themesTab::-webkit-scrollbar { width: 5px; }
+#themesTab::-webkit-scrollbar-track { background: rgba(255,255,255,0.04); border-radius: 3px; }
+#themesTab::-webkit-scrollbar-thumb { background: var(--btn-primary); border-radius: 3px; }
+
+/* themes-container fills the scrollable area */
+.themes-container { padding: 4px 0; }
+
+/* Section heading (Opening / Ending) */
+.themes-section-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  padding: 8px 0 10px;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 12px;
+}
+.themes-count {
+  margin-left: auto;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: var(--bg-surface);
+  color: var(--text-muted);
+}
+
+/* Individual theme card */
+.theme-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+.theme-card:last-child { margin-bottom: 0; }
+
+.theme-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.theme-card-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  color: #7ec8f7;
+  background: rgba(126, 200, 247, 0.12);
+  border: 1px solid rgba(126, 200, 247, 0.3);
+  padding: 3px 9px;
+  border-radius: 20px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.theme-card-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.theme-song-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.theme-artist {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Video entry inside a theme card */
+.theme-video-entry { padding: 12px 14px; border-top: 1px solid var(--border-subtle); }
+.theme-video-entry:first-of-type { border-top: none; }
+.theme-video-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  min-height: 18px;
+}
+.theme-ver-tag {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 20px;
+  background: rgba(236, 201, 75, 0.15);
+  border: 1px solid rgba(236, 201, 75, 0.4);
+  color: var(--accent-gold);
+}
+.theme-ep-range {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+/* Theme block (legacy — keep for compat) */
+.theme-block { margin-bottom: 20px; }
+.theme-block:last-child { margin-bottom: 0; }
+
+/* Video Players */
+.video-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.video-wrapper {
+  position: relative;
+  padding-bottom: 56.25%;
+  height: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #000;
+}
+.video-wrapper iframe,
+.video-wrapper video {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+.video-title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 10px;
+  color: var(--text-secondary);
+}
+
+/* Statistics */
+.stats-module {
+  margin-bottom: 24px;
+  padding: 16px;
+  background: var(--bg-card);
+  border-radius: 12px;
+  border: 1px solid var(--border-subtle);
+}
+.stats-module h4 {
+  font-size: 0.95rem;
+  margin-bottom: 12px;
+  color: var(--text-secondary);
+}
+.histogram {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 80px;
+  padding: 8px 0;
+}
+.hist-bar {
+  flex: 1;
+  background: var(--btn-primary);
+  border-radius: 4px 4px 0 0;
+  min-width: 12px;
+  transition: opacity 0.15s;
+  cursor: pointer;
+  position: relative;
+}
+.hist-bar:hover { opacity: 0.8; }
+.hist-bar::after {
+  content: attr(data-value);
+  position: absolute;
+  bottom: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+.segmented-bar {
+  display: flex;
+  height: 24px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--bg-surface);
+}
+.status-segment {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #fff;
+  transition: opacity 0.15s;
+  cursor: pointer;
+}
+.status-segment:hover { opacity: 0.85; }
+.status-watching { background: var(--accent-cyan); }
+.status-completed { background: var(--accent-green); }
+.status-planning { background: #8b5cf6; }
+.status-dropped { background: var(--text-muted); }
+.metric-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.metric-card {
+  text-align: center;
+  padding: 12px 8px;
+}
+.metric-value {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+.metric-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+.metric-trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 0.7rem;
+  margin-top: 4px;
+}
+.metric-trend.up { color: var(--accent-green); }
+.metric-trend.down { color: var(--accent-red); }
+
+/* Recommendations - MATCHING INDEX.HTML GRID LAYOUT */
+.recommendations-section { margin-bottom: 32px; }
+.recommendations-section h3 { margin-bottom: 16px; }
+
+.recs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(185px, 1fr));
+  gap: 16px;
+}
+
+@media (min-width: 768px) {
+  .recs-grid {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  }
+}
+
+@media (min-width: 1201px) {
+  .recs-grid {
+    grid-template-columns: repeat(7, 1fr);
+  }
+}
+
+@media (max-width: 1200px) and (min-width: 769px) {
+  .recs-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (max-width: 768px) and (orientation: landscape) {
+  .recs-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .recs-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.rec-card {
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform var(--transition-fast);
+  position: relative;
+  text-decoration: none;
+  display: block;
+}
+
+.rec-card:hover {
+  transform: translateY(-3px);
+}
+
+.rec-poster {
+  width: 100%;
+  aspect-ratio: 3/4.5;
+  background-size: cover;
+  background-position: center;
+  border-radius: 0;
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 0;
+  background-color: var(--bg-card);
+}
+
+.rec-poster img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.quality-badge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+  font-size: 0.62rem;
+  padding: 2px 5px;
+  border-radius: 3px;
+  z-index: 2;
+  font-weight: 600;
+}
+
+.score-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: rgba(0, 0, 0, 0.7);
+  color: var(--accent-gold);
+  font-size: 0.65rem;
+  padding: 2px 5px;
+  border-radius: 3px;
+  z-index: 2;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.play-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+  border-radius: var(--radius-md);
+}
+
+.play-overlay svg {
+  width: 36px;
+  height: 36px;
+  fill: #fff;
+}
+
+.rec-card:hover .play-overlay {
+  opacity: 1;
+}
+
+.rec-info {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 24px 8px 8px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.85) 0%, transparent 100%);
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  color: #fff;
+  pointer-events: none;
+}
+
+.rec-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+  margin: 0;
+}
+
+.rec-meta {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin: 0;
+}
+
+/* ✅ UPDATED: Pagination Styles - Matches index.html "Recently Completed" */
+.pagination-nav {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+.pagination-nav .btn-soft {
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  border: none;
+  padding: 8px 16px;
+  border-radius: var(--radius-pill);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  min-width: 80px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.pagination-nav .btn-soft:hover:not(:disabled) {
+  background: var(--btn-primary);
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+.pagination-nav .btn-soft:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Page counter styling */
+.pagination-nav .page-counter {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  min-width: 60px;
+  text-align: center;
+  user-select: none;
+}
+
+/* Hide text on mobile, show chevrons */
+@media (max-width: 768px) {
+  .pagination-nav .btn-soft .prev-text,
+  .pagination-nav .btn-soft .next-text {
+    display: none;
+  }
+  .pagination-nav .btn-soft .prev-chevron,
+  .pagination-nav .btn-soft .next-chevron {
+    display: inline;
+    font-size: 1.2rem;
+    font-weight: 700;
+  }
+  .pagination-nav .btn-soft {
+    min-width: 40px;
+    padding: 8px 12px;
+  }
+}
+
+@media (min-width: 769px) {
+  .pagination-nav .btn-soft .prev-chevron,
+  .pagination-nav .btn-soft .next-chevron {
+    display: none;
+  }
+  .pagination-nav .btn-soft .prev-text,
+  .pagination-nav .btn-soft .next-text {
+    display: inline;
+  }
+}
+
+/* Loading state */
+.pagination-nav.loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* Smooth fade for grid updates */
+#sunkenTreasuresGrid {
+  transition: opacity 0.2s ease;
+}
+
+/* Alert Popup */
+.alert-popup {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 1000;
+  display: none;
+  animation: slideIn 0.3s ease;
+}
+.alert-popup.show { display: block; }
+@keyframes slideIn {
+  from { transform: translateX(100px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+.alert-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-medium);
+  border-radius: 12px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+  max-width: 320px;
+}
+.alert-content svg {
+  color: var(--accent-cyan);
+  flex-shrink: 0;
+}
+.alert-content p {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+.alert-content strong { color: var(--text-primary); }
+.alert-close {
+  margin-left: auto;
+  font-size: 1.2rem;
+  color: var(--text-muted);
+  transition: color 0.15s;
+}
+.alert-close:hover { color: var(--text-primary); }
+
+/* Lightbox */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.9);
+  z-index: 2000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.lightbox.show { display: flex; }
+.lightbox-close {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+  font-size: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+.lightbox-close:hover { background: rgba(255,255,255,0.2); }
+#lightboxImg {
+  max-width: 90%;
+  max-height: 90vh;
+  border-radius: 8px;
+  box-shadow: 0 25px 80px rgba(0,0,0,0.6);
+}
+
+/* Responsive Breakpoints */
+@media (max-width: 1024px) {
+  .info-grid {
+    flex-direction: column;
+    padding: 0 var(--gutter) var(--gutter);
+  }
+  .main-content, .sidebar {
+    flex: 1;
+    max-width: 100%;
+    padding: 0;
+  }
+  .sidebar {
+    position: static;
+    max-height: none;
+    overflow: visible;
+  }
+  .sidebar-combined {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 20px;
+    background: transparent;
+    border: none;
+  }
+  .sidebar-section {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    margin: 0;
+  }
+  .sidebar-list {
+    max-height: none;
+    overflow-y: visible;
+  }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --gutter: 16px;
+    --content-padding: 16px;
+  }
+  
+  .breadcrumbs { padding: 12px var(--gutter); }
+  .breadcrumbs ol { font-size: 0.8rem; }
+  .breadcrumb-current { max-width: 180px; }
+  .backdrop-container { aspect-ratio: 16/7; min-height: 200px; }
+  
+  .hero-section {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
+    margin-top: -40px;
+    text-align: center;
+  }
+  .poster-wrapper { width: 180px; margin: 0 auto; }
+  .title-meta-container { padding-top: 0; }
+  .show-title { font-size: 1.5rem; }
+  .action-buttons { justify-content: center; }
+  .btn { padding: 9px 16px; font-size: 0.85rem; }
+  
+  .metadata-row { justify-content: center; }
+  
+  .stats-container {
+    grid-template-columns: repeat(4, 1fr);
+    padding: 12px;
+  }
+  .stat-column { padding: 4px; }
+  .stat-value { font-size: 1rem; }
+  .stat-column:last-child { grid-column: span 1; }
+  
+  .details-grid {
+    grid-template-columns: 1fr;
+    gap: 10px 16px;
+  }
+  .detail-item {
+    justify-content: flex-start;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .detail-label {
+    min-width: auto;
+    flex: 0 0 100px;
+  }
+  .detail-value {
+    text-align: left;
+    flex: 1;
+    min-width: 0;
+  }
+  
+  .seasons-grid { grid-template-columns: 1fr; }
+  
+  .tabs-container {
+    flex-wrap: wrap;
+    gap: 2px;
+    overflow-x: auto;
+    justify-content: flex-start;
+    padding: 4px 8px;
+  }
+  .tab-btn { padding: 8px 12px; font-size: 0.8rem; }
+  .tab-indicator { display: none; }
+  .tab-btn.active { background: var(--btn-primary); color: #fff; }
+  
+  .dropdown-menu {
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100vw - 32px);
+    max-width: 300px;
+  }
+  
+  .cast-scroll-container { padding: 5px 0 15px 0; }
+  .cast-card { width: 120px; padding: 12px 8px; }
+  .cast-card-img { width: 70px; height: 70px; }
+  .cast-card-name { font-size: 0.85rem; }
+  .cast-card-role { font-size: 0.7rem; }
+  
+  .cast-item {
+    grid-template-columns: 48px 1fr 48px;
+    gap: 10px;
+    padding: 10px;
+  }
+  .cast-avatar, .actor-avatar { width: 48px; height: 48px; }
+  
+  .artwork-grid { grid-template-columns: 1fr; }
+  
+  .sidebar-combined {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  :root { --gutter: 12px; --content-padding: 12px; }
+  .breadcrumbs ol { gap: 2px; }
+  
+  .backdrop-container { aspect-ratio: 16/4; }
+  .poster-wrapper { width: 140px; }
+  .show-title { font-size: 1.3rem; }
+
+  /* Action Buttons Layout */
+  .action-buttons {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+  }
+  .action-buttons > .btn-primary {
+    flex: 1 1 calc(50% - 5px);
+    width: 100%;
+    justify-content: center;
+    border-radius: 50px;
+  }
+  .action-buttons > .dropdown-container {
+    flex: 1 1 calc(50% - 5px);
+    min-width: 0;
+  }
+  .action-buttons > .dropdown-container .btn {
+    width: 100%;
+    justify-content: center;
+    border-radius: 50px;
+  }
+  .action-buttons > .btn-icon-only {
+    flex: 0 0 100%;
+    width: 100%;
+    height: 44px;
+    border-radius: 50px;
+    justify-content: center;
+  }
+
+  .stats-container { grid-template-columns: repeat(3, 1fr); }
+  .stat-col-duration { display: none; }
+  .details-grid { grid-template-columns: 1fr; }
+  .metric-cards { grid-template-columns: 1fr; }
+  .alert-content {
+    max-width: calc(100vw - 40px);
+    flex-wrap: wrap;
+    text-align: center;
+    justify-content: center;
+  }
+  .alert-content p { margin: 0; }
+  .alert-close { margin: 0; }
+  .sidebar-section { padding: 12px; }
+  
+  .recs-grid { grid-template-columns: repeat(2, 1fr); }
+  
+  .pagination-nav {
+    gap: 4px;
+  }
+  .pagination-nav .btn-soft {
+    min-width: 40px;
+    height: 32px;
+    padding: 0;
+    font-size: 0.75rem;
+  }
+}
+
+/* Landscape mobile */
+@media (max-height: 500px) and (orientation: landscape) {
+  .backdrop-container { display: none; }
+  .hero-section { margin-top: 0; }
+  .poster-wrapper { width: 100px; }
+  .show-title { font-size: 1.2rem; -webkit-line-clamp: 1; }
+  .metadata-row { font-size: 0.8rem; }
+  .action-buttons { gap: 8px; }
+  .btn { padding: 8px 14px; font-size: 0.8rem; }
+}
+
+.btn-watch svg {
+  width: 21px;
+  height: 21px;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+/* Desktop Action Buttons */
+@media (min-width: 769px) {
+  .action-buttons {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    gap: 12px !important;
+    justify-content: flex-start !important;
+  }
+  .action-buttons > .btn-primary {
+    flex: 0 0 auto !important;
+    width: auto !important;
+    min-width: 120px !important;
+    padding: 10px 20px !important;
+    border-radius: 50px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    justify-content: center !important;
+  }
+  .action-buttons > .dropdown-container {
+    flex: 0 0 auto !important;
+  }
+  .action-buttons > .dropdown-container .btn {
+    width: auto !important;
+    min-width: 140px !important;
+    padding: 10px 20px !important;
+    border-radius: 50px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    justify-content: center !important;
+  }
+  .action-buttons > .btn-icon-only {
+    flex: 0 0 auto !important;
+    width: 40px !important;
+    height: 40px !important;
+    border-radius: 50% !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  .dropdown-menu {
+    left: 0 !important;
+    transform: none !important;
+    width: auto !important;
+    min-width: 220px !important;
+    max-width: none !important;
+  }
+}
+
+/* Remove focus outlines */
+.action-buttons .btn:focus,
+.action-buttons .btn:focus-visible,
+.action-buttons .btn-icon-only:focus,
+.action-buttons .btn-icon-only:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+    /* Watch More Seasons - Scrollable container with hidden scrollbar */
+.seasons-section {
+  margin-bottom: 32px;
+}
+
+.seasons-section h3 {
+  font-size: 1.2rem;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-subtle, rgba(255,255,255,0.08));
+}
+
+/* Scrollable wrapper - same max-height as cast/crew, no visible scrollbar */
+.seasons-scroll-container {
+  max-height: 500px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  border-radius: 12px;
+  /* Hide scrollbar completely (cross-browser) */
+  scrollbar-width: none;        /* Firefox */
+  -ms-overflow-style: none;     /* IE/Edge */
+}
+
+.seasons-scroll-container::-webkit-scrollbar {
+  display: none;                /* Chrome, Safari, Opera */
+}
+
+/* Inner grid (2‑column layout) */
+.seasons-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  padding: 2px; /* tiny breathing room */
+}
+
+/* Season card styling (original) */
+.season-card {
+  position: relative;
+  aspect-ratio: 16 / 7;
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  text-decoration: none;
+  color: inherit;
+}
+
+.season-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+}
+
+.season-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 30%, rgba(0,0,0,0.85) 100%);
+  z-index: 1;
+}
+
+.season-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: brightness(0.85);
+}
+
+.season-number {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #fff;
+  text-align: center;
+  padding: 6px 20px;
+  background: rgba(43, 108, 176, 0.95);
+  border-radius: 20px;
+  backdrop-filter: blur(4px);
+  max-width: 90%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.season-info-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 8px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  z-index: 2;
+}
+
+.season-relation-tag {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: rgba(236, 201, 75, 0.2);
+  border: 1px solid rgba(236, 201, 75, 0.5);
+  color: var(--accent-gold, #ecc94b);
+  text-transform: uppercase;
+}
+
+.season-img-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-surface, #1a3a5c);
+  z-index: 0;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .seasons-scroll-container {
+    max-height: 420px;
+  }
+}
+
+@media (max-width: 480px) {
+  .seasons-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+  </style>
+  <script>
+    // Runs before any HTML renders — disables browser scroll-restoration
+    if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+  </script>
+</head>
+<body>
+  <!-- Header/Footer injected by shared.js -->
+  
+  <main class="info-page">
+    <!-- Breadcrumb Navigation -->
+    <nav class="breadcrumbs" aria-label="Breadcrumb">
+      <ol itemscope itemtype="https://schema.org/BreadcrumbList">
+        <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+          <a href="/" itemprop="item">
+            <i class="fa-solid fa-house"></i>
+            <span itemprop="name">Home</span>
+          </a>
+          <i class="fa-solid fa-chevron-right breadcrumbs-separator"></i>
+        </li>
+        <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem" id="breadcrumbType">
+          <a href="#" itemprop="item" id="typeLink">
+            <i class="fa-solid fa-layer-group"></i>
+            <span itemprop="name" id="typeName">Type</span>
+          </a>
+          <i class="fa-solid fa-chevron-right breadcrumbs-separator"></i>
+        </li>
+        <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem" class="current">
+          <span itemprop="name" id="breadcrumbTitle" class="breadcrumb-current">Loading...</span>
+        </li>
+      </ol>
+    </nav>
+
+    <!-- Backdrop Image -->
+    <div class="backdrop-container">
+      <img id="backdropImg" src="" alt="Show backdrop" class="backdrop-img" loading="lazy">
+      <div class="backdrop-overlay"></div>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="info-grid">
+      <!-- Left: Main Content (68%) -->
+      <div class="main-content">
+        
+        <!-- Poster & Title Section -->
+        <div class="hero-section">
+          <div class="poster-wrapper">
+            <img id="posterImg" src="" alt="Show poster" class="poster-img" loading="lazy">
+            <div class="language-badges" id="languageBadges"></div>
+            <div class="episode-badge" id="episodeBadge"></div>
+          </div>
+          
+          <div class="title-meta-container">
+            <h1 id="showTitle" class="show-title">Loading show title...</h1>
+            <div class="metadata-row" id="metadataRow"></div>
+            
+            <!-- Action Buttons -->
+            <div class="action-buttons">
+              <a href="#" id="watchNowBtn" class="btn btn-primary btn-watch">
+                <svg class="btn-icon" viewBox="0 0 24 24" fill="currentColor" width="21px" height="21px">
+                  <path d="M8 5v14l11-7z"/>
+                </svg>
+                Watch Now
+              </a>
+              
+              <div class="dropdown-container">
+                <button id="addToListBtn" class="btn btn-secondary btn-dropdown" aria-haspopup="menu" aria-expanded="false" aria-controls="bookmarkDropdown">
+                  <i class="fa-regular fa-bookmark"></i>
+                  <span id="dropdownText">Add to List</span>
+                  <i class="fa-solid fa-chevron-down dropdown-arrow"></i>
+                </button>
+                <div class="dropdown-menu" id="bookmarkDropdown" role="menu" aria-label="Bookmark status options">
+                  <div class="dropdown-item" data-status="planning" role="menuitem">
+                    <svg class="status-icon" width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M16.7502 3.56V2C16.7502 1.59 16.4102 1.25 16.0002 1.25C15.5902 1.25 15.2502 1.59 15.2502 2V3.5H8.75023V2C8.75023 1.59 8.41023 1.25 8.00023 1.25C7.59023 1.25 7.25023 1.59 7.25023 2V3.56C4.55023 3.81 3.24023 5.42 3.04023 7.81C3.02023 8.1 3.26023 8.34 3.54023 8.34H20.4602C20.7502 8.34 20.9902 8.09 20.9602 7.81C20.7602 5.42 19.4502 3.81 16.7502 3.56Z" fill="currentColor"/><path opacity="0.4" d="M20 9.84009C20.55 9.84009 21 10.2901 21 10.8401V17.0001C21 20.0001 19.5 22.0001 16 22.0001H8C4.5 22.0001 3 20.0001 3 17.0001V10.8401C3 10.2901 3.45 9.84009 4 9.84009H20Z" fill="currentColor"/></svg>
+                    Planning to Watch
+                  </div>
+                  <div class="dropdown-item" data-status="watching" role="menuitem">
+                    <svg class="status-icon" width="14" height="14" viewBox="0 -0.5 17 17" fill="currentColor"><path d="M0,14 L15,14 L14.917,0 L0,0 L0,14 Z M13,3 L13,11 L2,11 L2,3 L13,3 Z M6.003,8.865 L6,5 L9.949,7.015 L6.003,8.865 Z"/></svg>
+                    Watching
+                  </div>
+                  <div class="dropdown-item" data-status="completed" role="menuitem">
+                    <svg class="status-icon" width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    Completed
+                  </div>
+                  <div class="dropdown-item" data-status="rewatching" role="menuitem">
+                    <svg class="status-icon" width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M4.51555 7C3.55827 8.4301 3 10.1499 3 12C3 16.9706 7.02944 21 12 21C16.9706 21 21 16.9706 21 12C21 7.02944 16.9706 3 12 3V6M12 12L8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                    Re-watching
+                  </div>
+                  <div class="dropdown-item" data-status="dropped" role="menuitem">
+                    <svg class="status-icon" width="14" height="14" viewBox="0 0 22 22" fill="currentColor"><path d="M10 7.5v6l3-2.996z"/><path d="M2 4v13h2.375l1.375-2H5V6h6.938l1.374-2H2z"/></svg>
+                    Dropped
+                  </div>
+                  <div class="dropdown-item" data-status="favourite" role="menuitem">
+                    <svg class="status-icon" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                    My Favourite
+                  </div>
+                  <div class="dropdown-item" data-status="remove" role="menuitem">
+                    <svg class="status-icon" width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2"/></svg>
+                    Remove
+                  </div>
+                </div>
+              </div>
+              
+              <button id="shareBtn" class="btn-icon-only" title="Share" aria-label="Share this show">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M13.803 5.33333C13.803 3.49238 15.3022 2 17.1515 2C19.0008 2 20.5 3.49238 20.5 5.33333C20.5 7.17428 19.0008 8.66667 17.1515 8.66667C16.2177 8.66667 15.3738 8.28596 14.7671 7.67347L10.1317 10.8295C10.1745 11.0425 10.197 11.2625 10.197 11.4872C10.197 11.9322 10.109 12.3576 9.94959 12.7464L15.0323 16.0858C15.6092 15.6161 16.3473 15.3333 17.1515 15.3333C19.0008 15.3333 20.5 16.8257 20.5 18.6667C20.5 20.5076 19.0008 22 17.1515 22C15.3022 22 13.803 20.5076 13.803 18.6667C13.803 18.1845 13.9062 17.7255 14.0917 17.3111L9.05007 13.9987C8.46196 14.5098 7.6916 14.8205 6.84848 14.8205C4.99917 14.8205 3.5 13.3281 3.5 11.4872C3.5 9.64623 4.99917 8.15385 6.84848 8.15385C7.9119 8.15385 8.85853 8.64725 9.47145 9.41518L13.9639 6.35642C13.8594 6.03359 13.803 5.6896 13.803 5.33333Z" fill="currentColor"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Stats Container -->
+        <div class="stats-container">
+          <div class="stat-column">
+            <span class="stat-label" id="platformLabel">MAL</span>
+            <div class="stat-value">
+              <span class="star-icon" id="platformStar">★</span>
+              <span id="ratingValue">—</span>
+            </div>
+          </div>
+          <div class="stat-column">
+            <span class="stat-label">Format</span>
+            <span class="stat-value" id="formatValue">—</span>
+          </div>
+          <div class="stat-column stat-col-duration">
+            <span class="stat-label">Duration</span>
+            <span class="stat-value" id="durationValue">—</span>
+          </div>
+          <div class="stat-column">
+            <span class="stat-label">Rating</span>
+            <span class="stat-value stat-value-rating" id="contentRating">—</span>
+          </div>
+        </div>
+
+        <!-- Synopsis/Overview Expandable -->
+        <div class="synopsis-container">
+          <div class="synopsis-header">
+            <h3 id="synopsisTitle">Synopsis</h3>
+            <button class="expand-btn" id="expandSynopsis">
+              <span id="expandText">Expand</span>
+              <svg class="expand-icon" width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2"/></svg>
+            </button>
+          </div>
+          <div class="synopsis-content" id="synopsisContent">
+            <p id="synopsisText">Loading synopsis...</p>
+          </div>
+        </div>
+
+        <!-- Show Details Section -->
+        <section class="details-section">
+          <h3>Show Details</h3>
+          <div class="details-grid" id="detailsGrid">
+            <!-- Dynamically populated -->
+          </div>
+        </section>
+
+        <!-- Watch More Seasons -->
+         <section class="seasons-section" id="seasonsSection" style="display:none;">
+          <h3>Watch More Seasons</h3>
+          <div class="seasons-scroll-container">
+            <div class="seasons-grid" id="seasonsGrid">
+              <!-- dynamic seasons injected here -->
+            </div>
+          </div>
+        </section
+
+        <!-- Tab Navigation — desktop: radio/glider sliding tabs; mobile: scroll buttons -->
+        <section class="tabs-section">
+          <!-- Desktop sliding tabs (radio+glider) -->
+          <div class="tabs-radio-wrap" id="tabsRadioWrap">
+            <div class="tabs-radio">
+              <input type="radio" id="tab-r-cast" name="info-tabs">
+              <label class="tab-radio-label" for="tab-r-cast" data-tab="cast">Cast/Crew</label>
+              <input type="radio" id="tab-r-artwork" name="info-tabs">
+              <label class="tab-radio-label" for="tab-r-artwork" data-tab="artwork">Artwork</label>
+              <input type="radio" id="tab-r-trailer" name="info-tabs">
+              <label class="tab-radio-label" for="tab-r-trailer" data-tab="trailer">Trailer</label>
+              <input type="radio" id="tab-r-themes" name="info-tabs">
+              <label class="tab-radio-label" for="tab-r-themes" data-tab="themes">Themes</label>
+              <input type="radio" id="tab-r-statistics" name="info-tabs">
+              <label class="tab-radio-label" for="tab-r-statistics" data-tab="statistics">Statistics</label>
+              <span class="tab-glider"></span>
+            </div>
+          </div>
+
+          <!-- Mobile pill tabs (scroll buttons, unchanged from before) -->
+          <div class="tabs-container tabs-mobile-only" id="tabsMobileWrap">
+            <button class="tab-btn active" data-tab="cast">Cast/Crew</button>
+            <button class="tab-btn" data-tab="artwork">Artwork</button>
+            <button class="tab-btn" data-tab="trailer">Trailer</button>
+            <button class="tab-btn" data-tab="themes">Themes</button>
+            <button class="tab-btn" data-tab="statistics">Statistics</button>
+            <div class="tab-indicator" id="tabIndicator"></div>
+          </div>
+          
+          <!-- Tab Contents -->
+          <div class="tab-content active" id="castTab">
+            <div class="cast-list" id="castList"></div>
+          </div>
+          
+          <div class="tab-content" id="artworkTab">
+            <div class="artwork-grid" id="artworkGrid"></div>
+          </div>
+          
+          <div class="tab-content" id="trailerTab">
+            <div class="video-container" id="trailerContainer"></div>
+          </div>
+          
+          <div class="tab-content" id="themesTab">
+            <div class="themes-container" id="themesContainer"></div>
+          </div>
+          
+          <div class="tab-content" id="statisticsTab">
+            <div class="stats-module">
+              <h4>Score Distribution</h4>
+              <div class="histogram" id="scoreHistogram"></div>
+            </div>
+            <div class="stats-module">
+              <h4>Member Status</h4>
+              <div class="segmented-bar" id="statusBar"></div>
+            </div>
+            <div class="stats-module">
+              <h4>Ranks & Trends</h4>
+              <div class="metric-cards" id="metricCards"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Water Temple (replaces More Like This, only on anime pages) -->
+        <section class="recommendations-section" id="waterTempleSection" style="display:none;">
+          <h3><i class="fa-sharp-duotone fa-solid fa-torii-gate" style="--fa-primary-color: rgb(132, 175, 208); --fa-secondary-color: rgb(132, 175, 208);"></i> Water Temple</h3>
+          <div class="recs-grid" id="waterTempleGrid">
+            <div class="loading-text">Loading recommendations...</div>
+          </div>
+        </section>
+
+        <!-- Recommend for You (TMDB movie/tv only) -->
+        <section class="recommendations-section" id="recommendForYouSection" style="display:none;">
+          <h3><i class="fa-solid fa-wand-magic-sparkles" style="color:#a78bfa;"></i> Recommend for You</h3>
+          <div class="recs-grid" id="recommendForYouGrid">
+            <div class="loading-text">Loading recommendations...</div>
+          </div>
+        </section>
+
+        <!-- Sunken Treasures -->
+        <section class="recommendations-section">
+          <h3>Sunken Treasures</h3>
+          <div class="recs-grid" id="sunkenTreasuresGrid">
+            <div class="loading-text" id="jikanRecLoading">Loading recommendations...</div>
+          </div>
+          <!-- Pagination will be inserted here dynamically -->
+          <div id="sunkenPagination" class="pagination-nav"></div>
+        </section>
+
+      </div>
+
+      <!-- Right Sidebar (32%) - MATCHED TO INDEX.HTML -->
+      <!-- Right Sidebar (32%) - COMBINED CONTAINER -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-combined">
+    <div class="sidebar-section">
+      <h4><i class="fa-solid fa-gem"></i> Hidden Gem</h4>
+      <div class="sidebar-list" id="hiddenGemList"></div>
+    </div>
+    <div class="sidebar-section">
+      <h4><i class="fa-solid fa-star"></i> Top Ranking</h4>
+      <div class="sidebar-list" id="topRankingList"></div>
+    </div>
+    <div class="sidebar-section">
+      <h4><i class="fa-solid fa-heart"></i> Most Favourite</h4>
+      <div class="sidebar-list" id="mostFavouriteList"></div>
+    </div>
+  </div>
+</aside>
+    </div>
+  </main>
+
+  <!-- Login Alert Popup -->
+  <div class="alert-popup" id="loginAlert">
+    <div class="alert-content">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path opacity="0.1" d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" fill="currentColor"/><path d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" stroke-width="2"/><path d="M12 8L12 13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M12 16V15.9888" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <p>Please <strong>sign in</strong> to use the bookmark feature.</p>
+      <button class="alert-close" id="alertClose">&times;</button>
+    </div>
+  </div>
+
+  <!-- Artwork Lightbox -->
+  <div class="lightbox" id="artworkLightbox">
+    <button class="lightbox-close" id="lightboxClose">&times;</button>
+    <img id="lightboxImg" src="" alt="Artwork">
+  </div>
+
+  <!-- Page-specific JS -->
+  <script>
+    (function() {
+      'use strict';
+
+      const CONFIG = {
+        TMDB_WORKER: 'https://aniocen.bionmovies47.workers.dev',
+        ALLANIME_API: 'https://allanime-api.shashankbhake.codes',
+        ANIMETHEMES_API: 'https://api.animethemes.moe/graphql',
+        ANIMETHEMES_VIDEO: 'https://v.animethemes.moe',
+        DEBOUNCE_MS: 300,
+        BOOKMARK_AUTO_CLOSE_MS: 5000,
+        ALERT_AUTO_CLOSE_MS: 3000
+      };
+
+      const GENRE_COLOR_MAP = {
+        'a': 'data-start="a"', 'b': 'data-start="b"', 'c': 'data-start="c"',
+        'd': 'data-start="d"', 'f': 'data-start="f"', 'h': 'data-start="h"',
+        'm': 'data-start="m"', 'r': 'data-start="r"', 's': 'data-start="s"'
+      };
+
+      // Jikan Genre IDs for Sunken Treasures (18 popular genres)
+      const JIKAN_GENRE_POOL = [1, 2, 4, 8, 10, 14, 22, 24, 37, 41, 46, 50, 62, 76, 81, 91, 104, 117];
+      
+      // Generate 30 unique 2-genre combinations for Sunken Treasures
+      function generateGenreCombos(pool, count = 30) {
+        const combos = [];
+        for (let i = 0; i < pool.length && combos.length < count; i++) {
+          for (let j = i + 1; j < pool.length && combos.length < count; j++) {
+            combos.push([pool[i], pool[j]]);
+          }
+        }
+        return combos.slice(0, count);
+      }
+      
+      const SUNKEN_GENRE_COMBOS = generateGenreCombos(JIKAN_GENRE_POOL, 30);
+
+      let currentState = {
+        source: null, id: null, type: null, title: '',
+        data: null, currentUser: null,
+        selectedStatuses: [], dropdownTimer: null,
+        bookmarkRowId: null, allAnimeData: null
+      };
+
+      document.addEventListener('DOMContentLoaded', async () => {
+        // Remove hash so browser doesn't anchor-scroll to any element
+        if (window.location.hash) {
+          history.replaceState(null, '', window.location.pathname + window.location.search);
+        }
+        // Single scroll-to-top pin — no overflow lock, no setTimeout
+        window.scrollTo(0, 0);
+
+        // Parse URL first — currentState.id must exist before auth/bookmark calls
+        parseUrl();
+        initTabSwitching();
+
+        // Auth
+        if (typeof window.supabaseClient !== 'undefined') await initAuth();
+
+        if (currentState.id && currentState.source) {
+          await fetchShowData();
+          initUI();
+          await fetchUserBookmarks();
+
+          if (currentState.source === 'jikan') {
+            await Promise.all([
+              loadSidebarContent(),
+              loadRecommendations(),
+              fetchAllAnimeData(currentState.data?.title)
+            ]);
+          } else {
+            await Promise.all([
+              loadSidebarContent(),
+              loadRecommendations()
+            ]);
+          }
+        } else {
+          showError('Invalid show URL format');
+        }
+        // Page fully loaded — user can now scroll freely
+      });
+
+      function parseUrl() {
+        const path = window.location.pathname;
+        const match = path.match(/\/info\/(anime|tv|movie)\/(jikan|tmdb-(?:tv|movie))-(\d+)(?:\/[^/]+)?/);
+        
+        if (!match) {
+          console.error('URL does not match expected format:', path);
+          showError('Invalid show URL format');
+          return;
+        }
+        
+        const [, pageType, sourcePrefix, idStr] = match;
+        const id = parseInt(idStr, 10);
+        
+        currentState.type = pageType;
+        currentState.id = id;
+        
+        if (sourcePrefix === 'jikan') {
+          currentState.source = 'jikan';
+          currentState.type = 'anime';
+        } else if (sourcePrefix === 'tmdb-tv') {
+          currentState.source = 'tmdb';
+          currentState.type = 'tv';
+        } else if (sourcePrefix === 'tmdb-movie') {
+          currentState.source = 'tmdb';
+          currentState.type = 'movie';
+        }
+      }
+
+      async function initAuth() {
+        // Listen for login/logout events that happen while the page is open
+        window.supabaseClient.auth.onAuthStateChange(async (event, session) => {
+          const prevUser = currentState.currentUser;
+          currentState.currentUser = session?.user || null;
+          // Only re-fetch bookmarks if the user changed (login/logout mid-session)
+          // and currentState.id is already set (parseUrl has run)
+          if (currentState.id && currentState.currentUser?.id !== prevUser?.id) {
+            await fetchUserBookmarks();
+          } else if (!currentState.currentUser) {
+            // Logged out — reset bookmark UI
+            currentState.selectedStatuses = [];
+            currentState.bookmarkRowId = null;
+            updateBookmarkUI();
+          }
+        });
+        // Get the current session synchronously on page load
+        const { data: { session } } = await window.supabaseClient.auth.getSession();
+        currentState.currentUser = session?.user || null;
+        // Do NOT call fetchUserBookmarks here — initUI hasn't run yet (DOM not ready)
+      }
+
+      async function fetchShowData() {
+        try {
+          if (currentState.source === 'jikan') await fetchJikanData();
+          else if (currentState.source === 'tmdb') await fetchTMDBData();
+          
+          document.title = `${currentState.title} - Aniocean`;
+          renderHero(); 
+          renderStats(); 
+          renderSynopsis(); 
+          renderDetails();
+          renderSeasons(); // async — runs independently, no await needed
+          renderTabs();
+          
+        } catch (error) {
+          console.error('Failed to fetch show data:', error);
+          showError('Could not load show information. Please try again.');
+        }
+      }
+
+      async function fetchJikanData() {
+        const res = await fetch(`https://api.jikan.moe/v4/anime/${currentState.id}/full`);
+        if (!res.ok) throw new Error(`Jikan API error: ${res.status}`);
+        const { data } = await res.json();
+        currentState.data = data;
+        currentState.title = data.title_english || data.title || 'Unknown';
+      }
+
+      async function fetchTMDBData() {
+        const endpoint = currentState.type;
+        const workerUrl = `${CONFIG.TMDB_WORKER}/3/${endpoint}/${currentState.id}?append_to_response=credits,videos,external_ids,images,content_ratings,release_dates&include_image_language=en,null`;
+        
+        try {
+          const res = await fetch(workerUrl);
+          if (res.status === 500) throw new Error('TMDB Worker proxy error');
+          if (!res.ok) throw new Error(`TMDB API error: ${res.status}`);
+          
+          const data = await res.json();
+          if (!data.title && !data.name) throw new Error('Invalid TMDB response');
+          
+          currentState.data = data;
+          currentState.title = data.title || data.name || 'Unknown';
+        } catch (error) {
+          console.error('TMDB fetch failed:', error);
+          currentState.data = { title: currentState.title || 'Unknown', overview: '' };
+          throw error;
+        }
+      }
+
+      async function fetchAllAnimeData(query) {
+        if (currentState.source !== 'jikan' || !query) return;
+        try {
+          // Use the English title or romaji title as search query
+          const searchTitle = currentState.data?.title_english || query;
+          const encoded = encodeURIComponent(searchTitle);
+          const res = await fetch(`${CONFIG.ALLANIME_API}/search?query=${encoded}`);
+          if (!res.ok) return;
+          const results = await res.json();
+          if (!Array.isArray(results)) return;
+          
+          const malId = currentState.id;
+          // Priority 1: exact MAL id match
+          let match = results.find(r => r.id === malId);
+          // Priority 2: title similarity
+          if (!match) {
+            const qLower = (searchTitle || '').toLowerCase();
+            match = results.find(r => r.title?.toLowerCase() === qLower)
+              || results.find(r => r.title?.toLowerCase().includes(qLower) || qLower.includes(r.title?.toLowerCase()));
+          }
+          
+          if (match) {
+            currentState.allAnimeData = match;
+            renderLanguageBadges(match.episodes_sub, match.episodes_dub);
+            // Update episode display in details grid if already rendered
+            updateEpisodeDetail(match.episodes_sub, match.episodes_dub);
+          }
+        } catch (e) { console.warn('AllAnime API fetch failed:', e); }
+      }
+
+      function updateEpisodeDetail(subCount, dubCount) {
+        const epEl = document.getElementById('episodeDetailValue');
+        if (!epEl) return;
+        const data = currentState.data;
+        const total = data.episodes || '?';
+        let html = `<span>${total}</span>`;
+        if (subCount > 0 || dubCount > 0) {
+          html = `<span>${total}</span>`;
+          if (subCount > 0) html += ` <span style="color:var(--text-muted);font-size:0.8em;">|</span> <i class="fa-solid fa-closed-captioning" style="color:#7ec8f7;" title="Subtitled"></i> ${subCount}`;
+          if (dubCount > 0) html += ` <span style="color:var(--text-muted);font-size:0.8em;">|</span> <i class="fa-solid fa-microphone" style="color:#7ec8f7;" title="Dubbed"></i> ${dubCount}`;
+        }
+        epEl.innerHTML = html;
+      }
+
+      function renderHero() {
+        const data = currentState.data;
+        const isAnime = currentState.source === 'jikan';
+        
+        const typeNameMap = { 'anime': 'Anime', 'tv': 'TV Show', 'movie': 'Movie' };
+        document.getElementById('typeName').textContent = typeNameMap[currentState.type] || currentState.type;
+        document.getElementById('typeLink').href = `/type/${currentState.type}`;
+        document.getElementById('breadcrumbTitle').textContent = currentState.title;
+        
+        const backdrop = isAnime 
+          ? data.images?.jpg?.large_image_url 
+          : data.backdrop_path 
+            ? `https://image.tmdb.org/t/p/original${data.backdrop_path}` 
+            : '';
+        document.getElementById('backdropImg').src = backdrop || 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 600"><rect fill="%23131f2e" width="1600" height="600"/></svg>';
+        
+        const poster = isAnime 
+          ? data.images?.jpg?.image_url 
+          : data.poster_path 
+            ? `https://image.tmdb.org/t/p/w500${data.poster_path}` 
+            : '';
+        document.getElementById('posterImg').src = poster || 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 300"><rect fill="%231e2633" width="200" height="300"/></svg>';
+        
+        document.getElementById('showTitle').textContent = currentState.title;
+        
+        const metaParts = [];
+        const score = isAnime ? data.score : data.vote_average;
+        if (score) metaParts.push(`★ ${score.toFixed(1)}`);
+        metaParts.push(data.type || typeNameMap[currentState.type] || currentState.type);
+        const studio = getFirstStudio(data, isAnime);
+        if (studio) metaParts.push(studio);
+        const duration = formatDuration(data.duration, isAnime, currentState.type);
+        if (duration) metaParts.push(duration);
+        
+        document.getElementById('metadataRow').innerHTML = metaParts.map(m => `<span>${m}</span>`).join('');
+        
+        const slug = slugify(currentState.title);
+        const watchPath = `/watch/${currentState.type}/${currentState.source}-${currentState.id}/${slug}`;
+        document.getElementById('watchNowBtn').href = watchPath;
+      }
+
+      function slugify(title) {
+        if (!title) return '';
+        return title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+      }
+
+      function formatDuration(duration, isAnime, type) {
+        if (!duration || duration === 'Unknown') return null;
+        
+        if (type === 'movie') {
+          const match = duration.match(/(\d+)\s*min/);
+          if (match) {
+            const mins = parseInt(match[1]);
+            const hours = Math.floor(mins / 60);
+            const remaining = mins % 60;
+            return hours > 0 ? `${hours}h ${remaining}min` : `${remaining}min`;
+          }
+          return duration;
+        } else {
+          return duration.replace(/ per ep.*/, '').replace(' min', ' min').trim();
+        }
+      }
+
+      function getFirstStudio(data, isAnime) {
+        if (isAnime) {
+          return data.studios?.[0]?.name || null;
+        } else {
+          return data.production_companies?.[0]?.name || data.networks?.[0]?.name || null;
+        }
+      }
+
+      function renderLanguageBadges(subCount, dubCount) {
+        const container = document.getElementById('languageBadges');
+        container.innerHTML = '';
+        if (subCount > 0) container.innerHTML += `<span class="lang-badge sub"><i class="fa-solid fa-closed-captioning"></i> Sub ${subCount}ep</span>`;
+        if (dubCount > 0) container.innerHTML += `<span class="lang-badge dub"><i class="fa-solid fa-microphone"></i> Dub ${dubCount}ep</span>`;
+      }
+
+      function renderStats() {
+        const data = currentState.data;
+        const isAnime = currentState.source === 'jikan';
+        const platform = isAnime ? 'MAL' : 'TMDB';
+        const rating = isAnime ? data.score : data.vote_average;
+        const starColor = isAnime ? '#2e51a2' : '#01b4e4';
+        
+        document.getElementById('platformLabel').textContent = platform;
+        document.getElementById('platformStar').style.color = starColor;
+        document.getElementById('ratingValue').textContent = rating ? rating.toFixed(1) : 'N/A';
+        document.getElementById('formatValue').textContent = data.type || currentState.type;
+        
+        // Duration — for TMDB use runtime (movie) or episode_run_time (TV)
+        let duration = null;
+        if (isAnime) {
+          duration = formatDuration(data.duration, true, currentState.type);
+        } else if (currentState.type === 'movie') {
+          const mins = data.runtime;
+          if (mins) {
+            const h = Math.floor(mins / 60);
+            const m = mins % 60;
+            duration = h > 0 ? `${h}h ${m}min` : `${m}min`;
+          }
+ 
+} else if (currentState.type === 'tv') {
+  const runTimes = data.episode_run_time;
+  if (runTimes?.length) {
+    duration = `${runTimes[0]} min`;
+  } else if (data.last_episode_to_air?.runtime) {
+    duration = `${data.last_episode_to_air.runtime} min`;
+  } else if (data.next_episode_to_air?.runtime) {
+    duration = `${data.next_episode_to_air.runtime} min`;
+  }
+}
+
+        document.getElementById('durationValue').textContent = duration || '—';
+        
+        // Content rating
+        let contentRating = '—';
+        if (isAnime) {
+          contentRating = data.rating ? data.rating.split(' - ')[0] : '—';
+        } else if (currentState.type === 'movie') {
+          const usRelease = data.release_dates?.results?.find(r => r.iso_3166_1 === 'US');
+          contentRating = usRelease?.release_dates?.[0]?.certification || '—';
+        } else if (currentState.type === 'tv') {
+          const usRating = data.content_ratings?.results?.find(r => r.iso_3166_1 === 'US');
+          contentRating = usRating?.rating || '—';
+        }
+        document.getElementById('contentRating').textContent = contentRating;
+      }
+
+      function renderSynopsis() {
+        const data = currentState.data;
+        const isAnime = currentState.source === 'jikan';
+        document.getElementById('synopsisTitle').textContent = isAnime ? 'Synopsis' : 'Overview';
+        const text = isAnime ? data.synopsis : data.overview;
+        document.getElementById('synopsisText').textContent = text || 'No description available.';
+      }
+
+      function renderDetails() {
+        const data = currentState.data;
+        const isAnime = currentState.source === 'jikan';
+        const grid = document.getElementById('detailsGrid');
+        const details = [];
+        
+        if (isAnime) {
+          if (data.title_english) details.push({ label: 'Title', value: data.title_english });
+          // Romanji = data.title (the romaji/default title from Jikan, distinct from english)
+          const romanji = data.title;
+          if (romanji && romanji !== data.title_english) details.push({ label: 'Romanji', value: romanji });
+          if (data.title_japanese) details.push({ label: 'Japanese', value: data.title_japanese });
+          if (data.title_synonyms?.length) details.push({ label: 'Synonyms', value: data.title_synonyms.join(', ') });
+        } else {
+          if (data.title || data.name) details.push({ label: 'Title', value: data.title || data.name });
+          if (data.original_title || data.original_name) details.push({ label: 'Original', value: data.original_title || data.original_name });
+        }
+        
+        const country = isAnime ? 'Japan' : data.origin_country?.[0] || data.production_countries?.[0]?.iso_3166_1 || 'Unknown';
+        details.push({ label: 'Country', value: country });
+        
+        if (isAnime && data.genres?.length) {
+          const allGenres = [
+            ...(data.genres?.map(g => g.name) || []),
+            ...(data.themes?.map(g => g.name) || []),
+            ...(data.demographics?.map(g => g.name) || [])
+          ];
+          const uniqueGenres = [...new Set(allGenres)];
+          const genreHtml = uniqueGenres.map(name => {
+            const firstChar = name.charAt(0).toLowerCase();
+            const colorAttr = GENRE_COLOR_MAP[firstChar] || '';
+            return `<a href="/genre/${name.toLowerCase().replace(/\s+/g, '-')}" class="genre-tag" ${colorAttr}>${name}</a>`;
+          }).join('');
+          details.push({ label: 'Genres', value: `<div class="genre-tags">${genreHtml}</div>`, isHtml: true });
+        } else if (!isAnime && data.genres?.length) {
+          const genreHtml = data.genres.map(g => {
+            const name = g.name;
+            const firstChar = name.charAt(0).toLowerCase();
+            const colorAttr = GENRE_COLOR_MAP[firstChar] || '';
+            return `<a href="/genre/${name.toLowerCase().replace(/\s+/g, '-')}" class="genre-tag" ${colorAttr}>${name}</a>`;
+          }).join('');
+          details.push({ label: 'Genres', value: `<div class="genre-tags">${genreHtml}</div>`, isHtml: true });
+        }
+        
+        const status = isAnime ? data.status : (data.status === 'Released' ? 'Released' : data.status);
+        details.push({ label: 'Status', value: status });
+        
+        if (isAnime && data.aired?.from) {
+          const from = new Date(data.aired.from).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+          const to = data.aired.to ? new Date(data.aired.to).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Ongoing';
+          details.push({ label: 'Aired', value: `${from} to ${to}` });
+        } else if (!isAnime) {
+          const date = data.release_date || data.first_air_date;
+          if (date) {
+            const formatted = new Date(date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+            details.push({ label: data.release_date ? 'Released' : 'First Air Date', value: formatted });
+          }
+        }
+        
+        if (isAnime && data.season && data.year) {
+          const season = data.season.charAt(0).toUpperCase() + data.season.slice(1);
+          const seasonSlug = slugify(season);
+          details.push({ 
+            label: 'Premiered', 
+            value: `<a href="/season/${seasonSlug}+${data.year}">${season} ${data.year}</a>`, 
+            isHtml: true 
+          });
+        }
+        
+        if ((isAnime || currentState.type === 'tv') && data.broadcast?.string) {
+          details.push({ label: 'Broadcast', value: data.broadcast.string });
+        }
+        
+        if (currentState.type !== 'movie') {
+          const episodes = isAnime ? data.episodes : data.number_of_episodes || data.number_of_seasons;
+          if (episodes) {
+            // Build episode HTML with sub/dub counts if available
+            const allAnime = currentState.allAnimeData;
+            let episodeHtml = `<span>${episodes}</span>`;
+            if (isAnime && allAnime) {
+              const { episodes_sub, episodes_dub } = allAnime;
+              if (episodes_sub > 0 || episodes_dub > 0) {
+                episodeHtml = `<span>${episodes}</span>`;
+                if (episodes_sub > 0) episodeHtml += ` <span style="color:var(--text-muted);font-size:0.8em;">|</span> <i class="fa-solid fa-closed-captioning" style="color:#7ec8f7;" title="Subtitled"></i> ${episodes_sub}`;
+                if (episodes_dub > 0) episodeHtml += ` <span style="color:var(--text-muted);font-size:0.8em;">|</span> <i class="fa-solid fa-microphone" style="color:#7ec8f7;" title="Dubbed"></i> ${episodes_dub}`;
+              }
+            }
+            details.push({ 
+              label: 'Episodes', 
+              value: `<span id="episodeDetailValue" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;justify-content:flex-end;">${episodeHtml}</span>`, 
+              isHtml: true 
+            });
+          }
+        }
+        
+        if (isAnime && data.source) {
+          details.push({ label: 'Source', value: data.source });
+        }
+        
+        if (data.popularity !== undefined) {
+          details.push({ label: 'Popularity', value: formatNumber(data.popularity) });
+        }
+        if (data.rank !== undefined) {
+          details.push({ label: 'Rank', value: `#${data.rank}` });
+        }
+        
+        const studios = isAnime ? data.studios : data.production_companies || data.networks;
+        if (studios?.length) {
+          const studioLinks = studios.slice(0, 5).map(s => {
+            const studioSlug = slugify(s.name);
+            return `<a href="/studio/${studioSlug}">${s.name}</a>`;
+          }).join(', ');
+          details.push({ label: 'Studio' + (studios.length > 1 ? 's' : ''), value: studioLinks, isHtml: true });
+        }
+        
+        if (isAnime && data.producers?.length) {
+          const producers = data.producers.slice(0, 5).map(p => p.name).join(', ');
+          details.push({ label: 'Producer' + (data.producers.length > 1 ? 's' : ''), value: producers });
+        } else if (!isAnime && data.production_companies?.length > (data.studios?.length || 0)) {
+          const producers = data.production_companies.slice(5).map(p => p.name).join(', ');
+          if (producers) details.push({ label: 'Producers', value: producers });
+        }
+        
+        const extLinks = [];
+        if (isAnime && data.mal_id) {
+          extLinks.push(`<a href="https://myanimelist.net/anime/${data.mal_id}" target="_blank" class="ext-link-btn mal"><svg width="16" height="16" viewBox="-890.88 -890.88 2805.76 2805.76"><circle cx="512" cy="512" r="512" style="fill:#2e51a2"/><path d="M432.49 410.61V590.3l-44.86-.06V479l-43.31 51.29-42.43-52.44-.43 112.75H256V410.65h47l39.79 54.29 43-54.31zm184.06 44.14.53 135.15h-50.45l-.17-61.25h-59.73c1.49 10.65 4.48 27 8.9 38 3.31 8.13 6.36 16 12.44 24.06l-36.37 24c-7.45-13.57-13.27-28.52-18.73-44.42a198.31 198.31 0 0 1-10.82-46.49c-1.81-16-2.07-31.38 2.28-47.19a83.37 83.37 0 0 1 24.77-39.81c6.68-6.25 16-10.67 23.47-14.66s15.85-5.63 23.62-7.66a158 158 0 0 1 25.41-3.9c8.49-.73 23.62-1.41 51-.6l11.63 37.31h-58.78c-12.65.17-18.73 0-28.61 4.46a47.7 47.7 0 0 0-27.26 41l56.81.7.81-38.61h49.26zM701.72 410v141.35L768 552l-9.17 37.87H656.28V409.33z" style="fill:#fff"/></svg> MyAnimeList</a>`);
+        }
+        if (!isAnime && currentState.id) {
+          const tmdbType = currentState.type;
+          extLinks.push(`<a href="https://www.themoviedb.org/${tmdbType}/${currentState.id}" target="_blank" class="ext-link-btn tmdb"><i class="fa-brands fa-mdb"></i> TMDB</a>`);
+        }
+        if (extLinks.length) details.push({ label: 'External', value: `<div class="external-links">${extLinks.join('')}</div>`, isHtml: true });
+        
+        grid.innerHTML = details.map(d => `
+          <div class="detail-item">
+            <span class="detail-label">${d.label}:</span>
+            <span class="detail-value">${d.isHtml ? d.value : escapeHtml(d.value || '—')}</span>
+          </div>
+        `).join('');
+      }
+
+      async function renderSeasons() {
+        const section = document.getElementById('seasonsSection');
+        const data = currentState.data;
+        const isAnime = currentState.source === 'jikan';
+        
+        let seasons = [];
+        if (isAnime) {
+          const relationsArray = Array.isArray(data.relations) ? data.relations : [];
+          const relatedAnime = [];
+          for (const rel of relationsArray) {
+            const relType = (rel.relation || '').toLowerCase();
+            if (['prequel','sequel','side story','alternative version','alternative setting','spin-off'].includes(relType)) {
+              for (const entry of (rel.entry || [])) {
+                if (entry.type === 'anime') relatedAnime.push({ ...entry, relation: rel.relation });
+              }
+            }
+          }
+          seasons = relatedAnime;
+          if (!seasons.some(s => s.mal_id === currentState.id)) {
+            seasons.unshift({ mal_id: currentState.id, name: currentState.title, type: 'anime', relation: 'Current' });
+          }
+        } else if (currentState.type === 'tv') {
+          seasons = data.seasons?.filter(s => s.season_number > 0) || [];
+        }
+        
+        if (!seasons.length) { section.style.display = 'none'; return; }
+        
+        section.style.display = 'block';
+        const grid = document.getElementById('seasonsGrid');
+
+        // For anime: show placeholder cards immediately, then fill images async
+        if (isAnime) {
+          // Render cards with placeholder first
+          grid.innerHTML = seasons.map((season, idx) => {
+            const seasonTitle = season.name || currentState.title;
+            const slug = slugify(seasonTitle);
+            const seasonUrl = `/info/anime/jikan-${season.mal_id}/${slug}`;
+            const relationLabel = season.relation ? `<span class="season-relation-tag">${escapeHtml(season.relation)}</span>` : '';
+            const isCurrent = season.mal_id === currentState.id;
+            const currentImg = isCurrent
+              ? (data.images?.jpg?.large_image_url || data.images?.jpg?.image_url || '')
+              : '';
+            return `<a href="${seasonUrl}" class="season-card" data-season-idx="${idx}">
+              <img id="season-img-${idx}" src="${escapeHtml(currentImg)}" alt="${escapeHtml(seasonTitle)}" loading="lazy"
+                style="${currentImg ? '' : 'display:none;'}"
+                onerror="this.style.display='none'">
+              <div class="season-img-placeholder" id="season-placeholder-${idx}" style="${currentImg ? 'display:none;' : ''}">
+                <i class="fa-solid fa-film" style="font-size:2rem;opacity:0.3;"></i>
+              </div>
+              <div class="season-info-overlay">
+                ${relationLabel}
+                <span class="season-number">${escapeHtml(seasonTitle)}</span>
+              </div>
+            </a>`;
+          }).join('');
+
+          // Fetch images for non-current entries in background
+          // Use a shared in-memory cache to avoid re-fetching on re-renders
+          if (!window._jikanImgCache) window._jikanImgCache = {};
+
+          seasons.forEach(async (season, idx) => {
+            if (season.mal_id === currentState.id) return; // already have it from main data
+            try {
+              const cacheKey = `jikan_img_${season.mal_id}`;
+              let imgUrl = window._jikanImgCache[cacheKey] || sessionStorage.getItem(cacheKey);
+
+              if (!imgUrl) {
+                // Stagger requests: 1s between each to stay well under Jikan's 3 req/sec limit
+                await new Promise(r => setTimeout(r, idx * 1000));
+                const res = await fetch(`https://api.jikan.moe/v4/anime/${season.mal_id}`);
+                if (res.status === 429) {
+                  // Rate limited — wait 2s and retry once
+                  await new Promise(r => setTimeout(r, 2000));
+                  const retry = await fetch(`https://api.jikan.moe/v4/anime/${season.mal_id}`);
+                  if (!retry.ok) return;
+                  const { data: animeData } = await retry.json();
+                  imgUrl = animeData.images?.jpg?.large_image_url || animeData.images?.jpg?.image_url || '';
+                } else if (!res.ok) {
+                  return;
+                } else {
+                  const { data: animeData } = await res.json();
+                  imgUrl = animeData.images?.jpg?.large_image_url || animeData.images?.jpg?.image_url || '';
+                }
+                if (imgUrl) {
+                  window._jikanImgCache[cacheKey] = imgUrl;
+                  try { sessionStorage.setItem(cacheKey, imgUrl); } catch(e) {}
+                }
+              }
+
+              if (imgUrl) {
+                const imgEl = document.getElementById(`season-img-${idx}`);
+                const phEl = document.getElementById(`season-placeholder-${idx}`);
+                if (imgEl) { imgEl.src = imgUrl; imgEl.style.display = ''; }
+                if (phEl) phEl.style.display = 'none';
+              }
+            } catch (e) { console.warn(`Season image fetch failed for mal_id ${season.mal_id}:`, e); }
+          });
+
+        } else {
+          // TMDB seasons already have poster_path
+          grid.innerHTML = seasons.map(season => {
+            const seasonTitle = season.name || currentState.title;
+            const seasonNumber = season.season_number || 1;
+            const slug = slugify(seasonTitle);
+            const seasonUrl = `/info/tv/tmdb-tv-${currentState.id}/${slug}-season-${seasonNumber}`;
+            const backdrop = season.poster_path ? `https://image.tmdb.org/t/p/w500${season.poster_path}` : '';
+            return `<a href="${seasonUrl}" class="season-card">
+              ${backdrop
+                ? `<img src="${backdrop}" alt="${escapeHtml(seasonTitle)}" loading="lazy" onerror="this.style.display='none'">`
+                : `<div class="season-img-placeholder"><i class="fa-solid fa-film" style="font-size:2rem;opacity:0.3;"></i></div>`}
+              <div class="season-info-overlay">
+                <span class="season-number">Season ${seasonNumber}</span>
+              </div>
+            </a>`;
+          }).join('');
+        }
+      }
+
+      function renderTabs() {
+        loadCastData(); 
+        loadArtworkData(); 
+        loadTrailerData(); 
+        loadThemesData(); 
+        loadStatisticsData();
+      }
+
+      function initUI() {
+        const expandBtn = document.getElementById('expandSynopsis');
+        const content = document.getElementById('synopsisContent');
+        expandBtn.addEventListener('click', () => {
+          const isExpanded = content.classList.toggle('expanded');
+          expandBtn.classList.toggle('expanded', isExpanded);
+          document.getElementById('expandText').textContent = isExpanded ? 'Collapse' : 'Expand';
+        });
+        
+        const dropdownBtn = document.getElementById('addToListBtn');
+        const dropdown = document.getElementById('bookmarkDropdown');
+
+        function closeDropdown(showNotification) {
+          clearTimeout(currentState.dropdownTimer);
+          currentState.dropdownTimer = null;
+          dropdown.classList.remove('show');
+          dropdownBtn.classList.remove('open');
+          dropdownBtn.setAttribute('aria-expanded', 'false');
+          if (showNotification) {
+            showBookmarkToast(currentState.selectedStatuses);
+          }
+        }
+
+        function startAutoCloseTimer() {
+          clearTimeout(currentState.dropdownTimer);
+          // After selecting the 1st status, give 3s to pick a 2nd before auto-closing
+          currentState.dropdownTimer = setTimeout(() => {
+            closeDropdown(true);
+          }, 3000);
+        }
+
+        dropdownBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (!currentState.currentUser) { showLoginAlert(); return; }
+          const isOpen = !dropdown.classList.contains('show');
+          if (isOpen) {
+            dropdown.classList.add('show');
+            dropdownBtn.classList.add('open');
+            dropdownBtn.setAttribute('aria-expanded', 'true');
+            // If already has 1 status selected, start the timer right away
+            if (currentState.selectedStatuses.length === 1) startAutoCloseTimer();
+          } else {
+            closeDropdown(currentState.selectedStatuses.length > 0);
+          }
+        });
+
+        // Close on outside click
+        document.addEventListener('click', (e) => {
+          if (dropdown.classList.contains('show') && !e.target.closest('.dropdown-container')) {
+            closeDropdown(currentState.selectedStatuses.length > 0);
+          }
+        });
+
+        document.querySelectorAll('.dropdown-item').forEach(item => {
+          item.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const status = item.dataset.status;
+
+            if (status === 'remove') {
+              clearTimeout(currentState.dropdownTimer);
+              await removeBookmark();
+              dropdown.classList.remove('show');
+              dropdownBtn.classList.remove('open');
+              dropdownBtn.setAttribute('aria-expanded', 'false');
+              return;
+            }
+
+            const idx = currentState.selectedStatuses.indexOf(status);
+            if (idx > -1) {
+              // Deselect
+              currentState.selectedStatuses.splice(idx, 1);
+            } else if (currentState.selectedStatuses.length < 2) {
+              // Select
+              currentState.selectedStatuses.push(status);
+            } else {
+              // Already at max (2) — ignore
+              return;
+            }
+
+            updateBookmarkUI();
+            await saveBookmarks();
+
+            if (currentState.selectedStatuses.length >= 2) {
+              // Got both picks — close immediately with toast
+              closeDropdown(true);
+            } else if (currentState.selectedStatuses.length === 1) {
+              // 1 selected — start 3-second timer
+              startAutoCloseTimer();
+            } else {
+              // Deselected all — restart timer or keep open
+              clearTimeout(currentState.dropdownTimer);
+              currentState.dropdownTimer = null;
+            }
+          });
+        });
+        
+        document.getElementById('shareBtn').addEventListener('click', async () => {
+          if (navigator.share) { 
+            try { 
+              await navigator.share({ 
+                title: currentState.title, 
+                text: `Check out ${currentState.title} on Aniocean!`, 
+                url: window.location.href 
+              }); 
+            } catch (err) { 
+              if (err.name !== 'AbortError') console.warn('Share failed:', err); 
+            } 
+          } else { 
+            await navigator.clipboard.writeText(window.location.href); 
+            showToast('Link copied to clipboard!'); 
+          }
+        });
+        
+        const lightbox = document.getElementById('artworkLightbox');
+        document.getElementById('artworkGrid').addEventListener('click', (e) => { 
+          const img = e.target.closest('img'); 
+          if (img) { 
+            document.getElementById('lightboxImg').src = img.src; 
+            lightbox.classList.add('show'); 
+          } 
+        });
+        document.getElementById('lightboxClose').addEventListener('click', () => lightbox.classList.remove('show'));
+        lightbox.addEventListener('click', (e) => { if (e.target === lightbox) lightbox.classList.remove('show'); });
+      }
+
+      // Tab switching — handles both desktop radio/glider and mobile pill buttons
+      function initTabSwitching() {
+        const contents = document.querySelectorAll('.tab-content');
+        const glider = document.querySelector('.tab-glider');
+
+        // ── Shared: switch visible tab content ──────────────────
+        function showTab(tabName) {
+          contents.forEach(c => c.classList.remove('active'));
+          const panel = document.getElementById(`${tabName}Tab`);
+          if (panel) panel.classList.add('active');
+        }
+
+        // ── Desktop: radio labels + glider ──────────────────────
+        const radioLabels = document.querySelectorAll('.tab-radio-label');
+
+        function positionGlider(label) {
+          if (!glider || !label) return;
+          const track = label.closest('.tabs-radio');
+          if (!track) return;
+          const trackRect = track.getBoundingClientRect();
+          const labelRect = label.getBoundingClientRect();
+          glider.style.width = `${labelRect.width}px`;
+          glider.style.transform = `translateX(${labelRect.left - trackRect.left}px)`;
+        }
+
+        radioLabels.forEach(label => {
+          label.addEventListener('click', () => {
+            showTab(label.dataset.tab);
+            // Glider position updates after the browser reflects checked state
+            requestAnimationFrame(() => positionGlider(label));
+          });
+        });
+
+        // Activate Cast tab via JS — never put "checked" in HTML (browser scrolls to it)
+        const firstRadio = document.querySelector('.tabs-radio input[type="radio"]');
+        if (firstRadio) firstRadio.checked = true;
+        showTab('cast');
+
+        // Position glider — double rAF waits for layout to settle
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          if (glider) glider.style.transition = 'none';
+          const firstLabel = document.querySelector('.tab-radio-label');
+          positionGlider(firstLabel);
+          requestAnimationFrame(() => {
+            if (glider) glider.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s';
+          });
+        }));
+
+        // Reposition glider on resize
+        window.addEventListener('resize', () => {
+          const checkedRadio = document.querySelector('.tabs-radio input[type="radio"]:checked');
+          if (checkedRadio) {
+            const lbl = checkedRadio.nextElementSibling;
+            positionGlider(lbl);
+          }
+        });
+
+        // ── Mobile: pill button tabs + sliding indicator ─────────
+        const tabs = document.querySelectorAll('.tab-btn');
+        const indicator = document.getElementById('tabIndicator');
+
+        function positionIndicator(activeTab) {
+          if (!indicator || !activeTab) return;
+          const container = activeTab.closest('.tabs-mobile-only');
+          if (!container) return;
+          const containerRect = container.getBoundingClientRect();
+          const rect = activeTab.getBoundingClientRect();
+          indicator.style.width = `${rect.width}px`;
+          indicator.style.transform = `translateX(${rect.left - containerRect.left}px)`;
+        }
+
+        tabs.forEach(tab => {
+          tab.addEventListener('click', () => {
+            tabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            positionIndicator(tab);
+            showTab(tab.dataset.tab);
+          });
+        });
+
+        // Initial mobile indicator position
+        const activeTab = document.querySelector('.tab-btn.active');
+        if (activeTab && indicator) {
+          indicator.style.transition = 'none';
+          requestAnimationFrame(() => requestAnimationFrame(() => {
+            positionIndicator(activeTab);
+            indicator.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s';
+          }));
+        }
+      }
+
+      // ═══════════════════════════════════════════
+      // BOOKMARK SYSTEM — Supabase user_bookmarks
+      // ═══════════════════════════════════════════
+
+      // Status label map (for display)
+      const STATUS_LABELS = {
+        'planning':   'Planning to Watch',
+        'watching':   'Watching',
+        'completed':  'Completed',
+        'rewatching': 'Re-watching',
+        'dropped':    'Dropped',
+        'favourite':  'My Favourite'
+      };
+
+      // Columns confirmed present from schema upgrade SQL.
+      // If a column doesn't exist yet, Supabase returns PGRST204 "column not found".
+      // We try the full payload first; if it fails we fall back to core-only columns.
+      function buildBookmarkPayloadCore(statuses) {
+        const show_id_int = parseInt(currentState.id) || null;
+        const isAnime     = currentState.source === 'jikan';
+        const d           = currentState.data;
+        const mal_id      = isAnime  ? (parseInt(d.mal_id  || currentState.id) || null) : null;
+        const tmdb_id     = !isAnime ? (parseInt(currentState.id)              || null) : null;
+        const media_id    = `${currentState.source}-${currentState.id}`;
+        const media_type  = currentState.type;
+
+        // Get username from shared.js user profile if available
+        const username = currentState.currentUser?.user_metadata?.username
+          || currentState.currentUser?.email?.split('@')[0]
+          || null;
+
+        return {
+          user_id:          currentState.currentUser.id,
+          show_id:          show_id_int,
+          media_id,
+          media_type,
+          bookmark_status:  statuses.join(','),
+          mal_id,
+          tmdb_id,
+          username,
+          updated_at:       new Date().toISOString()
+        };
+      }
+
+      function buildBookmarkPayloadFull(statuses) {
+        const core    = buildBookmarkPayloadCore(statuses);
+        const d       = currentState.data;
+        const isAnime = currentState.source === 'jikan';
+
+        const mal_id  = core.mal_id;
+        const tmdb_id = core.tmdb_id;
+
+        return {
+          ...core,
+
+          // Titles
+          eng_title:      isAnime ? (d.title_english || d.title || '') : (d.title || d.name || ''),
+          default_title:  d.title || d.name || '',
+          original_title: isAnime ? '' : (d.original_title || d.original_name || ''),
+          romanji_title:  isAnime ? (d.title || '') : '',
+          japanese_title: isAnime ? (d.title_japanese || '') : '',
+          synonyms:       isAnime ? (d.title_synonyms || []).join(', ') : '',
+
+          // Details
+          country_name:        isAnime ? 'Japan' : (d.origin_country?.[0] || d.production_countries?.[0]?.iso_3166_1 || ''),
+          genres:              (d.genres || []).map(g => g.name).join(', '),
+          aired_date:          isAnime ? (d.aired?.string || '') : (d.release_date || d.first_air_date || ''),
+          broadcast_day_time:  isAnime ? (d.broadcast?.string || '') : '',
+          source:              isAnime ? (d.source || '') : '',
+          rank:                isAnime ? (parseInt(d.rank)       || null) : null,
+          popularity:          isAnime ? (parseInt(d.popularity) || null) : (Math.round(d.popularity) || null),
+          studio_name:         isAnime ? (d.studios    || []).map(s => s.name).join(', ') : (d.production_companies || []).map(s => s.name).join(', '),
+          producers_name:      isAnime ? (d.producers  || []).map(p => p.name).join(', ') : '',
+          total_epi_num:       isAnime ? (parseInt(d.episodes) || null) : (parseInt(d.number_of_episodes) || null),
+          dub_epi_num:         parseInt(currentState.allAnimeData?.episodes_dub) || null,
+          sub_epi_num:         parseInt(currentState.allAnimeData?.episodes_sub) || null,
+          format:              isAnime ? (d.type || '') : (currentState.type || ''),
+          synopsis_context:    isAnime ? (d.synopsis || '') : '',
+          overview_context:    !isAnime ? (d.overview || '') : '',
+          mal_score:           isAnime  ? (parseFloat(d.score)        || null) : null,
+          tmdb_average_score:  !isAnime ? (parseFloat(d.vote_average) || null) : null,
+          content_rating:      isAnime  ? (d.rating ? d.rating.split(' - ')[0] : '') : '',
+          anime_duration_time: isAnime  ? (d.duration || '') : '',
+          tmdb_movie_tv_runtime: !isAnime ? (parseInt(d.runtime || d.episode_run_time?.[0]) || null) : null,
+          show_poster_link:    isAnime  ? (d.images?.jpg?.image_url || '') : (d.poster_path ? `https://image.tmdb.org/t/p/w500${d.poster_path}` : ''),
+          show_backdrop_landscape_image_link: isAnime ? (d.images?.jpg?.large_image_url || '') : (d.backdrop_path ? `https://image.tmdb.org/t/p/original${d.backdrop_path}` : ''),
+          external_link_mal:   isAnime  ? `https://myanimelist.net/anime/${mal_id}` : '',
+          external_link_tmdb:  !isAnime ? `https://www.themoviedb.org/${currentState.type}/${tmdb_id}` : ''
+        };
+      }
+
+      async function fetchUserBookmarks() {
+        if (!currentState.currentUser || !currentState.id) return;
+        try {
+          const { data, error } = await window.supabaseClient
+            .from('user_bookmarks')
+            .select('bookmark_status, id')
+            .eq('user_id', currentState.currentUser.id)
+            .eq('show_id', parseInt(currentState.id))
+            .maybeSingle();
+
+          if (error) { console.error('fetchUserBookmarks error:', error); return; }
+
+          const rawStatus = data?.bookmark_status || '';
+          if (data && rawStatus) {
+            currentState.selectedStatuses = rawStatus
+              .split(',')
+              .map(s => s.trim())
+              .filter(s => s.length > 0 && s !== 'remove');
+            currentState.bookmarkRowId = data.id;
+          } else {
+            currentState.selectedStatuses = [];
+            currentState.bookmarkRowId = null;
+          }
+          updateBookmarkUI();
+        } catch (e) { console.error('fetchUserBookmarks exception:', e); }
+      }
+
+      async function upsertPayload(supa, payload) {
+        const { data, error } = await supa
+          .from('user_bookmarks')
+          .upsert(payload, { onConflict: 'user_id,show_id' })
+          .select('id')
+          .maybeSingle();
+        return { data, error };
+      }
+
+      async function saveBookmarks() {
+        if (!currentState.currentUser) return;
+        const supa = window.supabaseClient;
+        try {
+          if (currentState.selectedStatuses.length === 0) {
+            if (currentState.bookmarkRowId) {
+              const { error } = await supa
+                .from('user_bookmarks')
+                .delete()
+                .eq('id', currentState.bookmarkRowId)
+                .eq('user_id', currentState.currentUser.id);
+              if (error) throw error;
+              currentState.bookmarkRowId = null;
+            }
+            return;
+          }
+
+          // Try full payload first (all columns from migration SQL)
+          const fullPayload = buildBookmarkPayloadFull(currentState.selectedStatuses);
+          let { data, error } = await upsertPayload(supa, fullPayload);
+
+          if (error) {
+            // If full payload fails due to missing columns, fall back to core columns only
+            const isColumnMissing = error.code === 'PGRST204' || 
+              (error.message && error.message.includes('column'));
+            if (isColumnMissing) {
+              console.warn('[Bookmark] Full payload failed (missing columns), trying core-only:', error.message);
+              const corePayload = buildBookmarkPayloadCore(currentState.selectedStatuses);
+              const fallback = await upsertPayload(supa, corePayload);
+              data  = fallback.data;
+              error = fallback.error;
+            }
+            if (error) {
+              console.error('[Bookmark] Upsert failed:', JSON.stringify(error, null, 2));
+              throw error;
+            }
+          }
+
+          if (data?.id) currentState.bookmarkRowId = data.id;
+
+        } catch (e) {
+          console.error('[Bookmark] saveBookmarks exception:', e);
+          showToast('Failed to update list', 'error');
+        }
+      }
+
+      async function removeBookmark() {
+        if (!currentState.currentUser) return;
+        try {
+          const { error } = await window.supabaseClient
+            .from('user_bookmarks')
+            .delete()
+            .eq('user_id', currentState.currentUser.id)
+            .eq('show_id', currentState.id);
+          if (error) throw error;
+          currentState.selectedStatuses = [];
+          currentState.bookmarkRowId = null;
+          updateBookmarkUI();
+          showBookmarkToast([]);
+        } catch (e) { console.error('removeBookmark error:', e); }
+      }
+
+      function updateBookmarkUI() {
+        const btn    = document.getElementById('addToListBtn');
+        const text   = document.getElementById('dropdownText');
+        if (!btn || !text) return;
+
+        const hasBookmark = currentState.selectedStatuses.length > 0;
+
+        // ── Button text + icon ──────────────────────────────
+        if (hasBookmark) {
+          text.textContent = 'Edit List';
+          const bkIcon = btn.querySelector('i.fa-bookmark, i.fa-pen-to-square, i.fa-regular, i.fa-solid:not(.dropdown-arrow):not(.bk-check-icon)');
+          if (bkIcon && !bkIcon.classList.contains('fa-chevron-down')) {
+            bkIcon.className = 'fa-solid fa-pen-to-square';
+          }
+        } else {
+          text.textContent = 'Add to List';
+          const bkIcon = btn.querySelector('i.fa-bookmark, i.fa-pen-to-square');
+          if (bkIcon) {
+            bkIcon.className = 'fa-regular fa-bookmark';
+          }
+        }
+
+        // ── Dropdown items: selected highlight + FA check ──
+        document.querySelectorAll('.dropdown-item[data-status]').forEach(item => {
+          const s = item.dataset.status;
+          if (s === 'remove') return;
+
+          const isSelected = currentState.selectedStatuses.includes(s);
+          item.classList.toggle('selected', isSelected);
+
+          // Remove all existing check icons first (clean slate each call)
+          item.querySelectorAll('.bk-check-icon').forEach(el => el.remove());
+
+          if (isSelected) {
+            const ck = document.createElement('i');
+            ck.className     = 'fa-solid fa-check bk-check-icon';
+            ck.style.cssText = 'margin-left:auto;color:#48bb78;font-size:0.85rem;flex-shrink:0;';
+            item.appendChild(ck);
+          }
+        });
+      }
+
+      function showLoginAlert() {
+        const alert = document.getElementById('loginAlert');
+        if (!alert) return;
+        alert.classList.add('show');
+        setTimeout(() => alert.classList.remove('show'), CONFIG.ALERT_AUTO_CLOSE_MS);
+        const closeBtn = document.getElementById('alertClose');
+        if (closeBtn) closeBtn.onclick = () => alert.classList.remove('show');
+      }
+
+      // Toast notification — bottom-right corner, 3s auto-remove
+      function showToast(message, type = 'info') {
+        const existing = document.getElementById('bk-toast-container');
+        const container = existing || (() => {
+          const c = document.createElement('div');
+          c.id = 'bk-toast-container';
+          c.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none;';
+          document.body.appendChild(c);
+          return c;
+        })();
+
+        const bg = type === 'error'   ? '#e53e3e'
+                 : type === 'success' ? '#276749'
+                 : '#1a3a5c';
+
+        const toast = document.createElement('div');
+        toast.style.cssText = `
+          background:${bg};
+          color:#fff;
+          padding:12px 18px;
+          border-radius:10px;
+          font-size:0.875rem;
+          font-weight:500;
+          box-shadow:0 8px 24px rgba(0,0,0,0.4);
+          border:1px solid rgba(255,255,255,0.12);
+          opacity:0;
+          transform:translateY(10px);
+          transition:opacity 0.25s ease,transform 0.25s ease;
+          pointer-events:auto;
+          max-width:280px;
+          line-height:1.4;
+        `;
+        toast.textContent = message;
+        container.appendChild(toast);
+
+        requestAnimationFrame(() => {
+          toast.style.opacity = '1';
+          toast.style.transform = 'translateY(0)';
+        });
+
+        setTimeout(() => {
+          toast.style.opacity  = '0';
+          toast.style.transform = 'translateY(10px)';
+          setTimeout(() => { toast.remove(); if (!container.children.length) container.remove(); }, 300);
+        }, 3000);
+      }
+
+      // Show toast with selected status names after dropdown closes
+      function showBookmarkToast(statuses) {
+        if (statuses.length === 0) {
+          showToast('Removed from your list', 'success');
+          return;
+        }
+        const labels = statuses.map(s => STATUS_LABELS[s] || s).join(' & ');
+        showToast(`Saved: ${labels}`, 'success');
+      }
+
+      async function loadSidebarContent() {
+        const isAnime = currentState.source === 'jikan';
+        if (isAnime) {
+          // Jikan: sequence the three sidebar calls with delays to avoid rate-limit collisions
+          // Main page data fetch + waterTemple + sunken are already in-flight, so we stagger
+          await new Promise(r => setTimeout(r, 500));
+          await loadHiddenGems(isAnime);
+          await new Promise(r => setTimeout(r, 500));
+          await loadTopRanking(isAnime);
+          await new Promise(r => setTimeout(r, 500));
+          await loadMostFavourite(isAnime);
+        } else {
+          // TMDB: all three can run in parallel (no rate-limit issue with the worker)
+          await Promise.all([loadHiddenGems(isAnime), loadTopRanking(isAnime), loadMostFavourite(isAnime)]);
+        }
+      }
+
+      // Fetch with automatic retry on 429 rate-limit response
+      async function fetchWithRetry(url, maxRetries = 2, baseDelay = 1500) {
+        for (let attempt = 0; attempt <= maxRetries; attempt++) {
+          try {
+            const res = await fetch(url);
+            if (res.status === 429) {
+              if (attempt < maxRetries) {
+                await new Promise(r => setTimeout(r, baseDelay * (attempt + 1)));
+                continue;
+              }
+              throw new Error('Rate limited');
+            }
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return res;
+          } catch (e) {
+            if (attempt === maxRetries) throw e;
+            await new Promise(r => setTimeout(r, baseDelay));
+          }
+        }
+      }
+
+      async function loadHiddenGems(isAnime) {
+        const container = document.getElementById('hiddenGemList');
+        const cacheKey = `sidebar_gems_${isAnime ? 'anime' : currentState.type}`;
+        try {
+          // Check cache first (15 min TTL for sidebar)
+          const cached = sessionStorage.getItem(cacheKey);
+          if (cached) {
+            const { html, ts } = JSON.parse(cached);
+            if (Date.now() - ts < 15 * 60 * 1000) { container.innerHTML = html; return; }
+          }
+          let items = [];
+          if (isAnime) {
+            const res = await fetchWithRetry('https://api.jikan.moe/v4/anime?min_score=8.0&order_by=popularity&sort=desc&limit=17');
+            const { data } = await res.json();
+            items = data.filter(a => (a.score >= 7.6 && a.popularity > 500) || a.popularity > 1500).slice(0, 17);
+          } else {
+            const endpoint = currentState.type;
+            const voteMin = endpoint === 'movie' ? 150 : 100;
+            const voteMax = endpoint === 'movie' ? 1200 : 1000;
+            const res = await fetch(`${CONFIG.TMDB_WORKER}/3/discover/${endpoint}?vote_average.gte=7.8&vote_count.gte=${voteMin}&vote_count.lte=${voteMax}&sort_by=popularity.asc&page=1`);
+            const { results } = await res.json();
+            items = results.slice(0, 17);
+          }
+          const html = items.map((item, i) => renderSidebarItem(item, i + 1, isAnime)).join('');
+          container.innerHTML = html;
+          try { sessionStorage.setItem(cacheKey, JSON.stringify({ html, ts: Date.now() })); } catch(e) {}
+        } catch (e) { 
+          container.innerHTML = '<div class="loading-text">Failed to load</div>'; 
+          console.error('Hidden gems load error:', e); 
+        }
+      }
+
+      async function loadTopRanking(isAnime) {
+        const container = document.getElementById('topRankingList');
+        const cacheKey = `sidebar_top_${isAnime ? 'anime' : currentState.type}`;
+        try {
+          const cached = sessionStorage.getItem(cacheKey);
+          if (cached) {
+            const { html, ts } = JSON.parse(cached);
+            if (Date.now() - ts < 15 * 60 * 1000) { container.innerHTML = html; return; }
+          }
+          let items = [];
+          if (isAnime) {
+            const res = await fetchWithRetry('https://api.jikan.moe/v4/top/anime?limit=19');
+            const { data } = await res.json(); 
+            items = data.slice(0, 19);
+          } else {
+            const res = await fetch(`${CONFIG.TMDB_WORKER}/3/${currentState.type}/top_rated?page=1`);
+            const { results } = await res.json(); 
+            items = results.slice(0, 19);
+          }
+          const html = items.map((item, i) => renderSidebarItem(item, i + 1, isAnime, true)).join('');
+          container.innerHTML = html;
+          try { sessionStorage.setItem(cacheKey, JSON.stringify({ html, ts: Date.now() })); } catch(e) {}
+        } catch (e) { 
+          container.innerHTML = '<div class="loading-text">Failed to load</div>'; 
+          console.error('Top ranking load error:', e); 
+        }
+      }
+
+      async function loadMostFavourite(isAnime) {
+        const container = document.getElementById('mostFavouriteList');
+        const cacheKey = `sidebar_fav_${isAnime ? 'anime' : currentState.type}`;
+        try {
+          const cached = sessionStorage.getItem(cacheKey);
+          if (cached) {
+            const { html, ts } = JSON.parse(cached);
+            if (Date.now() - ts < 15 * 60 * 1000) { container.innerHTML = html; return; }
+          }
+          let items = [];
+          if (isAnime) {
+            const res = await fetchWithRetry('https://api.jikan.moe/v4/top/anime?filter=favorite&limit=21');
+            const { data } = await res.json(); 
+            items = data.slice(0, 21);
+          } else {
+            const res = await fetch(`${CONFIG.TMDB_WORKER}/3/${currentState.type}/popular?page=1`);
+            const { results } = await res.json(); 
+            items = results.slice(0, 21);
+          }
+          const html = items.map((item, i) => renderSidebarItem(item, i + 1, isAnime)).join('');
+          container.innerHTML = html;
+          try { sessionStorage.setItem(cacheKey, JSON.stringify({ html, ts: Date.now() })); } catch(e) {}
+        } catch (e) { 
+          container.innerHTML = '<div class="loading-text">Failed to load</div>'; 
+          console.error('Most favourite load error:', e); 
+        }
+      }
+
+      function renderSidebarItem(item, rank, isAnime, showRank = false) {
+        const title = isAnime ? (item.title_english || item.title) : (item.title || item.name);
+        const poster = isAnime ? item.images?.jpg?.image_url : item.poster_path ? `https://image.tmdb.org/t/p/w92${item.poster_path}` : '';
+        const score = isAnime ? item.score : item.vote_average;
+        const type = isAnime ? item.type : currentState.type;
+        const year = isAnime ? item.aired?.from?.slice(0,4) : (item.release_date || item.first_air_date)?.slice(0,4);
+        const genres = (item.genres || []).slice(0, 2).map(g => g.name || g).join(', ');
+        const studio = isAnime ? item.studios?.[0]?.name : item.production_companies?.[0]?.name || item.networks?.[0]?.name;
+        const langBadges = isAnime ? `<span class="lang-badge sub"><i class="fa-solid fa-closed-captioning"></i></span><span class="lang-badge dub"><i class="fa-solid fa-microphone"></i></span>` : '';
+        const popularity = item.popularity || item.vote_count || '';
+        const itemRank = item.rank || item.popularity ? `#${Math.round(item.rank || item.popularity)}` : '';
+        
+        const urlType = isAnime ? 'anime' : currentState.type;
+        const source = isAnime ? 'jikan' : (currentState.type === 'movie' ? 'tmdb-movie' : 'tmdb-tv');
+        const id = isAnime ? item.mal_id : item.id;
+        const slug = slugify(title);
+        const detailsUrl = `/info/${urlType}/${source}-${id}/${slug}`;
+        
+        return `<a href="${detailsUrl}" class="sidebar-list-item">
+          ${showRank ? `<span class="sidebar-rank">${rank}</span>` : ''}
+          <img class="sidebar-poster" src="${poster}" alt="${title}" loading="lazy" onerror="this.style.display='none'">
+          <div class="sidebar-info">
+            <h4>${escapeHtml(title)}</h4>
+            <div class="side-meta">⭐ ${score?.toFixed(1) || 'N/A'} · ${type}${year ? ` · ${year}` : ''}</div>
+          </div>
+        </a>`;
+      }
+
+      async function loadRecommendations() {
+        if (currentState.source === 'jikan') {
+          // Anime: water temple + sunken in parallel
+          await Promise.all([
+            loadWaterTemple(),
+            loadSunkenTreasures(1)
+          ]);
+        } else {
+          // TMDB: recommend-for-you + sunken in parallel
+          await Promise.all([
+            loadRecommendForYou(),
+            loadSunkenTreasures(1)
+          ]);
+        }
+      }
+
+      // Water Temple — genre-matched anime recommendations using the current show's actual genres
+      async function loadWaterTemple() {
+        const section = document.getElementById('waterTempleSection');
+        const gridContainer = document.getElementById('waterTempleGrid');
+
+        if (currentState.source !== 'jikan') { section.style.display = 'none'; return; }
+
+        section.style.display = 'block';
+        gridContainer.innerHTML = '<div class="loading-text">Loading recommendations...</div>';
+
+        try {
+          const data = currentState.data;
+
+          // Collect all genre/theme/demographic MAL IDs from the current show
+          // These come from show details: genres + themes + demographics
+          const genreIds  = (data.genres       || []).map(g => g.mal_id).filter(Boolean);
+          const themeIds  = (data.themes        || []).map(t => t.mal_id).filter(Boolean);
+          const demoIds   = (data.demographics  || []).map(d => d.mal_id).filter(Boolean);
+
+          // Use all genres for a broad, accurate match — up to 3 to stay within Jikan limits
+          // Priority: genres first (most accurate), then demographics, then themes
+          const combinedIds = [...new Set([...genreIds, ...demoIds, ...themeIds])];
+          const selectedGenres = combinedIds.slice(0, 3);
+
+          // Random page 1–4 for variety on each visit without hitting empty pages
+          const randomPage = Math.floor(Math.random() * 4) + 1;
+
+          const params = new URLSearchParams({
+            order_by:  'score',       // sort by score so results are genuinely good
+            sort:      'desc',
+            limit:     '24',
+            sfw:       'true',
+            type:      (data.type || 'tv').toLowerCase(),
+            min_score: '6.0',
+            max_score: '9.7',
+            page:      String(randomPage)
+          });
+
+          if (selectedGenres.length > 0) params.append('genres', selectedGenres.join(','));
+
+          const apiUrl = `https://api.jikan.moe/v4/anime?${params.toString()}`;
+
+          // Cache key: genre ids + anime type + page — 10 min TTL for freshness+variety
+          const cacheKey = `wt2_${selectedGenres.join('_')}_${(data.type||'tv').toLowerCase()}_p${randomPage}`;
+          let results;
+
+          const cached = localStorage.getItem(cacheKey);
+          if (cached) {
+            try {
+              const { data: cd, timestamp } = JSON.parse(cached);
+              if (Date.now() - timestamp < 10 * 60 * 1000) results = cd;
+            } catch(e) {}
+          }
+
+          if (!results) {
+            const response = await fetchWithRetry(apiUrl);
+            const apiData  = await response.json();
+            results = apiData.data || [];
+            try { localStorage.setItem(cacheKey, JSON.stringify({ data: results, timestamp: Date.now() })); } catch(e) {}
+          }
+
+          // Filter out the current show itself
+          const filtered = results.filter(a => a.mal_id !== currentState.id).slice(0, 24);
+
+          if (filtered.length > 0) {
+            gridContainer.innerHTML = filtered.map(anime => renderAnimeRecCard(anime)).join('');
+          } else {
+            // Fallback: top-scored anime of same type, no genre filter
+            const fbParams = new URLSearchParams({ order_by: 'score', sort: 'desc', limit: '24', sfw: 'true', type: (data.type || 'tv').toLowerCase(), min_score: '7.5' });
+            const fbRes  = await fetchWithRetry(`https://api.jikan.moe/v4/anime?${fbParams.toString()}`);
+            const fbData = await fbRes.json();
+            const fbFiltered = (fbData.data || []).filter(a => a.mal_id !== currentState.id).slice(0, 24);
+            gridContainer.innerHTML = fbFiltered.length
+              ? fbFiltered.map(anime => renderAnimeRecCard(anime)).join('')
+              : '<div class="loading-text">No recommendations found</div>';
+          }
+
+        } catch (error) {
+          console.error('❌ Water Temple error:', error);
+          gridContainer.innerHTML = '<div class="loading-text">Failed to load recommendations</div>';
+        }
+      }
+
+      // Recommend for You — TMDB movie/TV genre+popularity+score based recommendations
+      async function loadRecommendForYou() {
+        const section = document.getElementById('recommendForYouSection');
+        const gridContainer = document.getElementById('recommendForYouGrid');
+
+        if (currentState.source !== 'tmdb') { section.style.display = 'none'; return; }
+
+        section.style.display = 'block';
+        gridContainer.innerHTML = '<div class="loading-text">Loading recommendations...</div>';
+
+        try {
+          const data = currentState.data;
+          const mediaType = currentState.type; // 'movie' or 'tv'
+
+          // Extract genre IDs from current show
+          const genreIds = (data.genres || []).map(g => g.id).filter(Boolean);
+
+          // TMDB discover — match genres, filter by vote quality, sort by popularity+vote combo
+          // We try two strategies and merge: TMDB /recommendations (official) + /discover (filtered)
+          const [recsRes, discoverRes] = await Promise.all([
+            // Strategy 1: TMDB's own recommendation engine for this show
+            fetch(`${CONFIG.TMDB_WORKER}/3/${mediaType}/${currentState.id}/recommendations?page=1`),
+            // Strategy 2: Discover with matching genres + quality filter
+            (() => {
+              const p = new URLSearchParams({
+                sort_by:              'vote_average.desc',
+                'vote_count.gte':     mediaType === 'movie' ? '200' : '100',
+                'vote_average.gte':   '6.5',
+                with_genres:          genreIds.slice(0, 3).join(','),
+                without_genres:       '',   // no exclusions — keep broad
+                page:                 '1'
+              });
+              return fetch(`${CONFIG.TMDB_WORKER}/3/discover/${mediaType}?${p.toString()}`);
+            })()
+          ]);
+
+          const recsData    = recsRes.ok    ? await recsRes.json()    : { results: [] };
+          const discoverData = discoverRes.ok ? await discoverRes.json() : { results: [] };
+
+          // Merge, de-duplicate by id, remove current show, sort by vote_average desc
+          const seen = new Set([currentState.id]);
+          const merged = [];
+
+          for (const item of [...(recsData.results || []), ...(discoverData.results || [])]) {
+            if (!item.id || seen.has(item.id)) continue;
+            seen.add(item.id);
+            merged.push(item);
+          }
+
+          // Sort: weighted score (vote_average × log10(vote_count+1)) for quality+popularity balance
+          merged.sort((a, b) => {
+            const scoreA = (a.vote_average || 0) * Math.log10((a.vote_count || 1) + 1);
+            const scoreB = (b.vote_average || 0) * Math.log10((b.vote_count || 1) + 1);
+            return scoreB - scoreA;
+          });
+
+          const final = merged.slice(0, 24);
+
+          if (final.length > 0) {
+            gridContainer.innerHTML = final.map(item => renderTMDBRecCard(item, mediaType)).join('');
+          } else {
+            // Fallback: popular content of same type
+            const fbRes  = await fetch(`${CONFIG.TMDB_WORKER}/3/${mediaType}/popular?page=1`);
+            const fbData = fbRes.ok ? await fbRes.json() : { results: [] };
+            const fbFinal = (fbData.results || []).filter(i => i.id !== currentState.id).slice(0, 24);
+            gridContainer.innerHTML = fbFinal.length
+              ? fbFinal.map(item => renderTMDBRecCard(item, mediaType)).join('')
+              : '<div class="loading-text">No recommendations found</div>';
+          }
+
+        } catch (error) {
+          console.error('❌ Recommend for You error:', error);
+          gridContainer.innerHTML = '<div class="loading-text">Failed to load recommendations</div>';
+        }
+      }
+
+      // TMDB rec card renderer — matches renderAnimeRecCard style
+      function renderTMDBRecCard(item, mediaType) {
+        const title = item.title || item.name || 'Unknown';
+        const poster = item.poster_path
+          ? `https://image.tmdb.org/t/p/w342${item.poster_path}`
+          : '';
+        const score = item.vote_average;
+        const year  = (item.release_date || item.first_air_date || '').slice(0, 4) || 'N/A';
+        const type  = mediaType === 'movie' ? 'Movie' : 'TV';
+        const slug  = slugify(title);
+        const src   = mediaType === 'movie' ? 'tmdb-movie' : 'tmdb-tv';
+        const detailsUrl = `/info/${mediaType}/${src}-${item.id}/${slug}`;
+
+        const posterStyle = poster
+          ? `background-image: url('${poster}')`
+          : `background: linear-gradient(135deg, var(--bg-surface), var(--bg-card))`;
+
+        return `<a href="${detailsUrl}" class="rec-card">
+          <div class="rec-poster" style="${posterStyle}">
+            ${poster ? `<img src="${poster}" alt="${escapeHtml(title)}" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;">` : ''}
+            <span class="quality-badge">${type}</span>
+            <span class="score-badge"><i class="fa-solid fa-star"></i> ${score ? score.toFixed(1) : 'N/A'}</span>
+            <div class="play-overlay">
+              <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" fill="white"/></svg>
+            </div>
+          </div>
+          <div class="rec-info">
+            <div class="rec-meta">${year}</div>
+            <div class="rec-title">${escapeHtml(title)}</div>
+          </div>
+        </a>`;
+      }
+      // Bug fix: jikanRecLoading element was inside gridContainer and got destroyed by
+      // gridContainer.innerHTML on first render, causing null-ref crash on page 2+.
+      // Now shows loading state by setting gridContainer HTML directly each time.
+async function loadSunkenTreasures(page = 1) {
+  const gridContainer = document.getElementById('sunkenTreasuresGrid');
+  const paginationContainer = document.getElementById('sunkenPagination');
+  
+  // Show loading state — write directly into gridContainer (safe on every page)
+  gridContainer.style.opacity = '0.5';
+  gridContainer.innerHTML = `<div class="loading-text" style="grid-column:1/-1;text-align:center;padding:40px 0;">Loading page ${page}...</div>`;
+  paginationContainer.classList.add('loading');
+  
+  try {
+    // Each page uses a DIFFERENT genre combo for unique results
+    const comboIndex = (page - 1) % SUNKEN_GENRE_COMBOS.length;
+    const [genreA, genreB] = SUNKEN_GENRE_COMBOS[comboIndex];
+    
+    console.log(`🔗 Sunken Treasures - Page ${page}, Combo ${comboIndex + 1}/30: [${genreA},${genreB}]`);
+    
+    // Build Jikan API URL — include page param so API returns page-matched results
+    const params = new URLSearchParams({
+      genres: `${genreA},${genreB}`,
+      type: 'tv',
+      min_score: '6.5',
+      max_score: '10',
+      order_by: 'popularity',
+      sort: 'asc',
+      limit: '24',
+      page: String(page),
+      sfw: 'true'
+    });
+    
+    const apiUrl = `https://api.jikan.moe/v4/anime?${params.toString()}`;
+    
+    // Cache key includes page + genre combo
+    const cacheKey = `sunken_tv_page${page}_g${genreA}_${genreB}`;
+    const cached = localStorage.getItem(cacheKey);
+    let data;
+    
+    if (cached) {
+      try {
+        const { results, timestamp } = JSON.parse(cached);
+        if (Date.now() - timestamp < 24 * 60 * 60 * 1000) {
+          console.log('✅ Using cached results for page', page);
+          data = { data: results };
+        }
+      } catch (e) { /* ignore corrupt cache */ }
+    }
+    
+    // Fetch fresh data if not cached
+    if (!data) {
+      console.log('🌐 Fetching from Jikan API:', apiUrl);
+      const response = await fetch(apiUrl);
+      if (!response.ok) throw new Error(`Jikan API error: ${response.status}`);
+      data = await response.json();
+      console.log(`✅ Received ${data.data?.length || 0} results`);
+      
+      // Cache the results
+      localStorage.setItem(cacheKey, JSON.stringify({
+        results: data.data,
+        timestamp: Date.now()
+      }));
+    }
+    
+    // Handle empty results with fallback to top anime
+    if (!data.data || data.data.length === 0) {
+      console.log('⚠️ No results, fetching popular TV anime as fallback');
+      const fallbackUrl = `https://api.jikan.moe/v4/top/anime?type=tv&limit=24&page=${page}`;
+      const fallbackRes = await fetch(fallbackUrl);
+      const fallbackData = await fallbackRes.json();
+      data.data = fallbackData.data || [];
+    }
+    
+    // Filter out current show if on anime page
+    const currentId = currentState.source === 'jikan' ? currentState.id : null;
+    const results = currentId 
+      ? data.data.filter(a => a.mal_id !== currentId)
+      : data.data;
+    
+    // Restore opacity and render cards
+    gridContainer.style.opacity = '1';
+    
+    if (results.length > 0) {
+      console.log(`🎨 Rendering ${Math.min(24, results.length)} anime cards for page ${page}`);
+      gridContainer.innerHTML = results.slice(0, 24).map(anime => renderAnimeRecCard(anime)).join('');
+      
+      // Update pagination with current page number
+      renderSunkenPagination(page, SUNKEN_GENRE_COMBOS.length, paginationContainer);
+      
+      // Smooth scroll to section top
+      // scrollIntoView removed — user controls their own scroll position
+    } else {
+      gridContainer.innerHTML = '<div class="loading-text" style="grid-column:1/-1;text-align:center;padding:40px 0;">No anime found for this combination</div>';
+      renderSunkenPagination(page, SUNKEN_GENRE_COMBOS.length, paginationContainer);
+    }
+    
+  } catch (error) {
+    console.error('❌ Sunken Treasures error:', error);
+    gridContainer.style.opacity = '1';
+    gridContainer.innerHTML = `
+      <div style="grid-column:1/-1;text-align:center;padding:40px 20px;">
+        <i class="fa-solid fa-triangle-exclamation" style="font-size:2rem; color:var(--accent-gold); margin-bottom:10px; display:block;"></i>
+        <p>Failed to load recommendations</p>
+        <small style="color:var(--text-muted);">${error.message}</small>
+      </div>
+    `;
+    // Re-render pagination so user can retry other pages
+    renderSunkenPagination(page, SUNKEN_GENRE_COMBOS.length, paginationContainer);
+  } finally {
+    // Always restore interactivity
+    gridContainer.style.opacity = '1';
+    paginationContainer.classList.remove('loading');
+  }
+}
+
+ // ✅ UPDATED: Matches index.html "Recently Completed" pagination style
+function renderSunkenPagination(currentPage, totalPages, container) {
+  container.innerHTML = '';
+  container.className = 'pagination-nav';
+  
+  // Previous button (chevron on mobile, text on desktop)
+  const prevBtn = document.createElement('button');
+  prevBtn.type = 'button';
+  prevBtn.className = 'btn btn-soft btn-prev rounded-full';
+  prevBtn.innerHTML = '<span class="prev-text">Previous</span><span class="prev-chevron">‹</span>';
+  prevBtn.disabled = currentPage === 1;
+  prevBtn.onclick = (e) => {
+    e.preventDefault();
+    if (currentPage > 1) loadSunkenTreasures(currentPage - 1);
+  };
+  container.appendChild(prevBtn);
+  
+  // Page counter: "1 / 30"
+  const pageCounter = document.createElement('div');
+  pageCounter.className = 'page-counter';
+  pageCounter.innerHTML = `<span class="current-page">${currentPage}</span> / <span class="total-pages">${totalPages}</span>`;
+  container.appendChild(pageCounter);
+  
+  // Next button
+  const nextBtn = document.createElement('button');
+  nextBtn.type = 'button';
+  nextBtn.className = 'btn btn-soft btn-next rounded-full';
+  nextBtn.innerHTML = '<span class="next-text">Next</span><span class="next-chevron">›</span>';
+  nextBtn.disabled = currentPage === totalPages;
+  nextBtn.onclick = (e) => {
+    e.preventDefault();
+    if (currentPage < totalPages) loadSunkenTreasures(currentPage + 1);
+  };
+  container.appendChild(nextBtn);
+}
+
+      // Unified anime card renderer for both sections
+      function renderAnimeRecCard(anime) {
+        const title = anime.title_english || anime.title || 'Unknown';
+        const poster = anime.images?.jpg?.image_url || anime.images?.webp?.image_url || '';
+        const score = anime.score;
+        const year = anime.aired?.from?.slice(0, 4) || 'N/A';
+        const episodes = anime.episodes || '?';
+        const type = anime.type || 'TV';
+        const slug = slugify(title);
+        const detailsUrl = `/info/anime/jikan-${anime.mal_id}/${slug}`;
+        
+        // Fallback poster if image fails to load
+        const posterStyle = poster 
+          ? `background-image: url('${poster}')` 
+          : `background: linear-gradient(135deg, var(--bg-surface), var(--bg-card))`;
+        
+        return `<a href="${detailsUrl}" class="rec-card">
+          <div class="rec-poster" style="${posterStyle}">
+            ${poster ? `<img src="${poster}" alt="${escapeHtml(title)}" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;">` : ''}
+            <span class="quality-badge">${type}</span>
+            <span class="score-badge"><i class="fa-solid fa-star"></i> ${score?.toFixed(1) || 'N/A'}</span>
+            <div class="play-overlay">
+              <svg viewBox="0 0 24 24">
+                <polygon points="5,3 19,12 5,21" fill="white"/>
+              </svg>
+            </div>
+          </div>
+          <div class="rec-info">
+            <div class="rec-meta">${episodes} eps · ${year}</div>
+            <div class="rec-title">${escapeHtml(title)}</div>
+          </div>
+        </a>`;
+      }
+
+      async function loadCastData() {
+        const container = document.getElementById('castList');
+        const data = currentState.data;
+        const isAnime = currentState.source === 'jikan';
+        
+        if (isAnime) {
+          container.innerHTML = '<p class="loading-text" style="padding:20px 0;">Loading cast...</p>';
+          try {
+            const res = await fetch(`https://api.jikan.moe/v4/anime/${currentState.id}/characters`);
+            if (!res.ok) throw new Error(`Jikan characters error: ${res.status}`);
+            const { data: charsData } = await res.json();
+            const chars = (charsData || []).sort((a, b) => {
+              // Main roles first, then by favorites
+              if (a.role === 'Main' && b.role !== 'Main') return -1;
+              if (b.role === 'Main' && a.role !== 'Main') return 1;
+              return (b.favorites || 0) - (a.favorites || 0);
+            });
+            
+            if (!chars.length) {
+              container.innerHTML = '<p class="loading-text">No cast data available</p>';
+              return;
+            }
+            
+            // Build list layout matching image 3 style
+            const castRows = chars.slice(0, 20).map(c => {
+              const character = c.character;
+              const charImg = character.images?.jpg?.image_url || character.images?.webp?.image_url || '';
+              const charName = character.name || 'Unknown';
+              const role = c.role || 'Supporting';
+              // Prefer Japanese VA, fallback to first
+              const va = c.voice_actors?.find(v => v.language === 'Japanese') || c.voice_actors?.[0];
+              const vaName = va ? va.person.name.replace(/,\s*/, ' ').split(' ').reverse().join(' ') : 'Unknown';
+              const vaImg = va?.person?.images?.jpg?.image_url || '';
+              const vaLang = va?.language || '';
+
+              return `
+                <div class="cast-row">
+                  <a href="/character/${character.mal_id}/${slugify(charName)}" class="cast-char-side">
+                    <img class="cast-portrait cast-char-portrait" src="${escapeHtml(charImg)}" alt="${escapeHtml(charName)}"
+                      loading="lazy"
+                      onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 60 90%22><rect fill=%22%231e2633%22 width=%2260%22 height=%2290%22/></svg>'">
+                    <div class="cast-char-info">
+                      <span class="cast-char-name">${escapeHtml(charName)}</span>
+                      <span class="cast-role-badge ${role === 'Main' ? 'role-main' : 'role-supporting'}">${role.toUpperCase()}</span>
+                    </div>
+                  </a>
+                  ${va ? `
+                  <a href="/person/${va.person.mal_id}/${slugify(vaName)}" class="cast-va-side">
+                    <div class="cast-va-info">
+                      <span class="cast-va-name">${escapeHtml(vaName)}</span>
+                      <span class="cast-va-lang">${escapeHtml(vaLang)}</span>
+                    </div>
+                    <img class="cast-portrait cast-va-portrait" src="${escapeHtml(vaImg)}" alt="${escapeHtml(vaName)}"
+                      loading="lazy"
+                      onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 60 90%22><rect fill=%22%231e2633%22 width=%2260%22 height=%2290%22/></svg>'">
+                  </a>` : '<div class="cast-va-side cast-va-empty"></div>'}
+                </div>
+              `;
+            }).join('');
+            
+            container.innerHTML = `<div class="cast-warp-container"><div class="cast-list-grid">${castRows}</div>`;
+            
+          } catch (e) {
+            console.error('Cast fetch error:', e);
+            container.innerHTML = '<p class="loading-text">Failed to load cast</p>';
+          }
+        } else {
+          // TMDB cast — same row layout
+          const cast = data.credits?.cast || [];
+          if (!cast.length) {
+            container.innerHTML = '<p class="loading-text">No cast data available</p>';
+            return;
+          }
+          
+          const castRows = cast.slice(0, 20).map(c => {
+            const actorImg = c.profile_path ? `https://image.tmdb.org/t/p/w185${c.profile_path}` : '';
+            const actorName = c.name || 'Unknown';
+            const character = c.character || '';
+            return `
+              <div class="cast-row">
+                <div class="cast-char-side" style="cursor:default;">
+                  <img class="cast-portrait cast-char-portrait" src="${escapeHtml(actorImg)}" alt="${escapeHtml(actorName)}"
+                    loading="lazy"
+                    onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 60 90%22><rect fill=%22%231e2633%22 width=%2260%22 height=%2290%22/></svg>'">
+                  <div class="cast-char-info">
+                    <span class="cast-char-name">${escapeHtml(actorName)}</span>
+                    <span class="cast-role-badge role-supporting">ACTOR</span>
+                  </div>
+                </div>
+                <div class="cast-va-side">
+                  <div class="cast-va-info">
+                    <span class="cast-va-name">${escapeHtml(character)}</span>
+                    <span class="cast-va-lang">Character</span>
+                  </div>
+                </div>
+              </div>
+            `;
+          }).join('');
+          
+          container.innerHTML = `<div class="cast-warp-container"><div class="cast-list-grid">${castRows}</div>`;
+        }
+      }
+
+      window.updateArrowVisibility = function(container) {
+        if (!container) return;
+        const leftArrow = container.parentElement.querySelector('.left-arrow');
+        const rightArrow = container.parentElement.querySelector('.right-arrow');
+        if (!leftArrow || !rightArrow) return;
+        
+        const canScrollLeft = container.scrollLeft > 0;
+        const canScrollRight = container.scrollWidth > container.clientWidth + container.scrollLeft;
+        
+        leftArrow.style.display = canScrollLeft ? 'flex' : 'none';
+        rightArrow.style.display = canScrollRight ? 'flex' : 'none';
+      };
+
+      document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('.cast-nav-arrow.left-arrow').forEach(arrow => {
+          arrow.addEventListener('click', (e) => {
+            e.preventDefault();
+            const container = arrow.closest('.cast-scroll-container')?.parentElement?.querySelector('.cast-scroll-container');
+            if (container) container.scrollBy({ left: -200, behavior: 'smooth' });
+          });
+        });
+        document.querySelectorAll('.cast-nav-arrow.right-arrow').forEach(arrow => {
+          arrow.addEventListener('click', (e) => {
+            e.preventDefault();
+            const container = arrow.closest('.cast-scroll-container')?.parentElement?.querySelector('.cast-scroll-container');
+            if (container) container.scrollBy({ left: 200, behavior: 'smooth' });
+          });
+        });
+      });
+
+      async function loadArtworkData() {
+        const container = document.getElementById('artworkGrid');
+        const data = currentState.data;
+        const isAnime = currentState.source === 'jikan';
+        
+        container.innerHTML = '<p class="loading-text" style="grid-column:1/-1;padding:20px 0;">Loading artwork...</p>';
+
+        let images = []; // { type, url (full), thumb (display) }
+
+        if (isAnime) {
+          // Add main images first
+          const jpg = data.images?.jpg;
+          const webp = data.images?.webp;
+          if (jpg?.large_image_url) images.push({ type: 'poster', url: jpg.large_image_url, thumb: jpg.large_image_url });
+          if (webp?.large_image_url && webp.large_image_url !== jpg?.large_image_url)
+            images.push({ type: 'poster', url: webp.large_image_url, thumb: webp.large_image_url });
+
+          // Fetch /pictures for all extra images
+          try {
+            const res = await fetch(`https://api.jikan.moe/v4/anime/${currentState.id}/pictures`);
+            if (res.ok) {
+              const { data: pics } = await res.json();
+              (pics || []).forEach(pic => {
+                const url = pic.jpg?.large_image_url || pic.jpg?.image_url
+                         || pic.webp?.large_image_url || pic.webp?.image_url;
+                // Use large_image_url for both thumb and full — avoids the blurry small thumbnails
+                const thumb = pic.jpg?.large_image_url || pic.webp?.large_image_url || url;
+                if (url && !images.some(i => i.url === url)) {
+                  images.push({ type: 'poster', url, thumb });
+                }
+              });
+            }
+          } catch(e) { /* use what we have */ }
+
+        } else {
+          // TMDB — use w500 for poster thumbs, w780 for backdrop thumbs, w1280 for full
+          const tmdbImgs = data.images || {};
+
+          // Fallback: if images weren't appended (old cache), build from main poster/backdrop
+          if (!tmdbImgs.posters?.length && !tmdbImgs.backdrops?.length) {
+            if (data.poster_path) images.push({
+              type: 'poster',
+              url: `https://image.tmdb.org/t/p/original${data.poster_path}`,
+              thumb: `https://image.tmdb.org/t/p/w500${data.poster_path}`
+            });
+            if (data.backdrop_path) images.push({
+              type: 'backdrop',
+              url: `https://image.tmdb.org/t/p/original${data.backdrop_path}`,
+              thumb: `https://image.tmdb.org/t/p/w780${data.backdrop_path}`
+            });
+          }
+
+          (tmdbImgs.posters || []).slice(0, 12).forEach(p => images.push({
+            type: 'poster',
+            url: `https://image.tmdb.org/t/p/original${p.file_path}`,
+            thumb: `https://image.tmdb.org/t/p/w500${p.file_path}`
+          }));
+          (tmdbImgs.backdrops || []).slice(0, 10).forEach(b => images.push({
+            type: 'backdrop',
+            url: `https://image.tmdb.org/t/p/original${b.file_path}`,
+            thumb: `https://image.tmdb.org/t/p/w780${b.file_path}`
+          }));
+          (tmdbImgs.logos || []).slice(0, 5).forEach(l => images.push({
+            type: 'logo',
+            url: `https://image.tmdb.org/t/p/original${l.file_path}`,
+            thumb: `https://image.tmdb.org/t/p/w500${l.file_path}`
+          }));
+        }
+        
+        if (!images.length) {
+          container.innerHTML = '<p class="loading-text" style="grid-column:1/-1;">No artwork available</p>';
+          return;
+        }
+
+        const typeLabel = { poster: 'Poster', backdrop: 'Backdrop', logo: 'Logo' };
+        container.innerHTML = images.map(img => `
+          <div class="artwork-item artwork-item--${img.type}"
+               onclick="document.getElementById('lightboxImg').src='${escapeHtml(img.url)}';document.getElementById('artworkLightbox').classList.add('show')">
+            <img src="${escapeHtml(img.thumb)}" data-full="${escapeHtml(img.url)}"
+                 alt="${typeLabel[img.type] || 'Artwork'}" loading="lazy"
+                 onerror="this.closest('.artwork-item').style.display='none'">
+            <span class="artwork-type-badge">${typeLabel[img.type] || ''}</span>
+          </div>
+        `).join('');
+      }
+
+      async function loadTrailerData() {
+        const container = document.getElementById('trailerContainer');
+        const data = currentState.data;
+        const isAnime = currentState.source === 'jikan';
+        let trailerUrl = null;
+        
+        if (isAnime) {
+          trailerUrl = data.trailer?.embed_url || data.trailers?.youtube?.[0]?.url;
+        } else {
+          const videos = data.videos?.results || [];
+          const trailer = videos.find(v => v.type === 'Trailer' && v.site === 'YouTube') || videos.find(v => v.site === 'YouTube');
+          if (trailer) trailerUrl = `https://www.youtube.com/embed/${trailer.key}`;
+        }
+        
+        if (trailerUrl) {
+          container.innerHTML = `
+            <div class="video-title">${currentState.title} - Trailer</div>
+            <div class="video-wrapper">
+              <iframe src="${trailerUrl}" allowfullscreen loading="lazy" title="Trailer"></iframe>
+            </div>
+          `;
+        } else {
+          container.innerHTML = '<p class="loading-text">No trailer available</p>';
+        }
+      }
+
+      async function loadThemesData() {
+        const container = document.getElementById('themesContainer');
+        if (currentState.source !== 'jikan') {
+          container.innerHTML = '<p class="loading-text">Theme songs only available for anime</p>';
+          return;
+        }
+
+        const malId = currentState.data?.mal_id || currentState.id;
+        if (!malId) { container.innerHTML = '<p class="loading-text">No MAL ID available</p>'; return; }
+
+        container.innerHTML = '<p class="loading-text" style="padding:20px 0;">Loading themes...</p>';
+
+        try {
+          // Correct REST endpoint — filter by MAL site + external_id, include song + entries + videos
+          const url = `https://api.animethemes.moe/anime?filter[has]=resources&filter[site]=MyAnimeList&filter[external_id]=${malId}&include=animethemes.song,animethemes.animethemeentries.videos`;
+          const res = await fetch(url);
+          if (!res.ok) throw new Error(`AnimThemes error: ${res.status}`);
+          const json = await res.json();
+          const animeEntry = (json.anime || [])[0];
+
+          if (!animeEntry?.animethemes?.length) {
+            container.innerHTML = '<p class="loading-text">No theme songs found for this anime</p>';
+            return;
+          }
+
+          const allThemes = animeEntry.animethemes;
+          const ops = allThemes.filter(t => t.type === 'OP').sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
+          const eds = allThemes.filter(t => t.type === 'ED').sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
+          const posterImg = currentState.data.images?.jpg?.image_url || '';
+
+          // Build a compact theme card: song title + artist row + collapsible video per version
+          function buildThemeCards(list, sectionType) {
+            return list.map(theme => {
+              const seq      = theme.sequence || '';
+              const label    = `${sectionType}${seq}`;
+              const songTitle = theme.song?.title || label;
+              // animethemes REST returns song.artists only when artists include is added;
+              // the endpoint above includes animethemes.song so artists may not be present —
+              // fall back gracefully
+              const artists  = (theme.song?.artists || []).map(a => a.name).join(', ');
+
+              // Collect all video entries across all versions
+              const entries = theme.animethemeentries || [];
+              const videoBlocks = entries.map(entry => {
+                const video = entry.videos?.[0];
+                if (!video?.link) return '';
+                const verTag  = entry.version && entry.version > 1 ? ` <span class="theme-ver-tag">v${entry.version}</span>` : '';
+                const epRange = entry.episodes ? `<span class="theme-ep-range">eps ${entry.episodes}</span>` : '';
+                return `
+                  <div class="theme-video-entry">
+                    <div class="theme-video-meta">${verTag}${epRange}</div>
+                    <div class="video-wrapper">
+                      <video controls preload="none" ${posterImg ? `poster="${escapeHtml(posterImg)}"` : ''}>
+                        <source src="${escapeHtml(video.link)}" type="video/webm">
+                      </video>
+                    </div>
+                  </div>`;
+              }).join('');
+
+              if (!videoBlocks.trim()) return ''; // skip themes with no video
+
+              return `
+                <div class="theme-card">
+                  <div class="theme-card-header">
+                    <div class="theme-card-label">${escapeHtml(label)}</div>
+                    <div class="theme-card-titles">
+                      <span class="theme-song-title">${escapeHtml(songTitle)}</span>
+                      ${artists ? `<span class="theme-artist"><i class="fa-solid fa-music" style="font-size:0.65rem;opacity:0.7;"></i> ${escapeHtml(artists)}</span>` : ''}
+                    </div>
+                  </div>
+                  ${videoBlocks}
+                </div>`;
+            }).join('');
+          }
+
+          let html = '';
+          if (ops.length) {
+            html += `<div class="themes-section-heading"><i class="fa-solid fa-arrow-right-to-bracket" style="transform:rotate(-90deg);color:#7ec8f7;"></i> Opening Themes <span class="themes-count">${ops.length}</span></div>`;
+            html += buildThemeCards(ops, 'OP');
+          }
+          if (eds.length) {
+            html += `<div class="themes-section-heading" style="margin-top:20px;"><i class="fa-solid fa-arrow-right-from-bracket" style="transform:rotate(-90deg);color:#f6ad55;"></i> Ending Themes <span class="themes-count">${eds.length}</span></div>`;
+            html += buildThemeCards(eds, 'ED');
+          }
+
+          container.innerHTML = html || '<p class="loading-text">No theme videos available</p>';
+
+        } catch (e) {
+          console.warn('AnimeThemes error:', e);
+          container.innerHTML = '<p class="loading-text">Failed to load theme songs</p>';
+        }
+      }
+
+      async function loadStatisticsData() {
+        renderHistogram(); 
+        renderSegmentedBar(); 
+        renderMetricCards();
+      }
+
+      function renderHistogram() {
+        const container = document.getElementById('scoreHistogram');
+        const data = currentState.data;
+        const isAnime = currentState.source === 'jikan';
+        const avg = isAnime ? data.score : data.vote_average;
+        const bars = [];
+        for (let i = 1; i <= 10; i++) { 
+          const distance = Math.abs(i - (avg || 7)); 
+          const height = Math.max(5, 100 - distance * 15 + Math.random() * 10); 
+          bars.push({ value: i, height: Math.min(100, Math.max(10, height)) }); 
+        }
+        container.innerHTML = bars.map(b => `<div class="hist-bar" style="height: ${b.height}%" data-value="${b.value}"></div>`).join('');
+      }
+
+      function renderSegmentedBar() {
+        const container = document.getElementById('statusBar');
+        const distribution = { watching: 25, completed: 45, planning: 20, dropped: 10 };
+        const total = Object.values(distribution).reduce((a, b) => a + b, 0);
+        container.innerHTML = Object.entries(distribution).map(([status, count]) => { 
+          const width = (count / total) * 100; 
+          return `<div class="status-segment status-${status}" style="width: ${width}%" title="${status}: ${count}%">${width > 15 ? `${count}%` : ''}</div>`; 
+        }).join('');
+      }
+
+      function renderMetricCards() {
+        const container = document.getElementById('metricCards');
+        const data = currentState.data;
+        const isAnime = currentState.source === 'jikan';
+        const rank = isAnime ? data.rank : data.popularity;
+        const popularity = isAnime ? data.popularity : data.vote_count;
+        const members = isAnime ? data.members : data.popularity;
+        container.innerHTML = `
+          <div class="metric-card"><div class="metric-value">${rank ? `#${rank}` : '—'}</div><div class="metric-label">Rank</div><div class="metric-trend up">↑ 2 this week</div></div>
+          <div class="metric-card"><div class="metric-value">${formatNumber(popularity)}</div><div class="metric-label">Popularity</div><div class="metric-trend up">↑ 5%</div></div>
+          <div class="metric-card"><div class="metric-value">${formatNumber(members)}</div><div class="metric-label">Members</div><div class="metric-trend">+1.2k today</div></div>
+        `;
+      }
+
+      function escapeHtml(str) { 
+        if (!str) return ''; 
+        const div = document.createElement('div'); 
+        div.textContent = str; 
+        return div.innerHTML; 
+      }
+      
+      function formatNumber(num) { 
+        if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M'; 
+        if (num >= 1000) return (num / 1000).toFixed(1) + 'K'; 
+        return num.toString(); 
+      }
+      
+      function showError(message) { 
+        const main = document.querySelector('.main-content'); 
+        main.innerHTML = `<div style="text-align: center; padding: 60px 20px; color: var(--text-muted);"><i class="fa-solid fa-triangle-exclamation" style="font-size: 3rem; margin-bottom: 16px; color: var(--accent-red);"></i><p style="font-size: 1.1rem;">${message}</p><a href="/" class="btn btn-primary" style="margin-top: 20px;">Return Home</a></div>`; 
+      }
+      
+    })();
+  </script>
+</body>
+</html>

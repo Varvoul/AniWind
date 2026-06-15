@@ -1,0 +1,1894 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
+  <title>Aniocean· Stream Anime, Movies & TV-Show</title>
+  <meta name="description" content="Watch the latest anime, movies, and TV series for free on Aniocean. Discover new releases effortlessly with real-time search and multi-language subs.">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="shared.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:opsz,wght@14..32,400..700&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- Font Awesome 6 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    :root {
+      --bg-body: #0a1929;
+      --bg-header: #0f2440;
+      --bg-card: #132f4c;
+      --bg-surface: #1a3a5c;
+      --bg-popup: #102a44;
+      --text-primary: #ffffff;
+      --text-secondary: #b0c7e3;
+      --text-muted: #94a3b8;
+      --text-widget-title: #a2c4de;
+      --btn-primary: #2b6cb0;
+      --btn-primary-hover: #1d4e89;
+      --btn-primary-text: #ffffff;
+      --btn-secondary: #334e68;
+      --btn-secondary-hover: #243b53;
+      --popup-btn: #5c6ac4;
+      --popup-btn-text: #ffffff;
+      --popup-btn-hover: #4955b5;
+      --genre-tag-bg: #4c51bf;
+      --link-accent: #ed64a6;
+      --accent-gold: #ecc94b;
+      --accent-blue: #4299e1;
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-medium: rgba(255, 255, 255, 0.16);
+      --font-title: 'Archivo Black', sans-serif;
+      --font-body: 'Inter', sans-serif;
+      --font-meta: 'Poppins', sans-serif;
+      --radius-sm: 6px;
+      --radius-md: 12px;
+      --radius-lg: 18px;
+      --radius-pill: 50px;
+      --radius-circle: 50%;
+      --shadow-lg: 0 20px 60px rgba(0,0,0,0.5);
+      --transition-fast: 0.18s ease;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      background: var(--bg-body);
+      font-family: var(--font-body);
+      color: var(--text-primary);
+      line-height: 1.5;
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+    a { text-decoration: none; color: inherit; cursor: pointer; }
+    img { max-width: 100%; display: block; }
+    button, .btn-heart, .btn-watch { cursor: pointer; font-family: inherit; }
+
+    /* ── HERO SLIDER ── */
+    .hero-slider {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      overflow: hidden;
+      background: #000;
+    }
+    .slides-container {
+      display: flex;
+      transition: transform 0.55s ease-in-out;
+      height: 100%;
+    }
+    .slide {
+      min-width: 100%;
+      height: 100%;
+      background-size: cover;
+      background-position: center;
+      position: relative;
+      display: flex;
+      align-items: flex-end;
+      padding: 0 5%;
+    }
+    .slide::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: linear-gradient(
+        to right,
+        rgba(10, 25, 41, 0.97) 28%,
+        rgba(10, 25, 41, 0.35) 100%
+      );
+    }
+    .slide::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 25%;
+      background: linear-gradient(to top, var(--bg-body) 0%, transparent 100%);
+    }
+    .slide-content {
+      position: relative;
+      z-index: 2;
+      max-width: 650px;
+      width: 100%;
+      margin-bottom: 15%;
+    }
+    .slide-title {
+      font-family: var(--font-title);
+      font-size: clamp(18px, 4.5vw, 38px);
+      margin-bottom: 6px;
+      line-height: 1.2;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .slide-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 10px;
+      align-items: center;
+    }
+    .meta-badge {
+      background: rgba(255,255,255,0.12);
+      border: 1px solid var(--border-medium);
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-size: clamp(0.55rem, 1.4vw, 0.72rem);
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+    .slide-synopsis {
+      font-size: clamp(0.55rem, 1.4vw, 0.82rem);
+      color: rgba(255,255,255,0.78);
+      margin-bottom: 14px;
+      line-height: 1.45;
+      max-height: 60px;
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+    }
+    .slide-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    .btn-watch {
+      background: var(--btn-primary);
+      color: #fff;
+      padding: clamp(8px, 1.5vw, 12px) clamp(14px, 2.5vw, 26px);
+      border-radius: var(--radius-pill);
+      font-weight: 700;
+      font-size: clamp(0.7rem, 1.5vw, 0.9rem);
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all var(--transition-fast);
+    }
+    .btn-watch:hover {
+      background: var(--btn-primary-hover);
+      transform: scale(1.02);
+    }
+    .btn-heart-slide {
+      width: clamp(32px, 5vw, 44px);
+      height: clamp(32px, 5vw, 44px);
+      background: rgba(255,255,255,0.08);
+      border: 1px solid var(--border-medium);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all var(--transition-fast);
+      color: #fff;
+      font-size: clamp(0.8rem, 2vw, 1.2rem);
+    }
+    .btn-heart-slide:hover {
+      background: rgba(255,255,255,0.2);
+    }
+    .slider-nav {
+      position: absolute;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 14px;
+      background: rgba(0,0,0,0.55);
+      backdrop-filter: blur(10px);
+      border-radius: 30px;
+      padding: 4px 16px;
+      z-index: 5;
+      border: 1px solid var(--border-subtle);
+    }
+    .slider-arrow {
+      background: none;
+      border: none;
+      color: #fff;
+      font-size: clamp(1.2rem, 2.5vw, 1.6rem);
+      cursor: pointer;
+      padding: 0 2px;
+      line-height: 1;
+    }
+    .slider-arrow:hover {
+      color: var(--btn-primary);
+    }
+    .slide-counter {
+      font-size: clamp(0.65rem, 1.5vw, 0.85rem);
+      color: rgba(255,255,255,0.85);
+    }
+    .slider-dots {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      z-index: 5;
+    }
+    .dot {
+      width: clamp(5px, 0.8vw, 7px);
+      height: clamp(5px, 0.8vw, 7px);
+      background: rgba(255,255,255,0.3);
+      border-radius: 50%;
+      cursor: pointer;
+    }
+    .dot.active {
+      background: #fff;
+      transform: scale(1.3);
+    }
+
+    /* ── GRID & CARD ── */
+    .card-title {
+      font-size: 0.875rem; font-weight:600; color:#fff;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      line-height: 1.3;
+    }
+    .card-meta-sm { font-size:0.75rem; font-weight:500; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .card-info-grid .card-title { font-size:0.85rem; }
+    .card-info-grid .card-meta-sm { font-size:0.7rem; }
+    .badge { font-size:0.625rem; font-weight:700; text-transform:uppercase; }
+    .poster-status-badge { position:absolute; bottom:6px; left:6px; background:rgba(0,0,0,0.7); color:#fff; font-size:0.6rem; padding:2px 5px; border-radius:3px; z-index:2; }
+    .poster-rating-badge { position:absolute; top:6px; right:6px; background:rgba(0,0,0,0.7); color:var(--accent-gold); font-size:0.6rem; padding:2px 5px; border-radius:3px; z-index:2; display:flex; align-items:center; gap:3px; }
+
+    /* ── LAYOUT ── */
+    .main-layout { display:flex; gap:0; max-width:100%; }
+    .main-content { flex:0 0 68%; max-width:68%; padding:0 16px; }
+    .sidebar-right { flex:0 0 32%; max-width:32%; padding:0 16px 0 8px; }
+    .section { margin:30px 0; }
+    .section-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:8px; }
+    .section-title { font-family:var(--font-title); font-size:1.35rem; color:var(--text-widget-title); }
+    .section-controls { display:flex; align-items:center; gap:8px; }
+    .view-all { font-size:0.75rem; font-weight:600; color:var(--link-accent); border:1px solid var(--link-accent); border-radius:var(--radius-pill); padding:5px 12px; white-space:nowrap; transition:all var(--transition-fast); }
+    .view-all:hover { background:rgba(237,100,166,0.15); }
+    .scroll-arrow { width:32px; height:32px; border-radius:50%; background:rgba(255,255,255,0.06); border:1px solid var(--border-medium); display:flex; align-items:center; justify-content:center; cursor:pointer; color:#fff; font-size:1rem; }
+    .scroll-arrow:hover { background:rgba(255,255,255,0.14); }
+    @media (max-width:1024px) { .scroll-arrow { display:none; } }
+
+    .horizontal-scroll { display:flex; gap:14px; overflow-x:auto; scroll-behavior:smooth; padding-bottom:8px; }
+    .horizontal-scroll::-webkit-scrollbar { display:none; }
+    .show-card-horiz { flex:0 0 auto; width:165px; cursor:pointer; transition:transform var(--transition-fast); }
+    .show-card-horiz:hover { transform:translateY(-4px); }
+    .card-poster { width:100%; aspect-ratio:3/4.5; background-size:cover; background-position:center; border-radius:var(--radius-md); position:relative; overflow:hidden; margin-bottom:6px; background-color:var(--bg-card); }
+    .play-overlay { position:absolute; inset:0; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; opacity:0; transition:opacity var(--transition-fast); border-radius:var(--radius-md); }
+    .play-overlay svg { width:36px; height:36px; fill:#fff; }
+    .show-card-horiz:hover .play-overlay, .show-card-grid:hover .play-overlay { opacity:1; }
+    .ranking-badge { position:absolute; top:6px; right:6px; background:rgba(0,0,0,0.6); backdrop-filter:blur(10px); color:#fff; font-weight:700; font-size:0.7rem; padding:2px 7px; border-radius:4px; z-index:2; }
+    .quality-badge { position:absolute; top:6px; left:6px; background:rgba(0,0,0,0.7); color:#fff; font-size:0.62rem; padding:2px 5px; border-radius:3px; z-index:2; font-weight:600; }
+    .score-badge { position:absolute; top:6px; right:6px; background:rgba(0,0,0,0.7); color:var(--accent-gold); font-size:0.65rem; padding:2px 5px; border-radius:3px; z-index:2; font-weight:600; display:flex; align-items:center; gap:3px; }
+
+    /* NEW ON ANIOCEAN SECTION */
+    .new-aniocean-grid { 
+      display:grid; 
+      grid-template-columns:repeat(7, 1fr); 
+      gap:12px; 
+    }
+    @media (max-width: 1400px) {
+      .new-aniocean-grid { grid-template-columns:repeat(6, 1fr); }
+    }
+    @media (max-width: 1200px) {
+      .new-aniocean-grid { grid-template-columns:repeat(5, 1fr); }
+    }
+    @media (max-width: 992px) {
+      .new-aniocean-grid { grid-template-columns:repeat(4, 1fr); }
+    }
+    @media (max-width: 768px) {
+      .new-aniocean-grid { grid-template-columns:repeat(3, 1fr); gap:10px; }
+    }
+    @media (max-width: 480px) {
+      .new-aniocean-grid { grid-template-columns:repeat(2, 1fr); }
+    }
+    
+    .aniocean-card {
+      position: relative;
+      cursor: pointer;
+      transition: transform var(--transition-fast);
+    }
+    .aniocean-card:hover {
+      transform: translateY(-4px);
+    }
+    .aniocean-poster {
+      position: relative;
+      aspect-ratio: 3/4.5;
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      background: var(--bg-card);
+    }
+    .aniocean-poster img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .aniocean-badge-score {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      background: rgba(0,0,0,0.8);
+      color: var(--accent-gold);
+      padding: 3px 6px;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      z-index: 2;
+    }
+    .aniocean-badge-lang {
+      position: absolute;
+      bottom: 6px;
+      left: 6px;
+      display: flex;
+      gap: 4px;
+      z-index: 2;
+    }
+    .aniocean-lang-badge {
+      background: rgba(0,0,0,0.8);
+      color: #fff;
+      padding: 3px 5px;
+      border-radius: 4px;
+      font-size: 0.65rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+    .aniocean-lang-badge i {
+      font-size: 0.7rem;
+    }
+    .aniocean-info {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 30px 6px 6px;
+      background: linear-gradient(to top, rgba(10,25,41,0.95) 0%, rgba(10,25,41,0.7) 40%, transparent 100%);
+      text-align: center;
+      pointer-events: none;
+    }
+    .aniocean-meta {
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      margin-bottom: 2px;
+      font-weight: 500;
+    }
+    .aniocean-title {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #fff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      line-height: 1.3;
+    }
+
+    .grid-container { display:grid; grid-template-columns:repeat(auto-fill, minmax(185px,1fr)); gap:16px; }
+    @media (min-width:768px){ .grid-container{ grid-template-columns:repeat(auto-fill, minmax(180px,1fr)); } }
+    .show-card-grid { border-radius:var(--radius-md); overflow:hidden; cursor:pointer; transition:transform var(--transition-fast); position:relative; }
+    .show-card-grid:hover { transform:translateY(-3px); }
+    .show-card-grid .card-poster {
+      aspect-ratio: 3/4.5;
+      border-radius: 0;
+      margin-bottom: 0;
+    }
+    .card-info-grid {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 24px 8px 8px;
+      background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%);
+      border-radius: 0 0 var(--radius-md) var(--radius-md);
+      color: #fff;
+      pointer-events: none;
+    }
+
+    .toggle-tabs { display:flex; gap:4px; }
+    .toggle-tab { padding:5px 12px; border-radius:var(--radius-pill); background:rgba(255,255,255,0.04); border:1px solid var(--border-medium); font-size:0.72rem; cursor:pointer; transition:all var(--transition-fast); color:var(--text-secondary); font-weight:500; }
+    .toggle-tab.active { background:var(--popup-btn); color:#fff; border-color:var(--popup-btn); font-weight:600; }
+
+    /* sidebar */
+    .sidebar-list-item { display:flex; gap:10px; align-items:center; padding:8px; border-radius:var(--radius-sm); cursor:pointer; transition:background var(--transition-fast); margin-bottom:4px; }
+    .sidebar-list-item:hover { background:var(--bg-surface); }
+    .sidebar-rank { font-size:1.4rem; font-weight:700; color:rgba(255,255,255,0.12); width:30px; text-align:center; flex-shrink:0; font-family:var(--font-title); }
+    .sidebar-poster { width:50px; height:70px; object-fit:cover; border-radius:var(--radius-sm); flex-shrink:0; background:var(--bg-card); }
+    .sidebar-info h4 { 
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #fff;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      white-space: normal;
+      line-height: 1.3;
+    }
+    .side-meta { font-size:0.6875rem; color:var(--text-muted); margin-top:2px; }
+
+    /* popup */
+    .popup-overlay { position:fixed; inset:0; z-index:500; display:flex; align-items:center; justify-content:center; pointer-events:none; }
+    .popup-card { background:var(--bg-popup); border:1px solid var(--border-medium); border-radius:var(--radius-lg); padding:20px; max-width:520px; width:94%; max-height:85vh; overflow-y:auto; box-shadow:var(--shadow-lg); pointer-events:auto; display:none; position:relative; color:#fff; }
+    .popup-card.active { display:block; }
+    .popup-close { position:absolute; top:12px; right:16px; font-size:1.4rem; cursor:pointer; color:#cbd5e1; line-height:1; z-index:2; }
+    .modal-poster-wrap { width:120px; flex-shrink:0; border-radius:10px; overflow:hidden; float:left; margin-right:16px; margin-bottom:12px; }
+    .modal-poster-wrap img { width:100%; height:auto; display:block; }
+    .modal-title { font-weight:700; font-size:1.1rem; line-height:1.3; margin-bottom:4px; color:#fff; word-break:break-word; }
+    .modal-subtitle { font-size:0.85rem; color:var(--text-muted); margin-bottom:12px; }
+    .meta-pills-row { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
+    .meta-pill { background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.3); border-radius:20px; padding:3px 10px; font-size:0.7rem; font-weight:500; color:#e0f0ff; white-space:nowrap; display:flex; align-items:center; gap:4px; }
+    .meta-pill svg { width:12px; height:12px; }
+    .genre-pills-row { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:16px; }
+    .genre-pill { background:rgba(126,200,224,0.2); border:1px solid #7ec8e0; border-radius:20px; padding:2px 10px; font-size:0.65rem; font-weight:600; color:#7ec8e0; cursor:pointer; text-decoration:none; transition:background 0.2s; }
+    .genre-pill:hover { background:rgba(126,200,224,0.4); }
+    .watch-btn { display:inline-block; background:var(--accent-gold); color:#1a1a1a; font-weight:700; padding:10px 24px; border-radius:40px; text-decoration:none; font-size:0.9rem; margin:0 0 16px 0; transition:background 0.2s, transform 0.1s; border:none; cursor:pointer; }
+    .watch-btn:hover { background:#f59e0b; transform:scale(1.02); }
+    .modal-synopsis { font-size:0.8rem; line-height:1.5; color:#ddd; white-space:pre-wrap; clear:both; }
+
+    /* ANIKOTO STYLE POPUP */
+    .anikoto-popup {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+    }
+    .anikoto-popup-poster {
+      width: 110px;
+      flex-shrink: 0;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .anikoto-popup-poster img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    .anikoto-popup-content {
+      flex: 1;
+      min-width: 0;
+    }
+    .anikoto-popup-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 6px;
+      line-height: 1.3;
+    }
+    .anikoto-popup-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .anikoto-meta-item {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .anikoto-popup-synopsis {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      margin-bottom: 12px;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .anikoto-popup-actions {
+      display: flex;
+      gap: 8px;
+    }
+    .anikoto-btn {
+      padding: 6px 14px;
+      border-radius: var(--radius-pill);
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      border: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .anikoto-btn-primary {
+      background: var(--btn-primary);
+      color: #fff;
+    }
+    .anikoto-btn-primary:hover {
+      background: var(--btn-primary-hover);
+    }
+    .anikoto-btn-secondary {
+      background: rgba(255,255,255,0.1);
+      color: #fff;
+      border: 1px solid var(--border-medium);
+    }
+    .anikoto-btn-secondary:hover {
+      background: rgba(255,255,255,0.2);
+    }
+
+    /* SCHEDULE */
+    .esw-widget { 
+      background:var(--bg-card); 
+      border:1px solid var(--border-subtle); 
+      border-radius:var(--radius-md); 
+      overflow:hidden; 
+      margin-top:20px; 
+    }
+    .esw-head { 
+      padding:10px 12px; 
+      display:flex; 
+      justify-content:space-between; 
+      align-items: center;
+      border-bottom:1px solid var(--border-subtle); 
+      background:var(--bg-surface); 
+      font-size:0.78rem; 
+      font-weight:700; 
+      color:#fff; 
+    }
+    .esw-clock-container {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .esw-clock-icon {
+      color: var(--accent-blue);
+      font-size: 0.85rem;
+    }
+    .esw-clock-pill { 
+      display:flex; 
+      align-items:center; 
+      gap:5px; 
+      background:var(--bg-body); 
+      border:1px solid var(--border-medium); 
+      border-radius:var(--radius-pill); 
+      padding:3px 8px; 
+      font-size:0.65rem; 
+      color:var(--text-muted); 
+    }
+    .esw-days-row { 
+      display:flex; 
+      align-items:center; 
+      padding:6px 4px; 
+      border-bottom:1px solid var(--border-subtle); 
+    }
+    .esw-nav-btn { 
+      background:none; 
+      border:none; 
+      color:var(--text-muted); 
+      cursor:pointer; 
+      width:24px; 
+      height:24px; 
+      display:flex; 
+      align-items:center; 
+      justify-content:center; 
+    }
+    .esw-day-card { 
+      flex:1; 
+      background:var(--bg-surface); 
+      border:1px solid var(--border-subtle); 
+      border-radius:var(--radius-sm); 
+      padding:4px 1px; 
+      text-align:center; 
+      cursor:pointer; 
+      font-size:0.55rem; 
+      transition:all var(--transition-fast); 
+    }
+    .esw-day-card.active { 
+      background:var(--btn-primary); 
+      border-color:var(--btn-primary); 
+    }
+    .esw-day-card.today { 
+      border-color:var(--accent-gold); 
+    }
+    .esw-dc-date { 
+      font-size:0.8rem; 
+      font-weight:800; 
+      color:#fff; 
+    }
+    .esw-body { 
+      padding:8px 10px; 
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .esw-body::-webkit-scrollbar {
+      width: 4px;
+    }
+    .esw-body::-webkit-scrollbar-thumb {
+      background: var(--border-medium);
+      border-radius: 2px;
+    }
+    .esw-row { 
+      display:flex; 
+      align-items:center; 
+      gap:8px; 
+      background:var(--bg-surface); 
+      border:1px solid var(--border-subtle); 
+      border-radius:var(--radius-sm); 
+      padding:8px; 
+      margin-bottom:6px; 
+      cursor:pointer; 
+      text-decoration:none; 
+      color:inherit; 
+      transition:all var(--transition-fast); 
+    }
+    .esw-row:hover { 
+      border-color:var(--btn-primary); 
+      transform: translateX(2px);
+    }
+    .esw-row.aired {
+      opacity: 0.6;
+      background: rgba(0,0,0,0.2);
+    }
+    .esw-row.airing {
+      border-color: var(--accent-gold);
+      background: rgba(236, 201, 75, 0.1);
+    }
+    .esw-row-poster {
+      width: 40px;
+      height: 55px;
+      object-fit: cover;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+    .esw-row-content {
+      flex: 1;
+      min-width: 0;
+    }
+    .esw-row-time { 
+      font-size:0.7rem; 
+      font-weight:700; 
+      color:var(--accent-blue);
+      margin-bottom: 2px;
+    }
+    .esw-row-title { 
+      font-size:0.75rem; 
+      font-weight: 600;
+      overflow:hidden; 
+      text-overflow:ellipsis; 
+      white-space:nowrap;
+      color: #fff;
+    }
+    .esw-row-ep { 
+      font-size:0.65rem; 
+      color:var(--text-muted); 
+      background:var(--bg-body); 
+      padding:2px 6px; 
+      border-radius:4px;
+      font-weight: 600;
+    }
+    .esw-more-btn {
+      width: 100%;
+      padding: 8px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      margin-top: 8px;
+    }
+    .esw-more-btn:hover {
+      background: var(--btn-primary);
+      color: #fff;
+      border-color: var(--btn-primary);
+    }
+
+    /* New schedule 4-column layout */
+.schedule-row {
+  display: grid;
+  grid-template-columns: 80px 50px 1fr 60px;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 8px;
+  margin-bottom: 6px;
+  text-decoration: none;
+  color: inherit;
+  transition: all var(--transition-fast);
+}
+.schedule-row:hover {
+  border-color: var(--btn-primary);
+  transform: translateX(2px);
+}
+.schedule-time {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--accent-blue);
+}
+.schedule-poster img {
+  width: 40px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 4px;
+  background: var(--bg-card);
+}
+.schedule-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #fff;
+}
+.schedule-ep {
+  font-size: 0.65rem;
+  font-weight: 600;
+  background: var(--bg-body);
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-align: center;
+  white-space: nowrap;
+}
+.schedule-more-btn {
+  width: 100%;
+  padding: 8px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  margin-top: 8px;
+}
+.schedule-more-btn:hover {
+  background: var(--btn-primary);
+  color: #fff;
+  border-color: var(--btn-primary);
+}
+.esw-body {
+  padding: 8px 10px;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+    /* pagination */
+    .pagination-nav { display:flex; gap:6px; justify-content:center; margin-top:18px; flex-wrap:wrap; align-items:center; }
+    .pagination-nav button {
+      padding:6px 12px; border-radius:var(--radius-sm);
+      background:var(--bg-surface); border:1px solid var(--border-subtle);
+      color:var(--text-secondary); font-size:0.75rem; cursor:pointer; transition:all var(--transition-fast);
+    }
+    .pagination-nav button:hover:not(:disabled) { background:var(--btn-primary); border-color:var(--btn-primary); color:#fff; }
+    .pagination-nav button.active { background:var(--btn-primary); border-color:var(--btn-primary); color:#fff; font-weight:700; }
+    .pagination-nav button:disabled { opacity:0.4; cursor:not-allowed; }
+
+    @media (max-width:1024px) {
+      .main-layout { flex-direction:column; }
+      .main-content, .sidebar-right { flex:1; max-width:100%; }
+    }
+    @media (max-width:768px) {
+      .horizontal-scroll { gap:10px; }
+      .show-card-horiz { width:150px; }
+      .grid-container { grid-template-columns:repeat(auto-fill, minmax(160px,1fr)); }
+    }
+    .country-link:hover {
+      color: #3675a8 !important;
+    }
+    .nav-link-item:hover {
+      color: #1d6a96 !important;
+    }
+    .genre-link:hover {
+      color: #3675a8 !important;
+    }
+    /* Desktop: limit hero slider height */
+@media (min-width: 1024px) {
+  .hero-slider {
+    aspect-ratio: auto;      /* remove 16/9 ratio */
+    height: 700px;           /* fixed height – adjust as needed */
+  }
+}
+    .hero-slider {
+  transition: height 0.2s ease, aspect-ratio 0.2s ease;
+}
+    @media (max-width: 768px) {
+  .hero-slider {
+    aspect-ratio: auto;
+    height: 320px;
+  }
+}
+    /* Popup Watch Now button – match hero slider style */
+.popup-card .watch-btn {
+  background: var(--btn-primary);
+  color: var(--btn-primary-text);
+  transition: all var(--transition-fast);
+}
+.popup-card .watch-btn:hover {
+  background: var(--btn-primary-hover);
+  transform: scale(1.02);
+}
+  </style>
+</head>
+<body>
+  <!-- header injected by shared.js -->
+
+  <section class="hero-slider" id="heroSlider">
+    <div class="slides-container" id="slidesContainer"></div>
+    <div class="slider-nav">
+      <button class="slider-arrow" id="prevSlide">‹</button>
+      <span class="slide-counter" id="slideCounter">1 / 1</span>
+      <button class="slider-arrow" id="nextSlide">›</button>
+    </div>
+    <div class="slider-dots" id="sliderDots"></div>
+  </section>
+
+  <div class="main-layout">
+    <div class="main-content">
+      <section class="section">
+        <div class="section-header">
+          <h2 class="section-title">Top Airing</h2>
+          <div class="section-controls">
+            <button class="scroll-arrow" id="topAiringLeft">‹</button>
+            <button class="scroll-arrow" id="topAiringRight">›</button>
+            <a href="/status/airing" class="view-all">View All ›</a>
+          </div>
+        </div>
+        <div class="horizontal-scroll" id="topAiringScroll"></div>
+      </section>
+
+      <section class="section">
+        <div class="section-header">
+          <h2 class="section-title" id="newReleasesTitle">New Releases</h2>
+          <div class="toggle-tabs" id="releaseTabs">
+            <button class="toggle-tab active" data-filter="all">All</button>
+            <button class="toggle-tab" data-filter="anime">Anime</button>
+            <button class="toggle-tab" data-filter="movie">Movies</button>
+            <button class="toggle-tab" data-filter="tv">Series</button>
+          </div>
+        </div>
+        <div class="grid-container" id="newReleasesGrid"></div>
+      </section>
+
+      <!-- NEW ON ANIOCEAN SECTION -->
+      <section class="section">
+        <div class="section-header">
+          <h2 class="section-title">New on Aniocean</h2>
+          <a href="/recent" class="view-all">View All ›</a>
+        </div>
+        <div class="new-aniocean-grid" id="newAnioceanGrid"></div>
+      </section>
+
+      <section class="section">
+        <div class="section-header">
+          <h2 class="section-title">Upcoming Shows</h2>
+          <div class="section-controls">
+            <button class="scroll-arrow" id="upcomingLeft">‹</button>
+            <button class="scroll-arrow" id="upcomingRight">›</button>
+            <a href="/status/upcoming" class="view-all">View All ›</a>
+          </div>
+        </div>
+        <div class="horizontal-scroll" id="upcomingScroll"></div>
+      </section>
+
+      <section class="section">
+        <div class="section-header"><h2 class="section-title">Recently Completed</h2></div>
+        <div class="grid-container" id="completedGrid"></div>
+        <nav class="pagination-nav" id="completedPagination"></nav>
+      </section>
+    </div>
+
+    <aside class="sidebar-right">
+      <section class="section" style="margin-top:0;">
+        <div class="section-header">
+          <h2 class="section-title">Trending Now</h2>
+          <div class="toggle-tabs" id="trendingTabs">
+            <button class="toggle-tab active" data-period="today">Today</button>
+            <button class="toggle-tab" data-period="week">Week</button>
+            <button class="toggle-tab" data-period="month">Month</button>
+          </div>
+        </div>
+        <div id="trendingList"></div>
+      </section>
+      <section class="section">
+        <div class="section-header"><h2 class="section-title">Most Popular</h2></div>
+        <div id="popularList"></div>
+      </section>
+      <div class="esw-widget" id="eswWidget">
+        <div class="esw-head">
+          <span>📅 Schedule</span>
+          <div class="esw-clock-container">
+            <i class="fas fa-globe-americas esw-clock-icon"></i>
+            <div class="esw-clock-pill"><span id="eswClockText"></span></div>
+          </div>
+        </div>
+        <div class="esw-days-row">
+          <button class="esw-nav-btn" id="eswPrev">‹</button>
+          <div class="esw-days-scroll" id="eswDaysScroll" style="display:flex; gap:3px; flex:1; overflow:hidden;"></div>
+          <button class="esw-nav-btn" id="eswNext">›</button>
+        </div>
+        <div class="esw-body" id="eswBody"></div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- POPUP CARD -->
+  <div class="popup-overlay" id="popupOverlay">
+    <div class="popup-card" id="popupCard" onmouseenter="clearTimeout(window.popupTimer)" onmouseleave="hidePopupDelayed()">
+      <span class="popup-close" id="popupClose">&times;</span>
+      <div id="popupContent"></div>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      const ANIKOTO_API = 'https://anikoto.bionmovies47.workers.dev';
+      const TMDB_PROXY = 'https://aniocen.bionmovies47.workers.dev';
+      const JIKAN_BASE = 'https://api.jikan.moe/v4';
+      const TMDB_IMAGE = 'https://image.tmdb.org/t/p';
+      const tmdbImg = (p,s='w500') => p ? `${TMDB_IMAGE}/${s}${p}` : '';
+      const tmdbBack = (p) => p ? `${TMDB_IMAGE}/w1280${p}` : '';
+
+      function infoUrl(show) {
+        const id = show.id;
+        const title = (show.title || '').trim();
+        const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+
+        let type = 'anime';
+        let prefixId = id;
+
+        if (id.startsWith('jikan-') || id.startsWith('jikan-air-') || id.startsWith('jikan-up-') || id.startsWith('jikan-comp-')) {
+          type = 'anime';
+          prefixId = id.replace(/^jikan-(?:air|up|comp-)?/, 'jikan-');
+        } else if (id.startsWith('tmdb-mv-') || id.startsWith('tmdb-movie-') || id.startsWith('tmdb-up-')) {
+          type = 'movie';
+          const numeric = id.replace(/^tmdb-(?:mv|movie|up)-/, '');
+          prefixId = `tmdb-movie-${numeric}`;
+        } else if (id.startsWith('tmdb-tv-') || (id.startsWith('tmdb-comp-') && !id.includes('movie'))) {
+          type = 'tv';
+          const numeric = id.replace(/^tmdb-(?:tv|comp)-/, '');
+          prefixId = `tmdb-tv-${numeric}`;
+        } else if (/^\d+$/.test(id)) {
+          type = 'anime';
+          prefixId = `jikan-${id}`;
+        }
+
+        const base = `/info/${type}/${prefixId}`;
+        return slug ? `${base}/${slug}` : base;
+      }
+
+      const GENRE_MAP = {
+        28:'Action',12:'Adventure',16:'Animation',35:'Comedy',80:'Crime',99:'Documentary',
+        18:'Drama',10751:'Family',14:'Fantasy',36:'History',27:'Horror',10402:'Music',
+        9648:'Mystery',10749:'Romance',878:'Science Fiction',10770:'TV Movie',53:'Thriller',
+        10752:'War',37:'Western',10759:'Action & Adventure',10762:'Kids',10763:'News',
+        10764:'Reality',10765:'Sci-Fi & Fantasy',10766:'Soap',10767:'Talk',10768:'War & Politics'
+      };
+
+      const RATING_EXPLAIN = {
+        'g':'All Ages','pg':'Children','pg_13':'Teens 13+','r':'17+ (violence & profanity)',
+        'r+':'Mild Nudity','rx':'Hentai','none':'Unrated'
+      };
+
+      async function fetchAnikoto(endpoint) {
+  try {
+    const res = await fetch(`${ANIKOTO_API}${endpoint}`, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' }
+    });
+    if (!res.ok) {
+      console.error(`Anikoto API HTTP ${res.status}`);
+      return { ok: false, data: [] };
+    }
+    const json = await res.json();
+    // Wrap the raw JSON with an ok flag, ensuring data is accessible
+    return { ok: true, data: json.data || json };
+  } catch(e) {
+    console.error('Anikoto fetch error:', e);
+    return { ok: false, data: [] };
+  }
+}
+
+      async function fetchTMDB(endpoint, params='') {
+        const url = `${TMDB_PROXY}/3${endpoint}?${params}`;
+        const res = await fetch(url); if(!res.ok) return {results:[]};
+        return res.json();
+      }
+      async function fetchJikan(endpoint, params='') {
+        const url = `${JIKAN_BASE}/${endpoint}?${params}`;
+        const res = await fetch(url); if(!res.ok) return {data:[]};
+        return res.json();
+      }
+
+      /* ── NEW ON ANIOCEAN ── */
+     /* Store fetched data for popup lookup */
+window.anioceanData = {};
+
+async function loadNewAniocean() {
+  const grid = document.getElementById('newAnioceanGrid');
+
+  // Helper to render the grid from an array of anime objects (Anikoto or Jikan format)
+  function renderAnimeList(animeList) {
+    if (!animeList || animeList.length === 0) {
+      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-muted)">No recent anime available</div>';
+      return false;
+    }
+
+    grid.innerHTML = animeList.map(anime => {
+      const studio = anime.studio || '?';
+      const rating = anime.rating || 'N/A';
+      const type = anime.type || 'TV';
+      const score = anime.score || 'N/A';
+      const mal_id = anime.mal_id;
+
+      // Store popup data
+      window.anioceanData[mal_id] = {
+        title: anime.title,
+        slug: anime.slug,
+        mal_id: mal_id,
+        poster: anime.poster,
+        score: score,
+        type: type,
+        rating: rating,
+        description: anime.description || 'No description available.',
+        year: anime.year || '?',
+        duration: anime.duration || '?',
+        genres: anime.genres || [],
+        studios: [studio],
+        is_sub: anime.is_sub || 0,
+        is_dub: anime.is_dub || 0
+      };
+
+      return `
+        <a href="/info/anime/jikan-${mal_id}/${anime.slug}" 
+           class="aniocean-card" 
+           data-mal-id="${mal_id}"
+           onmouseenter="showAnikotoPopupById('${mal_id}')" 
+           onmouseleave="window.popupTimer=setTimeout(hidePopup,500)">
+          <div class="aniocean-poster">
+            <img src="${anime.poster}" alt="${anime.title}" 
+                 onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22300%22%3E%3Crect fill=%22%23132f4c%22 width=%22200%22 height=%22300%22/%3E%3Ctext fill=%22%2394a3b8%22 font-family=%22sans-serif%22 font-size=%2214%22 x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22%3ENo Image%3C/text%3E%3C/svg%3E'">
+            <div class="aniocean-badge-score">
+              <i class="fas fa-star"></i> ${score}
+            </div>
+            <div class="aniocean-badge-lang">
+              ${anime.is_sub > 0 ? `<div class="aniocean-lang-badge"><i class="fas fa-closed-captioning"></i> ${anime.is_sub}</div>` : ''}
+              ${anime.is_dub > 0 ? `<div class="aniocean-lang-badge"><i class="fas fa-microphone"></i> ${anime.is_dub}</div>` : ''}
+            </div>
+            <div class="aniocean-info">
+              <div class="aniocean-meta">${type} · ${rating} · ${studio}</div>
+              <div class="aniocean-title">${anime.title}</div>
+            </div>
+          </div>
+        </a>
+      `;
+    }).join('');
+    return true;
+  }
+
+  // ----- PRIMARY: Anikoto proxy -----
+  try {
+    const response = await fetchAnikoto('/recent-anime?page=1&per_page=30');
+    if (response.ok && response.data && response.data.length > 0) {
+      const data = response.data;
+      const formatted = data.map(anime => ({
+        mal_id: anime.mal_id || anime.id,
+        title: anime.title,
+        slug: anime.slug,
+        poster: anime.poster,
+        score: anime.score || 'N/A',
+        type: anime.terms_by_type?.type?.[0] || 'TV',
+        rating: anime.rating || 'N/A',
+        description: anime.description || 'No description available.',
+        year: anime.year || '?',
+        duration: anime.duration ? anime.duration + 'm' : '?',
+        genres: anime.terms_by_type?.genre || [],
+        studio: anime.terms_by_type?.studios?.[0] || '?',
+        is_sub: anime.is_sub || 0,
+        is_dub: anime.is_dub || 0
+      }));
+      if (renderAnimeList(formatted)) {
+        console.log(`✓ Loaded ${formatted.length} anime from Anikoto proxy for "New on Aniocean"`);
+        return;
+      }
+    }
+  } catch (e) {
+    console.warn('Primary Anikoto source failed:', e);
+  }
+
+  // ----- FALLBACK: Jikan (current season, pages 1-3) -----
+  console.log('Falling back to Jikan for "New on Aniocean"');
+  try {
+    const pages = await Promise.all([
+      fetchJikan('seasons/now', 'limit=25&page=1'),
+      fetchJikan('seasons/now', 'limit=25&page=2'),
+      fetchJikan('seasons/now', 'limit=25&page=3')
+    ]);
+
+    const allAnime = pages.flatMap(page => page.data || []);
+    // Deduplicate by mal_id
+    const uniqueMap = new Map();
+    for (const a of allAnime) {
+      if (!uniqueMap.has(a.mal_id)) {
+        uniqueMap.set(a.mal_id, a);
+      }
+    }
+    const uniqueAnime = Array.from(uniqueMap.values());
+
+    if (uniqueAnime.length === 0) {
+      throw new Error('No anime data from Jikan');
+    }
+
+    // Convert Jikan format to our internal format
+    const formattedJikan = uniqueAnime.map(a => ({
+      mal_id: a.mal_id,
+      title: a.title_english || a.title,
+      slug: (a.title_english || a.title).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''),
+      poster: a.images?.jpg?.large_image_url || '',
+      score: (a.score || 0).toFixed(1),
+      type: 'TV',  // Jikan doesn't give a simple type; most are TV
+      rating: a.rating || 'PG-13',
+      description: a.synopsis || 'No description available.',
+      year: (a.aired?.from || '').slice(0, 4) || '?',
+      duration: a.duration || '?',
+      genres: (a.genres || []).map(g => g.name),
+      studio: (a.studios || [])[0]?.name || '?',
+      is_sub: 1,   // assume subbed
+      is_dub: 0
+    }));
+
+    if (renderAnimeList(formattedJikan)) {
+      console.log(`✓ Loaded ${formattedJikan.length} anime from Jikan (fallback) for "New on Aniocean"`);
+      return;
+    }
+  } catch (error) {
+    console.error('✗ Jikan fallback also failed:', error);
+  }
+
+  // Both sources failed
+  grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-muted)">Unable to load recent anime. Please try again later.</div>';
+}
+
+      /* ── ANIKOTO STYLE POPUP ── */
+     /* Popup triggered by mal_id lookup */
+window.showAnikotoPopupById = function(mal_id) {
+  clearTimeout(window.popupTimer);
+  const anime = window.anioceanData[mal_id];
+  if (!anime) return;
+  
+  const starIcon = '<i class="fas fa-star" style="color:var(--accent-gold)"></i>';
+  const genresHtml = anime.genres.map(g => `<a href="/search?genre=${encodeURIComponent(g)}" class="genre-pill">${g}</a>`).join('');
+  
+  document.getElementById('popupContent').innerHTML = `
+    <div class="anikoto-popup">
+      <div class="anikoto-popup-poster">
+        <img src="${anime.poster}" alt="${anime.title}" onerror="this.style.display='none'">
+      </div>
+      <div class="anikoto-popup-content">
+        <div class="anikoto-popup-title">${anime.title}</div>
+        <div class="anikoto-popup-meta">
+          <div class="anikoto-meta-item">${starIcon} ${anime.score}</div>
+          <div class="anikoto-meta-item"><i class="fas fa-film"></i> ${anime.type}</div>
+          <div class="anikoto-meta-item"><i class="fas fa-calendar"></i> ${anime.year}</div>
+          <div class="anikoto-meta-item"><i class="fas fa-clock"></i> ${anime.duration}</div>
+          <div class="anikoto-meta-item"><i class="fas fa-building"></i> ${anime.studios[0] || '?'}</div>
+        </div>
+        <div class="genre-pills-row">${genresHtml}</div>
+        <div class="anikoto-popup-synopsis">${anime.description}</div>
+        <div class="anikoto-popup-actions">
+          <a href="/watch/jikan-${anime.mal_id}" class="anikoto-btn anikoto-btn-primary">
+            <i class="fas fa-play"></i> Watch
+          </a>
+          <a href="/info/anime/jikan-${anime.mal_id}/${anime.slug}" class="anikoto-btn anikoto-btn-secondary">
+            <i class="fas fa-plus"></i> Details
+          </a>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  document.getElementById('popupCard').classList.add('active');
+  document.getElementById('popupOverlay').style.pointerEvents = 'auto';
+};
+
+      /* ── HERO ── */
+      let heroData=[], currentSlide=0;
+      async function loadHero() {
+        const [airingAnime, onAirTV, nowMovies] = await Promise.all([
+          fetchJikan('top/anime', 'filter=airing&limit=7'),
+          fetchTMDB('/tv/on_the_air', 'language=en-US&page=1'),
+          fetchTMDB('/movie/now_playing', 'language=en-US&page=1')
+        ]);
+        const animes = (airingAnime.data||[]).map(a => ({
+          id:`jikan-${a.mal_id}`, title:a.title, type:'Anime',
+          genres:(a.genres||[]).map(g=>g.name), score:(a.score||0).toFixed(1),
+          year:(a.aired?.from||'').slice(0,4), duration:a.duration||'?',
+          synopsis:a.synopsis||'', backdrop: a.images?.jpg?.large_image_url||'',
+          poster:a.images?.jpg?.large_image_url||'', certification:a.rating||'PG-13',
+        }));
+        const moviesPromises = (nowMovies.results||[]).slice(0,7).map(async i => {
+          const detail = await fetchTMDB(`/movie/${i.id}`, 'language=en-US');
+          const d = detail || {};
+          return {
+            id:`tmdb-movie-${i.id}`, title:i.title, type:'Movie',
+            genres:(i.genre_ids||[]).map(id => GENRE_MAP[id]||id),
+            score:(i.vote_average||0).toFixed(1),
+            year:(i.release_date||'').slice(0,4),
+            duration: d.runtime ? `${d.runtime} min` : '2h 10m',
+            synopsis:i.overview||'', backdrop:tmdbBack(i.backdrop_path), poster:tmdbImg(i.poster_path),
+            certification: d.adult ? '18+' : (d.release_dates?.results?.find(r=>r.iso_3166_1==='US')?.release_dates?.[0]?.certification || 'PG-13'),
+          };
+        });
+        const movies = await Promise.all(moviesPromises);
+        const tvPromises = (onAirTV.results||[]).slice(0,7).map(async i => {
+          const detail = await fetchTMDB(`/tv/${i.id}`, 'language=en-US');
+          const d = detail || {};
+          return {
+            id:`tmdb-tv-${i.id}`, title:i.name, type:'TV',
+            genres:(i.genre_ids||[]).map(id => GENRE_MAP[id]||id),
+            score:(i.vote_average||0).toFixed(1),
+            year:(i.first_air_date||'').slice(0,4),
+            duration: d.episode_run_time?.length ? `${d.episode_run_time[0]}m/ep` : '45m/ep',
+            synopsis:i.overview||'', backdrop:tmdbBack(i.backdrop_path), poster:tmdbImg(i.poster_path),
+            certification: d.content_ratings?.results?.find(r=>r.iso_3166_1==='US')?.rating || 'PG-13',
+          };
+        });
+        const tvs = await Promise.all(tvPromises);
+        const interleaved = [];
+        const max = Math.max(animes.length, tvs.length, movies.length);
+        for (let i=0; i<max; i++) {
+          if(animes[i]) interleaved.push(animes[i]);
+          if(tvs[i]) interleaved.push(tvs[i]);
+          if(movies[i]) interleaved.push(movies[i]);
+        }
+        heroData = interleaved.slice(0,19);
+        renderHero();
+      }
+      function renderHero() {
+        const container = document.getElementById('slidesContainer');
+        container.innerHTML = heroData.map((s,i) => `
+          <div class="slide" data-index="${i}" style="background-image:url('${s.backdrop||s.poster}');">
+            <div class="slide-content">
+              <h1 class="slide-title">${s.title}</h1>
+              <div class="slide-meta">
+                <span class="meta-badge">${s.type}</span>
+                <span class="meta-badge"><i class="fas fa-calendar-alt"></i> ${s.year}</span>
+                <span class="meta-badge"><i class="fas fa-clock"></i> ${s.duration}</span>
+                <span class="meta-badge">${s.certification||'PG-13'}</span>
+                ${s.genres.slice(0,3).map(g => `<span class="meta-badge">${g}</span>`).join('')}
+                <span class="meta-badge"><i class="fas fa-star" style="color:var(--accent-gold)"></i> ${s.score}</span>
+              </div>
+              <p class="slide-synopsis">${s.synopsis?.slice(0,250)||''}</p>
+              <div class="slide-actions">
+                <a href="/watch/${s.id}" class="btn-watch"><i class="fas fa-play"></i> Watch Now</a>
+                <a href="${infoUrl(s)}" class="btn-heart-slide"><i class="far fa-heart"></i></a>
+              </div>
+            </div>
+          </div>`).join('');
+        document.getElementById('sliderDots').innerHTML = heroData.map((_,i) => `<span class="dot${i===0?' active':''}" data-index="${i}"></span>`).join('');
+        currentSlide=0; updateSlidePos();
+        document.getElementById('slideCounter').textContent = `1 / ${heroData.length}`;
+      }
+      function goToSlide(i) { currentSlide = ((i%heroData.length)+heroData.length)%heroData.length; updateSlidePos(); }
+      function updateSlidePos() {
+        document.getElementById('slidesContainer').style.transform = `translateX(-${currentSlide*100}%)`;
+        document.querySelectorAll('#sliderDots .dot').forEach((d,idx) => d.classList.toggle('active', idx===currentSlide));
+        document.getElementById('slideCounter').textContent = `${currentSlide+1} / ${heroData.length}`;
+      }
+      document.getElementById('prevSlide').addEventListener('click', ()=>goToSlide(currentSlide-1));
+      document.getElementById('nextSlide').addEventListener('click', ()=>goToSlide(currentSlide+1));
+      setInterval(()=>goToSlide(currentSlide+1),6000);
+
+      /* ── TOP AIRING ── */
+      async function loadTopAiring() {
+        const [tvOnAir, jikanAir] = await Promise.all([
+          fetchTMDB('/tv/on_the_air', 'language=en-US&page=1'),
+          fetchJikan('top/anime', 'filter=airing&limit=15')
+        ]);
+        const tv = (tvOnAir.results||[]).slice(0,30).map(i => ({
+          id:`tmdb-tv-${i.id}`, title:i.name, poster:tmdbImg(i.poster_path), type:'TV',
+          duration:'45m/ep', score:(i.vote_average||0).toFixed(1),
+          status:'Airing', episodes: i.number_of_episodes||'?',
+        }));
+        const anime = (jikanAir.data||[]).map(a => ({
+          id:`jikan-air-${a.mal_id}`, title:a.title, poster:a.images?.jpg?.large_image_url||'', type:'Anime',
+          duration: a.duration||'?', score:(a.score||0).toFixed(1),
+          status: a.status||'Airing', episodes: a.episodes||'?',
+        }));
+        const combined = [...tv, ...anime].slice(0,60);
+        renderTopAiring(combined);
+      }
+      function renderTopAiring(shows) {
+        const container = document.getElementById('topAiringScroll');
+        container.innerHTML = shows.map(s => `
+          <a href="${infoUrl(s)}" class="show-card-horiz">
+            <div class="card-poster" style="background-image:url('${s.poster}');">
+              <span class="ranking-badge">EP ${s.episodes||'?'}</span>
+              <span class="score-badge"><i class="fas fa-star"></i> ${s.score}</span>
+              <div class="play-overlay"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" fill="white"/></svg></div>
+            </div>
+            <h3 class="card-title">${s.title}</h3>
+            <div class="card-meta-sm">${s.type} · ${s.duration} · ${s.status} · ${s.episodes} EP</div>
+          </a>`).join('');
+      }
+      document.getElementById('topAiringLeft').addEventListener('click',()=> document.getElementById('topAiringScroll').scrollBy({left:-400,behavior:'smooth'}));
+      document.getElementById('topAiringRight').addEventListener('click',()=> document.getElementById('topAiringScroll').scrollBy({left:400,behavior:'smooth'}));
+
+      /* ── NEW RELEASES ── */
+      let allReleases = {all:[], anime:[], movie:[], tv:[]};
+      async function loadNewReleases() {
+        const [nowMovies, onAirTv, jikanNow] = await Promise.all([
+          fetchTMDB('/movie/now_playing', 'language=en-US&page=1'),
+          fetchTMDB('/tv/on_the_air', 'language=en-US&page=1'),
+          fetchJikan('seasons/now', 'limit=20')
+        ]);
+        const movies = (nowMovies.results||[]).slice(0,10).map(i => ({
+          id:`tmdb-mv-${i.id}`, title:i.title, poster:tmdbImg(i.poster_path), type:'Movie',
+          score:(i.vote_average||0).toFixed(1), details:'1h 45m', cert:'PG-13', quality:'HD'
+        }));
+        const tv = (onAirTv.results||[]).slice(0,10).map(i => ({
+          id:`tmdb-tv-${i.id}`, title:i.name, poster:tmdbImg(i.poster_path), type:'TV',
+          score:(i.vote_average||0).toFixed(1), details: 'S?', cert:'PG-13', quality:'HD'
+        }));
+        const anime = (jikanNow.data||[]).slice(0,10).map(a => ({
+          id:`jikan-${a.mal_id}`, title:a.title, poster:a.images?.jpg?.large_image_url||'', type:'Anime',
+          score:(a.score||0).toFixed(1), duration: a.duration||'?', status: a.status||'Airing',
+          rating: a.rating||'none', quality:'HD'
+        }));
+        allReleases = { all: [...movies,...tv,...anime].slice(0,30), anime, movie:movies, tv };
+        renderNewReleases('all');
+      }
+      function renderNewReleases(filter) {
+        const grid = document.getElementById('newReleasesGrid');
+        const data = allReleases[filter] || [];
+        grid.innerHTML = data.map(s => {
+          if (s.type==='Anime') {
+            const ratingText = RATING_EXPLAIN[s.rating] || s.rating;
+            return `<a href="${infoUrl(s)}" class="show-card-grid">
+              <div class="card-poster" style="background-image:url('${s.poster}');">
+                <span class="poster-status-badge">${s.status}</span>
+                <span class="poster-rating-badge" title="${ratingText}"><i class="fas fa-star"></i> ${s.score}</span>
+                <div class="play-overlay"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" fill="white"/></svg></div>
+              </div>
+              <div class="card-info-grid">
+                <div class="card-meta-sm">${s.type} · ${s.duration==='?'?'?':s.duration} · ${s.status}</div>
+                <div class="card-title">${s.title}</div>
+              </div>
+            </a>`;
+          } else if (s.type==='Movie') {
+            return `<a href="${infoUrl(s)}" class="show-card-grid">
+              <div class="card-poster" style="background-image:url('${s.poster}');">
+                <span class="quality-badge">${s.quality}</span>
+                <span class="score-badge"><i class="fas fa-star"></i> ${s.score}</span>
+                <div class="play-overlay"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" fill="white"/></svg></div>
+              </div>
+              <div class="card-info-grid">
+                <div class="card-meta-sm">${s.type} · ${s.details} · ${s.cert}</div>
+                <div class="card-title">${s.title}</div>
+              </div>
+            </a>`;
+          } else {
+            return `<a href="${infoUrl(s)}" class="show-card-grid">
+              <div class="card-poster" style="background-image:url('${s.poster}');">
+                <span class="quality-badge">${s.quality}</span>
+                <span class="score-badge"><i class="fas fa-star"></i> ${s.score}</span>
+                <div class="play-overlay"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" fill="white"/></svg></div>
+              </div>
+              <div class="card-info-grid">
+                <div class="card-meta-sm">${s.type} · ${s.details} · ${s.cert}</div>
+                <div class="card-title">${s.title}</div>
+              </div>
+            </a>`;
+          }
+        }).join('');
+      }
+      document.getElementById('releaseTabs').addEventListener('click', e => {
+        if (e.target.classList.contains('toggle-tab')) {
+          document.querySelectorAll('#releaseTabs .toggle-tab').forEach(t=>t.classList.remove('active'));
+          e.target.classList.add('active');
+          const filter = e.target.dataset.filter;
+          renderNewReleases(filter);
+          document.getElementById('newReleasesTitle').textContent = filter==='all' ? 'New Releases' : `Latest ${e.target.textContent}`;
+        }
+      });
+
+      /* ── UPCOMING ── */
+      let upcomingShows=[];
+      async function loadUpcoming() {
+        const [tmdbUp, jikanUp] = await Promise.all([
+          fetchTMDB('/movie/upcoming', 'language=en-US&page=1'),
+          fetchJikan('top/anime', 'filter=upcoming&limit=20')
+        ]);
+        upcomingShows = [
+          ...(tmdbUp.results||[]).slice(0,40).map(i => ({
+            id:`tmdb-up-${i.id}`, title:i.title, original_title:i.original_title||i.title,
+            type:'Movie', poster:tmdbImg(i.poster_path), score:(i.vote_average||0).toFixed(1),
+            genres:(i.genre_ids||[]).map(id=>GENRE_MAP[id]||id), releaseDate:i.release_date||'',
+            synopsis:i.overview||'', certification: i.adult?'18+':'PG-13',
+            studio:'?', backdrop:tmdbBack(i.backdrop_path), duration:'2h 10m'
+          })),
+          ...(jikanUp.data||[]).slice(0,40).map(a => ({
+            id:`jikan-up-${a.mal_id}`, title:a.title_english||a.title, original_title:a.title_japanese||a.title,
+            type:'Anime', poster:a.images?.jpg?.large_image_url||'',
+            score:(a.score||0).toFixed(1), genres:(a.genres||[]).map(g=>g.name),
+            releaseDate:(a.aired?.from||'').slice(0,10), synopsis:a.synopsis||'',
+            certification: a.rating||'PG-13', studio:(a.studios||[])[0]?.name||'?',
+            duration: a.duration||'?'
+          }))
+        ].slice(0,80);
+        renderUpcoming();
+      }
+      function renderUpcoming() {
+        document.getElementById('upcomingScroll').innerHTML = upcomingShows.map(s => `
+          <a href="${infoUrl(s)}" class="show-card-horiz" onmouseenter="showPopup(event,'${s.id}')" onmouseleave="window.popupTimer=setTimeout(hidePopup,500)">
+            <div class="card-poster" style="background-image:url('${s.poster}');">
+              <span class="poster-status-badge">HD</span>
+              <span class="poster-rating-badge"><i class="fas fa-star"></i> ${s.score}</span>
+              <div class="play-overlay"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" fill="white"/></svg></div>
+            </div>
+            <h3 class="card-title">${s.title}</h3>
+            <div class="card-meta-sm"><i class="fas fa-star"></i> ${s.score} · ${s.type} · ${s.releaseDate||'TBA'}</div>
+          </a>`).join('');
+      }
+      document.getElementById('upcomingLeft').addEventListener('click', ()=> document.getElementById('upcomingScroll').scrollBy({left:-400}));
+      document.getElementById('upcomingRight').addEventListener('click', ()=> document.getElementById('upcomingScroll').scrollBy({left:400}));
+
+      /* ── COMPLETED (paginated) ── */
+      let completedCurrentPage = 1;
+      async function loadCompleted(page=1) {
+        completedCurrentPage = page;
+        const today = new Date().toISOString().split('T')[0];
+        const [tv, anime] = await Promise.all([
+          fetchTMDB('/discover/tv', `with_status=3&air_date.lte=${today}&sort_by=first_air_date.desc&page=${page}`),
+          fetchJikan('anime', `status=complete&order_by=start_date&sort=desc&page=${page}&limit=20`)
+        ]);
+        const list = [
+          ...(tv.results||[]).slice(0,10).map(i => ({id:`tmdb-comp-${i.id}`,title:i.name,poster:tmdbImg(i.poster_path),type:'TV',year:(i.first_air_date||'').slice(0,4),score:(i.vote_average||0).toFixed(1),quality:'HD'})),
+          ...(anime.data||[]).slice(0,10).map(a => ({id:`jikan-comp-${a.mal_id}`,title:a.title,poster:a.images?.jpg?.large_image_url||'',type:'Anime',year:(a.aired?.from||'').slice(0,4),score:(a.score||0).toFixed(1),quality:'HD'}))
+        ].slice(0,20);
+        document.getElementById('completedGrid').innerHTML = list.map(s => `
+          <a href="${infoUrl(s)}" class="show-card-grid">
+            <div class="card-poster" style="background-image:url('${s.poster}');">
+              <span class="quality-badge">${s.quality}</span>
+              <div class="play-overlay"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" fill="white"/></svg></div>
+            </div>
+            <div class="card-info-grid">
+              <div class="card-meta-sm">${s.type} · ${s.year||'?'} · <i class="fas fa-star"></i> ${s.score}</div>
+              <div class="card-title">${s.title}</div>
+            </div>
+          </a>`).join('');
+        renderPagination(page);
+      }
+      function renderPagination(page) {
+        const total = Math.ceil(1000/20);
+        const nav = document.getElementById('completedPagination');
+        let html = `<button ${page===1?'disabled':''} id="compPrev">Previous</button><div style="display:flex;gap:4px;">`;
+        const start = Math.max(1, page-2);
+        const end = Math.min(total, page+2);
+        for (let i=start; i<=end; i++) {
+          html += `<button class="${i===page?'active':''}" data-page="${i}">${i}</button>`;
+        }
+        html += `</div><button ${page>=total?'disabled':''} id="compNext">Next</button>`;
+        nav.innerHTML = html;
+        document.getElementById('compPrev')?.addEventListener('click', ()=>loadCompleted(page-1));
+        document.getElementById('compNext')?.addEventListener('click', ()=>loadCompleted(page+1));
+        nav.querySelectorAll('button[data-page]').forEach(b => {
+          b.addEventListener('click', ()=>loadCompleted(parseInt(b.dataset.page)));
+        });
+      }
+
+      /* ── TRENDING ── */
+      let trendingData=[];
+      async function loadTrending(period='today') {
+        let tmdb,jikan;
+        if(period==='today') { tmdb=await fetchTMDB('/trending/all/day'); jikan=await fetchJikan('top/anime','filter=airing&limit=10'); }
+        else if(period==='week') { tmdb=await fetchTMDB('/trending/all/week'); jikan=await fetchJikan('top/anime','filter=airing&limit=10'); }
+        else { const d=new Date();d.setDate(d.getDate()-30); tmdb=await fetchTMDB('/discover/movie',`primary_release_date.gte=${d.toISOString().split('T')[0]}&sort_by=popularity.desc`); jikan=await fetchJikan('top/anime','filter=bypopularity&limit=10'); }
+        trendingData = [
+          ...(tmdb.results||[]).slice(0,10).map(i => ({
+            id:`tmdb-tr-${i.id}`, title:i.title||i.name, poster:tmdbImg(i.poster_path,'w185'),
+            type:i.media_type==='movie'?'Movie':'TV', score:(i.vote_average||0).toFixed(1),
+            genres:(i.genre_ids||[]).map(id=>GENRE_MAP[id]||id),
+            overview:i.overview||'',
+            release_date:i.release_date||i.first_air_date||'',
+            media_type:i.media_type
+          })),
+          ...(jikan.data||[]).map(a => ({
+            id:`jikan-tr-${a.mal_id}`, title:a.title, poster:a.images?.jpg?.large_image_url||'',
+            type:'Anime', score:(a.score||0).toFixed(1), genres:(a.genres||[]).map(g=>g.name),
+            synopsis:a.synopsis||'',
+            aired:a.aired?.from||''
+          }))
+        ].sort((a,b)=>b.score-a.score).slice(0,20);
+        trendingData.forEach((item,i)=>item.rank=i+1);
+        document.getElementById('trendingList').innerHTML = trendingData.map(s => `
+          <a href="${infoUrl(s)}" class="sidebar-list-item" onmouseenter="showPopup(event,'${s.id}')" onmouseleave="window.popupTimer=setTimeout(hidePopup,500)">
+            <span class="sidebar-rank">${s.rank}</span>
+            <img class="sidebar-poster" src="${s.poster}" onerror="this.style.display='none'">
+            <div class="sidebar-info"><h4>${s.title}</h4><div class="side-meta"><i class="fas fa-star"></i> ${s.score} · ${s.type}</div></div>
+          </a>`).join('');
+      }
+      document.getElementById('trendingTabs').addEventListener('click', e => {
+        if(e.target.classList.contains('toggle-tab')) {
+          document.querySelectorAll('#trendingTabs .toggle-tab').forEach(t=>t.classList.remove('active'));
+          e.target.classList.add('active');
+          loadTrending(e.target.dataset.period);
+        }
+      });
+
+      /* ── POPULAR ── */
+      let popularData = [];
+      async function loadPopular() {
+        const [tmdb, jikan] = await Promise.all([
+          fetchTMDB('/discover/movie', 'sort_by=vote_count.desc&vote_count.gte=1000&language=en-US&page=1'),
+          fetchJikan('top/anime', 'filter=bypopularity&limit=7')
+        ]);
+        const data = [
+          ...(tmdb.results||[]).slice(0,7).map(i => ({
+            id:`tmdb-pop-${i.id}`, title:i.title, poster:tmdbImg(i.poster_path,'w185'), type:'Movie',
+            score:(i.vote_average||0).toFixed(1), members:i.vote_count,
+            genres:(i.genre_ids||[]).map(id=>GENRE_MAP[id]||id),
+            overview:i.overview||''
+          })),
+          ...(jikan.data||[]).map(a => ({
+            id:`jikan-pop-${a.mal_id}`, title:a.title, poster:a.images?.jpg?.large_image_url||'',
+            type:'Anime', score:(a.score||0).toFixed(1), members:a.members,
+            genres:(a.genres||[]).map(g=>g.name),
+            synopsis:a.synopsis||''
+          }))
+        ].sort((a,b)=>b.members-a.members).slice(0,13);
+        data.forEach((item,i)=>item.rank=i+1);
+        popularData = data;
+        document.getElementById('popularList').innerHTML = data.map(s => `
+          <a href="${infoUrl(s)}" class="sidebar-list-item" onmouseenter="showPopup(event,'${s.id}')" onmouseleave="window.popupTimer=setTimeout(hidePopup,500)">
+            <span class="sidebar-rank">${s.rank}</span>
+            <img class="sidebar-poster" src="${s.poster}">
+            <div class="sidebar-info"><h4>${s.title}</h4><div class="side-meta"><i class="fas fa-star"></i> ${s.score} · ${s.members} members</div></div>
+          </a>`).join('');
+      }
+
+      /* ── POPUP (FIXED) ── */
+     window.showPopup = function(e, id) {
+  clearTimeout(window.popupTimer);
+  const show = [...upcomingShows, ...trendingData, ...popularData].find(s => s.id === id);
+  if (!show) return;
+
+  // Check if this is an upcoming show
+  const isUpcoming = upcomingShows.some(s => s.id === id);
+
+  let buttonHtml = '';
+  if (isUpcoming) {
+    // Bookmark button – link to the info page (generates correct URL with slug)
+    buttonHtml = `<a class="watch-btn" href="${infoUrl(show)}"><i class="fas fa-bookmark"></i> Bookmark</a>`;
+  } else {
+    // Regular watch button
+    buttonHtml = `<a class="watch-btn" href="/watch/${show.id}"><i class="fas fa-play"></i> Watch Now</a>`;
+  }
+
+  const scoreLabel = show.type === 'Anime' ? 'MAL' : 'TMDB';
+  const starIcon = '<i class="fas fa-star" style="color:var(--accent-gold)"></i>';
+
+  const metaHtml = `
+    <span class="meta-pill">${show.type || ''}</span>
+    <span class="meta-pill">${show.certification || 'PG-13'}</span>
+    <span class="meta-pill">${scoreLabel} ${starIcon} ${show.score || '?'}</span>
+    <span class="meta-pill">${show.duration || show.episode_run_time?.[0] + 'm' || '?'}</span>
+    <span class="meta-pill">${show.studio || '?'}</span>
+  `;
+  const genresHtml = (show.genres || []).map(g =>
+    `<a href="/search?genre=${encodeURIComponent(g)}" class="genre-pill">${g}</a>`
+  ).join('');
+
+  const synopsis = show.synopsis || show.overview || 'No description available.';
+
+  document.getElementById('popupContent').innerHTML = `
+    <div class="modal-poster-wrap">${show.poster ? `<img src="${show.poster}" alt="${show.title}">` : ''}</div>
+    <div class="modal-title">${show.title || ''}</div>
+    <div class="modal-subtitle">${show.original_title || show.title || ''}</div>
+    <div class="meta-pills-row">${metaHtml}</div>
+    <div class="genre-pills-row">${genresHtml}</div>
+    ${buttonHtml}
+    <div class="modal-synopsis">${synopsis}</div>
+  `;
+
+  document.getElementById('popupCard').classList.add('active');
+  document.getElementById('popupOverlay').style.pointerEvents = 'auto';
+};
+      window.hidePopup = ()=>{
+        document.getElementById('popupCard').classList.remove('active');
+        document.getElementById('popupOverlay').style.pointerEvents='none';
+      };
+      window.hidePopupDelayed = () => {
+        window.popupTimer = setTimeout(window.hidePopup, 500);
+      };
+      document.getElementById('popupClose').addEventListener('click', window.hidePopup);
+      document.getElementById('popupOverlay').addEventListener('click', function(e){ if(e.target===this) window.hidePopup(); });
+
+      /* ── SCHEDULE (COMPLETE REBUILD) ── */
+                 /* ── NEW SCHEDULE (4‑column, localStorage, episode count) ── */
+      let scheduleData = null;          // { monday: [anime], tuesday: [...], ... }
+      let currentDay = null;            // 'monday' ... 'sunday'
+      let currentWeekOffset = 0;        // weeks from today's week start
+      const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+      const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+      // ---------- Helper: fetch 3 pages for one day, with delays ----------
+      async function fetchDaySchedules(day) {
+        const pagesToTry = [1, 2, 3];
+        let allAnime = [];
+
+        for (const page of pagesToTry) {
+          try {
+            const res = await fetchJikan('schedules', `filter=${day}&sfw=true&limit=25&page=${page}`);
+            if (res.data && res.data.length > 0) {
+              allAnime.push(...res.data);
+            }
+            // Wait 0.5s between pages to avoid rate limiting
+            await new Promise(r => setTimeout(r, 500));
+          } catch (err) {
+            console.warn(`Failed to fetch ${day} page ${page}:`, err);
+          }
+        }
+
+        // Deduplicate by mal_id
+        const unique = new Map();
+        for (const anime of allAnime) {
+          if (!unique.has(anime.mal_id)) unique.set(anime.mal_id, anime);
+        }
+        const result = Array.from(unique.values());
+        console.log(`✅ ${day}: ${result.length} unique anime`);
+        return result;
+      }
+
+      // ---------- Episode number calculation (unchanged) ----------
+      function getEpisodeNumber(anime) {
+        if (anime.status === 'Finished Airing') return anime.episodes || '?';
+        const broadcast = anime.broadcast;
+        if (!broadcast || !broadcast.time) return '?';
+        const timeMatch = broadcast.time.match(/(\d{1,2}):(\d{2})/);
+        if (!timeMatch) return '?';
+        const [_, hour, minute] = timeMatch;
+        const broadcastHour = parseInt(hour);
+        const broadcastMinute = parseInt(minute);
+        const firstAir = anime.aired?.from ? new Date(anime.aired.from) : null;
+        if (!firstAir) return '?';
+        const now = new Date();
+        const currentDate = new Date(now);
+        currentDate.setHours(broadcastHour, broadcastMinute, 0, 0);
+        const diffMs = currentDate - firstAir;
+        const weeksPassed = Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000));
+        let episode = weeksPassed + 1;
+        if (anime.episodes && episode > anime.episodes) episode = anime.episodes;
+        return episode;
+      }
+
+      // ---------- Render schedule for a given day (from scheduleData) ----------
+      function renderScheduleForDay(dayName) {
+  const container = document.getElementById('eswBody');
+  const animeList = scheduleData?.[dayName] || [];
+  if (!animeList.length) {
+    container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);">No episodes scheduled</div>';
+    return;
+  }
+
+  // Sort by broadcast time
+  const sorted = [...animeList].sort((a, b) => {
+    const timeA = a.broadcast?.time || '';
+    const timeB = b.broadcast?.time || '';
+    return timeA.localeCompare(timeB);
+  });
+
+  // Build rows
+  const rowsHtml = sorted.map(anime => {
+    const episode = getEpisodeNumber(anime);
+    const title = anime.title_english || anime.title;
+    const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    const watchUrl = `/info/anime/jikan-${anime.mal_id}/${slug}`;
+    const poster = anime.images?.jpg?.image_url || '';
+    const broadcastTime = anime.broadcast?.time || 'TBA';
+
+    return `
+      <a href="${watchUrl}" class="schedule-row">
+        <div class="schedule-time">${broadcastTime}</div>
+        <div class="schedule-poster"><img src="${poster}" loading="lazy" onerror="this.style.display='none'"></div>
+        <div class="schedule-title">${escapeHtml(title)}</div>
+        <div class="schedule-ep">EP ${episode}</div>
+      </a>
+    `;
+  }).join('');
+
+  // Split rows into visible and hidden
+  const visibleCount = 7;
+  const rowsArray = rowsHtml.split('</a>').filter(r => r.trim());
+  const visibleRows = rowsArray.slice(0, visibleCount).join('</a>') + (rowsArray.length > visibleCount ? '</a>' : '');
+  const hiddenRows = rowsArray.slice(visibleCount).join('</a>');
+  const hasMore = rowsArray.length > visibleCount;
+
+  container.innerHTML = `
+    <div class="schedule-list">
+      ${visibleRows}
+      ${hasMore ? `<div class="schedule-more-wrapper" style="display:none;">${hiddenRows}</div>` : ''}
+      ${hasMore ? `<button type="button" class="schedule-more-btn">Show More (${rowsArray.length - visibleCount})</button>` : ''}
+    </div>
+  `;
+
+  // Attach click handler with prevention of default action and propagation
+  const moreBtn = container.querySelector('.schedule-more-btn');
+  if (moreBtn) {
+    moreBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const wrapper = container.querySelector('.schedule-more-wrapper');
+      if (wrapper) {
+        const isHidden = wrapper.style.display === 'none';
+        wrapper.style.display = isHidden ? 'block' : 'none';
+        moreBtn.textContent = isHidden ? 'Show Less' : `Show More (${rowsArray.length - visibleCount})`;
+      }
+    });
+  }
+}
+        
+
+      // ---------- Build week dates (Mon‑Sun) ----------
+      function buildWeekDates() {
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const currentDayOfWeek = today.getDay(); // 0 = Sunday
+        let monday = new Date(today);
+        const diffToMonday = (currentDayOfWeek === 0 ? -6 : 1 - currentDayOfWeek);
+        monday.setDate(today.getDate() + diffToMonday + currentWeekOffset * 7);
+        const weekDates = [];
+        for (let i = 0; i < 7; i++) {
+          const date = new Date(monday);
+          date.setDate(monday.getDate() + i);
+          weekDates.push(date);
+        }
+        return weekDates;
+      }
+
+      // ---------- Update day cards ----------
+      function updateDaySelector() {
+        const weekDates = buildWeekDates();
+        const today = new Date();
+        const todayStr = today.toDateString();
+        const container = document.getElementById('eswDaysScroll');
+        container.innerHTML = weekDates.map((date, idx) => {
+          const isToday = date.toDateString() === todayStr;
+          const dayName = DAY_NAMES[date.getDay() === 0 ? 6 : date.getDay() - 1];
+          const isActive = currentDay === DAYS[date.getDay() === 0 ? 6 : date.getDay() - 1];
+          return `
+            <div class="esw-day-card ${isToday ? 'today' : ''} ${isActive ? 'active' : ''}" data-day-index="${idx}">
+              <div class="esw-dc-date">${date.getDate()}</div>
+              <small>${dayName}</small>
+            </div>
+          `;
+        }).join('');
+        document.querySelectorAll('#eswDaysScroll .esw-day-card').forEach(card => {
+          card.addEventListener('click', (e) => {
+            const idx = parseInt(card.dataset.dayIndex);
+            const selectedDate = weekDates[idx];
+            const dayKey = DAYS[selectedDate.getDay() === 0 ? 6 : selectedDate.getDay() - 1];
+            setCurrentDay(dayKey);
+          });
+        });
+      }
+
+      // ---------- Set current day, render ----------
+      function setCurrentDay(dayKey) {
+        currentDay = dayKey;
+        updateDaySelector();
+        renderScheduleForDay(currentDay);
+      }
+
+      // ---------- Main loader (sequential fetch, localStorage) ----------
+      async function loadSchedule() {
+        const STORAGE_KEY = 'aniocean_schedule_cache';
+        const CACHE_TTL = 24 * 60 * 60 * 1000;
+        const cached = localStorage.getItem(STORAGE_KEY);
+        let needFetch = true;
+
+        if (cached) {
+          try {
+            const { data, timestamp } = JSON.parse(cached);
+            if (Date.now() - timestamp < CACHE_TTL && data) {
+              scheduleData = data;
+              needFetch = false;
+              console.log('Schedule loaded from localStorage');
+            }
+          } catch(e) { console.warn('Cache parse error', e); }
+        }
+
+        if (needFetch) {
+          console.log('Fetching schedule one day at a time...');
+          scheduleData = {};
+          for (const day of DAYS) {
+            scheduleData[day] = await fetchDaySchedules(day);
+            await new Promise(r => setTimeout(r, 500)); // delay between days
+          }
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({
+            data: scheduleData,
+            timestamp: Date.now()
+          }));
+          console.log('Schedule cached for 24 hours');
+        }
+
+        // Expose scheduleData globally for debugging
+        window.scheduleData = scheduleData;
+
+        // Determine current day (Monday‑Sunday)
+        const now = new Date();
+        let dayIndex = now.getDay(); // 0 = Sunday
+        if (dayIndex === 0) dayIndex = 7;
+        const currentDayKey = DAYS[dayIndex - 1];
+        setCurrentDay(currentDayKey);
+        updateClock();
+        setInterval(updateClock, 1000);
+      }
+
+      // Week navigation
+      function previousWeek() {
+        currentWeekOffset--;
+        updateDaySelector();
+        setCurrentDay(currentDay);
+      }
+      function nextWeek() {
+        currentWeekOffset++;
+        updateDaySelector();
+        setCurrentDay(currentDay);
+      }
+
+      function updateClock() {
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString('en-US', {
+    hour12: true,          // 12‑hour AM/PM format
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    timeZoneName: 'short'
+  });
+  document.getElementById('eswClockText').textContent = timeStr;
+}
+      document.getElementById('eswPrev').addEventListener('click', previousWeek);
+      document.getElementById('eswNext').addEventListener('click', nextWeek);
+
+      function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, function(m) {
+          if (m === '&') return '&amp;';
+          if (m === '<') return '&lt;';
+          if (m === '>') return '&gt;';
+          return m;
+        });
+      }
+      
+
+      function init() {
+        loadHero();
+        loadTopAiring();
+        loadNewReleases();
+        loadNewAniocean(); // Load new section
+        loadUpcoming();
+        loadCompleted(1);
+        loadTrending('today');
+        loadPopular();
+        loadSchedule();
+      }
+      window.addEventListener('DOMContentLoaded', init);
+    })();
+  </script>
+</body>
+</html>
