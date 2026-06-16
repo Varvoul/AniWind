@@ -251,8 +251,8 @@
 
     /* ── LAYOUT ── */
     .main-layout { display:flex; gap:0; max-width:100%; }
-    .main-content { flex:0 0 68%; max-width:68%; padding:0 16px; }
-    .sidebar-right { flex:0 0 32%; max-width:32%; padding:0 16px 0 8px; }
+    .main-content { flex:1; min-width:0; padding:0 16px; }
+    .sidebar-right { flex:0 0 340px; max-width:340px; padding:0 16px 0 8px; position:sticky; top:80px; align-self:flex-start; max-height:calc(100vh - 100px); overflow-y:auto; }
     .section { margin:30px 0; }
     .section-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:8px; }
     .section-title { font-family:var(--font-title); font-size:1.35rem; color:var(--text-widget-title); }
@@ -780,6 +780,7 @@
     @media (max-width:1024px) {
       .main-layout { flex-direction:column; }
       .main-content, .sidebar-right { flex:1; max-width:100%; }
+      .sidebar-right { position:static; max-height:none; overflow-y:visible; }
     }
     @media (max-width:768px) {
       .horizontal-scroll { gap:10px; }
@@ -838,6 +839,18 @@
 
   <div class="main-layout">
     <div class="main-content">
+      <!-- MOST POPULAR (moved to first position) -->
+      <section class="section">
+        <div class="section-header">
+          <h2 class="section-title">Most Popular</h2>
+          <div class="section-controls">
+            <button class="scroll-arrow" id="popularLeft">‹</button>
+            <button class="scroll-arrow" id="popularRight">›</button>
+          </div>
+        </div>
+        <div class="horizontal-scroll" id="popularScroll"></div>
+      </section>
+
       <section class="section">
         <div class="section-header">
           <h2 class="section-title">Top Airing</h2>
@@ -902,10 +915,6 @@
           </div>
         </div>
         <div id="trendingList"></div>
-      </section>
-      <section class="section">
-        <div class="section-header"><h2 class="section-title">Most Popular</h2></div>
-        <div id="popularList"></div>
       </section>
       <div class="esw-widget" id="eswWidget">
         <div class="esw-head">
@@ -1007,10 +1016,37 @@
         const res = await fetch(url); if(!res.ok) return {results:[]};
         return res.json();
       }
-      async function fetchJikan(endpoint, params='') {
+      async function fetchJikan(endpoint, params='', retries=3) {
         const url = `${JIKAN_BASE}/${endpoint}?${params}`;
-        const res = await fetch(url); if(!res.ok) return {data:[]};
-        return res.json();
+        for (let attempt = 1; attempt <= retries; attempt++) {
+          try {
+            const res = await fetch(url);
+            if (res.ok) return await res.json();
+            if (res.status === 429) {
+              // Rate limited - wait and retry
+              const wait = attempt * 1500;
+              console.warn(`Jikan rate limited, retry ${attempt}/${retries} in ${wait}ms`);
+              await new Promise(r => setTimeout(r, wait));
+              continue;
+            }
+            return {data:[]};
+          } catch(e) {
+            if (attempt === retries) { console.error('Jikan fetch failed:', e); return {data:[]}; }
+            await new Promise(r => setTimeout(r, attempt * 1000));
+          }
+        }
+        return {data:[]};
+      }
+
+      /* Deduplicate anime by mal_id across all sources */
+      function dedupById(items, idKey='id') {
+        const seen = new Set();
+        return items.filter(item => {
+          const key = item[idKey];
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
       }
 
       /* ── NEW ON ANIOCEAN ── */
@@ -1081,7 +1117,7 @@ async function loadNewAniocean() {
 
   // ----- PRIMARY: Anikoto proxy -----
   try {
-    const response = await fetchAnikoto('/recent-anime?page=1&per_page=30');
+    const response = await fetchAnikoto('/recent-anime?page=1&per_page=50');
     if (response.ok && response.data && response.data.length > 0) {
       const data = response.data;
       const formatted = data.map(anime => ({
@@ -1100,8 +1136,10 @@ async function loadNewAniocean() {
         is_sub: anime.is_sub || 0,
         is_dub: anime.is_dub || 0
       }));
-      if (renderAnimeList(formatted)) {
-        console.log(`✓ Loaded ${formatted.length} anime from Anikoto proxy for "New on Aniocean"`);
+      // Deduplicate by mal_id
+      const unique = dedupById(formatted, 'mal_id');
+      if (renderAnimeList(unique.slice(0,19))) {
+        console.log(`✓ Loaded ${unique.length} anime from Anikoto proxy for "New on Aniocean"`);
         return;
       }
     }
@@ -1120,13 +1158,7 @@ async function loadNewAniocean() {
 
     const allAnime = pages.flatMap(page => page.data || []);
     // Deduplicate by mal_id
-    const uniqueMap = new Map();
-    for (const a of allAnime) {
-      if (!uniqueMap.has(a.mal_id)) {
-        uniqueMap.set(a.mal_id, a);
-      }
-    }
-    const uniqueAnime = Array.from(uniqueMap.values());
+    const uniqueAnime = dedupById(allAnime, 'mal_id');
 
     if (uniqueAnime.length === 0) {
       throw new Error('No anime data from Jikan');
@@ -1208,7 +1240,7 @@ window.showAnikotoPopupById = function(mal_id) {
       let heroData=[], currentSlide=0;
       async function loadHero() {
         const [airingAnime, onAirTV, nowMovies] = await Promise.all([
-          fetchJikan('top/anime', 'filter=airing&limit=7'),
+          fetchJikan('top/anime', 'filter=airing&limit=10'),
           fetchTMDB('/tv/on_the_air', 'language=en-US&page=1'),
           fetchTMDB('/movie/now_playing', 'language=en-US&page=1')
         ]);
@@ -1254,7 +1286,8 @@ window.showAnikotoPopupById = function(mal_id) {
           if(tvs[i]) interleaved.push(tvs[i]);
           if(movies[i]) interleaved.push(movies[i]);
         }
-        heroData = interleaved.slice(0,19);
+        // Deduplicate hero data by id
+        heroData = dedupById(interleaved, 'id').slice(0,19);
         renderHero();
       }
       function renderHero() {
@@ -1294,21 +1327,27 @@ window.showAnikotoPopupById = function(mal_id) {
 
       /* ── TOP AIRING ── */
       async function loadTopAiring() {
-        const [tvOnAir, jikanAir] = await Promise.all([
+        // Fetch multiple pages to get more airing anime and avoid empty results
+        const [tvOnAir, jikanAir1, jikanAir2] = await Promise.all([
           fetchTMDB('/tv/on_the_air', 'language=en-US&page=1'),
-          fetchJikan('top/anime', 'filter=airing&limit=15')
+          fetchJikan('top/anime', 'filter=airing&limit=25&page=1'),
+          fetchJikan('top/anime', 'filter=airing&limit=25&page=2')
         ]);
         const tv = (tvOnAir.results||[]).slice(0,30).map(i => ({
           id:`tmdb-tv-${i.id}`, title:i.name, poster:tmdbImg(i.poster_path), type:'TV',
           duration:'45m/ep', score:(i.vote_average||0).toFixed(1),
           status:'Airing', episodes: i.number_of_episodes||'?',
         }));
-        const anime = (jikanAir.data||[]).map(a => ({
+        const allJikan = [...(jikanAir1.data||[]), ...(jikanAir2.data||[])];
+        // Deduplicate by mal_id
+        const jikanUnique = dedupById(allJikan, 'mal_id');
+        const anime = jikanUnique.map(a => ({
           id:`jikan-air-${a.mal_id}`, title:a.title, poster:a.images?.jpg?.large_image_url||'', type:'Anime',
           duration: a.duration||'?', score:(a.score||0).toFixed(1),
           status: a.status||'Airing', episodes: a.episodes||'?',
         }));
-        const combined = [...tv, ...anime].slice(0,60);
+        // Deduplicate combined list by id
+        const combined = dedupById([...tv, ...anime], 'id').slice(0,60);
         renderTopAiring(combined);
       }
       function renderTopAiring(shows) {
@@ -1330,10 +1369,11 @@ window.showAnikotoPopupById = function(mal_id) {
       /* ── NEW RELEASES ── */
       let allReleases = {all:[], anime:[], movie:[], tv:[]};
       async function loadNewReleases() {
-        const [nowMovies, onAirTv, jikanNow] = await Promise.all([
+        const [nowMovies, onAirTv, jikanNow1, jikanNow2] = await Promise.all([
           fetchTMDB('/movie/now_playing', 'language=en-US&page=1'),
           fetchTMDB('/tv/on_the_air', 'language=en-US&page=1'),
-          fetchJikan('seasons/now', 'limit=20')
+          fetchJikan('seasons/now', 'limit=25&page=1'),
+          fetchJikan('seasons/now', 'limit=25&page=2')
         ]);
         const movies = (nowMovies.results||[]).slice(0,10).map(i => ({
           id:`tmdb-mv-${i.id}`, title:i.title, poster:tmdbImg(i.poster_path), type:'Movie',
@@ -1343,12 +1383,15 @@ window.showAnikotoPopupById = function(mal_id) {
           id:`tmdb-tv-${i.id}`, title:i.name, poster:tmdbImg(i.poster_path), type:'TV',
           score:(i.vote_average||0).toFixed(1), details: 'S?', cert:'PG-13', quality:'HD'
         }));
-        const anime = (jikanNow.data||[]).slice(0,10).map(a => ({
+        // Merge pages and deduplicate
+        const allJikanNow = [...(jikanNow1.data||[]), ...(jikanNow2.data||[])];
+        const jikanNowUnique = dedupById(allJikanNow, 'mal_id');
+        const anime = jikanNowUnique.slice(0,19).map(a => ({
           id:`jikan-${a.mal_id}`, title:a.title, poster:a.images?.jpg?.large_image_url||'', type:'Anime',
           score:(a.score||0).toFixed(1), duration: a.duration||'?', status: a.status||'Airing',
           rating: a.rating||'none', quality:'HD'
         }));
-        allReleases = { all: [...movies,...tv,...anime].slice(0,30), anime, movie:movies, tv };
+        allReleases = { all: dedupById([...anime,...movies,...tv], 'id').slice(0,40), anime, movie:movies, tv };
         renderNewReleases('all');
       }
       function renderNewReleases(filter) {
@@ -1408,11 +1451,16 @@ window.showAnikotoPopupById = function(mal_id) {
       /* ── UPCOMING ── */
       let upcomingShows=[];
       async function loadUpcoming() {
-        const [tmdbUp, jikanUp] = await Promise.all([
+        const [tmdbUp, jikanUp1, jikanUp2, jikanUp3] = await Promise.all([
           fetchTMDB('/movie/upcoming', 'language=en-US&page=1'),
-          fetchJikan('top/anime', 'filter=upcoming&limit=20')
+          fetchJikan('top/anime', 'filter=upcoming&limit=25&page=1'),
+          fetchJikan('top/anime', 'filter=upcoming&limit=25&page=2'),
+          fetchJikan('top/anime', 'filter=upcoming&limit=25&page=3')
         ]);
-        upcomingShows = [
+        // Merge and deduplicate Jikan upcoming
+        const allJikanUp = [...(jikanUp1.data||[]), ...(jikanUp2.data||[]), ...(jikanUp3.data||[])];
+        const jikanUpUnique = dedupById(allJikanUp, 'mal_id');
+        upcomingShows = dedupById([
           ...(tmdbUp.results||[]).slice(0,40).map(i => ({
             id:`tmdb-up-${i.id}`, title:i.title, original_title:i.original_title||i.title,
             type:'Movie', poster:tmdbImg(i.poster_path), score:(i.vote_average||0).toFixed(1),
@@ -1420,15 +1468,15 @@ window.showAnikotoPopupById = function(mal_id) {
             synopsis:i.overview||'', certification: i.adult?'18+':'PG-13',
             studio:'?', backdrop:tmdbBack(i.backdrop_path), duration:'2h 10m'
           })),
-          ...(jikanUp.data||[]).slice(0,40).map(a => ({
+          ...jikanUpUnique.map(a => ({
             id:`jikan-up-${a.mal_id}`, title:a.title_english||a.title, original_title:a.title_japanese||a.title,
             type:'Anime', poster:a.images?.jpg?.large_image_url||'',
             score:(a.score||0).toFixed(1), genres:(a.genres||[]).map(g=>g.name),
             releaseDate:(a.aired?.from||'').slice(0,10), synopsis:a.synopsis||'',
             certification: a.rating||'PG-13', studio:(a.studios||[])[0]?.name||'?',
-            duration: a.duration||'?'
+            duration: a.duration||'?', mal_id: a.mal_id
           }))
-        ].slice(0,80);
+        ], 'id').slice(0,100);
         renderUpcoming();
       }
       function renderUpcoming() {
@@ -1529,36 +1577,57 @@ window.showAnikotoPopupById = function(mal_id) {
         }
       });
 
-      /* ── POPULAR ── */
+      /* ── POPULAR (main body horizontal scroll) ── */
       let popularData = [];
       async function loadPopular() {
-        const [tmdb, jikan] = await Promise.all([
+        const [tmdb, jikan1, jikan2] = await Promise.all([
           fetchTMDB('/discover/movie', 'sort_by=vote_count.desc&vote_count.gte=1000&language=en-US&page=1'),
-          fetchJikan('top/anime', 'filter=bypopularity&limit=7')
+          fetchJikan('top/anime', 'filter=bypopularity&limit=25&page=1'),
+          fetchJikan('top/anime', 'filter=bypopularity&limit=25&page=2')
         ]);
-        const data = [
-          ...(tmdb.results||[]).slice(0,7).map(i => ({
-            id:`tmdb-pop-${i.id}`, title:i.title, poster:tmdbImg(i.poster_path,'w185'), type:'Movie',
-            score:(i.vote_average||0).toFixed(1), members:i.vote_count,
-            genres:(i.genre_ids||[]).map(id=>GENRE_MAP[id]||id),
-            overview:i.overview||''
-          })),
-          ...(jikan.data||[]).map(a => ({
+        // Merge and deduplicate Jikan popular
+        const allJikanPop = [...(jikan1.data||[]), ...(jikan2.data||[])];
+        const jikanPopUnique = dedupById(allJikanPop, 'mal_id');
+        const data = dedupById([
+          ...jikanPopUnique.slice(0,10).map(a => ({
             id:`jikan-pop-${a.mal_id}`, title:a.title, poster:a.images?.jpg?.large_image_url||'',
             type:'Anime', score:(a.score||0).toFixed(1), members:a.members,
             genres:(a.genres||[]).map(g=>g.name),
-            synopsis:a.synopsis||''
+            synopsis:a.synopsis||'',
+            duration: a.duration||'?', episodes: a.episodes||'?', status: a.status||'Airing'
+          })),
+          ...(tmdb.results||[]).slice(0,5).map(i => ({
+            id:`tmdb-pop-${i.id}`, title:i.title, poster:tmdbImg(i.poster_path), type:'Movie',
+            score:(i.vote_average||0).toFixed(1), members:i.vote_count,
+            genres:(i.genre_ids||[]).map(id=>GENRE_MAP[id]||id),
+            overview:i.overview||'',
+            duration: i.runtime ? `${i.runtime}m` : '?', status: 'Released'
           }))
-        ].sort((a,b)=>b.members-a.members).slice(0,13);
+        ], 'id').sort((a,b)=>b.members-a.members).slice(0,10);
         data.forEach((item,i)=>item.rank=i+1);
         popularData = data;
-        document.getElementById('popularList').innerHTML = data.map(s => `
-          <a href="${infoUrl(s)}" class="sidebar-list-item" onmouseenter="showPopup(event,'${s.id}')" onmouseleave="window.popupTimer=setTimeout(hidePopup,500)">
-            <span class="sidebar-rank">${s.rank}</span>
-            <img class="sidebar-poster" src="${s.poster}">
-            <div class="sidebar-info"><h4>${s.title}</h4><div class="side-meta"><i class="fas fa-star"></i> ${s.score} · ${s.members} members</div></div>
-          </a>`).join('');
+        // Render as horizontal scroll in main body
+        const container = document.getElementById('popularScroll');
+        if (container) {
+          container.innerHTML = data.map(s => `
+            <a href="${infoUrl(s)}" class="show-card-horiz" onmouseenter="showPopup(event,'${s.id}')" onmouseleave="window.popupTimer=setTimeout(hidePopup,500)">
+              <div class="card-poster" style="background-image:url('${s.poster}');">
+                <span class="ranking-badge">#${s.rank}</span>
+                <span class="score-badge"><i class="fas fa-star"></i> ${s.score}</span>
+                <div class="play-overlay"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" fill="white"/></svg></div>
+              </div>
+              <h3 class="card-title">${s.title}</h3>
+              <div class="card-meta-sm">${s.type} · <i class="fas fa-users"></i> ${(s.members||0).toLocaleString()}</div>
+            </a>`).join('');
+        }
       }
+      // Popular scroll arrows
+      setTimeout(() => {
+        const pLeft = document.getElementById('popularLeft');
+        const pRight = document.getElementById('popularRight');
+        if (pLeft) pLeft.addEventListener('click', ()=> document.getElementById('popularScroll')?.scrollBy({left:-400,behavior:'smooth'}));
+        if (pRight) pRight.addEventListener('click', ()=> document.getElementById('popularScroll')?.scrollBy({left:400,behavior:'smooth'}));
+      }, 100);
 
       /* ── POPUP (FIXED) ── */
      window.showPopup = function(e, id) {
