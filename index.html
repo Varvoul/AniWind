@@ -867,7 +867,7 @@
       <!-- NEW ON ANIOCEAN SECTION -->
       <section class="section">
         <div class="section-header">
-          <h2 class="section-title">New on Aniocean</h2>
+          <h2 class="section-title">New on Aniumi</h2>
           <a href="/recent" class="view-all">View All ›</a>
         </div>
         <div class="new-aniocean-grid" id="newAnioceanGrid"></div>
@@ -958,9 +958,9 @@
           type = 'movie';
           const numeric = id.replace(/^tmdb-(?:mv|movie|up)-/, '');
           prefixId = `tmdb-movie-${numeric}`;
-        } else if (id.startsWith('tmdb-tv-') || (id.startsWith('tmdb-comp-') && !id.includes('movie'))) {
+        } else if (id.startsWith('tmdb-tv-') || id.startsWith('tmdb-tvpop-') || (id.startsWith('tmdb-comp-') && !id.includes('movie'))) {
           type = 'tv';
-          const numeric = id.replace(/^tmdb-(?:tv|comp)-/, '');
+          const numeric = id.replace(/^tmdb-(?:tv|tvpop|comp)-/, '');
           prefixId = `tmdb-tv-${numeric}`;
         } else if (/^\d+$/.test(id)) {
           type = 'anime';
@@ -1130,7 +1130,7 @@ async function loadNewAniocean() {
       }));
       // Deduplicate by mal_id
       const unique = dedupById(formatted, 'mal_id');
-      if (renderAnimeList(unique.slice(0,19))) {
+      if (renderAnimeList(unique.slice(0,20))) {
         console.log(`✓ Loaded ${unique.length} anime from Anikoto proxy for "New on Aniocean"`);
         return;
       }
@@ -1378,12 +1378,12 @@ window.showAnikotoPopupById = function(mal_id) {
         // Merge pages and deduplicate
         const allJikanNow = [...(jikanNow1.data||[]), ...(jikanNow2.data||[])];
         const jikanNowUnique = dedupById(allJikanNow, 'mal_id');
-        const anime = jikanNowUnique.slice(0,19).map(a => ({
+        const anime = jikanNowUnique.slice(0,20).map(a => ({
           id:`jikan-${a.mal_id}`, title:a.title, poster:a.images?.jpg?.large_image_url||'', type:'Anime',
           score:(a.score||0).toFixed(1), duration: a.duration||'?', status: a.status||'Airing',
           rating: a.rating||'none', quality:'HD'
         }));
-        allReleases = { all: dedupById([...anime,...movies,...tv], 'id').slice(0,40), anime, movie:movies, tv };
+        allReleases = { all: dedupById([...anime,...movies,...tv], 'id').slice(0,50), anime, movie:movies, tv };
         renderNewReleases('all');
       }
       function renderNewReleases(filter) {
@@ -1572,28 +1572,43 @@ window.showAnikotoPopupById = function(mal_id) {
       /* ── POPULAR (sidebar) ── */
       let popularData = [];
       async function loadPopular() {
-        const [tmdb, jikan1, jikan2] = await Promise.all([
+        const [tmdbMovies, tmdbTV, jikan1, jikan2] = await Promise.all([
           fetchTMDB('/discover/movie', 'sort_by=vote_count.desc&vote_count.gte=1000&language=en-US&page=1'),
+          fetchTMDB('/discover/tv', 'sort_by=vote_count.desc&vote_count.gte=1000&language=en-US&page=1'),
           fetchJikan('top/anime', 'filter=bypopularity&limit=25&page=1'),
           fetchJikan('top/anime', 'filter=bypopularity&limit=25&page=2')
         ]);
         // Merge and deduplicate Jikan popular
         const allJikanPop = [...(jikan1.data||[]), ...(jikan2.data||[])];
         const jikanPopUnique = dedupById(allJikanPop, 'mal_id');
-        const data = dedupById([
-          ...(tmdb.results||[]).slice(0,5).map(i => ({
-            id:`tmdb-pop-${i.id}`, title:i.title, poster:tmdbImg(i.poster_path,'w185'), type:'Movie',
-            score:(i.vote_average||0).toFixed(1), members:i.vote_count,
-            genres:(i.genre_ids||[]).map(id=>GENRE_MAP[id]||id),
-            overview:i.overview||''
-          })),
-          ...jikanPopUnique.slice(0,10).map(a => ({
-            id:`jikan-pop-${a.mal_id}`, title:a.title, poster:a.images?.jpg?.large_image_url||'',
-            type:'Anime', score:(a.score||0).toFixed(1), members:a.members,
-            genres:(a.genres||[]).map(g=>g.name),
-            synopsis:a.synopsis||''
-          }))
-        ], 'id').sort((a,b)=>b.members-a.members).slice(0,10);
+        // Interleave anime + movies + TV so all types are visible
+        const animeItems = jikanPopUnique.slice(0,5).map(a => ({
+          id:`jikan-pop-${a.mal_id}`, title:a.title, poster:a.images?.jpg?.large_image_url||'',
+          type:'Anime', score:(a.score||0).toFixed(1), members:a.members,
+          genres:(a.genres||[]).map(g=>g.name),
+          synopsis:a.synopsis||''
+        }));
+        const movieItems = (tmdbMovies.results||[]).slice(0,3).map(i => ({
+          id:`tmdb-pop-${i.id}`, title:i.title, poster:tmdbImg(i.poster_path,'w185'), type:'Movie',
+          score:(i.vote_average||0).toFixed(1), members:i.vote_count,
+          genres:(i.genre_ids||[]).map(id=>GENRE_MAP[id]||id),
+          overview:i.overview||''
+        }));
+        const tvItems = (tmdbTV.results||[]).slice(0,2).map(i => ({
+          id:`tmdb-tvpop-${i.id}`, title:i.name, poster:tmdbImg(i.poster_path,'w185'), type:'TV',
+          score:(i.vote_average||0).toFixed(1), members:i.vote_count,
+          genres:(i.genre_ids||[]).map(id=>GENRE_MAP[id]||id),
+          overview:i.overview||''
+        }));
+        // Interleave: anime, movie, tv pattern
+        const interleaved = [];
+        const maxLen = Math.max(animeItems.length, movieItems.length, tvItems.length);
+        for (let i = 0; i < maxLen; i++) {
+          if (animeItems[i]) interleaved.push(animeItems[i]);
+          if (movieItems[i]) interleaved.push(movieItems[i]);
+          if (tvItems[i]) interleaved.push(tvItems[i]);
+        }
+        const data = dedupById(interleaved, 'id').slice(0,10);
         data.forEach((item,i)=>item.rank=i+1);
         popularData = data;
         document.getElementById('popularList').innerHTML = data.map(s => `
