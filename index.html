@@ -951,9 +951,9 @@
         let type = 'anime';
         let prefixId = id;
 
-        if (id.startsWith('jikan-') || id.startsWith('jikan-air-') || id.startsWith('jikan-up-') || id.startsWith('jikan-comp-')) {
+        if (id.startsWith('jikan-')) {
           type = 'anime';
-          prefixId = id.replace(/^jikan-(?:air|up|comp-)?/, 'jikan-');
+          prefixId = id.replace(/^jikan-(?:air-|up-|comp-|tr-|pop-)?/, 'jikan-');
         } else if (id.startsWith('tmdb-mv-') || id.startsWith('tmdb-movie-') || id.startsWith('tmdb-up-')) {
           type = 'movie';
           const numeric = id.replace(/^tmdb-(?:mv|movie|up)-/, '');
