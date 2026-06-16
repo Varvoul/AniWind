@@ -863,10 +863,10 @@
         <div class="grid-container" id="newReleasesGrid"></div>
       </section>
 
-      <!-- NEW ON ANIOCEAN SECTION -->
+      <!-- NEW ON ANIUMI SECTION -->
       <section class="section">
         <div class="section-header">
-          <h2 class="section-title">New on Aniocean</h2>
+          <h2 class="section-title">New on Aniumi</h2>
           <a href="/recent" class="view-all">View All ›</a>
         </div>
         <div class="new-aniocean-grid" id="newAnioceanGrid"></div>
@@ -1007,10 +1007,23 @@
         const res = await fetch(url); if(!res.ok) return {results:[]};
         return res.json();
       }
-      async function fetchJikan(endpoint, params='') {
+      async function fetchJikan(endpoint, params='', retries=3) {
         const url = `${JIKAN_BASE}/${endpoint}?${params}`;
-        const res = await fetch(url); if(!res.ok) return {data:[]};
-        return res.json();
+        for (let attempt = 1; attempt <= retries; attempt++) {
+          try {
+            const res = await fetch(url);
+            if (res.ok) return res.json();
+            if (res.status === 429 && attempt < retries) {
+              await new Promise(r => setTimeout(r, 1000 * attempt)); // exponential backoff
+              continue;
+            }
+            return {data:[]};
+          } catch(e) {
+            if (attempt < retries) { await new Promise(r => setTimeout(r, 1000 * attempt)); continue; }
+            return {data:[]};
+          }
+        }
+        return {data:[]};
       }
 
       /* ── NEW ON ANIOCEAN ── */
@@ -1081,7 +1094,7 @@ async function loadNewAniocean() {
 
   // ----- PRIMARY: Anikoto proxy -----
   try {
-    const response = await fetchAnikoto('/recent-anime?page=1&per_page=30');
+    const response = await fetchAnikoto('/recent-anime?page=1&per_page=20');
     if (response.ok && response.data && response.data.length > 0) {
       const data = response.data;
       const formatted = data.map(anime => ({
@@ -1101,7 +1114,7 @@ async function loadNewAniocean() {
         is_dub: anime.is_dub || 0
       }));
       if (renderAnimeList(formatted)) {
-        console.log(`✓ Loaded ${formatted.length} anime from Anikoto proxy for "New on Aniocean"`);
+        console.log(`✓ Loaded ${formatted.length} anime from Anikoto proxy for "New on Aniumi"`);
         return;
       }
     }
@@ -1110,7 +1123,7 @@ async function loadNewAniocean() {
   }
 
   // ----- FALLBACK: Jikan (current season, pages 1-3) -----
-  console.log('Falling back to Jikan for "New on Aniocean"');
+  console.log('Falling back to Jikan for "New on Aniumi"');
   try {
     const pages = await Promise.all([
       fetchJikan('seasons/now', 'limit=25&page=1'),
@@ -1151,7 +1164,7 @@ async function loadNewAniocean() {
     }));
 
     if (renderAnimeList(formattedJikan)) {
-      console.log(`✓ Loaded ${formattedJikan.length} anime from Jikan (fallback) for "New on Aniocean"`);
+      console.log(`✓ Loaded ${formattedJikan.length} anime from Jikan (fallback) for "New on Aniumi"`);
       return;
     }
   } catch (error) {
@@ -1296,19 +1309,19 @@ window.showAnikotoPopupById = function(mal_id) {
       async function loadTopAiring() {
         const [tvOnAir, jikanAir] = await Promise.all([
           fetchTMDB('/tv/on_the_air', 'language=en-US&page=1'),
-          fetchJikan('top/anime', 'filter=airing&limit=15')
+          fetchJikan('top/anime', 'filter=airing&limit=20')
         ]);
-        const tv = (tvOnAir.results||[]).slice(0,30).map(i => ({
+        const tv = (tvOnAir.results||[]).slice(0,20).map(i => ({
           id:`tmdb-tv-${i.id}`, title:i.name, poster:tmdbImg(i.poster_path), type:'TV',
           duration:'45m/ep', score:(i.vote_average||0).toFixed(1),
           status:'Airing', episodes: i.number_of_episodes||'?',
         }));
-        const anime = (jikanAir.data||[]).map(a => ({
+        const anime = (jikanAir.data||[]).slice(0,20).map(a => ({
           id:`jikan-air-${a.mal_id}`, title:a.title, poster:a.images?.jpg?.large_image_url||'', type:'Anime',
           duration: a.duration||'?', score:(a.score||0).toFixed(1),
           status: a.status||'Airing', episodes: a.episodes||'?',
         }));
-        const combined = [...tv, ...anime].slice(0,60);
+        const combined = [...tv, ...anime].slice(0,40);
         renderTopAiring(combined);
       }
       function renderTopAiring(shows) {
@@ -1333,22 +1346,22 @@ window.showAnikotoPopupById = function(mal_id) {
         const [nowMovies, onAirTv, jikanNow] = await Promise.all([
           fetchTMDB('/movie/now_playing', 'language=en-US&page=1'),
           fetchTMDB('/tv/on_the_air', 'language=en-US&page=1'),
-          fetchJikan('seasons/now', 'limit=20')
+          fetchJikan('seasons/now', 'limit=25')
         ]);
-        const movies = (nowMovies.results||[]).slice(0,10).map(i => ({
+        const movies = (nowMovies.results||[]).slice(0,20).map(i => ({
           id:`tmdb-mv-${i.id}`, title:i.title, poster:tmdbImg(i.poster_path), type:'Movie',
           score:(i.vote_average||0).toFixed(1), details:'1h 45m', cert:'PG-13', quality:'HD'
         }));
-        const tv = (onAirTv.results||[]).slice(0,10).map(i => ({
+        const tv = (onAirTv.results||[]).slice(0,20).map(i => ({
           id:`tmdb-tv-${i.id}`, title:i.name, poster:tmdbImg(i.poster_path), type:'TV',
           score:(i.vote_average||0).toFixed(1), details: 'S?', cert:'PG-13', quality:'HD'
         }));
-        const anime = (jikanNow.data||[]).slice(0,10).map(a => ({
+        const anime = (jikanNow.data||[]).slice(0,20).map(a => ({
           id:`jikan-${a.mal_id}`, title:a.title, poster:a.images?.jpg?.large_image_url||'', type:'Anime',
           score:(a.score||0).toFixed(1), duration: a.duration||'?', status: a.status||'Airing',
           rating: a.rating||'none', quality:'HD'
         }));
-        allReleases = { all: [...movies,...tv,...anime].slice(0,30), anime, movie:movies, tv };
+        allReleases = { all: [...movies,...tv,...anime].slice(0,60), anime, movie:movies, tv };
         renderNewReleases('all');
       }
       function renderNewReleases(filter) {
@@ -1532,31 +1545,38 @@ window.showAnikotoPopupById = function(mal_id) {
       /* ── POPULAR ── */
       let popularData = [];
       async function loadPopular() {
-        const [tmdb, jikan] = await Promise.all([
+        // Fetch all three sources in parallel — each has its own retry logic
+        const [tmdbMovies, tmdbTv, jikan] = await Promise.all([
           fetchTMDB('/discover/movie', 'sort_by=vote_count.desc&vote_count.gte=1000&language=en-US&page=1'),
-          fetchJikan('top/anime', 'filter=bypopularity&limit=7')
+          fetchTMDB('/discover/tv', 'sort_by=vote_count.desc&vote_count.gte=500&language=en-US&page=1'),
+          fetchJikan('top/anime', 'filter=bypopularity&limit=10')
         ]);
-        const data = [
-          ...(tmdb.results||[]).slice(0,7).map(i => ({
-            id:`tmdb-pop-${i.id}`, title:i.title, poster:tmdbImg(i.poster_path,'w185'), type:'Movie',
-            score:(i.vote_average||0).toFixed(1), members:i.vote_count,
-            genres:(i.genre_ids||[]).map(id=>GENRE_MAP[id]||id),
-            overview:i.overview||''
-          })),
-          ...(jikan.data||[]).map(a => ({
-            id:`jikan-pop-${a.mal_id}`, title:a.title, poster:a.images?.jpg?.large_image_url||'',
-            type:'Anime', score:(a.score||0).toFixed(1), members:a.members,
-            genres:(a.genres||[]).map(g=>g.name),
-            synopsis:a.synopsis||''
-          }))
-        ].sort((a,b)=>b.members-a.members).slice(0,13);
+        const movies = (tmdbMovies.results||[]).slice(0,7).map(i => ({
+          id:`tmdb-pop-${i.id}`, title:i.title, poster:tmdbImg(i.poster_path,'w185'), type:'Movie',
+          score:(i.vote_average||0).toFixed(1), members:i.vote_count,
+          genres:(i.genre_ids||[]).map(id=>GENRE_MAP[id]||id),
+          overview:i.overview||''
+        }));
+        const tv = (tmdbTv.results||[]).slice(0,8).map(i => ({
+          id:`tmdb-pop-tv-${i.id}`, title:i.name, poster:tmdbImg(i.poster_path,'w185'), type:'TV',
+          score:(i.vote_average||0).toFixed(1), members:i.vote_count,
+          genres:(i.genre_ids||[]).map(id=>GENRE_MAP[id]||id),
+          overview:i.overview||''
+        }));
+        const anime = (jikan.data||[]).slice(0,10).map(a => ({
+          id:`jikan-pop-${a.mal_id}`, title:a.title, poster:a.images?.jpg?.large_image_url||'',
+          type:'Anime', score:(a.score||0).toFixed(1), members:a.members,
+          genres:(a.genres||[]).map(g=>g.name),
+          synopsis:a.synopsis||''
+        }));
+        const data = [...anime, ...tv, ...movies].sort((a,b)=>b.members-a.members).slice(0,25);
         data.forEach((item,i)=>item.rank=i+1);
         popularData = data;
         document.getElementById('popularList').innerHTML = data.map(s => `
           <a href="${infoUrl(s)}" class="sidebar-list-item" onmouseenter="showPopup(event,'${s.id}')" onmouseleave="window.popupTimer=setTimeout(hidePopup,500)">
             <span class="sidebar-rank">${s.rank}</span>
-            <img class="sidebar-poster" src="${s.poster}">
-            <div class="sidebar-info"><h4>${s.title}</h4><div class="side-meta"><i class="fas fa-star"></i> ${s.score} · ${s.members} members</div></div>
+            <img class="sidebar-poster" src="${s.poster}" onerror="this.style.display='none'">
+            <div class="sidebar-info"><h4>${s.title}</h4><div class="side-meta"><i class="fas fa-star"></i> ${s.score} · ${s.type}</div></div>
           </a>`).join('');
       }
 
