@@ -839,18 +839,6 @@
 
   <div class="main-layout">
     <div class="main-content">
-      <!-- MOST POPULAR (moved to first position) -->
-      <section class="section">
-        <div class="section-header">
-          <h2 class="section-title">Most Popular</h2>
-          <div class="section-controls">
-            <button class="scroll-arrow" id="popularLeft">‹</button>
-            <button class="scroll-arrow" id="popularRight">›</button>
-          </div>
-        </div>
-        <div class="horizontal-scroll" id="popularScroll"></div>
-      </section>
-
       <section class="section">
         <div class="section-header">
           <h2 class="section-title">Top Airing</h2>
@@ -915,6 +903,10 @@
           </div>
         </div>
         <div id="trendingList"></div>
+      </section>
+      <section class="section">
+        <div class="section-header"><h2 class="section-title">Most Popular</h2></div>
+        <div id="popularList"></div>
       </section>
       <div class="esw-widget" id="eswWidget">
         <div class="esw-head">
@@ -1577,7 +1569,7 @@ window.showAnikotoPopupById = function(mal_id) {
         }
       });
 
-      /* ── POPULAR (main body horizontal scroll) ── */
+      /* ── POPULAR (sidebar) ── */
       let popularData = [];
       async function loadPopular() {
         const [tmdb, jikan1, jikan2] = await Promise.all([
@@ -1589,45 +1581,28 @@ window.showAnikotoPopupById = function(mal_id) {
         const allJikanPop = [...(jikan1.data||[]), ...(jikan2.data||[])];
         const jikanPopUnique = dedupById(allJikanPop, 'mal_id');
         const data = dedupById([
+          ...(tmdb.results||[]).slice(0,5).map(i => ({
+            id:`tmdb-pop-${i.id}`, title:i.title, poster:tmdbImg(i.poster_path,'w185'), type:'Movie',
+            score:(i.vote_average||0).toFixed(1), members:i.vote_count,
+            genres:(i.genre_ids||[]).map(id=>GENRE_MAP[id]||id),
+            overview:i.overview||''
+          })),
           ...jikanPopUnique.slice(0,10).map(a => ({
             id:`jikan-pop-${a.mal_id}`, title:a.title, poster:a.images?.jpg?.large_image_url||'',
             type:'Anime', score:(a.score||0).toFixed(1), members:a.members,
             genres:(a.genres||[]).map(g=>g.name),
-            synopsis:a.synopsis||'',
-            duration: a.duration||'?', episodes: a.episodes||'?', status: a.status||'Airing'
-          })),
-          ...(tmdb.results||[]).slice(0,5).map(i => ({
-            id:`tmdb-pop-${i.id}`, title:i.title, poster:tmdbImg(i.poster_path), type:'Movie',
-            score:(i.vote_average||0).toFixed(1), members:i.vote_count,
-            genres:(i.genre_ids||[]).map(id=>GENRE_MAP[id]||id),
-            overview:i.overview||'',
-            duration: i.runtime ? `${i.runtime}m` : '?', status: 'Released'
+            synopsis:a.synopsis||''
           }))
         ], 'id').sort((a,b)=>b.members-a.members).slice(0,10);
         data.forEach((item,i)=>item.rank=i+1);
         popularData = data;
-        // Render as horizontal scroll in main body
-        const container = document.getElementById('popularScroll');
-        if (container) {
-          container.innerHTML = data.map(s => `
-            <a href="${infoUrl(s)}" class="show-card-horiz" onmouseenter="showPopup(event,'${s.id}')" onmouseleave="window.popupTimer=setTimeout(hidePopup,500)">
-              <div class="card-poster" style="background-image:url('${s.poster}');">
-                <span class="ranking-badge">#${s.rank}</span>
-                <span class="score-badge"><i class="fas fa-star"></i> ${s.score}</span>
-                <div class="play-overlay"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" fill="white"/></svg></div>
-              </div>
-              <h3 class="card-title">${s.title}</h3>
-              <div class="card-meta-sm">${s.type} · <i class="fas fa-users"></i> ${(s.members||0).toLocaleString()}</div>
-            </a>`).join('');
-        }
+        document.getElementById('popularList').innerHTML = data.map(s => `
+          <a href="${infoUrl(s)}" class="sidebar-list-item" onmouseenter="showPopup(event,'${s.id}')" onmouseleave="window.popupTimer=setTimeout(hidePopup,500)">
+            <span class="sidebar-rank">${s.rank}</span>
+            <img class="sidebar-poster" src="${s.poster}" onerror="this.style.display='none'">
+            <div class="sidebar-info"><h4>${s.title}</h4><div class="side-meta"><i class="fas fa-star"></i> ${s.score} · ${s.members} members</div></div>
+          </a>`).join('');
       }
-      // Popular scroll arrows
-      setTimeout(() => {
-        const pLeft = document.getElementById('popularLeft');
-        const pRight = document.getElementById('popularRight');
-        if (pLeft) pLeft.addEventListener('click', ()=> document.getElementById('popularScroll')?.scrollBy({left:-400,behavior:'smooth'}));
-        if (pRight) pRight.addEventListener('click', ()=> document.getElementById('popularScroll')?.scrollBy({left:400,behavior:'smooth'}));
-      }, 100);
 
       /* ── POPUP (FIXED) ── */
      window.showPopup = function(e, id) {
