@@ -5,12 +5,12 @@
   /* ═══════════════════════════════════════════════════════════
      CONSTANTS
   ═══════════════════════════════════════════════════════════ */
-  const SUPABASE_URL      = 'https://msazwxqbyxctdnwqrreb.supabase.co';
-  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1zYXp3eHFieXhjdGRud3FycmViIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1NDkzMzYsImV4cCI6MjA5MzEyNTMzNn0.jfaA3HMRabWWPJkPGK34HM-suUhde_L9JEU0YfGkpLY';
+  const SUPABASE_URL      = 'https://uhjucwqiadymmogmwkxc.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVoanVjd3FpYWR5bW1vZ213a3hjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1MTY0NDcsImV4cCI6MjA5NzA5MjQ0N30.nJZQftmkbu0Ix-4lgtfzJcm_qIkI32e3SykF49XPrlg';
   const supabase          = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   const CF_WORKER_URL     = 'https://aniocen.bionmovies47.workers.dev';
   const PROFILE_BUCKET_URL= `${SUPABASE_URL}/storage/v1/object/public/Profile%20Images/`;
-  const DEFAULT_AVATAR    = 'https://msazwxqbyxctdnwqrreb.supabase.co/storage/v1/object/public/Profile%20Images/flower.jpg';
+  const DEFAULT_AVATAR    = 'https://uhjucwqiadymmogmwkxc.supabase.co/storage/v1/object/public/Profile%20Images/flower.jpg';
   const CF_SITEKEY        = '0x4AAAAAADHwF4HZ8mJhe0yRQeNHRG-xyWk';
 
   let searchDebounceTimer = null;
