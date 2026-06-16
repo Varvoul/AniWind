@@ -9,8 +9,8 @@
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVoanVjd3FpYWR5bW1vZ213a3hjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1MTY0NDcsImV4cCI6MjA5NzA5MjQ0N30.nJZQftmkbu0Ix-4lgtfzJcm_qIkI32e3SykF49XPrlg';
   const supabase          = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   const CF_WORKER_URL     = 'https://aniocen.bionmovies47.workers.dev';
-  const PROFILE_BUCKET_URL= `${SUPABASE_URL}/storage/v1/object/public/Profile%20Images/`;
-  const DEFAULT_AVATAR    = 'https://uhjucwqiadymmogmwkxc.supabase.co/storage/v1/object/public/Profile%20Images/flower.jpg';
+  const PROFILE_BUCKET_URL= `${SUPABASE_URL}/storage/v1/object/public/Aniumi/`;
+  const DEFAULT_AVATAR    = 'https://uhjucwqiadymmogmwkxc.supabase.co/storage/v1/object/public/Aniumi/Frieren.jpeg';
   const CF_SITEKEY        = '0x4AAAAAADHwF4HZ8mJhe0yRQeNHRG-xyWk';
 
   let searchDebounceTimer = null;
@@ -1428,9 +1428,11 @@
       const blob    = await (await fetch(dataUrl)).blob();
       const ext     = file.name.split('.').pop() || 'jpg';
       const path    = `user_${Date.now()}.${ext}`;
-      const { data, error } = await supabase.storage.from('Profile Images').upload(path, blob, { upsert: true, contentType: file.type });
+      const { data, error } = await supabase.storage.from('Aniumi').upload(path, blob, { upsert: true, contentType: file.type });
       if (!error && data) {
-        setAvatar(`${PROFILE_BUCKET_URL}${path}`);
+        // Try signed URL first (private bucket), fallback to public URL
+        const { data: signed } = await supabase.storage.from('Aniumi').createSignedUrl(path, 60 * 60 * 24 * 365);
+        setAvatar(signed?.signedUrl || `${PROFILE_BUCKET_URL}${path}`);
       } else {
         setAvatar(dataUrl);
       }
@@ -1441,7 +1443,7 @@
   async function loadBucketAvatars() {
     const grid = document.getElementById('avatarGrid');
     grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-muted,#888);font-size:0.76rem;">Loading…</div>';
-    const { data, error } = await supabase.storage.from('Profile Images').list('', { limit: 60 });
+    const { data, error } = await supabase.storage.from('Aniumi').list('', { limit: 60 });
     if (error || !data?.length) {
       grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-muted,#888);font-size:0.76rem;">No avatars found. Upload your own!</div>';
       return;
@@ -1451,8 +1453,12 @@
       grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-muted,#888);font-size:0.76rem;">No images in bucket yet.</div>';
       return;
     }
-    grid.innerHTML = imgs.map(f => {
-      const url = `${PROFILE_BUCKET_URL}${f.name}`;
+    // Generate signed URLs for private bucket access
+    const signedResults = await Promise.all(imgs.map(f =>
+      supabase.storage.from('Aniumi').createSignedUrl(f.name, 60 * 60 * 24 * 365) // 1 year expiry
+    ));
+    grid.innerHTML = imgs.map((f, i) => {
+      const url = signedResults[i]?.data?.signedUrl || `${PROFILE_BUCKET_URL}${f.name}`;
       return `<div class="avatar-opt${url===selectedAvatarUrl?' selected':''}" data-url="${url}">
         <img src="${url}" alt="${f.name}" loading="lazy">
       </div>`;
