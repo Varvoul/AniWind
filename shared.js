@@ -11,14 +11,17 @@
   const CF_WORKER_URL     = 'https://aniocen.bionmovies47.workers.dev';
   const PROFILE_BUCKET_URL= `${SUPABASE_URL}/storage/v1/object/public/Aniumi/`;
   const DEFAULT_AVATAR    = 'https://uhjucwqiadymmogmwkxc.supabase.co/storage/v1/object/public/Aniumi/Frieren.jpeg';
-  const CF_SITEKEY        = '0x4AAAAAADHwF4HZ8mJhe0yRQeNHRG-xyWk';
+  const HCAPTCHA_SITEKEY  = '2dd853ec-9482-4bf6-b2e6-f5f478d0bf86';
+  const SESSION_MAX_AGE   = 30 * 24 * 60 * 60 * 1000; // 1 month in ms
 
   let searchDebounceTimer = null;
   let currentSearchMode   = 'non-anime';
   let currentUser         = null;
-  let cfToken             = '';
+  let hcaptchaToken       = '';
 
-  window.onTurnstileSuccess = (t) => { cfToken = t; };
+  window.onHcaptchaSuccess = (t) => { hcaptchaToken = t; };
+  window.onHcaptchaExpired = ()  => { hcaptchaToken = ''; };
+  window.onHcaptchaError   = ()  => { hcaptchaToken = ''; };
 
   /* ═══════════════════════════════════════════════════════════
      SVG ICONS
@@ -466,6 +469,8 @@
       cursor:pointer;transition:background .18s,color .18s;
     }
     .avatar-upload-btn:hover{background:var(--btn-primary,#3b82f6);color:#fff;}
+    .avatar-action-btn{transition:all .18s;}
+    .avatar-action-btn:hover{filter:brightness(1.15);transform:scale(1.02);}
     .avatar-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
     .avatar-opt{
       width:64px;height:64px;border-radius:50%;overflow:hidden;
@@ -824,9 +829,9 @@
             </div>
             <button class="forgot-btn" id="forgotLink">Forgot password?</button>
 
-            <!-- Cloudflare Turnstile -->
-            <div class="cf-wrap">
-              <div class="cf-turnstile" data-sitekey="${CF_SITEKEY}" data-callback="onTurnstileSuccess" data-theme="dark"></div>
+            <!-- hCaptcha -->
+            <div class="cf-wrap" style="display:flex;justify-content:center;">
+              <div class="h-captcha" data-sitekey="${HCAPTCHA_SITEKEY}" data-theme="dark" data-callback="onHcaptchaSuccess" data-expired-callback="onHcaptchaExpired" data-error-callback="onHcaptchaError"></div>
             </div>
 
             <div class="form-err" id="loginErr"></div>
@@ -839,7 +844,7 @@
           <!-- ── SLIDE 1 · SIGN UP ── -->
           <div class="form-slide" id="slideSignUp">
             <div class="auth-heading">Create account ✨</div>
-            <div class="auth-subheading">Join <span>AniOcean</span> — it's free forever.</div>
+            <div class="auth-subheading">Join <span>Aniumi</span> — it's free forever.</div>
 
             <!-- Avatar picker -->
             <div class="avatar-pick-wrap">
@@ -878,9 +883,9 @@
             <div class="divider">or</div>
             <button class="btn-google" id="btnGoogleSignUp">${SVG.google} Sign up with Google</button>
 
-            <!-- Cloudflare Turnstile -->
-            <div class="cf-wrap">
-              <div class="cf-turnstile" data-sitekey="${CF_SITEKEY}" data-callback="onTurnstileSuccess" data-theme="dark"></div>
+            <!-- hCaptcha -->
+            <div class="cf-wrap" style="display:flex;justify-content:center;">
+              <div class="h-captcha" data-sitekey="${HCAPTCHA_SITEKEY}" data-theme="dark" data-callback="onHcaptchaSuccess" data-expired-callback="onHcaptchaExpired" data-error-callback="onHcaptchaError"></div>
             </div>
 
             <div class="terms-row">
@@ -924,10 +929,13 @@
   <div class="avatar-popup" id="avatarPopup">
     <div class="avatar-popup-hdr">
       <span class="avatar-popup-title">Choose Avatar</span>
-      <label class="avatar-upload-btn" for="avatarFileInput">${SVG.upload} Upload</label>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+      <label class="avatar-action-btn" for="avatarFileInput" style="flex:1;text-align:center;cursor:pointer;border-radius:20px;padding:8px 12px;font-size:0.75rem;font-weight:600;background:var(--btn-primary,#3b82f6);color:#fff;border:none;display:flex;align-items:center;justify-content:center;gap:6px;">${SVG.upload} Upload from Device</label>
+      <button class="avatar-action-btn" id="btnChooseFromBucket" type="button" style="flex:1;border-radius:20px;padding:8px 12px;font-size:0.75rem;font-weight:600;background:transparent;color:var(--text,#e2e8f0);border:2px solid var(--btn-primary,#3b82f6);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">Choose from Collection</button>
     </div>
     <input type="file" id="avatarFileInput" accept="image/*" style="display:none;">
-    <div class="avatar-grid" id="avatarGrid">
+    <div class="avatar-grid" id="avatarGrid" style="display:none;">
       <div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-muted,#888);font-size:0.76rem;">Loading avatars…</div>
     </div>
   </div>
@@ -942,10 +950,10 @@
     document.body.insertAdjacentHTML('beforeend', FOOTER);
     document.body.insertAdjacentHTML('beforeend', AUTH_MODAL);
 
-    // Load Cloudflare Turnstile script
-    if (!document.querySelector('script[src*="turnstile"]')) {
+    // Load hCaptcha script
+    if (!document.querySelector('script[src*="hcaptcha"]')) {
       const s = document.createElement('script');
-      s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
+      s.src = 'https://js.hcaptcha.com/1/api.js';
       s.async = true; s.defer = true;
       document.head.appendChild(s);
     }
@@ -955,10 +963,27 @@
     initAuthModal();
     initAvatarPicker();
 
-    // Auth state listener
-    supabase.auth.onAuthStateChange((_evt, session) => {
+    // Auth state listener with session expiry
+    supabase.auth.onAuthStateChange(async (_evt, session) => {
       currentUser = session?.user || null;
+      // Session expiry check: if session exists but is older than SESSION_MAX_AGE, sign out
+      if (session) {
+        const lastActivity = localStorage.getItem('aniumi_last_activity');
+        const now = Date.now();
+        if (lastActivity && (now - parseInt(lastActivity)) > SESSION_MAX_AGE) {
+          await supabase.auth.signOut();
+          currentUser = null;
+        } else {
+          localStorage.setItem('aniumi_last_activity', now.toString());
+        }
+      }
       updateUserUI();
+    });
+    // Track activity for session expiry
+    ['click', 'keydown', 'scroll', 'mousemove'].forEach(evt => {
+      document.addEventListener(evt, () => {
+        if (currentUser) localStorage.setItem('aniumi_last_activity', Date.now().toString());
+      }, { passive: true });
     });
     updateUserUI();
   });
@@ -1292,6 +1317,7 @@
       const errEl   = document.getElementById('loginErr');
       errEl.textContent = '';
       if (!username || !password) { errEl.textContent = 'Please fill in all fields.'; return; }
+      if (!hcaptchaToken) { errEl.textContent = 'Please complete the captcha verification.'; return; }
 
       const btn = document.getElementById('btnSignIn');
       btn.disabled = true; btn.textContent = 'Signing in…';
@@ -1303,10 +1329,11 @@
           else { errEl.textContent = 'Username not found.'; return; }
         }
         const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) errEl.textContent = error.message;
-        else closeModal();
+        if (error) { errEl.textContent = error.message; return; }
+        localStorage.setItem('aniumi_last_activity', Date.now().toString());
+        closeModal();
       } catch { errEl.textContent = 'An error occurred. Try again.'; }
-      finally { btn.disabled = false; btn.textContent = 'Sign In'; }
+      finally { btn.disabled = false; btn.textContent = 'Sign In'; resetHCaptcha(); }
     });
 
     ['btnGoogleLogin','btnGoogleSignUp'].forEach(id => {
@@ -1333,12 +1360,18 @@
       if (password !== confirm)                          { errEl.textContent = 'Passwords do not match.'; return; }
       if (!isStrongPwd(password))                        { errEl.textContent = 'Password must include upper, lower, number, and symbol.'; return; }
       if (!terms)                                        { errEl.textContent = 'Please accept the Terms & Conditions.'; return; }
+      if (!hcaptchaToken)                                { errEl.textContent = 'Please complete the captcha verification.'; return; }
 
       const btn = document.getElementById('btnSignUp');
       btn.disabled = true; btn.textContent = 'Creating…';
       try {
-        const { data: ex } = await supabase.from('profiles').select('user_id').eq('username', username).maybeSingle();
-        if (ex) { errEl.textContent = 'Username already taken.'; return; }
+        // Check username uniqueness
+        const { data: exUser } = await supabase.from('profiles').select('user_id').eq('username', username).maybeSingle();
+        if (exUser) { errEl.textContent = 'Username already taken.'; return; }
+
+        // Check email uniqueness
+        const { data: exEmail } = await supabase.from('profiles').select('user_id').eq('email', email).maybeSingle();
+        if (exEmail) { errEl.textContent = 'This email address is already registered. Please sign in instead.'; return; }
 
         const avatarUrl = document.getElementById('selectedAvatar').src || DEFAULT_AVATAR;
 
@@ -1346,8 +1379,17 @@
           email, password,
           options: { data: { username, avatar_url: avatarUrl } }
         });
-        if (error) { errEl.textContent = error.message; return; }
+        if (error) {
+          // Supabase may return "User already registered" error
+          if (error.message?.toLowerCase().includes('already registered') || error.message?.toLowerCase().includes('already been registered')) {
+            errEl.textContent = 'This email address is already registered. Please sign in instead.';
+          } else {
+            errEl.textContent = error.message;
+          }
+          return;
+        }
 
+        // Profile row is auto-created by the database trigger, but we upsert here too as a safety net
         if (data.user) {
           await supabase.from('profiles').upsert({
             user_id:    data.user.id,
@@ -1356,10 +1398,11 @@
             avatar_url: avatarUrl
           });
         }
+        localStorage.setItem('aniumi_last_activity', Date.now().toString());
         closeModal();
-        alert('Account created! Check your email to verify.');
+        alert('Account created! Check your email to verify your account.');
       } catch { errEl.textContent = 'An error occurred. Try again.'; }
-      finally { btn.disabled = false; btn.textContent = 'Create Account'; }
+      finally { btn.disabled = false; btn.textContent = 'Create Account'; resetHCaptcha(); }
     });
 
     document.getElementById('btnReset')?.addEventListener('click', async () => {
@@ -1414,23 +1457,34 @@
   function initAvatarPicker() {
     document.getElementById('avatarFrame')?.addEventListener('click', async () => {
       document.getElementById('avatarPopupOverlay').classList.add('open');
-      await loadBucketAvatars();
+      document.getElementById('avatarGrid').style.display = 'none'; // hidden until "Choose from" is clicked
     });
     document.getElementById('avatarPopupOverlay')?.addEventListener('click', e => {
       if (!e.target.closest('#avatarPopup')) {
         document.getElementById('avatarPopupOverlay').classList.remove('open');
       }
     });
+
+    // "Choose from Collection" button — fetches from profile_ava folder
+    document.getElementById('btnChooseFromBucket')?.addEventListener('click', async () => {
+      const grid = document.getElementById('avatarGrid');
+      grid.style.display = 'grid';
+      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-muted,#888);font-size:0.76rem;">Loading…</div>';
+      await loadBucketAvatars();
+    });
+
+    // Upload from device — unique path per user
     document.getElementById('avatarFileInput')?.addEventListener('change', async function () {
       const file = this.files[0];
       if (!file) return;
       const dataUrl = await resizeImage(file, 256, 256);
       const blob    = await (await fetch(dataUrl)).blob();
       const ext     = file.name.split('.').pop() || 'jpg';
-      const path    = `user_${Date.now()}.${ext}`;
+      // Use user-specific folder path for uniqueness: profile_ava/{uuid}/{timestamp}.ext
+      const uid     = currentUser?.id || 'guest_' + Date.now();
+      const path    = `profile_ava/${uid}/${Date.now()}.${ext}`;
       const { data, error } = await supabase.storage.from('Aniumi').upload(path, blob, { upsert: true, contentType: file.type });
       if (!error && data) {
-        // Try signed URL first (private bucket), fallback to public URL
         const { data: signed } = await supabase.storage.from('Aniumi').createSignedUrl(path, 60 * 60 * 24 * 365);
         setAvatar(signed?.signedUrl || `${PROFILE_BUCKET_URL}${path}`);
       } else {
@@ -1442,23 +1496,25 @@
 
   async function loadBucketAvatars() {
     const grid = document.getElementById('avatarGrid');
+    grid.style.display = 'grid';
     grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-muted,#888);font-size:0.76rem;">Loading…</div>';
-    const { data, error } = await supabase.storage.from('Aniumi').list('', { limit: 60 });
+    // Fetch pre-uploaded avatars from the "profile_ava" folder
+    const { data, error } = await supabase.storage.from('Aniumi').list('profile_ava', { limit: 60 });
     if (error || !data?.length) {
-      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-muted,#888);font-size:0.76rem;">No avatars found. Upload your own!</div>';
+      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-muted,#888);font-size:0.76rem;">No avatars found in collection.</div>';
       return;
     }
     const imgs = data.filter(f => /\.(jpg|jpeg|png|webp|gif)$/i.test(f.name));
     if (!imgs.length) {
-      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-muted,#888);font-size:0.76rem;">No images in bucket yet.</div>';
+      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-muted,#888);font-size:0.76rem;">No images in collection yet.</div>';
       return;
     }
     // Generate signed URLs for private bucket access
     const signedResults = await Promise.all(imgs.map(f =>
-      supabase.storage.from('Aniumi').createSignedUrl(f.name, 60 * 60 * 24 * 365) // 1 year expiry
+      supabase.storage.from('Aniumi').createSignedUrl(`profile_ava/${f.name}`, 60 * 60 * 24 * 365) // 1 year expiry
     ));
     grid.innerHTML = imgs.map((f, i) => {
-      const url = signedResults[i]?.data?.signedUrl || `${PROFILE_BUCKET_URL}${f.name}`;
+      const url = signedResults[i]?.data?.signedUrl || `${PROFILE_BUCKET_URL}profile_ava/${f.name}`;
       return `<div class="avatar-opt${url===selectedAvatarUrl?' selected':''}" data-url="${url}">
         <img src="${url}" alt="${f.name}" loading="lazy">
       </div>`;
@@ -1542,6 +1598,21 @@
       if (mobProfileBtn) mobProfileBtn.style.display = 'flex';
       if (mobAvatarWrap) mobAvatarWrap.style.display = 'none';
     }
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     hCAPTCHA RESET HELPER
+  ═══════════════════════════════════════════════════════════ */
+  function resetHCaptcha() {
+    hcaptchaToken = '';
+    try {
+      // Reset all hCaptcha widgets on the page
+      if (window.hcaptcha) {
+        document.querySelectorAll('.h-captcha').forEach(el => {
+          try { window.hcaptcha.reset(el); } catch(e) {}
+        });
+      }
+    } catch(e) {}
   }
 
   /* ═══════════════════════════════════════════════════════════
