@@ -3647,6 +3647,17 @@ img { max-width: 100%; height: auto; display: block; }
         } catch (e) { console.error('removeBookmark error:', e); }
       }
 
+      // ── REALTIME: refresh this page's bookmark UI when the row changes
+      //    anywhere (this device, another tab, or another device). ──
+      if (!window.__aniumiBookmarkRealtimeWired) {
+        window.__aniumiBookmarkRealtimeWired = true;
+        window.addEventListener('aniumi:bookmark-changed', () => {
+          if (currentState.currentUser && currentState.id) {
+            fetchUserBookmarks();
+          }
+        });
+      }
+
       function updateBookmarkUI() {
         const btn    = document.getElementById('addToListBtn');
         const text   = document.getElementById('dropdownText');

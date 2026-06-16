@@ -13,11 +13,55 @@
   const DEFAULT_AVATAR    = 'https://uhjucwqiadymmogmwkxc.supabase.co/storage/v1/object/public/Aniumi/Frieren.jpeg';
   const HCAPTCHA_SITEKEY  = '2dd853ec-9482-4bf6-b2e6-f5f478d0bf86';
   const SESSION_MAX_AGE   = 30 * 24 * 60 * 60 * 1000; // 1 month in ms
+  // Dedicated permanent bucket for user-uploaded & Google-downloaded avatars.
+  // Public bucket, no lifecycle policy → URLs NEVER expire.
+  const AVATAR_BUCKET     = 'AniumiAvatars';
+  const AVATAR_BUCKET_URL = `${SUPABASE_URL}/storage/v1/object/public/${AVATAR_BUCKET}/`;
 
   let searchDebounceTimer = null;
   let currentSearchMode   = 'non-anime';
   let currentUser         = null;
   let hcaptchaToken       = '';
+  let cachedGeo           = null;   // { ip, country, country_code, state, city, timezone }
+
+  /* ═══════════════════════════════════════════════════════════
+     GEO / IP CAPTURE  — used by both signup & login
+     Caches the result so we don't hit the free API multiple times.
+  ═══════════════════════════════════════════════════════════ */
+  async function getUserGeo() {
+    if (cachedGeo) return cachedGeo;
+    const fallback = {
+      ip: null, country: null, country_code: null,
+      state: null, city: null, timezone: null
+    };
+    try {
+      const res = await fetch('https://ipapi.co/json/', { cache: 'no-store' });
+      if (res.ok) {
+        const j = await res.json();
+        cachedGeo = {
+          ip:           j.ip || null,
+          country:      j.country_name || null,
+          country_code: j.country_code || null,
+          state:        j.region || null,
+          city:         j.city || null,
+          timezone:     j.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || null
+        };
+        return cachedGeo;
+      }
+    } catch (e) { /* network/CORS — fall through */ }
+    try {
+      const r2 = await fetch('https://api.ipify.org?format=json', { cache: 'no-store' });
+      if (r2.ok) {
+        const j2 = await r2.json();
+        cachedGeo = { ...fallback, ip: j2.ip || null,
+                      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || null };
+        return cachedGeo;
+      }
+    } catch (e) { /* give up gracefully */ }
+    cachedGeo = { ...fallback,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || null };
+    return cachedGeo;
+  }
 
   window.onHcaptchaSuccess = (t) => { hcaptchaToken = t; };
   window.onHcaptchaExpired = ()  => { hcaptchaToken = ''; };
@@ -1328,9 +1372,11 @@
           if (p?.email) email = p.email;
           else { errEl.textContent = 'Username not found.'; return; }
         }
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) { errEl.textContent = error.message; return; }
         localStorage.setItem('aniumi_last_activity', Date.now().toString());
+        // Record login metadata (IP / country / state / count / last-login)
+        if (data.user) await recordLogin(data.user.id);
         closeModal();
       } catch { errEl.textContent = 'An error occurred. Try again.'; }
       finally { btn.disabled = false; btn.textContent = 'Sign In'; resetHCaptcha(); }
@@ -1338,6 +1384,9 @@
 
     ['btnGoogleLogin','btnGoogleSignUp'].forEach(id => {
       document.getElementById(id)?.addEventListener('click', async () => {
+        // Stash geo in localStorage so the OAuth redirect target can pick it up.
+        const geo = await getUserGeo();
+        try { localStorage.setItem('aniumi_pending_geo', JSON.stringify(geo)); } catch(e){}
         await supabase.auth.signInWithOAuth({
           provider: 'google',
           options: { redirectTo: window.location.origin }
@@ -1374,10 +1423,23 @@
         if (exEmail) { errEl.textContent = 'This email address is already registered. Please sign in instead.'; return; }
 
         const avatarUrl = document.getElementById('selectedAvatar').src || DEFAULT_AVATAR;
+        const geo = await getUserGeo();
 
         const { data, error } = await supabase.auth.signUp({
           email, password,
-          options: { data: { username, avatar_url: avatarUrl } }
+          options: {
+            data: {
+              username,
+              avatar_url: avatarUrl,
+              has_password:  true,
+              ip_address_text: geo.ip,
+              country:         geo.country,
+              country_code:    geo.country_code,
+              state:           geo.state,
+              city:            geo.city,
+              timezone:        geo.timezone
+            }
+          }
         });
         if (error) {
           // Supabase may return "User already registered" error
@@ -1389,14 +1451,12 @@
           return;
         }
 
-        // Profile row is auto-created by the database trigger, but we upsert here too as a safety net
+        // The handle_new_user trigger auto-creates the profile row.
+        // We also persist the chosen avatar to the PERMANENT bucket so it
+        // never expires (the on-screen URL might be from a private bucket
+        // or an external source).
         if (data.user) {
-          await supabase.from('profiles').upsert({
-            user_id:    data.user.id,
-            username,
-            email,
-            avatar_url: avatarUrl
-          });
+          await persistAvatarPermanently(data.user.id, avatarUrl);
         }
         localStorage.setItem('aniumi_last_activity', Date.now().toString());
         closeModal();
@@ -1473,20 +1533,22 @@
       await loadBucketAvatars();
     });
 
-    // Upload from device — unique path per user
+    // Upload from device — unique path per user, PERMANENT public URL
     document.getElementById('avatarFileInput')?.addEventListener('change', async function () {
       const file = this.files[0];
       if (!file) return;
       const dataUrl = await resizeImage(file, 256, 256);
       const blob    = await (await fetch(dataUrl)).blob();
       const ext     = file.name.split('.').pop() || 'jpg';
-      // Use user-specific folder path for uniqueness: profile_ava/{uuid}/{timestamp}.ext
+      // Use user-specific folder path in the PERMANENT public bucket.
       const uid     = currentUser?.id || 'guest_' + Date.now();
-      const path    = `profile_ava/${uid}/${Date.now()}.${ext}`;
-      const { data, error } = await supabase.storage.from('Aniumi').upload(path, blob, { upsert: true, contentType: file.type });
+      const path    = `${uid}/${Date.now()}.${ext}`;
+      const { data, error } = await supabase.storage
+        .from(AVATAR_BUCKET)
+        .upload(path, blob, { upsert: true, contentType: file.type });
       if (!error && data) {
-        const { data: signed } = await supabase.storage.from('Aniumi').createSignedUrl(path, 60 * 60 * 24 * 365);
-        setAvatar(signed?.signedUrl || `${PROFILE_BUCKET_URL}${path}`);
+        // PUBLIC URL — never expires (no signed URL anymore).
+        setAvatar(`${AVATAR_BUCKET_URL}${path}`);
       } else {
         setAvatar(dataUrl);
       }
@@ -1498,7 +1560,8 @@
     const grid = document.getElementById('avatarGrid');
     grid.style.display = 'grid';
     grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-muted,#888);font-size:0.76rem;">Loading…</div>';
-    // Fetch pre-uploaded avatars from the "profile_ava" folder
+    // Fetch pre-uploaded avatars from the "profile_ava" folder in the
+    // (now PUBLIC) 'Aniumi' bucket. Public URLs never expire.
     const { data, error } = await supabase.storage.from('Aniumi').list('profile_ava', { limit: 60 });
     if (error || !data?.length) {
       grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-muted,#888);font-size:0.76rem;">No avatars found in collection.</div>';
@@ -1509,12 +1572,9 @@
       grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-muted,#888);font-size:0.76rem;">No images in collection yet.</div>';
       return;
     }
-    // Generate signed URLs for private bucket access
-    const signedResults = await Promise.all(imgs.map(f =>
-      supabase.storage.from('Aniumi').createSignedUrl(`profile_ava/${f.name}`, 60 * 60 * 24 * 365) // 1 year expiry
-    ));
-    grid.innerHTML = imgs.map((f, i) => {
-      const url = signedResults[i]?.data?.signedUrl || `${PROFILE_BUCKET_URL}profile_ava/${f.name}`;
+    // PUBLIC URLs — no more signed URLs (which expired after 1 year).
+    grid.innerHTML = imgs.map(f => {
+      const url = `${PROFILE_BUCKET_URL}profile_ava/${f.name}`;
       return `<div class="avatar-opt${url===selectedAvatarUrl?' selected':''}" data-url="${url}">
         <img src="${url}" alt="${f.name}" loading="lazy">
       </div>`;
@@ -1568,7 +1628,7 @@
     if (user) {
       const { data: profile } = await supabase
         .from('profiles')
-        .select('username,avatar_url')
+        .select('username,avatar_url,google_account_username,gmail_address,google_profile_image,first_login_date,last_login_date,login_count,ip_address_text,country,state,city')
         .eq('user_id', user.id)
         .maybeSingle();
 
@@ -1592,12 +1652,175 @@
       if (mobDdAv) mobDdAv.src = avatarUrl;
       if (mobDdUn) mobDdUn.textContent = username;
 
+      // ─── OAuth redirect: pick up stashed geo & persist Google avatar ───
+      await handleOAuthCallback(user, profile);
+
+      // ─── Start realtime subscriptions for this user ───
+      initRealtime(user.id);
+
     } else {
       if (btnLogin)      btnLogin.style.display = '';
       if (deskAvatar)    deskAvatar.style.display = 'none';
       if (mobProfileBtn) mobProfileBtn.style.display = 'flex';
       if (mobAvatarWrap) mobAvatarWrap.style.display = 'none';
     }
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     RECORD LOGIN  — updates last_login_date, login_count, IP/geo
+     on every password sign-in.
+  ═══════════════════════════════════════════════════════════ */
+  async function recordLogin(userId) {
+    try {
+      const geo = await getUserGeo();
+      const { data: cur } = await supabase
+        .from('profiles').select('login_count').eq('user_id', userId).maybeSingle();
+      const patch = {
+        last_login_date: new Date().toISOString(),
+        login_count:     (cur?.login_count ? cur.login_count + 1 : 1),
+        ip_address_text: geo.ip || null,
+        country:         geo.country,
+        country_code:    geo.country_code,
+        state:           geo.state,
+        city:            geo.city,
+        timezone:        geo.timezone,
+        updated_at:      new Date().toISOString()
+      };
+      await supabase.from('profiles').update(patch).eq('user_id', userId);
+    } catch (e) { console.warn('[recordLogin] failed:', e); }
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     PERSIST AVATAR PERMANENTLY  — uploads chosen/Google avatar to
+     the PUBLIC 'AniumiAvatars' bucket. Objects here have NO lifecycle
+     policy → URLs NEVER expire. Returns the new permanent URL.
+  ═══════════════════════════════════════════════════════════ */
+  async function persistAvatarPermanently(userId, sourceUrl) {
+    if (!userId || !sourceUrl) return null;
+    // Already in our permanent bucket? Skip.
+    if (sourceUrl.includes(`/${AVATAR_BUCKET}/`)) return sourceUrl;
+    // Default avatar? Skip — defaults live in the public 'Aniumi' bucket permanently.
+    if (sourceUrl === DEFAULT_AVATAR) return sourceUrl;
+    try {
+      const resp = await fetch(sourceUrl, { mode: 'cors', credentials: 'omit' });
+      if (!resp.ok) return sourceUrl;
+      const blob = await resp.blob();
+      const ext  = (blob.type.split('/')[1] || 'jpg').replace('jpeg', 'jpg');
+      const path = `${userId}/avatar_${Date.now()}.${ext}`;
+      const { error } = await supabase.storage
+        .from(AVATAR_BUCKET)
+        .upload(path, blob, { upsert: true, contentType: blob.type });
+      if (error) { console.warn('[persistAvatar] upload failed:', error); return sourceUrl; }
+      const permanentUrl = `${AVATAR_BUCKET_URL}${path}`;
+      // Update the profile row to use the permanent URL
+      await supabase.from('profiles')
+        .update({ avatar_url: permanentUrl, updated_at: new Date().toISOString() })
+        .eq('user_id', userId);
+      return permanentUrl;
+    } catch (e) {
+      console.warn('[persistAvatar] fetch failed (likely CORS):', e);
+      return sourceUrl;
+    }
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     HANDLE OAUTH CALLBACK  — runs after Google OAuth redirect.
+     • Grabs stashed geo from localStorage (set before the redirect).
+     • Copies Google name/gmail/avatar_url into profile columns.
+     • Downloads the Google avatar into our permanent bucket so
+       it lives forever (Google's URL can disappear if the user
+       changes their Google photo).
+  ═══════════════════════════════════════════════════════════ */
+  async function handleOAuthCallback(user, profile) {
+    if (!user) return;
+    let geo = null;
+    try { geo = JSON.parse(localStorage.getItem('aniumi_pending_geo') || 'null'); } catch(e){}
+    try { localStorage.removeItem('aniumi_pending_geo'); } catch(e){}
+
+    const meta = user.user_metadata || {};
+    const googleName  = meta.full_name || meta.name || null;
+    const gmail       = meta.email || (user.email && user.email.endsWith('@gmail.com') ? user.email : null);
+    const googleImg   = meta.avatar_url || meta.picture || null;
+    const currentAvatar = profile?.avatar_url || googleImg || DEFAULT_AVATAR;
+
+    const patch = {
+      last_login_date: new Date().toISOString(),
+      google_account_username: profile?.google_account_username || googleName,
+      gmail_address:           profile?.gmail_address           || gmail,
+      google_profile_image:    profile?.google_profile_image    || googleImg,
+      updated_at:              new Date().toISOString()
+    };
+    if (geo) {
+      patch.ip_address      = geo.ip;
+      patch.ip_address_text = geo.ip;
+      patch.country         = geo.country;
+      patch.country_code    = geo.country_code;
+      patch.state           = geo.state;
+      patch.city            = geo.city;
+      patch.timezone        = geo.timezone;
+    }
+    if (profile?.login_count) patch.login_count = profile.login_count + 1;
+    else if (!profile) {
+      patch.first_login_date = new Date().toISOString();
+      patch.login_count = 1;
+    }
+    try {
+      await supabase.from('profiles').update(patch).eq('user_id', user.id);
+    } catch (e) { console.warn('[handleOAuthCallback] update failed:', e); }
+
+    // Persist the Google avatar into the permanent bucket ONCE.
+    const alreadyPermanent = currentAvatar && currentAvatar.includes(`/${AVATAR_BUCKET}/`);
+    const isDefault        = currentAvatar === DEFAULT_AVATAR;
+    if (!alreadyPermanent && !isDefault && googleImg) {
+      // Use the original Google URL at higher resolution
+      const hiRes = googleImg.replace(/=s\d+-c$/, '=s512-c');
+      const permanentUrl = await persistAvatarPermanently(user.id, hiRes);
+      // Live-update any visible avatar elements so the user immediately
+      // sees the permanent copy.
+      if (permanentUrl && permanentUrl !== currentAvatar) {
+        ['desktopAvatar','mobAvatar','ddAvatarImg','mobDdAvatarImg','selectedAvatar'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.src = permanentUrl;
+        });
+      }
+    }
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     REALTIME  — subscribe to profiles + user_bookmarks.
+     When ANY row belonging to this user changes (insert/update/delete),
+     the callback fires; we re-fetch the affected data live.
+     No manual refresh needed.
+  ═══════════════════════════════════════════════════════════ */
+  let realtimeInitialised = false;
+  function initRealtime(userId) {
+    if (realtimeInitialised === userId) return;     // already subscribed for this user
+    if (realtimeInitialised) {
+      try { supabase.channel('profiles-realtime').unsubscribe(); } catch(e){}
+      try { supabase.channel('bookmarks-realtime').unsubscribe(); } catch(e){}
+    }
+    realtimeInitialised = userId;
+
+    // ── Profile changes (e.g. admin updated avatar, or another device edited) ──
+    supabase
+      .channel('profiles-realtime')
+      .on('postgres_changes',
+          { event: '*', schema: 'public', table: 'profiles', filter: `user_id=eq.${userId}` },
+          (payload) => {
+            updateUserUI();
+            try { window.dispatchEvent(new CustomEvent('aniumi:profile-changed', { detail: payload })); } catch(e){}
+          })
+      .subscribe();
+
+    // ── Bookmark changes (this device, another tab, or another device) ──
+    supabase
+      .channel('bookmarks-realtime')
+      .on('postgres_changes',
+          { event: '*', schema: 'public', table: 'user_bookmarks', filter: `user_id=eq.${userId}` },
+          (payload) => {
+            try { window.dispatchEvent(new CustomEvent('aniumi:bookmark-changed', { detail: payload })); } catch(e){}
+          })
+      .subscribe();
   }
 
   /* ═══════════════════════════════════════════════════════════
@@ -1621,5 +1844,10 @@
   window.supabaseClient   = supabase;
   window.openLoginModal   = () => openModal(0);
   window.signInWithGoogle = () => supabase.auth.signInWithOAuth({ provider:'google', options:{ redirectTo: window.location.origin } });
+  window.recordLogin      = recordLogin;
+  window.persistAvatar    = persistAvatarPermanently;
+  window.getUserGeo       = getUserGeo;
+  window.AVATAR_BUCKET    = AVATAR_BUCKET;
+  window.AVATAR_BUCKET_URL= AVATAR_BUCKET_URL;
 
 })();
