@@ -482,6 +482,36 @@
     .cf-wrap{display:flex;justify-content:center;min-height:78px;align-items:center;}
     .cf-wrap iframe{max-width:100%;transform-origin:center center;border:0;}
 
+    /* Password + Confirm password side-by-side (saves vertical space) */
+    .pwd-pair{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start;}
+    .pwd-pair .field-group{margin-bottom:0;}
+    .pwd-pair .field-group label{font-size:0.62rem;}
+    .pwd-pair .pwd-bar{margin-top:4px;}
+    .pwd-pair .pwd-label{font-size:0.6rem;}
+    .pwd-pair .field-err{font-size:0.6rem;}
+    @media(max-width:480px){
+      .pwd-pair{gap:8px;}
+      .pwd-pair .field-input{padding:9px 10px;font-size:0.76rem;}
+      .pwd-pair .field-input{padding-right:30px !important;}
+      .pwd-pair .eye-btn{right:6px;}
+    }
+
+    /* "← Back to Sign In" link — top of sign-up form, always visible */
+    .auth-back-link{
+      display:inline-flex;align-items:center;gap:4px;
+      font-size:0.7rem;color:var(--text-muted,#888);
+      background:none;border:none;cursor:pointer;padding:4px 0;
+      margin-bottom:10px;font-family:inherit;transition:color .18s;
+    }
+    .auth-back-link:hover{color:var(--btn-primary,#3b82f6);}
+
+    /* "Forgot password?" inline link */
+    .forgot-inline{
+      font-size:0.66rem;color:var(--btn-primary,#3b82f6);
+      background:none;border:none;cursor:pointer;padding:0;
+      font-family:inherit;float:right;margin-top:-22px;
+    }
+
     /* ─── MOBILE CAROUSEL (hidden on desktop) ─── */
     .auth-mobile-carousel{
       display:none;position:relative;width:100%;
@@ -1036,102 +1066,113 @@
 <div class="auth-overlay" id="authOverlay">
   <div class="auth-modal" id="authModal">
 
-    <!-- Left image column – ALWAYS VISIBLE -->
+    <!-- Left image column – DESKTOP ONLY (mobile uses carousel below) -->
     <div class="auth-img-col">
       <img src="https://i.postimg.cc/pr6CQhM8/e1223c0a1599b039da4ac536a39f0223.jpg" alt="AniOcean">
+    </div>
+
+    <!-- MOBILE-ONLY landscape image carousel — direct child of .auth-modal
+         so it stays FULLY VISIBLE at the top while the form scrolls below.
+         The gradient on the carousel merges seamlessly with the form column. -->
+    <div class="auth-mobile-carousel" id="authMobileCarousel" aria-hidden="true">
+      ${AUTH_CAROUSEL_IMAGES.map((url,i) => `<div class="mc-slide${i===0?' active':''}" style="background-image:url('${url}')"></div>`).join('')}
     </div>
 
     <!-- Right form column -->
     <div class="auth-form-col">
       <button class="auth-close-btn" id="authClose">${SVG.close}</button>
 
-      <!-- MOBILE-ONLY landscape image carousel (crossfade every 3s).
-           Hidden on desktop via CSS. Sits at the top of the form, merged
-           seamlessly with the form below via gradient overlay. -->
-      <div class="auth-mobile-carousel" id="authMobileCarousel" aria-hidden="true">
-        ${AUTH_CAROUSEL_IMAGES.map((url,i) => `<div class="mc-slide${i===0?' active':''}" style="background-image:url('${url}')"></div>`).join('')}
-      </div>
-
       <div class="form-slides-wrapper">
         <div class="form-slides" id="formSlides">
 
-          <!-- ── SLIDE 0 · LOGIN ── -->
+          <!-- ── SLIDE 0 · LOGIN ──
+               Field order: username → password (+inline forgot) → hCaptcha →
+                            Sign In button → Google auth → nav button (Sign up) -->
           <div class="form-slide active" id="slideLogin">
             <div class="auth-heading">Welcome back 👋</div>
             <div class="auth-subheading">Sign in to continue your anime journey.</div>
 
+            <!-- 1. Username -->
             <div class="field-group">
-              <label>Username</label>
-              <input class="field-input" type="text" id="loginUsername" placeholder="Your username" autocomplete="username">
+              <label>Username or Email</label>
+              <input class="field-input" type="text" id="loginUsername" placeholder="Your username or email" autocomplete="username">
             </div>
+
+            <!-- 2. Password (with inline Forgot link) -->
             <div class="field-group">
               <label>Password</label>
               <div class="field-wrap">
                 <input class="field-input" type="password" id="loginPassword" placeholder="Your password" autocomplete="current-password" style="padding-right:38px;">
                 <button class="eye-btn" type="button" data-target="loginPassword">${SVG.eye}</button>
               </div>
+              <button class="forgot-inline" id="forgotLink" type="button">Forgot password?</button>
             </div>
-            <button class="forgot-btn" id="forgotLink">Forgot password?</button>
 
-            <!-- hCaptcha -->
-            <div class="cf-wrap" style="display:flex;justify-content:center;">
+            <!-- 3. hCaptcha -->
+            <div class="cf-wrap">
               <div class="h-captcha" data-sitekey="${HCAPTCHA_SITEKEY}" data-theme="dark" data-callback="onHcaptchaSuccess" data-expired-callback="onHcaptchaExpired" data-error-callback="onHcaptchaError"></div>
             </div>
 
             <div class="form-err" id="loginErr"></div>
+
+            <!-- 4. Sign In button -->
             <button class="btn-primary-full" id="btnSignIn">Sign In</button>
+
+            <!-- 5. Google auth -->
             <div class="divider">or</div>
             <button class="btn-google" id="btnGoogleLogin">${SVG.google} Continue with Google</button>
+
+            <!-- 6. Navigate to Sign Up -->
             <div class="auth-switch">No account? <button class="auth-switch-btn" id="goSignUp">Sign up</button></div>
           </div>
 
-          <!-- ── SLIDE 1 · SIGN UP ── -->
+          <!-- ── SLIDE 1 · SIGN UP ──
+               Field order: username → email → password|confirm (side-by-side) →
+                            terms → hCaptcha → Sign Up button → Google → nav (Sign in)
+               Avatar picker removed to save vertical space (DEFAULT_AVATAR used;
+               users can change avatar from profile page after signup). -->
           <div class="form-slide" id="slideSignUp">
+            <!-- Always-visible back link at the TOP so user is never trapped -->
+            <button class="auth-back-link" id="backLoginTop" type="button">← Back to Sign In</button>
+
             <div class="auth-heading">Create account ✨</div>
             <div class="auth-subheading">Join <span>Aniumi</span> — it's free forever.</div>
 
-            <!-- Avatar picker -->
-            <div class="avatar-pick-wrap">
-              <div class="avatar-frame" id="avatarFrame">
-                <img src="${DEFAULT_AVATAR}" id="selectedAvatar" alt="avatar">
-              </div>
-              <div class="avatar-pick-lbl">Tap the avatar to change it</div>
-            </div>
-
+            <!-- 1. Username -->
             <div class="field-group">
               <label>Username <span style="font-size:.6rem;text-transform:none;letter-spacing:0;">(max 12, letters &amp; numbers only)</span></label>
               <input class="field-input" type="text" id="regUsername" placeholder="e.g. OtakuNinja" maxlength="12" autocomplete="off">
               <div class="field-err" id="errUsername"></div>
             </div>
+
+            <!-- 2. Email Address -->
             <div class="field-group">
               <label>Email Address</label>
               <input class="field-input" type="email" id="regEmail" placeholder="you@example.com" autocomplete="email">
             </div>
-            <div class="field-group">
-              <label>Password <span style="font-size:.6rem;text-transform:none;letter-spacing:0;">(max 20)</span></label>
-              <div class="field-wrap">
-                <input class="field-input" type="password" id="regPassword" placeholder="Min 8 chars, letters+numbers+symbols" maxlength="20" style="padding-right:38px;" autocomplete="new-password">
-                <button class="eye-btn" type="button" data-target="regPassword">${SVG.eye}</button>
-              </div>
-              <div class="pwd-bar"><div class="pwd-fill" id="pwdFill"></div></div>
-              <div class="pwd-label" id="pwdLabel"></div>
-            </div>
-            <div class="field-group">
-              <label>Confirm Password</label>
-              <div class="field-wrap">
-                <input class="field-input" type="password" id="regConfirm" placeholder="Repeat password" maxlength="20" style="padding-right:38px;" autocomplete="new-password">
-                <button class="eye-btn" type="button" data-target="regConfirm">${SVG.eye}</button>
-              </div>
-              <div class="field-err" id="errConfirm"></div>
-            </div>
-            <div class="divider">or</div>
-            <button class="btn-google" id="btnGoogleSignUp">${SVG.google} Sign up with Google</button>
 
-            <!-- hCaptcha -->
-            <div class="cf-wrap" style="display:flex;justify-content:center;">
-              <div class="h-captcha" data-sitekey="${HCAPTCHA_SITEKEY}" data-theme="dark" data-callback="onHcaptchaSuccess" data-expired-callback="onHcaptchaExpired" data-error-callback="onHcaptchaError"></div>
+            <!-- 3. Password + Confirm Password (SIDE-BY-SIDE) -->
+            <div class="pwd-pair">
+              <div class="field-group">
+                <label>Password <span style="font-size:.58rem;text-transform:none;letter-spacing:0;">(max 20)</span></label>
+                <div class="field-wrap">
+                  <input class="field-input" type="password" id="regPassword" placeholder="Min 8 chars" maxlength="20" style="padding-right:30px;" autocomplete="new-password">
+                  <button class="eye-btn" type="button" data-target="regPassword">${SVG.eye}</button>
+                </div>
+                <div class="pwd-bar"><div class="pwd-fill" id="pwdFill"></div></div>
+                <div class="pwd-label" id="pwdLabel"></div>
+              </div>
+              <div class="field-group">
+                <label>Confirm</label>
+                <div class="field-wrap">
+                  <input class="field-input" type="password" id="regConfirm" placeholder="Repeat" maxlength="20" style="padding-right:30px;" autocomplete="new-password">
+                  <button class="eye-btn" type="button" data-target="regConfirm">${SVG.eye}</button>
+                </div>
+                <div class="field-err" id="errConfirm"></div>
+              </div>
             </div>
 
+            <!-- 4. Terms checkbox -->
             <div class="terms-row">
               <input type="checkbox" id="termsCheck">
               <label for="termsCheck">I have read and agree to the
@@ -1139,8 +1180,22 @@
                 <a href="/privacy" target="_blank">Privacy Policy</a>.
               </label>
             </div>
+
+            <!-- 5. hCaptcha -->
+            <div class="cf-wrap">
+              <div class="h-captcha" data-sitekey="${HCAPTCHA_SITEKEY}" data-theme="dark" data-callback="onHcaptchaSuccess" data-expired-callback="onHcaptchaExpired" data-error-callback="onHcaptchaError"></div>
+            </div>
+
             <div class="form-err" id="signUpErr"></div>
+
+            <!-- 6. Sign Up button -->
             <button class="btn-primary-full" id="btnSignUp">Create Account</button>
+
+            <!-- 7. Google auth -->
+            <div class="divider">or</div>
+            <button class="btn-google" id="btnGoogleSignUp">${SVG.google} Sign up with Google</button>
+
+            <!-- 8. Navigate to Sign In (also at top — bottom is a fallback) -->
             <div class="auth-switch">Already have an account? <button class="auth-switch-btn" id="goLogin">Sign in</button></div>
           </div>
 
@@ -1574,6 +1629,8 @@
     document.getElementById('goLogin')?.addEventListener('click',  () => slideTo(0));
     document.getElementById('forgotLink')?.addEventListener('click', () => slideTo(2));
     document.getElementById('backLogin')?.addEventListener('click',  () => slideTo(0));
+    // New "← Back to Sign In" link at the top of the sign-up form
+    document.getElementById('backLoginTop')?.addEventListener('click', () => slideTo(0));
 
     document.querySelectorAll('.eye-btn').forEach(btn => {
       btn.addEventListener('click', function () {
@@ -1699,7 +1756,10 @@
         const { data: exEmail } = await supabase.from('profiles').select('user_id').eq('email', email).maybeSingle();
         if (exEmail) { errEl.textContent = 'This email address is already registered. Please sign in instead.'; return; }
 
-        const avatarUrl = document.getElementById('selectedAvatar').src || DEFAULT_AVATAR;
+        // Avatar picker was removed from the sign-up form to save space.
+        // New users get the DEFAULT_AVATAR; they can change it later from
+        // their profile page (avatar upload UI lives elsewhere).
+        const avatarUrl = DEFAULT_AVATAR;
         const geo = await getUserGeo();
 
         const { data, error } = await supabase.auth.signUp({
