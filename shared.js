@@ -503,23 +503,29 @@
 
     /* === MOBILE: single column with carousel on top === */
     @media(max-width:680px){
-      .auth-overlay{padding:8px;align-items:stretch;}
+      /* Center the modal vertically with breathing room on all sides
+         so it no longer "covers the full display". */
+      .auth-overlay{padding:12px;align-items:center;justify-content:center;}
       .auth-modal{
-        flex-direction:column;max-width:100%;max-height:96vh;
+        flex-direction:column;
+        max-width:94vw;             /* was 100% — leaves 3vw margin each side */
+        max-height:90vh;            /* was 96vh — leaves breathing room top/bottom */
         width:100%;border-radius:16px;
       }
       .auth-img-col{display:none;}
       .auth-mobile-carousel{
-        display:block;flex-shrink:0;     /* keep the carousel height stable — do NOT shrink */
+        display:block;flex-shrink:0;
+        /* Shrink the carousel from 16/9 (~57vw tall) to 16/5 (~29vw tall).
+           The image is purely decorative — reclaiming ~28vw of vertical
+           space is what lets the rest of the form fit without scrolling. */
+        aspect-ratio:16/5;
         border-top-left-radius:16px;border-top-right-radius:16px;
       }
       .auth-form-col{
-        padding:14px 18px 18px;flex:1;
+        padding:10px 16px 12px;flex:1;
         border-radius:0 0 16px 16px;
         /* Mobile scroll fix: allow shrinking below content height so
-           overflow-y:auto actually engages (otherwise the carousel
-           takes ~57vw and the form gets pushed under the modal's
-           overflow:hidden edge — making hCaptcha & submit unreachable). */
+           overflow-y:auto actually engages. */
         min-height:0;
         overflow-y:auto;
         justify-content:flex-start;
@@ -532,19 +538,86 @@
       /* On mobile, keep the slides at the top so users see the first
          field immediately rather than the middle of the form. */
       .form-slides-wrapper{margin-top:0;margin-bottom:0;}
-      .auth-close-btn{top:8px;right:8px;background:rgba(0,0,0,.45);}
-      /* Compact hCaptcha on mobile */
-      .cf-wrap{min-height:68px;margin:6px 0;}
-      .cf-wrap iframe{transform:scale(.82);}
+      .auth-close-btn{top:6px;right:6px;width:26px;height:26px;background:rgba(0,0,0,.55);}
+
+      /* ── COMPACT ELEMENT SPACING (mobile) ──
+         Goal: every element of the SIGN IN slide fits on one screen
+         (heading + 2 fields + forgot link + hCaptcha + Sign In button +
+         divider + Google button + "No account? Sign up" link).
+         For SIGN UP (which has 4 fields + avatar + captcha + terms),
+         the form is still scrollable as a fallback on very small phones. */
+      .auth-heading{font-size:1.05rem;margin-bottom:2px;}
+      .auth-subheading{font-size:0.7rem;margin-bottom:10px;}
+      .field-group{margin-bottom:8px;}
+      .field-group label{font-size:0.62rem;margin-bottom:3px;}
+      .field-input{padding:8px 12px;font-size:0.78rem;border-radius:8px;}
+      .eye-btn{right:8px;}
+      .field-err{font-size:0.62rem;margin-top:2px;}
+      .form-err{font-size:0.66rem;margin-bottom:4px;min-height:14px;}
+      .forgot-btn{font-size:0.66rem;margin-top:2px;margin-bottom:8px;}
+      .terms-row{font-size:0.65rem;margin-bottom:8px;gap:6px;}
+      .terms-row input[type=checkbox]{width:13px;height:13px;margin-top:1px;}
+
+      /* Buttons — slightly shorter to save vertical pixels. */
+      .btn-primary-full{padding:9px;font-size:0.78rem;border-radius:40px;}
+      .btn-google{padding:8px;font-size:0.73rem;margin-bottom:8px;border-radius:40px;gap:7px;}
+      .divider{margin:8px 0;font-size:0.66rem;gap:8px;}
+      .auth-switch{margin-top:10px;font-size:0.68rem;}
+      .auth-switch-btn{font-size:0.68rem;}
+
+      /* Avatar picker — smaller on mobile so SIGN UP slide fits better. */
+      .avatar-pick-wrap{margin-bottom:8px;}
+      .avatar-frame{width:60px;height:60px;}
+      .avatar-frame::after{width:18px;height:18px;font-size:10px;}
+      .avatar-pick-lbl{font-size:0.6rem;margin-top:4px;}
+
+      /* Compact hCaptcha on mobile — minimum viable size. */
+      .cf-wrap{min-height:54px;margin:4px 0 6px;}
+      .cf-wrap iframe{transform:scale(.72);}
+
+      /* Password strength bar — tighter. */
+      .pwd-bar{height:2px;margin-top:3px;}
+      .pwd-label{font-size:0.58rem;margin-top:1px;}
     }
+
+    /* ── EVEN SMALLER PHONES (≤ 480px) — super-compact ── */
     @media(max-width:480px){
-      .auth-form-col{padding:12px 14px 16px;}
-      .cf-wrap iframe{transform:scale(.74);}
-      .cf-wrap{min-height:62px;}
+      .auth-overlay{padding:8px;}
+      .auth-modal{max-width:96vw;max-height:92vh;}
+      .auth-mobile-carousel{aspect-ratio:16/4;}
+      .auth-form-col{padding:8px 12px 10px;}
+      .auth-heading{font-size:0.98rem;}
+      .auth-subheading{font-size:0.66rem;margin-bottom:8px;}
+      .field-group{margin-bottom:6px;}
+      .field-input{padding:7px 10px;font-size:0.74rem;}
+      .forgot-btn{font-size:0.62rem;margin-bottom:6px;}
+      .btn-primary-full{padding:8px;font-size:0.74rem;}
+      .btn-google{padding:7px;font-size:0.7rem;margin-bottom:6px;}
+      .divider{margin:6px 0;font-size:0.62rem;}
+      .auth-switch{margin-top:8px;font-size:0.64rem;}
+      .avatar-frame{width:54px;height:54px;}
+      .avatar-pick-wrap{margin-bottom:6px;}
+      .cf-wrap{min-height:48px;margin:3px 0 4px;}
+      .cf-wrap iframe{transform:scale(.66);}
+      .terms-row{font-size:0.62rem;margin-bottom:6px;}
     }
+
+    /* ── TINY PHONES (≤ 380px) — minimal ── */
     @media(max-width:380px){
-      .cf-wrap iframe{transform:scale(.68);}
-      .cf-wrap{min-height:56px;}
+      .auth-modal{max-width:98vw;max-height:94vh;}
+      .auth-mobile-carousel{aspect-ratio:16/3;}
+      .auth-form-col{padding:6px 10px 8px;}
+      .auth-heading{font-size:0.92rem;}
+      .auth-subheading{font-size:0.62rem;margin-bottom:6px;}
+      .field-group{margin-bottom:5px;}
+      .field-input{padding:6px 9px;font-size:0.7rem;}
+      .btn-primary-full{padding:7px;font-size:0.7rem;}
+      .btn-google{padding:6px;font-size:0.66rem;margin-bottom:5px;}
+      .cf-wrap{min-height:42px;}
+      .cf-wrap iframe{transform:scale(.6);}
+      .auth-switch{margin-top:6px;}
+      .avatar-frame{width:48px;height:48px;}
+      .avatar-frame::after{width:16px;height:16px;font-size:9px;}
     }
 
     /* Fields */
