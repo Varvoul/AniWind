@@ -18,6 +18,17 @@
   const AVATAR_BUCKET     = 'AniumiAvatars';
   const AVATAR_BUCKET_URL = `${SUPABASE_URL}/storage/v1/object/public/${AVATAR_BUCKET}/`;
 
+  // Landscape images for the MOBILE auth modal carousel (crossfade every 3s).
+  // Desktop keeps its static left-column image — these are mobile-only.
+  const AUTH_CAROUSEL_IMAGES = [
+    'https://i.postimg.cc/cHKLxC5P/9cde8b5c-129b-4019-8bb0-65c91b52191a.jpg',
+    'https://i.postimg.cc/9MNCs2mn/c6a0dae09f9141a402966858be6768ae.jpg',
+    'https://i.postimg.cc/h46KrK3c/0f71ce1f0c0dfb357586848e2000be96.jpg',
+    'https://i.postimg.cc/7ZyDFm4f/12fc1dce99f4f6f2a345fcea1a2b2a27.jpg',
+    'https://i.postimg.cc/JhpLB8Bv/d28e7da6684d2f604733f1b8f25e83af.jpg',
+    'https://i.postimg.cc/nrjpJWMM/9a0d0fda049ebcc44e5cb64b38c5a2f7.jpg'
+  ];
+
   let searchDebounceTimer = null;
   let currentSearchMode   = 'non-anime';
   let currentUser         = null;
@@ -396,7 +407,7 @@
       display:flex;position:relative;
       box-shadow:0 40px 100px rgba(0,0,0,.85);
     }
-    /* LEFT IMAGE – visible on ALL devices always */
+    /* LEFT IMAGE – DESKTOP ONLY (mobile uses carousel instead) */
     .auth-img-col{
       flex:0 0 400px;
       position:relative;overflow:hidden;
@@ -408,6 +419,7 @@
     .auth-form-col{
       flex:1;overflow-y:auto;padding:32px 28px;
       display:flex;flex-direction:column;justify-content:center;min-width:0;
+      position:relative;
     }
     .auth-form-col::-webkit-scrollbar{display:none;}
     .auth-close-btn{
@@ -415,27 +427,69 @@
       width:30px;height:30px;border-radius:50%;
       border:none;background:rgba(255,255,255,0.08);
       color:#fff;display:flex;align-items:center;
-      justify-content:center;z-index:10;transition:background .18s;
+      justify-content:center;z-index:50;transition:background .18s;
     }
     .auth-close-btn:hover{background:rgba(255,255,255,0.15);}
 
-    /* Slides */
+    /* Slides — each slide CLIPS its own content so the inactive slide's
+       hCaptcha widget cannot bleed into the visible slide. */
     .form-slides-wrapper{overflow:hidden;position:relative;width:100%;}
     .form-slides{display:flex;transition:transform .42s cubic-bezier(.4,0,.2,1);width:300%;}
-    .form-slide{flex:0 0 33.333%;min-width:0;}
+    .form-slide{flex:0 0 33.333%;min-width:0;overflow:hidden;}
+    .form-slide:not(.active){pointer-events:none;}
 
-    /* Responsive: on small screens compress image to 40%, on very small hide it */
+    /* hCaptcha responsive scaling — smaller on mobile, normal on desktop */
+    .cf-wrap{display:flex;justify-content:center;min-height:78px;align-items:center;}
+    .cf-wrap iframe{max-width:100%;transform-origin:center center;border:0;}
+
+    /* ─── MOBILE CAROUSEL (hidden on desktop) ─── */
+    .auth-mobile-carousel{
+      display:none;position:relative;width:100%;
+      aspect-ratio:16/9;overflow:hidden;background:#000;flex-shrink:0;
+    }
+    .auth-mobile-carousel .mc-slide{
+      position:absolute;inset:0;background-size:cover;background-position:center;
+      opacity:0;transform:scale(1.06);
+      transition:opacity 1.6s cubic-bezier(.4,0,.2,1),transform 6s ease-out;
+      will-change:opacity,transform;
+    }
+    .auth-mobile-carousel .mc-slide.active{opacity:1;transform:scale(1);}
+    /* Gradient merges image bottom into the form below — no visual seam */
+    .auth-mobile-carousel::after{
+      content:'';position:absolute;left:0;right:0;bottom:0;height:55%;
+      background:linear-gradient(to bottom,transparent 0%,var(--bg-body,#13191f) 95%);
+      pointer-events:none;z-index:2;
+    }
+
+    /* === MOBILE: single column with carousel on top === */
     @media(max-width:680px){
-      .auth-img-col{flex:0 0 38%;min-height:100%;}
-      .auth-form-col{padding:22px 16px;}
+      .auth-overlay{padding:8px;}
+      .auth-modal{
+        flex-direction:column;max-width:92vw;max-height:88vh;
+        width:100%;border-radius:16px;
+      }
+      .auth-img-col{display:none;}
+      .auth-mobile-carousel{
+        display:block;
+        border-top-left-radius:16px;border-top-right-radius:16px;
+      }
+      .auth-form-col{
+        padding:14px 18px 18px;flex:1;
+        border-radius:0 0 16px 16px;
+      }
+      .auth-close-btn{top:8px;right:8px;background:rgba(0,0,0,.45);}
+      /* Compact hCaptcha on mobile */
+      .cf-wrap{min-height:68px;margin:6px 0;}
+      .cf-wrap iframe{transform:scale(.82);}
     }
     @media(max-width:480px){
-      .auth-img-col{flex:0 0 34%;min-height:100%;}
-      .auth-form-col{padding:18px 14px;}
+      .auth-form-col{padding:12px 14px 16px;}
+      .cf-wrap iframe{transform:scale(.74);}
+      .cf-wrap{min-height:62px;}
     }
-    @media(max-width:400px){
-      .auth-img-col{display:none;}
-      .auth-modal{max-width:360px;}
+    @media(max-width:380px){
+      .cf-wrap iframe{transform:scale(.68);}
+      .cf-wrap{min-height:56px;}
     }
 
     /* Fields */
@@ -852,11 +906,18 @@
     <div class="auth-form-col">
       <button class="auth-close-btn" id="authClose">${SVG.close}</button>
 
+      <!-- MOBILE-ONLY landscape image carousel (crossfade every 3s).
+           Hidden on desktop via CSS. Sits at the top of the form, merged
+           seamlessly with the form below via gradient overlay. -->
+      <div class="auth-mobile-carousel" id="authMobileCarousel" aria-hidden="true">
+        ${AUTH_CAROUSEL_IMAGES.map((url,i) => `<div class="mc-slide${i===0?' active':''}" style="background-image:url('${url}')"></div>`).join('')}
+      </div>
+
       <div class="form-slides-wrapper">
         <div class="form-slides" id="formSlides">
 
           <!-- ── SLIDE 0 · LOGIN ── -->
-          <div class="form-slide" id="slideLogin">
+          <div class="form-slide active" id="slideLogin">
             <div class="auth-heading">Welcome back 👋</div>
             <div class="auth-subheading">Sign in to continue your anime journey.</div>
 
@@ -1301,6 +1362,22 @@
   ═══════════════════════════════════════════════════════════ */
   let currentSlide = 0;
 
+  let carouselTimer = null;
+  function startCarousel() {
+    stopCarousel();
+    const slides = document.querySelectorAll('#authMobileCarousel .mc-slide');
+    if (slides.length < 2) return;
+    let idx = 0;
+    carouselTimer = setInterval(() => {
+      slides[idx].classList.remove('active');
+      idx = (idx + 1) % slides.length;
+      slides[idx].classList.add('active');
+    }, 3000);  // 3-second morphine crossfade
+  }
+  function stopCarousel() {
+    if (carouselTimer) { clearInterval(carouselTimer); carouselTimer = null; }
+  }
+
   function openModal(n = 0) {
     document.getElementById('authOverlay').classList.add('open');
     slideTo(n);
@@ -1308,14 +1385,23 @@
       const el = document.getElementById(id); if (el) el.textContent = '';
     });
     document.getElementById('resetOk').style.display = 'none';
+    // Kick off the mobile image carousel
+    startCarousel();
   }
   window.openLoginModal = () => openModal(0);
 
-  function closeModal() { document.getElementById('authOverlay').classList.remove('open'); }
+  function closeModal() {
+    document.getElementById('authOverlay').classList.remove('open');
+    stopCarousel();
+  }
 
   function slideTo(n) {
     currentSlide = n;
     document.getElementById('formSlides').style.transform = `translateX(-${n * 33.333}%)`;
+    // Toggle .active so the inactive slide can't be interacted with
+    document.querySelectorAll('.form-slide').forEach((s, i) => {
+      s.classList.toggle('active', i === n);
+    });
   }
 
   function initAuthModal() {
@@ -1736,6 +1822,11 @@
     let geo = null;
     try { geo = JSON.parse(localStorage.getItem('aniumi_pending_geo') || 'null'); } catch(e){}
     try { localStorage.removeItem('aniumi_pending_geo'); } catch(e){}
+    // Fallback: if no stashed geo (e.g. user landed directly), fetch fresh
+    // from the browser. ipapi.co + ipify fallback gives us country/state/city.
+    if (!geo) {
+      try { geo = await getUserGeo(); } catch(e) { geo = null; }
+    }
 
     const meta = user.user_metadata || {};
     const googleName  = meta.full_name || meta.name || null;
@@ -1751,13 +1842,12 @@
       updated_at:              new Date().toISOString()
     };
     if (geo) {
-      patch.ip_address      = geo.ip;
-      patch.ip_address_text = geo.ip;
-      patch.country         = geo.country;
-      patch.country_code    = geo.country_code;
-      patch.state           = geo.state;
-      patch.city            = geo.city;
-      patch.timezone        = geo.timezone;
+      patch.ip_address_text = geo.ip || null;
+      patch.country         = geo.country      || null;
+      patch.country_code    = geo.country_code || null;
+      patch.state           = geo.state        || null;
+      patch.city            = geo.city         || null;
+      patch.timezone        = geo.timezone     || null;
     }
     if (profile?.login_count) patch.login_count = profile.login_count + 1;
     else if (!profile) {
