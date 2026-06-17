@@ -10,7 +10,9 @@
   const supabase          = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   const CF_WORKER_URL     = 'https://aniocen.bionmovies47.workers.dev';
   const PROFILE_BUCKET_URL= `${SUPABASE_URL}/storage/v1/object/public/Aniumi/`;
-  const DEFAULT_AVATAR    = 'https://uhjucwqiadymmogmwkxc.supabase.co/storage/v1/object/public/Aniumi/Frieren.jpeg';
+  // NOTE: Frieren.jpeg lives inside the `profile_ava/` folder of the Aniumi bucket,
+  // not at the bucket root.  Verified publicly accessible (HTTP 200, 80KB JPEG).
+  const DEFAULT_AVATAR    = 'https://uhjucwqiadymmogmwkxc.supabase.co/storage/v1/object/public/Aniumi/profile_ava/Frieren.jpeg';
   const HCAPTCHA_SITEKEY  = '2dd853ec-9482-4bf6-b2e6-f5f478d0bf86';
   const SESSION_MAX_AGE   = 30 * 24 * 60 * 60 * 1000; // 1 month in ms
   // Dedicated permanent bucket for user-uploaded & Google-downloaded avatars.
@@ -415,13 +417,24 @@
     .auth-img-col img{
       width:100%;height:100%;object-fit:cover;display:block;
     }
-    /* Form column */
+    /* Form column — sticky image stays put, only this column scrolls */
     .auth-form-col{
       flex:1;overflow-y:auto;padding:32px 28px;
-      display:flex;flex-direction:column;justify-content:center;min-width:0;
+      display:flex;flex-direction:column;justify-content:flex-start;min-width:0;
       position:relative;
+      /* CRITICAL: without min-height:0 a flex child with overflow:auto
+         expands to its content's natural height instead of staying
+         inside the parent's max-height, which makes the bottom of the
+         form (hCaptcha, terms, submit button, switch link) get clipped
+         by the modal's overflow:hidden — and unscrollable.  */
+      min-height:0;
+      scrollbar-width:none;             /* Firefox: hide scrollbar */
+      -ms-overflow-style:none;
     }
-    .auth-form-col::-webkit-scrollbar{display:none;}
+    .auth-form-col::-webkit-scrollbar{display:none;}  /* WebKit: hide scrollbar */
+    /* Vertically center the slides ONLY when content fits.
+       When it overflows, flex-start keeps the top visible & scrollable. */
+    .form-slides-wrapper{margin-top:auto;margin-bottom:auto;}
     .auth-close-btn{
       position:absolute;top:12px;right:12px;
       width:30px;height:30px;border-radius:50%;
@@ -463,20 +476,30 @@
 
     /* === MOBILE: single column with carousel on top === */
     @media(max-width:680px){
-      .auth-overlay{padding:8px;}
+      .auth-overlay{padding:8px;align-items:stretch;}
       .auth-modal{
-        flex-direction:column;max-width:92vw;max-height:88vh;
+        flex-direction:column;max-width:100%;max-height:96vh;
         width:100%;border-radius:16px;
       }
       .auth-img-col{display:none;}
       .auth-mobile-carousel{
-        display:block;
+        display:block;flex-shrink:0;     /* keep the carousel height stable — do NOT shrink */
         border-top-left-radius:16px;border-top-right-radius:16px;
       }
       .auth-form-col{
         padding:14px 18px 18px;flex:1;
         border-radius:0 0 16px 16px;
+        /* Mobile scroll fix: allow shrinking below content height so
+           overflow-y:auto actually engages (otherwise the carousel
+           takes ~57vw and the form gets pushed under the modal's
+           overflow:hidden edge — making hCaptcha & submit unreachable). */
+        min-height:0;
+        overflow-y:auto;
+        justify-content:flex-start;
       }
+      /* On mobile, keep the slides at the top so users see the first
+         field immediately rather than the middle of the form. */
+      .form-slides-wrapper{margin-top:0;margin-bottom:0;}
       .auth-close-btn{top:8px;right:8px;background:rgba(0,0,0,.45);}
       /* Compact hCaptcha on mobile */
       .cf-wrap{min-height:68px;margin:6px 0;}
@@ -529,16 +552,27 @@
     /* Avatar frame */
     .avatar-pick-wrap{display:flex;flex-direction:column;align-items:center;margin-bottom:14px;}
     .avatar-frame{
-      width:68px;height:68px;border-radius:50%;
-      border:2px dashed var(--btn-primary,#3b82f6);
+      width:84px;height:84px;border-radius:50%;
+      border:2px solid var(--btn-primary,#3b82f6);
       display:flex;align-items:center;justify-content:center;
       cursor:pointer;overflow:hidden;position:relative;
       background:var(--bg-surface,rgba(255,255,255,0.05));
-      transition:border-color .2s;flex-shrink:0;
+      transition:border-color .2s,transform .15s,box-shadow .2s;flex-shrink:0;
+      box-shadow:0 4px 14px rgba(59,130,246,.25);
     }
-    .avatar-frame:hover{border-style:solid;}
+    .avatar-frame:hover{transform:scale(1.04);box-shadow:0 6px 20px rgba(59,130,246,.4);}
+    .avatar-frame:active{transform:scale(.98);}
     .avatar-frame img{width:100%;height:100%;object-fit:cover;border-radius:50%;}
-    .avatar-pick-lbl{font-size:0.66rem;color:var(--text-muted,#888);margin-top:5px;}
+    /* Tiny "edit" badge in the corner so the user knows the pre-set
+       Frieren avatar is clickable to change. */
+    .avatar-frame::after{
+      content:'✎';position:absolute;right:-2px;bottom:-2px;
+      width:24px;height:24px;border-radius:50%;
+      background:var(--btn-primary,#3b82f6);color:#fff;
+      font-size:12px;display:flex;align-items:center;justify-content:center;
+      border:2px solid var(--bg-body,#13191f);pointer-events:none;
+    }
+    .avatar-pick-lbl{font-size:0.66rem;color:var(--text-muted,#888);margin-top:8px;text-align:center;}
 
     /* Avatar popup */
     .avatar-popup-overlay{
@@ -956,7 +990,7 @@
               <div class="avatar-frame" id="avatarFrame">
                 <img src="${DEFAULT_AVATAR}" id="selectedAvatar" alt="avatar">
               </div>
-              <div class="avatar-pick-lbl">Tap to pick your avatar</div>
+              <div class="avatar-pick-lbl">Tap the avatar to change it</div>
             </div>
 
             <div class="field-group">
@@ -1402,6 +1436,11 @@
     document.querySelectorAll('.form-slide').forEach((s, i) => {
       s.classList.toggle('active', i === n);
     });
+    // Each slide has its own hCaptcha widget.  Reset both so a stale
+    // token from the slide the user just left isn't reused for the new
+    // slide's submit (Supabase would reject it as "captcha_failed").
+    // Also keep the active slide's widget ready for the user to solve.
+    resetHCaptcha();
   }
 
   function initAuthModal() {
@@ -1447,7 +1486,16 @@
       const errEl   = document.getElementById('loginErr');
       errEl.textContent = '';
       if (!username || !password) { errEl.textContent = 'Please fill in all fields.'; return; }
-      if (!hcaptchaToken) { errEl.textContent = 'Please complete the captcha verification.'; return; }
+      if (!hcaptchaToken) {
+        errEl.textContent = 'Please complete the captcha verification below.';
+        // Scroll the form column so the captcha widget is visible — most
+        // users click submit before realising the captcha hasn't verified.
+        document.getElementById('slideLogin')?.querySelector('.cf-wrap')
+          ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        document.getElementById('loginErr')?.parentElement?.querySelector('.cf-wrap')
+          ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
 
       const btn = document.getElementById('btnSignIn');
       btn.disabled = true; btn.textContent = 'Signing in…';
@@ -1458,8 +1506,24 @@
           if (p?.email) email = p.email;
           else { errEl.textContent = 'Username not found.'; return; }
         }
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) { errEl.textContent = error.message; return; }
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email, password,
+          options: { captchaToken: hcaptchaToken }
+        });
+        if (error) {
+          // Supabase captcha errors come back with `error.code` like
+          // "captcha_failed" or with the word "captcha" in the message.
+          // Give the user a friendly explanation + scroll to the widget.
+          const msg = (error.message || '').toLowerCase();
+          if (msg.includes('captcha') || (error.code || '').includes('captcha')) {
+            errEl.textContent = 'Captcha verification failed. Please solve it again.';
+            document.getElementById('slideLogin')?.querySelector('.cf-wrap')
+              ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          } else {
+            errEl.textContent = error.message;
+          }
+          return;
+        }
         localStorage.setItem('aniumi_last_activity', Date.now().toString());
         // Record login metadata (IP / country / state / count / last-login)
         if (data.user) await recordLogin(data.user.id);
@@ -1495,7 +1559,13 @@
       if (password !== confirm)                          { errEl.textContent = 'Passwords do not match.'; return; }
       if (!isStrongPwd(password))                        { errEl.textContent = 'Password must include upper, lower, number, and symbol.'; return; }
       if (!terms)                                        { errEl.textContent = 'Please accept the Terms & Conditions.'; return; }
-      if (!hcaptchaToken)                                { errEl.textContent = 'Please complete the captcha verification.'; return; }
+      if (!hcaptchaToken)                                {
+        errEl.textContent = 'Please complete the captcha verification below.';
+        // Auto-scroll the form column so the captcha widget is visible.
+        document.getElementById('slideSignUp')?.querySelector('.cf-wrap')
+          ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
 
       const btn = document.getElementById('btnSignUp');
       btn.disabled = true; btn.textContent = 'Creating…';
@@ -1514,6 +1584,11 @@
         const { data, error } = await supabase.auth.signUp({
           email, password,
           options: {
+            // hCaptcha token — REQUIRED when "Attack Protection → Captcha"
+            // is enabled in Supabase.  Without it Supabase rejects the
+            // request with `captcha_failed`.  Frontend already checks the
+            // token is non-empty before we get here.
+            captchaToken: hcaptchaToken,
             data: {
               username,
               avatar_url: avatarUrl,
@@ -1528,8 +1603,15 @@
           }
         });
         if (error) {
+          const msg = (error.message || '').toLowerCase();
+          // Captcha-specific error → friendly message + scroll to widget.
+          if (msg.includes('captcha') || (error.code || '').includes('captcha')) {
+            errEl.textContent = 'Captcha verification failed. Please solve it again.';
+            document.getElementById('slideSignUp')?.querySelector('.cf-wrap')
+              ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
           // Supabase may return "User already registered" error
-          if (error.message?.toLowerCase().includes('already registered') || error.message?.toLowerCase().includes('already been registered')) {
+          else if (msg.includes('already registered') || msg.includes('already been registered')) {
             errEl.textContent = 'This email address is already registered. Please sign in instead.';
           } else {
             errEl.textContent = error.message;
