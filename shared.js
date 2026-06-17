@@ -398,8 +398,24 @@
       display:none;position:fixed;inset:0;
       background:rgba(0,0,0,.78);z-index:600;
       align-items:center;justify-content:center;padding:16px;
+      /* Prevent scroll-chaining: when the user scrolls inside the
+         modal and hits the edge, the scroll event should NOT bubble
+         up to the body / page behind the modal. */
+      overscroll-behavior:contain;
     }
     .auth-overlay.open{display:flex;}
+    /* When any auth modal is open, lock the body so the page behind
+       cannot scroll.  JS toggles this class on <body> in openModal /
+       closeModal.  This is what makes "the scrolling should not
+       affect the background/page content" actually true. */
+    body.aniumi-modal-open{
+      overflow:hidden;
+      /* On iOS Safari, overflow:hidden alone does NOT prevent
+         background scroll — position:fixed + a remembered scroll
+         offset does.  JS handles the offset save/restore. */
+      position:fixed;
+      left:0;right:0;top:0;bottom:0;
+    }
     .auth-modal{
       background:var(--bg-body,#13191f);
       border:1px solid var(--border-medium,rgba(255,255,255,0.1));
@@ -430,6 +446,17 @@
       min-height:0;
       scrollbar-width:none;             /* Firefox: hide scrollbar */
       -ms-overflow-style:none;
+      /* Smooth scrolling: programmatic scrollIntoView animates nicely. */
+      scroll-behavior:smooth;
+      /* iOS < 13 Safari needs this for momentum touch scrolling.  No-op
+         on modern browsers but harmless. */
+      -webkit-overflow-scrolling:touch;
+      /* When the form column is scrolled to its top/bottom limit, do
+         NOT chain the scroll to the body / page behind the modal. */
+      overscroll-behavior:contain;
+      /* Decouple the form column's scroll from the page — wheel events
+         inside this element should not bubble to the document. */
+      touch-action:pan-y;
     }
     .auth-form-col::-webkit-scrollbar{display:none;}  /* WebKit: hide scrollbar */
     /* Vertically center the slides ONLY when content fits.
@@ -496,6 +523,11 @@
         min-height:0;
         overflow-y:auto;
         justify-content:flex-start;
+        /* Smooth + contained scroll on mobile too (mirrors desktop rules). */
+        scroll-behavior:smooth;
+        -webkit-overflow-scrolling:touch;
+        overscroll-behavior:contain;
+        touch-action:pan-y;
       }
       /* On mobile, keep the slides at the top so users see the first
          field immediately rather than the middle of the form. */
@@ -1412,8 +1444,20 @@
     if (carouselTimer) { clearInterval(carouselTimer); carouselTimer = null; }
   }
 
+  // Body scroll-lock state — saved so we can restore the exact scroll
+  // position when the modal closes (iOS Safari quirk: position:fixed on
+  // <body> resets the scroll offset, so we have to put it back manually).
+  let aniumiSavedScrollY = 0;
+
   function openModal(n = 0) {
     document.getElementById('authOverlay').classList.add('open');
+    // Lock the body so the page behind the modal cannot scroll.
+    // Save the current scroll offset first so we can restore it on close.
+    aniumiSavedScrollY = window.scrollY || window.pageYOffset || 0;
+    document.body.classList.add('aniumi-modal-open');
+    // The body is now position:fixed — nudge it so the user still
+    // appears to be at the same scroll position rather than the top.
+    document.body.style.top = `-${aniumiSavedScrollY}px`;
     slideTo(n);
     ['loginErr','signUpErr','resetErr','errUsername','errConfirm'].forEach(id => {
       const el = document.getElementById(id); if (el) el.textContent = '';
@@ -1427,6 +1471,10 @@
   function closeModal() {
     document.getElementById('authOverlay').classList.remove('open');
     stopCarousel();
+    // Unlock the body & restore the saved scroll offset.
+    document.body.classList.remove('aniumi-modal-open');
+    document.body.style.top = '';
+    window.scrollTo(0, aniumiSavedScrollY);
   }
 
   function slideTo(n) {

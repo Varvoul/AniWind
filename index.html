@@ -526,7 +526,8 @@
     }
 
     /* SCHEDULE */
-    .esw-widget { 
+    @keyframes schedSpin { to { transform: rotate(360deg); } }
+    .esw-widget {
       background:var(--bg-card); 
       border:1px solid var(--border-subtle); 
       border-radius:var(--radius-md); 
@@ -1862,13 +1863,32 @@ window.showAnikotoPopupById = function(mal_id) {
         const cached = localStorage.getItem(STORAGE_KEY);
         let needFetch = true;
 
+        // Show a loading indicator immediately so the user never sees
+        // "No episodes scheduled" while we're still fetching.
+        const loadingHtml = '<div style="text-align:center;padding:30px 10px;color:var(--text-muted);font-size:0.85rem;">'
+          + '<div style="display:inline-block;width:24px;height:24px;border:2px solid rgba(255,255,255,.15);'
+          + 'border-top-color:var(--btn-primary,#3b82f6);border-radius:50%;'
+          + 'animation:schedSpin .8s linear infinite;margin-bottom:10px;"></div>'
+          + '<div>Loading schedule…</div></div>';
+        // Try to show loading state in the current day's container.
+        const body0 = document.getElementById('eswBody');
+        if (body0) body0.innerHTML = loadingHtml;
+
         if (cached) {
           try {
             const { data, timestamp } = JSON.parse(cached);
-            if (Date.now() - timestamp < CACHE_TTL && data) {
+            // BUGFIX (v2): the previous code cached ANY result, including
+            // empty arrays produced by Jikan rate-limit failures.  That
+            // meant one bad fetch could leave the schedule blank for
+            // 24 hours.  Now we ONLY trust a cache entry that has at
+            // least one day with data — otherwise we refetch.
+            const hasAnyData = data && Object.values(data).some(arr => Array.isArray(arr) && arr.length > 0);
+            if (Date.now() - timestamp < CACHE_TTL && hasAnyData) {
               scheduleData = data;
               needFetch = false;
               console.log('Schedule loaded from localStorage');
+            } else if (!hasAnyData) {
+              console.warn('Cached schedule was empty — refetching (ignoring stale cache).');
             }
           } catch(e) { console.warn('Cache parse error', e); }
         }
@@ -1876,15 +1896,27 @@ window.showAnikotoPopupById = function(mal_id) {
         if (needFetch) {
           console.log('Fetching schedule one day at a time...');
           scheduleData = {};
+          let fetchedAny = false;
           for (const day of DAYS) {
             scheduleData[day] = await fetchDaySchedules(day);
+            if (scheduleData[day].length > 0) fetchedAny = true;
             await new Promise(r => setTimeout(r, 500)); // delay between days
           }
-          localStorage.setItem(STORAGE_KEY, JSON.stringify({
-            data: scheduleData,
-            timestamp: Date.now()
-          }));
-          console.log('Schedule cached for 24 hours');
+          // BUGFIX (v2): only persist the cache if we actually got data.
+          // Otherwise a transient Jikan outage would poison the cache
+          // for 24 hours and the user would see "No episodes scheduled"
+          // even after Jikan recovers.
+          if (fetchedAny) {
+            try {
+              localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                data: scheduleData,
+                timestamp: Date.now()
+              }));
+              console.log('Schedule cached for 24 hours');
+            } catch(e) { console.warn('Could not write schedule cache:', e); }
+          } else {
+            console.warn('Schedule fetch returned no data — NOT caching (will retry next page load).');
+          }
         }
 
         // Expose scheduleData globally for debugging
