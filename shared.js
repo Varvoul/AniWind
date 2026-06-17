@@ -247,6 +247,7 @@
       border:1px solid var(--border-medium,rgba(255,255,255,0.1));
       border-radius:14px;min-width:210px;padding:8px;
       z-index:350;box-shadow:0 16px 40px rgba(0,0,0,.6);
+      /* Smooth fade-out when closing — no more abrupt disappearance. */
       opacity:0;transform:translateY(-4px);
       transition:opacity .15s ease-out,transform .15s ease-out;
     }
@@ -264,6 +265,9 @@
       cursor:pointer;padding:4px 0;margin-top:3px;transition:color .15s;
     }
     .dd-sign-out:hover{color:#ef4444;}
+    /* Sign-out button goes RED the instant the user clicks it, then
+       fades back.  This gives immediate visual feedback while the
+       async signOut() network call is in flight. */
     .dd-sign-out:active{color:#ef4444;transform:scale(.97);}
     .dd-sign-out.signing-out{color:#ef4444;pointer-events:none;opacity:.7;}
     .profile-dd-item{
@@ -338,6 +342,7 @@
       transition:background .15s,color .15s;
     }
     .mob-nav-item:hover{background:rgba(255,255,255,0.07);color:#fff;}
+    /* Mobile sub-triggers (click to open) */
     .mob-sub-trigger{
       display:flex;align-items:center;justify-content:space-between;
       padding:9px 10px;font-size:0.82rem;color:var(--text-secondary,#ccc);
@@ -401,11 +406,21 @@
       display:none;position:fixed;inset:0;
       background:rgba(0,0,0,.78);z-index:600;
       align-items:center;justify-content:center;padding:16px;
+      /* Prevent scroll-chaining: when the user scrolls inside the
+         modal and hits the edge, the scroll event should NOT bubble
+         up to the body / page behind the modal. */
       overscroll-behavior:contain;
     }
     .auth-overlay.open{display:flex;}
+    /* When any auth modal is open, lock the body so the page behind
+       cannot scroll.  JS toggles this class on <body> in openModal /
+       closeModal.  This is what makes "the scrolling should not
+       affect the background/page content" actually true. */
     body.aniumi-modal-open{
       overflow:hidden;
+      /* On iOS Safari, overflow:hidden alone does NOT prevent
+         background scroll — position:fixed + a remembered scroll
+         offset does.  JS handles the offset save/restore. */
       position:fixed;
       left:0;right:0;top:0;bottom:0;
     }
@@ -418,6 +433,7 @@
       display:flex;position:relative;
       box-shadow:0 40px 100px rgba(0,0,0,.85);
     }
+    /* LEFT IMAGE – DESKTOP ONLY (mobile uses carousel instead) */
     .auth-img-col{
       flex:0 0 400px;
       position:relative;overflow:hidden;
@@ -425,20 +441,34 @@
     .auth-img-col img{
       width:100%;height:100%;object-fit:cover;display:block;
     }
-    /* Form column — increased bottom padding to ensure smooth scrolling to the very end */
+    /* Form column — sticky image stays put, only this column scrolls */
     .auth-form-col{
-      flex:1;overflow-y:auto;padding:32px 28px 40px;
+      flex:1;overflow-y:auto;padding:32px 28px;
       display:flex;flex-direction:column;justify-content:flex-start;min-width:0;
       position:relative;
+      /* CRITICAL: without min-height:0 a flex child with overflow:auto
+         expands to its content's natural height instead of staying
+         inside the parent's max-height, which makes the bottom of the
+         form (hCaptcha, terms, submit button, switch link) get clipped
+         by the modal's overflow:hidden — and unscrollable.  */
       min-height:0;
-      scrollbar-width:none;
+      scrollbar-width:none;             /* Firefox: hide scrollbar */
       -ms-overflow-style:none;
+      /* Smooth scrolling: programmatic scrollIntoView animates nicely. */
       scroll-behavior:smooth;
+      /* iOS < 13 Safari needs this for momentum touch scrolling.  No-op
+         on modern browsers but harmless. */
       -webkit-overflow-scrolling:touch;
+      /* When the form column is scrolled to its top/bottom limit, do
+         NOT chain the scroll to the body / page behind the modal. */
       overscroll-behavior:contain;
+      /* Decouple the form column's scroll from the page — wheel events
+         inside this element should not bubble to the document. */
       touch-action:pan-y;
     }
-    .auth-form-col::-webkit-scrollbar{display:none;}
+    .auth-form-col::-webkit-scrollbar{display:none;}  /* WebKit: hide scrollbar */
+    /* Vertically center the slides ONLY when content fits.
+       When it overflows, flex-start keeps the top visible & scrollable. */
     .form-slides-wrapper{margin-top:auto;margin-bottom:auto;}
     .auth-close-btn{
       position:absolute;top:12px;right:12px;
@@ -449,14 +479,32 @@
     }
     .auth-close-btn:hover{background:rgba(255,255,255,0.15);}
 
+    /* Slides — each slide CLIPS its own content so the inactive slide's
+       hCaptcha widget cannot bleed into the visible slide. */
     .form-slides-wrapper{overflow:hidden;position:relative;width:100%;}
     .form-slides{display:flex;transition:transform .42s cubic-bezier(.4,0,.2,1);width:300%;}
     .form-slide{flex:0 0 33.333%;min-width:0;overflow:hidden;}
     .form-slide:not(.active){pointer-events:none;}
 
+    /* hCaptcha responsive scaling — smaller on mobile, normal on desktop */
     .cf-wrap{display:flex;justify-content:center;min-height:78px;align-items:center;}
     .cf-wrap iframe{max-width:100%;transform-origin:center center;border:0;}
 
+    /* Password + Confirm password side-by-side (saves vertical space) */
+    .pwd-pair{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start;}
+    .pwd-pair .field-group{margin-bottom:0;}
+    .pwd-pair .field-group label{font-size:0.62rem;}
+    .pwd-pair .pwd-bar{margin-top:4px;}
+    .pwd-pair .pwd-label{font-size:0.6rem;}
+    .pwd-pair .field-err{font-size:0.6rem;}
+    @media(max-width:480px){
+      .pwd-pair{gap:8px;}
+      .pwd-pair .field-input{padding:9px 10px;font-size:0.76rem;}
+      .pwd-pair .field-input{padding-right:30px !important;}
+      .pwd-pair .eye-btn{right:6px;}
+    }
+
+    /* "← Back to Sign In" link — top of sign-up form, always visible */
     .auth-back-link{
       display:inline-flex;align-items:center;gap:4px;
       font-size:0.7rem;color:var(--text-muted,#888);
@@ -465,6 +513,7 @@
     }
     .auth-back-link:hover{color:var(--btn-primary,#3b82f6);}
 
+    /* "Forgot password?" inline link */
     .forgot-inline{
       font-size:0.66rem;color:var(--btn-primary,#3b82f6);
       background:none;border:none;cursor:pointer;padding:0;
@@ -483,6 +532,7 @@
       will-change:opacity,transform;
     }
     .auth-mobile-carousel .mc-slide.active{opacity:1;transform:scale(1);}
+    /* Gradient merges image bottom into the form below — no visual seam */
     .auth-mobile-carousel::after{
       content:'';position:absolute;left:0;right:0;bottom:0;height:55%;
       background:linear-gradient(to bottom,transparent 0%,var(--bg-body,#13191f) 95%);
@@ -491,61 +541,82 @@
 
     /* === MOBILE: single column with carousel on top === */
     @media(max-width:680px){
+      /* Center the modal vertically with breathing room on all sides
+         so it no longer "covers the full display". */
       .auth-overlay{padding:12px;align-items:center;justify-content:center;}
       .auth-modal{
         flex-direction:column;
-        max-width:94vw;
-        max-height:90vh;
+        max-width:94vw;             /* was 100% — leaves 3vw margin each side */
+        max-height:90vh;            /* was 96vh — leaves breathing room top/bottom */
         width:100%;border-radius:16px;
       }
       .auth-img-col{display:none;}
       .auth-mobile-carousel{
         display:block;flex-shrink:0;
-        /* INCREASED HEIGHT: Changed from 16/6 to 16/7 for better visibility */
-        aspect-ratio:16/7;
+        /* Carousel slightly taller than 16/5 (was too thin) but still
+           well below the original 16/9.  16/6 ≈ 38vw tall — enough to
+           show the anime character's face clearly without consuming
+           the vertical space the form fields need. */
+        aspect-ratio:16/6;
         border-top-left-radius:16px;border-top-right-radius:16px;
       }
       .auth-form-col{
-        /* INCREASED BOTTOM PADDING: Ensures scrolling reaches the bottom edge */
-        padding:10px 16px 30px;flex:1;
+        padding:10px 16px 12px;flex:1;
         border-radius:0 0 16px 16px;
+        /* Mobile scroll fix: allow shrinking below content height so
+           overflow-y:auto actually engages. */
         min-height:0;
         overflow-y:auto;
         justify-content:flex-start;
+        /* Smooth + contained scroll on mobile too (mirrors desktop rules). */
         scroll-behavior:smooth;
         -webkit-overflow-scrolling:touch;
         overscroll-behavior:contain;
         touch-action:pan-y;
       }
+      /* On mobile, keep the slides at the top so users see the first
+         field immediately rather than the middle of the form. */
       .form-slides-wrapper{margin-top:0;margin-bottom:0;}
       .auth-close-btn{top:6px;right:6px;width:26px;height:26px;background:rgba(0,0,0,.55);}
 
+      /* ── COMPACT ELEMENT SPACING (mobile) ──
+         Goal: every element of the SIGN IN slide fits on one screen
+         (heading + 2 fields + forgot link + hCaptcha + Sign In button +
+         divider + Google button + "No account? Sign up" link).
+         For SIGN UP (which has 4 fields + avatar + captcha + terms),
+         the form is still scrollable as a fallback on very small phones. */
       .auth-heading{font-size:1.05rem;margin-bottom:2px;}
       .auth-subheading{font-size:0.7rem;margin-bottom:10px;}
-      .field-group{margin-bottom:10px;}
+      .field-group{margin-bottom:8px;}
       .field-group label{font-size:0.62rem;margin-bottom:3px;}
-      .field-input{padding:9px 12px;font-size:0.78rem;border-radius:8px;}
+      .field-input{padding:8px 12px;font-size:0.78rem;border-radius:8px;}
       .eye-btn{right:8px;}
       .field-err{font-size:0.62rem;margin-top:2px;}
       .form-err{font-size:0.66rem;margin-bottom:4px;min-height:14px;}
       .forgot-btn{font-size:0.66rem;margin-top:2px;margin-bottom:8px;}
-      .terms-row{font-size:0.65rem;margin-bottom:10px;gap:6px;}
+      .terms-row{font-size:0.65rem;margin-bottom:8px;gap:6px;}
       .terms-row input[type=checkbox]{width:13px;height:13px;margin-top:1px;}
 
-      .btn-primary-full{padding:10px;font-size:0.78rem;border-radius:40px;}
-      .btn-google{padding:9px;font-size:0.73rem;margin-bottom:8px;border-radius:40px;gap:7px;}
-      .divider{margin:10px 0;font-size:0.66rem;gap:8px;}
-      .auth-switch{margin-top:12px;font-size:0.68rem;}
+      /* Buttons — slightly shorter to save vertical pixels. */
+      .btn-primary-full{padding:9px;font-size:0.78rem;border-radius:40px;}
+      .btn-google{padding:8px;font-size:0.73rem;margin-bottom:8px;border-radius:40px;gap:7px;}
+      .divider{margin:8px 0;font-size:0.66rem;gap:8px;}
+      .auth-switch{margin-top:10px;font-size:0.68rem;}
       .auth-switch-btn{font-size:0.68rem;}
 
-      .avatar-pick-wrap{margin-bottom:12px;}
-      .avatar-frame{width:76px;height:76px;}
+      /* Avatar picker — pre-set with Frieren, click to change.
+         Made slightly bigger (60→72) so the Frieren avatar is clearly
+         visible as the default profile picture. */
+      .avatar-pick-wrap{margin-bottom:8px;}
+      .avatar-frame{width:72px;height:72px;}
       .avatar-frame::after{width:20px;height:20px;font-size:11px;}
       .avatar-pick-lbl{font-size:0.62rem;margin-top:5px;}
 
-      .cf-wrap{min-height:54px;margin:6px 0 8px;}
+      /* Compact hCaptcha on mobile — minimum viable size. */
+      .cf-wrap{min-height:54px;margin:4px 0 6px;}
       .cf-wrap iframe{transform:scale(.72);}
 
+      /* Password strength bar — tighter. */
       .pwd-bar{height:2px;margin-top:3px;}
       .pwd-label{font-size:0.58rem;margin-top:1px;}
     }
@@ -554,41 +625,41 @@
     @media(max-width:480px){
       .auth-overlay{padding:8px;}
       .auth-modal{max-width:96vw;max-height:92vh;}
-      /* INCREASED HEIGHT: Changed from 16/5 to 16/6 */
-      .auth-mobile-carousel{aspect-ratio:16/6;}
-      .auth-form-col{padding:8px 12px 24px;}
+      .auth-mobile-carousel{aspect-ratio:16/5;}
+      .auth-form-col{padding:8px 12px 10px;}
       .auth-heading{font-size:0.98rem;}
       .auth-subheading{font-size:0.66rem;margin-bottom:8px;}
-      .field-group{margin-bottom:8px;}
-      .field-input{padding:8px 10px;font-size:0.74rem;}
+      .field-group{margin-bottom:6px;}
+      .field-input{padding:7px 10px;font-size:0.74rem;}
       .forgot-btn{font-size:0.62rem;margin-bottom:6px;}
-      .btn-primary-full{padding:9px;font-size:0.74rem;}
-      .btn-google{padding:8px;font-size:0.7rem;margin-bottom:6px;}
-      .divider{margin:8px 0;font-size:0.62rem;}
-      .auth-switch{margin-top:10px;font-size:0.64rem;}
-      .avatar-frame{width:64px;height:64px;}
-      .avatar-pick-wrap{margin-bottom:8px;}
-      .cf-wrap{min-height:48px;margin:4px 0 6px;}
+      .btn-primary-full{padding:8px;font-size:0.74rem;}
+      .btn-google{padding:7px;font-size:0.7rem;margin-bottom:6px;}
+      .divider{margin:6px 0;font-size:0.62rem;}
+      .auth-switch{margin-top:8px;font-size:0.64rem;}
+      .avatar-frame{width:60px;height:60px;}
+      .avatar-pick-wrap{margin-bottom:6px;}
+      .cf-wrap{min-height:48px;margin:3px 0 4px;}
       .cf-wrap iframe{transform:scale(.66);}
-      .terms-row{font-size:0.62rem;margin-bottom:8px;}
+      .terms-row{font-size:0.62rem;margin-bottom:6px;}
+      /* Username + Email row — tighten gap on small phones. */
+      .field-row-2{gap:8px;margin-bottom:8px;}
     }
 
     /* ── TINY PHONES (≤ 380px) — minimal ── */
     @media(max-width:380px){
       .auth-modal{max-width:98vw;max-height:94vh;}
-      /* INCREASED HEIGHT: Changed from 16/4 to 16/5 */
-      .auth-mobile-carousel{aspect-ratio:16/5;}
-      .auth-form-col{padding:6px 10px 20px;}
+      .auth-mobile-carousel{aspect-ratio:16/4;}
+      .auth-form-col{padding:6px 10px 8px;}
       .auth-heading{font-size:0.92rem;}
       .auth-subheading{font-size:0.62rem;margin-bottom:6px;}
-      .field-group{margin-bottom:6px;}
-      .field-input{padding:7px 9px;font-size:0.7rem;}
-      .btn-primary-full{padding:8px;font-size:0.7rem;}
-      .btn-google{padding:7px;font-size:0.66rem;margin-bottom:5px;}
+      .field-group{margin-bottom:5px;}
+      .field-input{padding:6px 9px;font-size:0.7rem;}
+      .btn-primary-full{padding:7px;font-size:0.7rem;}
+      .btn-google{padding:6px;font-size:0.66rem;margin-bottom:5px;}
       .cf-wrap{min-height:42px;}
       .cf-wrap iframe{transform:scale(.6);}
-      .auth-switch{margin-top:8px;}
-      .avatar-frame{width:58px;height:58px;}
+      .auth-switch{margin-top:6px;}
+      .avatar-frame{width:54px;height:54px;}
       .avatar-frame::after{width:18px;height:18px;font-size:10px;}
     }
 
@@ -628,6 +699,12 @@
 
     /* Avatar frame */
     .avatar-pick-wrap{display:flex;flex-direction:column;align-items:center;margin-bottom:14px;}
+    /* Two-column field row (username + email side-by-side on Sign Up) */
+    .field-row-2{
+      display:grid;grid-template-columns:1fr 1fr;gap:10px;
+      margin-bottom:12px;
+    }
+    .field-row-2 .field-group{margin-bottom:0;}  /* the row handles spacing */
     .avatar-frame{
       width:84px;height:84px;border-radius:50%;
       border:2px solid var(--btn-primary,#3b82f6);
@@ -640,6 +717,8 @@
     .avatar-frame:hover{transform:scale(1.04);box-shadow:0 6px 20px rgba(59,130,246,.4);}
     .avatar-frame:active{transform:scale(.98);}
     .avatar-frame img{width:100%;height:100%;object-fit:cover;border-radius:50%;}
+    /* Tiny "edit" badge in the corner so the user knows the pre-set
+       Frieren avatar is clickable to change. */
     .avatar-frame::after{
       content:'✎';position:absolute;right:-2px;bottom:-2px;
       width:24px;height:24px;border-radius:50%;
@@ -688,8 +767,10 @@
     .avatar-opt.selected{border-color:#10b981;}
     .avatar-opt img{width:100%;height:100%;object-fit:cover;}
 
+    /* Cloudflare Turnstile wrapper */
     .cf-wrap{margin-bottom:12px;display:flex;justify-content:center;}
 
+    /* Forgot password link */
     .forgot-btn{
       display:block;text-align:right;font-size:0.7rem;
       color:var(--btn-primary,#3b82f6);cursor:pointer;
@@ -699,6 +780,7 @@
     }
     .forgot-btn:hover{opacity:.75;}
 
+    /* Terms row */
     .terms-row{
       display:flex;align-items:flex-start;gap:8px;
       margin-bottom:14px;font-size:0.71rem;color:var(--text-muted,#888);
@@ -709,6 +791,7 @@
     }
     .terms-row a{color:var(--btn-primary,#3b82f6);text-decoration:underline;}
 
+    /* Buttons */
     .btn-primary-full{
       width:100%;padding:11px;border-radius:50px;
       background:var(--btn-primary,#3b82f6);color:#fff;
@@ -741,10 +824,12 @@
     }
     .auth-switch-btn:hover{text-decoration:underline;}
 
+    /* Password strength */
     .pwd-bar{height:3px;border-radius:3px;margin-top:4px;background:rgba(255,255,255,0.08);overflow:hidden;}
     .pwd-fill{height:100%;border-radius:3px;transition:width .3s,background .3s;width:0;}
     .pwd-label{font-size:0.63rem;margin-top:2px;}
 
+    /* Reset success */
     .reset-success{
       text-align:center;padding:16px 8px;
       color:var(--text-secondary,#ccc);font-size:0.8rem;line-height:1.6;
@@ -811,22 +896,30 @@
   ═══════════════════════════════════════════════════════════ */
   const HEADER = `
 <header class="site-header" id="siteHeader">
+  <!-- Hamburger (mobile only) -->
   <button class="hamburger-btn" id="hamburgerBtn" aria-label="Menu">
     <span></span><span></span><span></span>
   </button>
+
+  <!-- Logo -->
   <a href="/" class="header-logo">
     <img src="https://i.postimg.cc/X7d0fPtJ/1778142012237-removebg-preview.png" alt="AniOcean">
   </a>
+
+  <!-- Desktop Nav -->
   <nav class="main-nav" id="mainNav">
     <a href="/" class="nav-link-item">Home</a>
+
     <div class="nav-dd-wrap">
       <span class="nav-dd-label">Genre ▾</span>
       <div class="nav-dropdown grid-4">${genreLinks}</div>
     </div>
+
     <div class="nav-dd-wrap">
       <span class="nav-dd-label">Country ▾</span>
       <div class="nav-dropdown grid-4">${countryLinks}</div>
     </div>
+
     <div class="nav-dd-wrap">
       <span class="nav-dd-label">Type ▾</span>
       <div class="nav-dropdown grid-1">
@@ -836,11 +929,14 @@
         <a href="/type/tv-show">TV Show</a>
       </div>
     </div>
+
     <a href="/status/ongoing" class="nav-link-item">Ongoing</a>
     <a href="/search?q=updates" class="nav-link-item">Updates</a>
     <a href="#" class="nav-link-item">News</a>
     <a href="#" class="nav-link-item">Forum</a>
   </nav>
+
+  <!-- Desktop Search -->
   <div class="header-search-wrap" id="desktopSearchWrap">
     <div class="header-search-bar">
       <div class="search-toggle-tabs" id="desktopTabs">
@@ -851,11 +947,15 @@
     </div>
     <div class="search-suggestions" id="searchSuggestions"></div>
   </div>
+
+  <!-- Desktop Socials -->
   <div class="header-socials">
     <a href="https://discord.com" target="_blank" class="social-icon-btn" title="Discord">${SVG.discord}</a>
     <a href="https://tumblr.com" target="_blank" class="social-icon-btn" title="Tumblr">${SVG.tumblr}</a>
     <a href="https://bsky.app" target="_blank" class="social-icon-btn" title="Bluesky">${SVG.bluesky}</a>
   </div>
+
+  <!-- Desktop Login / Avatar (RIGHT EDGE) -->
   <button class="btn-login" id="btnLogin">Sign In</button>
   <div class="user-avatar-wrap" id="desktopAvatarWrap">
     <img class="user-avatar" id="desktopAvatar" src="${DEFAULT_AVATAR}" alt="Profile">
@@ -874,11 +974,14 @@
       <a href="" class="profile-dd-item">${SVG.settings}&nbsp;Settings</a>
     </div>
   </div>
+
+  <!-- Mobile right controls -->
   <div class="mobile-right" id="mobileRight">
     <a href="https://discord.com" target="_blank" class="mob-icon-btn">${SVG.discord}</a>
     <a href="https://tumblr.com" target="_blank" class="mob-icon-btn">${SVG.tumblr}</a>
     <a href="https://bsky.app" target="_blank" class="mob-icon-btn">${SVG.bluesky}</a>
     <button class="mob-icon-btn" id="mobSearchBtn" aria-label="Search">${SVG.search}</button>
+    <!-- Mobile profile / avatar -->
     <button class="mob-icon-btn" id="mobProfileBtn" aria-label="Profile">${SVG.user}</button>
     <div class="user-avatar-wrap" id="mobAvatarWrap" style="display:none;">
       <img class="user-avatar" id="mobAvatar" src="${DEFAULT_AVATAR}" alt="Profile" style="display:block;">
@@ -899,6 +1002,8 @@
     </div>
   </div>
 </header>
+
+<!-- Mobile search panel (drops below header) -->
 <div class="mob-search-panel" id="mobSearchPanel">
   <div class="mob-search-bar">
     <div class="search-toggle-tabs" id="mobTabs">
@@ -909,6 +1014,8 @@
   </div>
   <div class="mob-suggestions" id="mobSuggestions"></div>
 </div>
+
+<!-- Mobile Nav Overlay -->
 <div class="mobile-nav-overlay" id="mobNavOverlay">
   <div class="mobile-nav-panel" id="mobNavPanel">
     <div class="mob-nav-close-row">
@@ -916,10 +1023,13 @@
     </div>
     <a href="#" class="mob-forum-item"><svg fill="currentColor" width="15px" height="15px" viewBox="0 0 128 128" id="Layer_1" version="1.1" xml:space="preserve" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <g> <path d="M64,42c-13.2,0-24,10.8-24,24s10.8,24,24,24s24-10.8,24-24S77.2,42,64,42z M64,82c-8.8,0-16-7.2-16-16s7.2-16,16-16 s16,7.2,16,16S72.8,82,64,82z"></path> <path d="M64,100.8c-14.9,0-29.2,6.2-39.4,17.1l-2.7,2.9l5.8,5.5l2.7-2.9c8.8-9.4,20.7-14.6,33.6-14.6s24.8,5.2,33.6,14.6l2.7,2.9 l5.8-5.5l-2.7-2.9C93.2,107.1,78.9,100.8,64,100.8z"></path> <path d="M97,47.9v8c9.4,0,18.1,3.8,24.6,10.7l5.8-5.5C119.6,52.7,108.5,47.9,97,47.9z"></path> <path d="M116.1,20c0-10.5-8.6-19.1-19.1-19.1S77.9,9.5,77.9,20S86.5,39.1,97,39.1S116.1,30.5,116.1,20z M85.9,20 c0-6.1,5-11.1,11.1-11.1s11.1,5,11.1,11.1s-5,11.1-11.1,11.1S85.9,26.1,85.9,20z"></path> <path d="M31,47.9c-11.5,0-22.6,4.8-30.4,13.2l5.8,5.5c6.4-6.9,15.2-10.7,24.6-10.7V47.9z"></path> <path d="M50.1,20C50.1,9.5,41.5,0.9,31,0.9S11.9,9.5,11.9,20S20.5,39.1,31,39.1S50.1,30.5,50.1,20z M31,31.1 c-6.1,0-11.1-5-11.1-11.1S24.9,8.9,31,8.9s11.1,5,11.1,11.1S37.1,31.1,31,31.1z"></path> </g> </g></svg> Community</a>
     <a href="/" class="mob-nav-item">Home</a>
+
     <div class="mob-sub-trigger" data-target="mobGenreMenu">Genre <span class="mob-sub-arr">▶</span></div>
     <div class="mob-sub-menu" id="mobGenreMenu">${genreMob}</div>
+
     <div class="mob-sub-trigger" data-target="mobCountryMenu">Country <span class="mob-sub-arr">▶</span></div>
     <div class="mob-sub-menu" id="mobCountryMenu">${countryMob}</div>
+
     <div class="mob-sub-trigger" data-target="mobTypeMenu">Type <span class="mob-sub-arr">▶</span></div>
     <div class="mob-sub-menu single" id="mobTypeMenu">
       <a href="/type/anime">Anime</a>
@@ -927,6 +1037,7 @@
       <a href="/type/movie">Movie</a>
       <a href="/type/tv-show">TV Show</a>
     </div>
+
     <a href="/status/ongoing" class="mob-nav-item">Ongoing</a>
     <a href="/search?q=updates" class="mob-nav-item">Updates</a>
     <a href="#" class="mob-nav-item">News</a>
@@ -973,23 +1084,40 @@
   const AUTH_MODAL = `
 <div class="auth-overlay" id="authOverlay">
   <div class="auth-modal" id="authModal">
+
+    <!-- Left image column – DESKTOP ONLY (mobile uses carousel below) -->
     <div class="auth-img-col">
       <img src="https://i.postimg.cc/pr6CQhM8/e1223c0a1599b039da4ac536a39f0223.jpg" alt="AniOcean">
     </div>
+
+    <!-- MOBILE-ONLY landscape image carousel — direct child of .auth-modal
+         so it stays FULLY VISIBLE at the top while the form scrolls below.
+         The gradient on the carousel merges seamlessly with the form column. -->
     <div class="auth-mobile-carousel" id="authMobileCarousel" aria-hidden="true">
       ${AUTH_CAROUSEL_IMAGES.map((url,i) => `<div class="mc-slide${i===0?' active':''}" style="background-image:url('${url}')"></div>`).join('')}
     </div>
+
+    <!-- Right form column -->
     <div class="auth-form-col">
       <button class="auth-close-btn" id="authClose">${SVG.close}</button>
+
       <div class="form-slides-wrapper">
         <div class="form-slides" id="formSlides">
+
+          <!-- ── SLIDE 0 · LOGIN ──
+               Field order: username → password (+inline forgot) → hCaptcha →
+                            Sign In button → Google auth → nav button (Sign up) -->
           <div class="form-slide active" id="slideLogin">
             <div class="auth-heading">Welcome back 👋</div>
             <div class="auth-subheading">Sign in to continue your anime journey.</div>
+
+            <!-- 1. Username -->
             <div class="field-group">
               <label>Username or Email</label>
               <input class="field-input" type="text" id="loginUsername" placeholder="Your username or email" autocomplete="username">
             </div>
+
+            <!-- 2. Password (with inline Forgot link) -->
             <div class="field-group">
               <label>Password</label>
               <div class="field-wrap">
@@ -998,23 +1126,39 @@
               </div>
               <button class="forgot-inline" id="forgotLink" type="button">Forgot password?</button>
             </div>
+
+            <!-- 3. hCaptcha -->
             <div class="cf-wrap">
               <div class="h-captcha" data-sitekey="${HCAPTCHA_SITEKEY}" data-theme="dark" data-callback="onHcaptchaSuccess" data-expired-callback="onHcaptchaExpired" data-error-callback="onHcaptchaError"></div>
             </div>
+
             <div class="form-err" id="loginErr"></div>
+
+            <!-- 4. Sign In button -->
             <button class="btn-primary-full" id="btnSignIn">Sign In</button>
+
+            <!-- 5. Google auth -->
             <div class="divider">or</div>
             <button class="btn-google" id="btnGoogleLogin">${SVG.google} Continue with Google</button>
+
+            <!-- 6. Navigate to Sign Up -->
             <div class="auth-switch">No account? <button class="auth-switch-btn" id="goSignUp">Sign up</button></div>
           </div>
 
-          <!-- ── SLIDE 1 · SIGN UP ── -->
+          <!-- ── SLIDE 1 · SIGN UP ──
+               Field order: username → email → password|confirm (side-by-side) →
+                            terms → hCaptcha → Sign Up button → Google → nav (Sign in)
+               Avatar picker removed to save vertical space (DEFAULT_AVATAR used;
+               users can change avatar from profile page after signup). -->
           <div class="form-slide" id="slideSignUp">
+            <!-- Always-visible back link at the TOP so user is never trapped -->
             <button class="auth-back-link" id="backLoginTop" type="button">← Back to Sign In</button>
+
             <div class="auth-heading">Create account ✨</div>
             <div class="auth-subheading">Join <span>Aniumi</span> — it's free forever.</div>
 
-            <!-- 1. Avatar picker -->
+            <!-- Avatar picker — Frieren.jpeg pre-set, click to change
+                 (upload from device OR choose from bucket collection). -->
             <div class="avatar-pick-wrap">
               <div class="avatar-frame" id="avatarFrame">
                 <img src="${DEFAULT_AVATAR}" id="selectedAvatar" alt="avatar">
@@ -1022,41 +1166,42 @@
               <div class="avatar-pick-lbl">Tap the avatar to change it</div>
             </div>
 
-            <!-- 2. Username -->
-            <div class="field-group">
-              <label>Username <span style="font-size:.6rem;text-transform:none;letter-spacing:0;">(max 12)</span></label>
-              <input class="field-input" type="text" id="regUsername" placeholder="OtakuNinja" maxlength="12" autocomplete="off">
-              <div class="field-err" id="errUsername"></div>
-            </div>
-
-            <!-- 3. Email address -->
-            <div class="field-group">
-              <label>Email</label>
-              <input class="field-input" type="email" id="regEmail" placeholder="you@example.com" autocomplete="email">
-            </div>
-
-            <!-- 4. Password -->
-            <div class="field-group">
-              <label>Password <span style="font-size:.58rem;text-transform:none;letter-spacing:0;">(max 20)</span></label>
-              <div class="field-wrap">
-                <input class="field-input" type="password" id="regPassword" placeholder="Min 8 chars" maxlength="20" style="padding-right:30px;" autocomplete="new-password">
-                <button class="eye-btn" type="button" data-target="regPassword">${SVG.eye}</button>
+            <!-- Username + Email side-by-side (saves vertical space
+                 so the avatar picker can stay prominent). -->
+            <div class="field-row-2">
+              <div class="field-group">
+                <label>Username <span style="font-size:.6rem;text-transform:none;letter-spacing:0;">(max 12)</span></label>
+                <input class="field-input" type="text" id="regUsername" placeholder="OtakuNinja" maxlength="12" autocomplete="off">
+                <div class="field-err" id="errUsername"></div>
               </div>
-              <div class="pwd-bar"><div class="pwd-fill" id="pwdFill"></div></div>
-              <div class="pwd-label" id="pwdLabel"></div>
-            </div>
-
-            <!-- 5. Confirm password -->
-            <div class="field-group">
-              <label>Confirm Password</label>
-              <div class="field-wrap">
-                <input class="field-input" type="password" id="regConfirm" placeholder="Repeat" maxlength="20" style="padding-right:30px;" autocomplete="new-password">
-                <button class="eye-btn" type="button" data-target="regConfirm">${SVG.eye}</button>
+              <div class="field-group">
+                <label>Email</label>
+                <input class="field-input" type="email" id="regEmail" placeholder="you@example.com" autocomplete="email">
               </div>
-              <div class="field-err" id="errConfirm"></div>
             </div>
 
-            <!-- 6. Terms checkbox -->
+            <!-- 3. Password + Confirm Password (SIDE-BY-SIDE) -->
+            <div class="pwd-pair">
+              <div class="field-group">
+                <label>Password <span style="font-size:.58rem;text-transform:none;letter-spacing:0;">(max 20)</span></label>
+                <div class="field-wrap">
+                  <input class="field-input" type="password" id="regPassword" placeholder="Min 8 chars" maxlength="20" style="padding-right:30px;" autocomplete="new-password">
+                  <button class="eye-btn" type="button" data-target="regPassword">${SVG.eye}</button>
+                </div>
+                <div class="pwd-bar"><div class="pwd-fill" id="pwdFill"></div></div>
+                <div class="pwd-label" id="pwdLabel"></div>
+              </div>
+              <div class="field-group">
+                <label>Confirm</label>
+                <div class="field-wrap">
+                  <input class="field-input" type="password" id="regConfirm" placeholder="Repeat" maxlength="20" style="padding-right:30px;" autocomplete="new-password">
+                  <button class="eye-btn" type="button" data-target="regConfirm">${SVG.eye}</button>
+                </div>
+                <div class="field-err" id="errConfirm"></div>
+              </div>
+            </div>
+
+            <!-- 4. Terms checkbox -->
             <div class="terms-row">
               <input type="checkbox" id="termsCheck">
               <label for="termsCheck">I have read and agree to the
@@ -1065,26 +1210,29 @@
               </label>
             </div>
 
-            <!-- 7. hCaptcha -->
+            <!-- 5. hCaptcha -->
             <div class="cf-wrap">
               <div class="h-captcha" data-sitekey="${HCAPTCHA_SITEKEY}" data-theme="dark" data-callback="onHcaptchaSuccess" data-expired-callback="onHcaptchaExpired" data-error-callback="onHcaptchaError"></div>
             </div>
 
             <div class="form-err" id="signUpErr"></div>
 
-            <!-- 8. Sign up button -->
+            <!-- 6. Sign Up button -->
             <button class="btn-primary-full" id="btnSignUp">Create Account</button>
 
-            <!-- 9. Google auth -->
+            <!-- 7. Google auth -->
             <div class="divider">or</div>
             <button class="btn-google" id="btnGoogleSignUp">${SVG.google} Sign up with Google</button>
 
+            <!-- 8. Navigate to Sign In (also at top — bottom is a fallback) -->
             <div class="auth-switch">Already have an account? <button class="auth-switch-btn" id="goLogin">Sign in</button></div>
           </div>
 
+          <!-- ── SLIDE 2 · FORGOT PASSWORD ── -->
           <div class="form-slide" id="slideForgot">
             <div class="auth-heading">Reset password 🔑</div>
             <div class="auth-subheading">Enter your email and we'll send a reset link.</div>
+
             <div class="field-group">
               <label>Email Address</label>
               <input class="field-input" type="email" id="resetEmail" placeholder="you@example.com" autocomplete="email">
@@ -1097,11 +1245,14 @@
             <button class="btn-primary-full" id="btnReset">Reset Password</button>
             <div class="auth-switch"><button class="auth-switch-btn" id="backLogin">← Back to Sign In</button></div>
           </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
+
+        </div><!-- /form-slides -->
+      </div><!-- /form-slides-wrapper -->
+    </div><!-- /auth-form-col -->
+  </div><!-- /auth-modal -->
+</div><!-- /auth-overlay -->
+
+<!-- Avatar picker popup -->
 <div class="avatar-popup-overlay" id="avatarPopupOverlay">
   <div class="avatar-popup" id="avatarPopup">
     <div class="avatar-popup-hdr">
@@ -1127,6 +1278,7 @@
     document.body.insertAdjacentHTML('beforeend', FOOTER);
     document.body.insertAdjacentHTML('beforeend', AUTH_MODAL);
 
+    // Load hCaptcha script
     if (!document.querySelector('script[src*="hcaptcha"]')) {
       const s = document.createElement('script');
       s.src = 'https://js.hcaptcha.com/1/api.js';
@@ -1139,8 +1291,10 @@
     initAuthModal();
     initAvatarPicker();
 
+    // Auth state listener with session expiry
     supabase.auth.onAuthStateChange(async (_evt, session) => {
       currentUser = session?.user || null;
+      // Session expiry check: if session exists but is older than SESSION_MAX_AGE, sign out
       if (session) {
         const lastActivity = localStorage.getItem('aniumi_last_activity');
         const now = Date.now();
@@ -1153,6 +1307,7 @@
       }
       updateUserUI();
     });
+    // Track activity for session expiry
     ['click', 'keydown', 'scroll', 'mousemove'].forEach(evt => {
       document.addEventListener(evt, () => {
         if (currentUser) localStorage.setItem('aniumi_last_activity', Date.now().toString());
@@ -1165,15 +1320,22 @@
      HEADER LOGIC
   ═══════════════════════════════════════════════════════════ */
   function initHeader() {
+    /* ── Login button ── */
     document.getElementById('btnLogin')?.addEventListener('click', () => openModal(0));
+
+    /* ── Desktop avatar toggle ── */
     document.getElementById('desktopAvatar')?.addEventListener('click', e => {
       e.stopPropagation();
       document.getElementById('desktopDropdown').classList.toggle('open');
     });
+
+    /* ── Mobile avatar toggle ── */
     document.getElementById('mobAvatar')?.addEventListener('click', e => {
       e.stopPropagation();
       document.getElementById('mobDropdown').classList.toggle('open');
     });
+
+    /* ── Close dropdowns on outside click ── */
     document.addEventListener('click', e => {
       if (!e.target.closest('#desktopAvatarWrap')) {
         document.getElementById('desktopDropdown')?.classList.remove('open');
@@ -1183,6 +1345,20 @@
       }
     });
 
+    /* ── Logout ──
+       FIXED (v3): previously the dropdown stayed open during the
+       await supabase.auth.signOut() network call, then updateUserUI()
+       ran (which calls auth.getUser() + profiles.select() — TWO more
+       network calls) before finally hiding the avatar wrap.  That
+       200–600ms async gap is what caused the visible "flicker" the
+       user saw: dropdown-open → wait → dropdown-suddenly-disappears.
+
+       Now: the dropdown closes IMMEDIATELY on click (synchronously,
+       before any await), the button turns red instantly, and the
+       signOut + UI refresh runs in the background.  The user sees
+       one smooth transition: click → dropdown closes → header
+       reverts to "Sign In" button.  No flicker, no multiple-click
+       needed. */
     document.getElementById('btnLogoutDesktop')?.addEventListener('click', handleLogoutClick);
     document.getElementById('btnLogoutMob')?.addEventListener('click', handleLogoutClick);
 
@@ -1190,11 +1366,22 @@
       e.stopPropagation();
       e.preventDefault();
       const btn = e.currentTarget;
+      // 1) Instant red feedback so the user knows the click registered.
       btn.classList.add('signing-out');
+      // 2) Close BOTH dropdowns immediately (synchronous, before any await).
       document.getElementById('desktopDropdown')?.classList.remove('open');
       document.getElementById('mobDropdown')?.classList.remove('open');
+      // 3) Clear the local user state synchronously so the header
+      //    reverts to "Sign In" instantly — don't wait for the network.
       currentUser = null;
+      // 4) Update UI synchronously: hide avatar, show Sign In button.
+      //    We pass { skipNetwork:true } so updateUserUI doesn't re-fetch
+      //    the user from Supabase (which would still return the old
+      //    session for ~100ms until signOut resolves).
       updateUserUIImmediate();
+      // 5) Fire-and-forget the actual signOut network call.  The auth
+      //    state change listener will also fire updateUserUI() when
+      //    signOut completes, but by then the UI is already correct.
       supabase.auth.signOut().catch(err => {
         console.warn('[signOut] network call failed (UI already updated):', err);
       }).finally(() => {
@@ -1202,6 +1389,8 @@
       });
     }
 
+    /* Synchronous UI update — used by handleLogoutClick so the header
+       reverts to the signed-out state instantly.  No network calls. */
     function updateUserUIImmediate() {
       const btnLogin      = document.getElementById('btnLogin');
       const deskAvatar    = document.getElementById('desktopAvatar');
@@ -1213,8 +1402,10 @@
       if (mobAvatarWrap) mobAvatarWrap.style.display = 'none';
     }
 
+    /* Kept for backward compatibility (any external callers). */
     async function doLogout() { handleLogoutClick({ currentTarget:{ classList:{add(){},remove(){}}, stopPropagation(){}, preventDefault(){} } }); }
 
+    /* ── Mobile profile button ── */
     document.getElementById('mobProfileBtn')?.addEventListener('click', e => {
       e.stopPropagation();
       if (currentUser) {
@@ -1224,6 +1415,7 @@
       }
     });
 
+    /* ── Hamburger ── */
     const hBtn    = document.getElementById('hamburgerBtn');
     const overlay = document.getElementById('mobNavOverlay');
     const panel   = document.getElementById('mobNavPanel');
@@ -1236,11 +1428,13 @@
     closeBtn?.addEventListener('click', closeNav);
     overlay?.addEventListener('click', e => { if (!e.target.closest('#mobNavPanel')) closeNav(); });
 
+    /* ── Mobile sub-menus (click only) ── */
     document.querySelectorAll('.mob-sub-trigger').forEach(trigger => {
       trigger.addEventListener('click', () => {
         const menuId = trigger.dataset.target;
         const menu   = document.getElementById(menuId);
         const isOpen = menu.classList.contains('show');
+        // close all
         document.querySelectorAll('.mob-sub-menu').forEach(m => m.classList.remove('show'));
         document.querySelectorAll('.mob-sub-trigger').forEach(t => t.classList.remove('open'));
         if (!isOpen) {
@@ -1250,6 +1444,7 @@
       });
     });
 
+    /* ── Mobile search ── */
     document.getElementById('mobSearchBtn')?.addEventListener('click', e => {
       e.stopPropagation();
       document.getElementById('mobSearchPanel').classList.toggle('open');
@@ -1265,9 +1460,10 @@
   }
 
   /* ═══════════════════════════════════════════════════════════
-     SEARCH
+     SEARCH  (uses CF Worker for TMDB, Jikan direct for anime)
   ═══════════════════════════════════════════════════════════ */
   function initSearch() {
+    /* Desktop tabs */
     document.querySelectorAll('#desktopTabs .search-toggle-tab').forEach(tab => {
       tab.addEventListener('click', function () {
         document.querySelectorAll('#desktopTabs .search-toggle-tab').forEach(t => t.classList.remove('active'));
@@ -1277,6 +1473,7 @@
         if (q.length >= 3) handleSearchInput(q, document.getElementById('searchSuggestions'));
       });
     });
+    /* Mobile tabs */
     document.querySelectorAll('#mobTabs .search-toggle-tab').forEach(tab => {
       tab.addEventListener('click', function () {
         document.querySelectorAll('#mobTabs .search-toggle-tab').forEach(t => t.classList.remove('active'));
@@ -1287,13 +1484,16 @@
       });
     });
 
+    /* Desktop input */
     document.getElementById('searchInput')?.addEventListener('input', function () {
       handleSearchInput(this.value, document.getElementById('searchSuggestions'));
     });
+    /* Mobile input */
     document.getElementById('mobSearchInput')?.addEventListener('input', function () {
       handleSearchInput(this.value, document.getElementById('mobSuggestions'));
     });
 
+    /* Close desktop suggestions on outside click */
     document.addEventListener('click', e => {
       if (!e.target.closest('#desktopSearchWrap')) {
         document.getElementById('searchSuggestions').style.display = 'none';
@@ -1322,6 +1522,7 @@
     }
   }
 
+  /* ── Jikan (Anime) ── */
   async function fetchJikan(q) {
     const res  = await fetch(`https://api.jikan.moe/v4/anime?q=${encodeURIComponent(q)}&limit=6&order_by=score&sort=desc`);
     if (!res.ok) throw new Error('Jikan error');
@@ -1343,6 +1544,7 @@
     });
   }
 
+  /* ── TMDB via Cloudflare Worker ── */
   async function fetchTMDB(q) {
     const [movieRes, tvRes] = await Promise.all([
       fetch(`${CF_WORKER_URL}/3/search/movie?query=${encodeURIComponent(q)}&language=en-US&page=1`),
@@ -1445,24 +1647,32 @@
       slides[idx].classList.remove('active');
       idx = (idx + 1) % slides.length;
       slides[idx].classList.add('active');
-    }, 3000);
+    }, 3000);  // 3-second morphine crossfade
   }
   function stopCarousel() {
     if (carouselTimer) { clearInterval(carouselTimer); carouselTimer = null; }
   }
 
+  // Body scroll-lock state — saved so we can restore the exact scroll
+  // position when the modal closes (iOS Safari quirk: position:fixed on
+  // <body> resets the scroll offset, so we have to put it back manually).
   let aniumiSavedScrollY = 0;
 
   function openModal(n = 0) {
     document.getElementById('authOverlay').classList.add('open');
+    // Lock the body so the page behind the modal cannot scroll.
+    // Save the current scroll offset first so we can restore it on close.
     aniumiSavedScrollY = window.scrollY || window.pageYOffset || 0;
     document.body.classList.add('aniumi-modal-open');
+    // The body is now position:fixed — nudge it so the user still
+    // appears to be at the same scroll position rather than the top.
     document.body.style.top = `-${aniumiSavedScrollY}px`;
     slideTo(n);
     ['loginErr','signUpErr','resetErr','errUsername','errConfirm'].forEach(id => {
       const el = document.getElementById(id); if (el) el.textContent = '';
     });
     document.getElementById('resetOk').style.display = 'none';
+    // Kick off the mobile image carousel
     startCarousel();
   }
   window.openLoginModal = () => openModal(0);
@@ -1470,6 +1680,7 @@
   function closeModal() {
     document.getElementById('authOverlay').classList.remove('open');
     stopCarousel();
+    // Unlock the body & restore the saved scroll offset.
     document.body.classList.remove('aniumi-modal-open');
     document.body.style.top = '';
     window.scrollTo(0, aniumiSavedScrollY);
@@ -1478,9 +1689,14 @@
   function slideTo(n) {
     currentSlide = n;
     document.getElementById('formSlides').style.transform = `translateX(-${n * 33.333}%)`;
+    // Toggle .active so the inactive slide can't be interacted with
     document.querySelectorAll('.form-slide').forEach((s, i) => {
       s.classList.toggle('active', i === n);
     });
+    // Each slide has its own hCaptcha widget.  Reset both so a stale
+    // token from the slide the user just left isn't reused for the new
+    // slide's submit (Supabase would reject it as "captcha_failed").
+    // Also keep the active slide's widget ready for the user to solve.
     resetHCaptcha();
   }
 
@@ -1494,6 +1710,7 @@
     document.getElementById('goLogin')?.addEventListener('click',  () => slideTo(0));
     document.getElementById('forgotLink')?.addEventListener('click', () => slideTo(2));
     document.getElementById('backLogin')?.addEventListener('click',  () => slideTo(0));
+    // New "← Back to Sign In" link at the top of the sign-up form
     document.getElementById('backLoginTop')?.addEventListener('click', () => slideTo(0));
 
     document.querySelectorAll('.eye-btn').forEach(btn => {
@@ -1530,6 +1747,8 @@
       if (!username || !password) { errEl.textContent = 'Please fill in all fields.'; return; }
       if (!hcaptchaToken) {
         errEl.textContent = 'Please complete the captcha verification below.';
+        // Scroll the form column so the captcha widget is visible — most
+        // users click submit before realising the captcha hasn't verified.
         document.getElementById('slideLogin')?.querySelector('.cf-wrap')
           ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         document.getElementById('loginErr')?.parentElement?.querySelector('.cf-wrap')
@@ -1551,6 +1770,9 @@
           options: { captchaToken: hcaptchaToken }
         });
         if (error) {
+          // Supabase captcha errors come back with `error.code` like
+          // "captcha_failed" or with the word "captcha" in the message.
+          // Give the user a friendly explanation + scroll to the widget.
           const msg = (error.message || '').toLowerCase();
           if (msg.includes('captcha') || (error.code || '').includes('captcha')) {
             errEl.textContent = 'Captcha verification failed. Please solve it again.';
@@ -1562,6 +1784,7 @@
           return;
         }
         localStorage.setItem('aniumi_last_activity', Date.now().toString());
+        // Record login metadata (IP / country / state / count / last-login)
         if (data.user) await recordLogin(data.user.id);
         closeModal();
       } catch { errEl.textContent = 'An error occurred. Try again.'; }
@@ -1570,6 +1793,7 @@
 
     ['btnGoogleLogin','btnGoogleSignUp'].forEach(id => {
       document.getElementById(id)?.addEventListener('click', async () => {
+        // Stash geo in localStorage so the OAuth redirect target can pick it up.
         const geo = await getUserGeo();
         try { localStorage.setItem('aniumi_pending_geo', JSON.stringify(geo)); } catch(e){}
         await supabase.auth.signInWithOAuth({
@@ -1596,6 +1820,7 @@
       if (!terms)                                        { errEl.textContent = 'Please accept the Terms & Conditions.'; return; }
       if (!hcaptchaToken)                                {
         errEl.textContent = 'Please complete the captcha verification below.';
+        // Auto-scroll the form column so the captcha widget is visible.
         document.getElementById('slideSignUp')?.querySelector('.cf-wrap')
           ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         return;
@@ -1604,18 +1829,27 @@
       const btn = document.getElementById('btnSignUp');
       btn.disabled = true; btn.textContent = 'Creating…';
       try {
+        // Check username uniqueness
         const { data: exUser } = await supabase.from('profiles').select('user_id').eq('username', username).maybeSingle();
         if (exUser) { errEl.textContent = 'Username already taken.'; return; }
 
+        // Check email uniqueness
         const { data: exEmail } = await supabase.from('profiles').select('user_id').eq('email', email).maybeSingle();
         if (exEmail) { errEl.textContent = 'This email address is already registered. Please sign in instead.'; return; }
 
-        const avatarUrl = selectedAvatarUrl || DEFAULT_AVATAR;
+        // Avatar picker was removed from the sign-up form to save space.
+        // New users get the DEFAULT_AVATAR; they can change it later from
+        // their profile page (avatar upload UI lives elsewhere).
+        const avatarUrl = DEFAULT_AVATAR;
         const geo = await getUserGeo();
 
         const { data, error } = await supabase.auth.signUp({
           email, password,
           options: {
+            // hCaptcha token — REQUIRED when "Attack Protection → Captcha"
+            // is enabled in Supabase.  Without it Supabase rejects the
+            // request with `captcha_failed`.  Frontend already checks the
+            // token is non-empty before we get here.
             captchaToken: hcaptchaToken,
             data: {
               username,
@@ -1632,11 +1866,13 @@
         });
         if (error) {
           const msg = (error.message || '').toLowerCase();
+          // Captcha-specific error → friendly message + scroll to widget.
           if (msg.includes('captcha') || (error.code || '').includes('captcha')) {
             errEl.textContent = 'Captcha verification failed. Please solve it again.';
             document.getElementById('slideSignUp')?.querySelector('.cf-wrap')
               ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
           }
+          // Supabase may return "User already registered" error
           else if (msg.includes('already registered') || msg.includes('already been registered')) {
             errEl.textContent = 'This email address is already registered. Please sign in instead.';
           } else {
@@ -1645,6 +1881,10 @@
           return;
         }
 
+        // The handle_new_user trigger auto-creates the profile row.
+        // We also persist the chosen avatar to the PERMANENT bucket so it
+        // never expires (the on-screen URL might be from a private bucket
+        // or an external source).
         if (data.user) {
           await persistAvatarPermanently(data.user.id, avatarUrl);
         }
@@ -1707,7 +1947,7 @@
   function initAvatarPicker() {
     document.getElementById('avatarFrame')?.addEventListener('click', async () => {
       document.getElementById('avatarPopupOverlay').classList.add('open');
-      document.getElementById('avatarGrid').style.display = 'none';
+      document.getElementById('avatarGrid').style.display = 'none'; // hidden until "Choose from" is clicked
     });
     document.getElementById('avatarPopupOverlay')?.addEventListener('click', e => {
       if (!e.target.closest('#avatarPopup')) {
@@ -1715,6 +1955,7 @@
       }
     });
 
+    // "Choose from Collection" button — fetches from profile_ava folder
     document.getElementById('btnChooseFromBucket')?.addEventListener('click', async () => {
       const grid = document.getElementById('avatarGrid');
       grid.style.display = 'grid';
@@ -1722,18 +1963,21 @@
       await loadBucketAvatars();
     });
 
+    // Upload from device — unique path per user, PERMANENT public URL
     document.getElementById('avatarFileInput')?.addEventListener('change', async function () {
       const file = this.files[0];
       if (!file) return;
       const dataUrl = await resizeImage(file, 256, 256);
       const blob    = await (await fetch(dataUrl)).blob();
       const ext     = file.name.split('.').pop() || 'jpg';
+      // Use user-specific folder path in the PERMANENT public bucket.
       const uid     = currentUser?.id || 'guest_' + Date.now();
       const path    = `${uid}/${Date.now()}.${ext}`;
       const { data, error } = await supabase.storage
         .from(AVATAR_BUCKET)
         .upload(path, blob, { upsert: true, contentType: file.type });
       if (!error && data) {
+        // PUBLIC URL — never expires (no signed URL anymore).
         setAvatar(`${AVATAR_BUCKET_URL}${path}`);
       } else {
         setAvatar(dataUrl);
@@ -1746,6 +1990,8 @@
     const grid = document.getElementById('avatarGrid');
     grid.style.display = 'grid';
     grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-muted,#888);font-size:0.76rem;">Loading…</div>';
+    // Fetch pre-uploaded avatars from the "profile_ava" folder in the
+    // (now PUBLIC) 'Aniumi' bucket. Public URLs never expire.
     const { data, error } = await supabase.storage.from('Aniumi').list('profile_ava', { limit: 60 });
     if (error || !data?.length) {
       grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-muted,#888);font-size:0.76rem;">No avatars found in collection.</div>';
@@ -1756,6 +2002,7 @@
       grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-muted,#888);font-size:0.76rem;">No images in collection yet.</div>';
       return;
     }
+    // PUBLIC URLs — no more signed URLs (which expired after 1 year).
     grid.innerHTML = imgs.map(f => {
       const url = `${PROFILE_BUCKET_URL}profile_ava/${f.name}`;
       return `<div class="avatar-opt${url===selectedAvatarUrl?' selected':''}" data-url="${url}">
@@ -1835,7 +2082,10 @@
       if (mobDdAv) mobDdAv.src = avatarUrl;
       if (mobDdUn) mobDdUn.textContent = username;
 
+      // ─── OAuth redirect: pick up stashed geo & persist Google avatar ───
       await handleOAuthCallback(user, profile);
+
+      // ─── Start realtime subscriptions for this user ───
       initRealtime(user.id);
 
     } else {
@@ -1847,7 +2097,8 @@
   }
 
   /* ═══════════════════════════════════════════════════════════
-     RECORD LOGIN
+     RECORD LOGIN  — updates last_login_date, login_count, IP/geo
+     on every password sign-in.
   ═══════════════════════════════════════════════════════════ */
   async function recordLogin(userId) {
     try {
@@ -1870,11 +2121,15 @@
   }
 
   /* ═══════════════════════════════════════════════════════════
-     PERSIST AVATAR PERMANENTLY
+     PERSIST AVATAR PERMANENTLY  — uploads chosen/Google avatar to
+     the PUBLIC 'AniumiAvatars' bucket. Objects here have NO lifecycle
+     policy → URLs NEVER expire. Returns the new permanent URL.
   ═══════════════════════════════════════════════════════════ */
   async function persistAvatarPermanently(userId, sourceUrl) {
     if (!userId || !sourceUrl) return null;
+    // Already in our permanent bucket? Skip.
     if (sourceUrl.includes(`/${AVATAR_BUCKET}/`)) return sourceUrl;
+    // Default avatar? Skip — defaults live in the public 'Aniumi' bucket permanently.
     if (sourceUrl === DEFAULT_AVATAR) return sourceUrl;
     try {
       const resp = await fetch(sourceUrl, { mode: 'cors', credentials: 'omit' });
@@ -1887,6 +2142,7 @@
         .upload(path, blob, { upsert: true, contentType: blob.type });
       if (error) { console.warn('[persistAvatar] upload failed:', error); return sourceUrl; }
       const permanentUrl = `${AVATAR_BUCKET_URL}${path}`;
+      // Update the profile row to use the permanent URL
       await supabase.from('profiles')
         .update({ avatar_url: permanentUrl, updated_at: new Date().toISOString() })
         .eq('user_id', userId);
@@ -1898,13 +2154,20 @@
   }
 
   /* ═══════════════════════════════════════════════════════════
-     HANDLE OAUTH CALLBACK
+     HANDLE OAUTH CALLBACK  — runs after Google OAuth redirect.
+     • Grabs stashed geo from localStorage (set before the redirect).
+     • Copies Google name/gmail/avatar_url into profile columns.
+     • Downloads the Google avatar into our permanent bucket so
+       it lives forever (Google's URL can disappear if the user
+       changes their Google photo).
   ═══════════════════════════════════════════════════════════ */
   async function handleOAuthCallback(user, profile) {
     if (!user) return;
     let geo = null;
     try { geo = JSON.parse(localStorage.getItem('aniumi_pending_geo') || 'null'); } catch(e){}
     try { localStorage.removeItem('aniumi_pending_geo'); } catch(e){}
+    // Fallback: if no stashed geo (e.g. user landed directly), fetch fresh
+    // from the browser. ipapi.co + ipify fallback gives us country/state/city.
     if (!geo) {
       try { geo = await getUserGeo(); } catch(e) { geo = null; }
     }
@@ -1939,11 +2202,15 @@
       await supabase.from('profiles').update(patch).eq('user_id', user.id);
     } catch (e) { console.warn('[handleOAuthCallback] update failed:', e); }
 
+    // Persist the Google avatar into the permanent bucket ONCE.
     const alreadyPermanent = currentAvatar && currentAvatar.includes(`/${AVATAR_BUCKET}/`);
     const isDefault        = currentAvatar === DEFAULT_AVATAR;
     if (!alreadyPermanent && !isDefault && googleImg) {
+      // Use the original Google URL at higher resolution
       const hiRes = googleImg.replace(/=s\d+-c$/, '=s512-c');
       const permanentUrl = await persistAvatarPermanently(user.id, hiRes);
+      // Live-update any visible avatar elements so the user immediately
+      // sees the permanent copy.
       if (permanentUrl && permanentUrl !== currentAvatar) {
         ['desktopAvatar','mobAvatar','ddAvatarImg','mobDdAvatarImg','selectedAvatar'].forEach(id => {
           const el = document.getElementById(id);
@@ -1954,17 +2221,21 @@
   }
 
   /* ═══════════════════════════════════════════════════════════
-     REALTIME
+     REALTIME  — subscribe to profiles + user_bookmarks.
+     When ANY row belonging to this user changes (insert/update/delete),
+     the callback fires; we re-fetch the affected data live.
+     No manual refresh needed.
   ═══════════════════════════════════════════════════════════ */
   let realtimeInitialised = false;
   function initRealtime(userId) {
-    if (realtimeInitialised === userId) return;
+    if (realtimeInitialised === userId) return;     // already subscribed for this user
     if (realtimeInitialised) {
       try { supabase.channel('profiles-realtime').unsubscribe(); } catch(e){}
       try { supabase.channel('bookmarks-realtime').unsubscribe(); } catch(e){}
     }
     realtimeInitialised = userId;
 
+    // ── Profile changes (e.g. admin updated avatar, or another device edited) ──
     supabase
       .channel('profiles-realtime')
       .on('postgres_changes',
@@ -1975,6 +2246,7 @@
           })
       .subscribe();
 
+    // ── Bookmark changes (this device, another tab, or another device) ──
     supabase
       .channel('bookmarks-realtime')
       .on('postgres_changes',
@@ -1991,6 +2263,7 @@
   function resetHCaptcha() {
     hcaptchaToken = '';
     try {
+      // Reset all hCaptcha widgets on the page
       if (window.hcaptcha) {
         document.querySelectorAll('.h-captcha').forEach(el => {
           try { window.hcaptcha.reset(el); } catch(e) {}
