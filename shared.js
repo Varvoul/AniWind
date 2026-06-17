@@ -247,8 +247,11 @@
       border:1px solid var(--border-medium,rgba(255,255,255,0.1));
       border-radius:14px;min-width:210px;padding:8px;
       z-index:350;box-shadow:0 16px 40px rgba(0,0,0,.6);
+      /* Smooth fade-out when closing — no more abrupt disappearance. */
+      opacity:0;transform:translateY(-4px);
+      transition:opacity .15s ease-out,transform .15s ease-out;
     }
-    .profile-dropdown.open{display:block;}
+    .profile-dropdown.open{display:block;opacity:1;transform:translateY(0);}
     .profile-dd-header{
       display:flex;align-items:center;gap:10px;
       padding:10px 10px 12px;
@@ -262,6 +265,11 @@
       cursor:pointer;padding:4px 0;margin-top:3px;transition:color .15s;
     }
     .dd-sign-out:hover{color:#ef4444;}
+    /* Sign-out button goes RED the instant the user clicks it, then
+       fades back.  This gives immediate visual feedback while the
+       async signOut() network call is in flight. */
+    .dd-sign-out:active{color:#ef4444;transform:scale(.97);}
+    .dd-sign-out.signing-out{color:#ef4444;pointer-events:none;opacity:.7;}
     .profile-dd-item{
       display:flex;align-items:center;gap:8px;padding:8px 10px;
       border-radius:8px;font-size:0.76rem;color:var(--text-secondary,#ccc);
@@ -545,10 +553,11 @@
       .auth-img-col{display:none;}
       .auth-mobile-carousel{
         display:block;flex-shrink:0;
-        /* Shrink the carousel from 16/9 (~57vw tall) to 16/5 (~29vw tall).
-           The image is purely decorative — reclaiming ~28vw of vertical
-           space is what lets the rest of the form fit without scrolling. */
-        aspect-ratio:16/5;
+        /* Carousel slightly taller than 16/5 (was too thin) but still
+           well below the original 16/9.  16/6 ≈ 38vw tall — enough to
+           show the anime character's face clearly without consuming
+           the vertical space the form fields need. */
+        aspect-ratio:16/6;
         border-top-left-radius:16px;border-top-right-radius:16px;
       }
       .auth-form-col{
@@ -595,11 +604,13 @@
       .auth-switch{margin-top:10px;font-size:0.68rem;}
       .auth-switch-btn{font-size:0.68rem;}
 
-      /* Avatar picker — smaller on mobile so SIGN UP slide fits better. */
+      /* Avatar picker — pre-set with Frieren, click to change.
+         Made slightly bigger (60→72) so the Frieren avatar is clearly
+         visible as the default profile picture. */
       .avatar-pick-wrap{margin-bottom:8px;}
-      .avatar-frame{width:60px;height:60px;}
-      .avatar-frame::after{width:18px;height:18px;font-size:10px;}
-      .avatar-pick-lbl{font-size:0.6rem;margin-top:4px;}
+      .avatar-frame{width:72px;height:72px;}
+      .avatar-frame::after{width:20px;height:20px;font-size:11px;}
+      .avatar-pick-lbl{font-size:0.62rem;margin-top:5px;}
 
       /* Compact hCaptcha on mobile — minimum viable size. */
       .cf-wrap{min-height:54px;margin:4px 0 6px;}
@@ -614,7 +625,7 @@
     @media(max-width:480px){
       .auth-overlay{padding:8px;}
       .auth-modal{max-width:96vw;max-height:92vh;}
-      .auth-mobile-carousel{aspect-ratio:16/4;}
+      .auth-mobile-carousel{aspect-ratio:16/5;}
       .auth-form-col{padding:8px 12px 10px;}
       .auth-heading{font-size:0.98rem;}
       .auth-subheading{font-size:0.66rem;margin-bottom:8px;}
@@ -625,17 +636,19 @@
       .btn-google{padding:7px;font-size:0.7rem;margin-bottom:6px;}
       .divider{margin:6px 0;font-size:0.62rem;}
       .auth-switch{margin-top:8px;font-size:0.64rem;}
-      .avatar-frame{width:54px;height:54px;}
+      .avatar-frame{width:60px;height:60px;}
       .avatar-pick-wrap{margin-bottom:6px;}
       .cf-wrap{min-height:48px;margin:3px 0 4px;}
       .cf-wrap iframe{transform:scale(.66);}
       .terms-row{font-size:0.62rem;margin-bottom:6px;}
+      /* Username + Email row — tighten gap on small phones. */
+      .field-row-2{gap:8px;margin-bottom:8px;}
     }
 
     /* ── TINY PHONES (≤ 380px) — minimal ── */
     @media(max-width:380px){
       .auth-modal{max-width:98vw;max-height:94vh;}
-      .auth-mobile-carousel{aspect-ratio:16/3;}
+      .auth-mobile-carousel{aspect-ratio:16/4;}
       .auth-form-col{padding:6px 10px 8px;}
       .auth-heading{font-size:0.92rem;}
       .auth-subheading{font-size:0.62rem;margin-bottom:6px;}
@@ -646,8 +659,8 @@
       .cf-wrap{min-height:42px;}
       .cf-wrap iframe{transform:scale(.6);}
       .auth-switch{margin-top:6px;}
-      .avatar-frame{width:48px;height:48px;}
-      .avatar-frame::after{width:16px;height:16px;font-size:9px;}
+      .avatar-frame{width:54px;height:54px;}
+      .avatar-frame::after{width:18px;height:18px;font-size:10px;}
     }
 
     /* Fields */
@@ -686,6 +699,12 @@
 
     /* Avatar frame */
     .avatar-pick-wrap{display:flex;flex-direction:column;align-items:center;margin-bottom:14px;}
+    /* Two-column field row (username + email side-by-side on Sign Up) */
+    .field-row-2{
+      display:grid;grid-template-columns:1fr 1fr;gap:10px;
+      margin-bottom:12px;
+    }
+    .field-row-2 .field-group{margin-bottom:0;}  /* the row handles spacing */
     .avatar-frame{
       width:84px;height:84px;border-radius:50%;
       border:2px solid var(--btn-primary,#3b82f6);
@@ -1138,17 +1157,27 @@
             <div class="auth-heading">Create account ✨</div>
             <div class="auth-subheading">Join <span>Aniumi</span> — it's free forever.</div>
 
-            <!-- 1. Username -->
-            <div class="field-group">
-              <label>Username <span style="font-size:.6rem;text-transform:none;letter-spacing:0;">(max 12, letters &amp; numbers only)</span></label>
-              <input class="field-input" type="text" id="regUsername" placeholder="e.g. OtakuNinja" maxlength="12" autocomplete="off">
-              <div class="field-err" id="errUsername"></div>
+            <!-- Avatar picker — Frieren.jpeg pre-set, click to change
+                 (upload from device OR choose from bucket collection). -->
+            <div class="avatar-pick-wrap">
+              <div class="avatar-frame" id="avatarFrame">
+                <img src="${DEFAULT_AVATAR}" id="selectedAvatar" alt="avatar">
+              </div>
+              <div class="avatar-pick-lbl">Tap the avatar to change it</div>
             </div>
 
-            <!-- 2. Email Address -->
-            <div class="field-group">
-              <label>Email Address</label>
-              <input class="field-input" type="email" id="regEmail" placeholder="you@example.com" autocomplete="email">
+            <!-- Username + Email side-by-side (saves vertical space
+                 so the avatar picker can stay prominent). -->
+            <div class="field-row-2">
+              <div class="field-group">
+                <label>Username <span style="font-size:.6rem;text-transform:none;letter-spacing:0;">(max 12)</span></label>
+                <input class="field-input" type="text" id="regUsername" placeholder="OtakuNinja" maxlength="12" autocomplete="off">
+                <div class="field-err" id="errUsername"></div>
+              </div>
+              <div class="field-group">
+                <label>Email</label>
+                <input class="field-input" type="email" id="regEmail" placeholder="you@example.com" autocomplete="email">
+              </div>
             </div>
 
             <!-- 3. Password + Confirm Password (SIDE-BY-SIDE) -->
@@ -1316,13 +1345,65 @@
       }
     });
 
-    /* ── Logout ── */
-    document.getElementById('btnLogoutDesktop')?.addEventListener('click', doLogout);
-    document.getElementById('btnLogoutMob')?.addEventListener('click', doLogout);
-    async function doLogout() {
-      await supabase.auth.signOut();
-      updateUserUI();
+    /* ── Logout ──
+       FIXED (v3): previously the dropdown stayed open during the
+       await supabase.auth.signOut() network call, then updateUserUI()
+       ran (which calls auth.getUser() + profiles.select() — TWO more
+       network calls) before finally hiding the avatar wrap.  That
+       200–600ms async gap is what caused the visible "flicker" the
+       user saw: dropdown-open → wait → dropdown-suddenly-disappears.
+
+       Now: the dropdown closes IMMEDIATELY on click (synchronously,
+       before any await), the button turns red instantly, and the
+       signOut + UI refresh runs in the background.  The user sees
+       one smooth transition: click → dropdown closes → header
+       reverts to "Sign In" button.  No flicker, no multiple-click
+       needed. */
+    document.getElementById('btnLogoutDesktop')?.addEventListener('click', handleLogoutClick);
+    document.getElementById('btnLogoutMob')?.addEventListener('click', handleLogoutClick);
+
+    function handleLogoutClick(e) {
+      e.stopPropagation();
+      e.preventDefault();
+      const btn = e.currentTarget;
+      // 1) Instant red feedback so the user knows the click registered.
+      btn.classList.add('signing-out');
+      // 2) Close BOTH dropdowns immediately (synchronous, before any await).
+      document.getElementById('desktopDropdown')?.classList.remove('open');
+      document.getElementById('mobDropdown')?.classList.remove('open');
+      // 3) Clear the local user state synchronously so the header
+      //    reverts to "Sign In" instantly — don't wait for the network.
+      currentUser = null;
+      // 4) Update UI synchronously: hide avatar, show Sign In button.
+      //    We pass { skipNetwork:true } so updateUserUI doesn't re-fetch
+      //    the user from Supabase (which would still return the old
+      //    session for ~100ms until signOut resolves).
+      updateUserUIImmediate();
+      // 5) Fire-and-forget the actual signOut network call.  The auth
+      //    state change listener will also fire updateUserUI() when
+      //    signOut completes, but by then the UI is already correct.
+      supabase.auth.signOut().catch(err => {
+        console.warn('[signOut] network call failed (UI already updated):', err);
+      }).finally(() => {
+        btn.classList.remove('signing-out');
+      });
     }
+
+    /* Synchronous UI update — used by handleLogoutClick so the header
+       reverts to the signed-out state instantly.  No network calls. */
+    function updateUserUIImmediate() {
+      const btnLogin      = document.getElementById('btnLogin');
+      const deskAvatar    = document.getElementById('desktopAvatar');
+      const mobProfileBtn = document.getElementById('mobProfileBtn');
+      const mobAvatarWrap = document.getElementById('mobAvatarWrap');
+      if (btnLogin)      btnLogin.style.display = '';
+      if (deskAvatar)    deskAvatar.style.display = 'none';
+      if (mobProfileBtn) mobProfileBtn.style.display = 'flex';
+      if (mobAvatarWrap) mobAvatarWrap.style.display = 'none';
+    }
+
+    /* Kept for backward compatibility (any external callers). */
+    async function doLogout() { handleLogoutClick({ currentTarget:{ classList:{add(){},remove(){}}, stopPropagation(){}, preventDefault(){} } }); }
 
     /* ── Mobile profile button ── */
     document.getElementById('mobProfileBtn')?.addEventListener('click', e => {
