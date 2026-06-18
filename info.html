@@ -2456,7 +2456,11 @@ img { max-width: 100%; height: auto; display: block; }
       'use strict';
 
       const CONFIG = {
-        TMDB_WORKER: 'https://aniocen.bionmovies47.workers.dev',
+        ANIUMI_PROXY: 'https://aniumi.bionmovies47.workers.dev',  // universal CF Worker proxy
+        TMDB_WORKER:  'https://aniumi.bionmovies47.workers.dev',  // points to same worker (/3/* compat)
+        JIKAN_BASE:   'https://api.jikan.moe/v4',                 // direct fallback
+        ANIKOTO_DIRECT: 'https://anikoto.bionmovies47.workers.dev', // direct fallback
+        TMDB_LEGACY:  'https://aniocen.bionmovies47.workers.dev', // old worker fallback
         ALLANIME_API: 'https://allanime-api.shashankbhake.codes',
         ANIMETHEMES_API: 'https://api.animethemes.moe/graphql',
         ANIMETHEMES_VIDEO: 'https://v.animethemes.moe',
@@ -2692,7 +2696,14 @@ img { max-width: 100%; height: auto; display: block; }
       }
 
       async function fetchJikanData() {
-        const res = await fetch(`https://api.jikan.moe/v4/anime/${currentState.id}/full`);
+        // Use universal proxy — falls back to direct Jikan if proxy unavailable
+        const jikanFull = `https://api.jikan.moe/v4/anime/${currentState.id}/full`;
+        const proxyFull = `${CONFIG.ANIUMI_PROXY}/jikan/anime/${currentState.id}/full`;
+        let res;
+        try {
+          res = await fetch(proxyFull, { signal: AbortSignal.timeout(8000) });
+          if (!res.ok) throw new Error('proxy failed');
+        } catch(e) { res = await fetch(jikanFull); }
         if (!res.ok) throw new Error(`Jikan API error: ${res.status}`);
         const { data } = await res.json();
         currentState.data = data;
@@ -3111,11 +3122,16 @@ img { max-width: 100%; height: auto; display: block; }
               if (!imgUrl) {
                 // Stagger requests: 1s between each to stay well under Jikan's 3 req/sec limit
                 await new Promise(r => setTimeout(r, idx * 1000));
-                const res = await fetch(`https://api.jikan.moe/v4/anime/${season.mal_id}`);
+                const _sUrl = `https://api.jikan.moe/v4/anime/${season.mal_id}`;
+                let res;
+                try { res = await fetch(`${CONFIG.ANIUMI_PROXY}/jikan/anime/${season.mal_id}`, {signal:AbortSignal.timeout(6000)}); if(!res.ok) throw 0; }
+                catch(e) { res = await fetch(_sUrl); }
                 if (res.status === 429) {
                   // Rate limited — wait 2s and retry once
                   await new Promise(r => setTimeout(r, 2000));
-                  const retry = await fetch(`https://api.jikan.moe/v4/anime/${season.mal_id}`);
+                  let retry;
+                  try { retry = await fetch(`${CONFIG.ANIUMI_PROXY}/jikan/anime/${season.mal_id}`,{signal:AbortSignal.timeout(6000)}); if(!retry.ok) throw 0; }
+                  catch(e) { retry = await fetch(`https://api.jikan.moe/v4/anime/${season.mal_id}`); }
                   if (!retry.ok) return;
                   const { data: animeData } = await retry.json();
                   imgUrl = animeData.images?.jpg?.large_image_url || animeData.images?.jpg?.image_url || '';
@@ -3783,8 +3799,24 @@ img { max-width: 100%; height: auto; display: block; }
         }
       }
 
-      // Fetch with automatic retry on 429 rate-limit response
+      // Fetch with proxy-first routing + automatic retry on 429
+      // If url is a Jikan URL → try aniumi proxy first, then direct
+      // If url is a TMDB URL  → goes through TMDB_WORKER (already aniumi)
       async function fetchWithRetry(url, maxRetries = 2, baseDelay = 1500) {
+        // Build proxy URL for Jikan direct calls in info.html
+        let proxyUrl = null;
+        if (url.includes('api.jikan.moe/v4/')) {
+          const jikanPath = url.replace('https://api.jikan.moe/v4/', '');
+          proxyUrl = `${CONFIG.ANIUMI_PROXY}/jikan/${jikanPath}`;
+        }
+        // Try proxy first (fast, cached, no rate-limit)
+        if (proxyUrl) {
+          try {
+            const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(8000) });
+            if (res.ok) return res;
+          } catch(e) { /* proxy down, fall through to direct */ }
+        }
+        // Direct fetch with retry (fallback)
         for (let attempt = 0; attempt <= maxRetries; attempt++) {
           try {
             const res = await fetch(url);
@@ -4416,7 +4448,9 @@ function renderSunkenPagination(currentPage, totalPages, container) {
         if (isAnime) {
           container.innerHTML = '<p class="loading-text" style="padding:20px 0;">Loading cast...</p>';
           try {
-            const res = await fetch(`https://api.jikan.moe/v4/anime/${currentState.id}/characters`);
+            let res;
+            try { res = await fetch(`${CONFIG.ANIUMI_PROXY}/jikan/anime/${currentState.id}/characters`,{signal:AbortSignal.timeout(8000)}); if(!res.ok) throw 0; }
+            catch(e) { res = await fetch(`https://api.jikan.moe/v4/anime/${currentState.id}/characters`); }
             if (!res.ok) throw new Error(`Jikan characters error: ${res.status}`);
             const { data: charsData } = await res.json();
             const chars = (charsData || []).sort((a, b) => {
@@ -4576,7 +4610,9 @@ function renderSunkenPagination(currentPage, totalPages, container) {
 
           // Fetch /pictures for all extra images
           try {
-            const res = await fetch(`https://api.jikan.moe/v4/anime/${currentState.id}/pictures`);
+            let res;
+            try { res = await fetch(`${CONFIG.ANIUMI_PROXY}/jikan/anime/${currentState.id}/pictures`,{signal:AbortSignal.timeout(8000)}); if(!res.ok) throw 0; }
+            catch(e) { res = await fetch(`https://api.jikan.moe/v4/anime/${currentState.id}/pictures`); }
             if (res.ok) {
               const { data: pics } = await res.json();
               (pics || []).forEach(pic => {
