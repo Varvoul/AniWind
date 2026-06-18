@@ -1,0 +1,10 @@
+name = "aniumi"
+main = "workers/aniumi.js"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+[build]
+command = ""
+
+# Routes — worker runs on aniumi.{subdomain}.workers.dev
+# and optionally on a custom route
