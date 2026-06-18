@@ -1005,10 +1005,12 @@
 
   <script>
     (function() {
-      const ANIKOTO_API = 'https://anikoto.bionmovies47.workers.dev';
-      const TMDB_PROXY = 'https://aniocen.bionmovies47.workers.dev';
+      /* ── Universal proxy — single CF Worker for all API traffic ── */
+      const ANIUMI_PROXY  = 'https://aniumi.bionmovies47.workers.dev';
+      /* Direct fallback URLs (used if proxy is unavailable) */
       const JIKAN_BASE    = 'https://api.jikan.moe/v4';
-      const ANIUMI_PROXY  = 'https://aniumi.bionmovies47.workers.dev'; // CF Worker proxy for Popular Anime
+      const TMDB_LEGACY   = 'https://aniocen.bionmovies47.workers.dev'; // old TMDB worker fallback
+      const ANIKOTO_API   = 'https://anikoto.bionmovies47.workers.dev'; // direct anikoto fallback
       const TMDB_IMAGE = 'https://image.tmdb.org/t/p';
       const tmdbImg = (p,s='w500') => p ? `${TMDB_IMAGE}/${s}${p}` : '';
       const tmdbBack = (p) => p ? `${TMDB_IMAGE}/w1280${p}` : '';
@@ -1055,49 +1057,77 @@
       };
 
       async function fetchAnikoto(endpoint) {
-  try {
-    const res = await fetch(`${ANIKOTO_API}${endpoint}`, {
-      method: 'GET',
-      headers: { 'Accept': 'application/json' }
-    });
-    if (!res.ok) {
-      console.error(`Anikoto API HTTP ${res.status}`);
-      return { ok: false, data: [] };
-    }
-    const json = await res.json();
-    // Wrap the raw JSON with an ok flag, ensuring data is accessible
-    return { ok: true, data: json.data || json };
-  } catch(e) {
-    console.error('Anikoto fetch error:', e);
-    return { ok: false, data: [] };
-  }
-}
+        // 1) Try universal proxy (cached, CORS-safe)
+        try {
+          const proxyPath = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+          const res = await fetch(`${ANIUMI_PROXY}/anikoto${proxyPath}`, {
+            headers: { Accept: 'application/json' },
+            signal: AbortSignal.timeout(8000)
+          });
+          if (res.ok) {
+            const json = await res.json();
+            return { ok: true, data: json.data || json };
+          }
+        } catch(e) { /* proxy down — fall through */ }
+        // 2) Direct Anikoto fallback
+        try {
+          const res = await fetch(`${ANIKOTO_API}${endpoint}`, {
+            headers: { Accept: 'application/json' }
+          });
+          if (!res.ok) return { ok: false, data: [] };
+          const json = await res.json();
+          return { ok: true, data: json.data || json };
+        } catch(e) {
+          console.error('Anikoto fetch error:', e);
+          return { ok: false, data: [] };
+        }
+      }
 
       async function fetchTMDB(endpoint, params='') {
-        const url = `${TMDB_PROXY}/3${endpoint}?${params}`;
-        const res = await fetch(url); if(!res.ok) return {results:[]};
-        return res.json();
+        // 1) Universal proxy — /tmdb/<endpoint> (cached 10 min, no API key needed on frontend)
+        try {
+          const qs  = params ? `?${params}` : '';
+          const res = await fetch(`${ANIUMI_PROXY}/tmdb${endpoint}${qs}`, {
+            headers: { Accept: 'application/json' },
+            signal: AbortSignal.timeout(8000)
+          });
+          if (res.ok) return await res.json();
+        } catch(e) { /* proxy down — fall through */ }
+        // 2) Legacy aniocen worker fallback (keeps working if aniumi is not yet deployed)
+        try {
+          const qs  = params ? `?${params}` : '';
+          const res = await fetch(`${TMDB_LEGACY}/3${endpoint}${qs}`);
+          if (res.ok) return await res.json();
+        } catch(e) { /* both failed */ }
+        return { results: [] };
       }
-      async function fetchJikan(endpoint, params='', retries=3) {
-        const url = `${JIKAN_BASE}/${endpoint}?${params}`;
+      async function fetchJikan(endpoint, params='', retries=2) {
+        const qs = params ? `?${params}` : '';
+        // 1) Universal proxy — cached 5 min, handles Jikan rate-limits server-side
+        try {
+          const res = await fetch(`${ANIUMI_PROXY}/jikan/${endpoint}${qs}`, {
+            headers: { Accept: 'application/json' },
+            signal: AbortSignal.timeout(8000)
+          });
+          if (res.ok) return await res.json();
+        } catch(e) { /* proxy down — fall through to direct */ }
+        // 2) Direct Jikan with retry (safety net)
+        const directUrl = `${JIKAN_BASE}/${endpoint}${qs}`;
         for (let attempt = 1; attempt <= retries; attempt++) {
           try {
-            const res = await fetch(url);
+            const res = await fetch(directUrl);
             if (res.ok) return await res.json();
             if (res.status === 429) {
-              // Rate limited - wait and retry
-              const wait = attempt * 1500;
-              console.warn(`Jikan rate limited, retry ${attempt}/${retries} in ${wait}ms`);
-              await new Promise(r => setTimeout(r, wait));
+              await new Promise(r => setTimeout(r, attempt * 1500));
               continue;
             }
-            return {data:[]};
+            return { data: [] };
           } catch(e) {
-            if (attempt === retries) { console.error('Jikan fetch failed:', e); return {data:[]}; }
+            if (attempt === retries) { console.error('Jikan fetch failed:', e); return { data: [] }; }
             await new Promise(r => setTimeout(r, attempt * 1000));
           }
         }
-        return {data:[]};
+        return { data: [] };
       }
 
       /* Deduplicate anime by mal_id across all sources */
@@ -1783,30 +1813,13 @@ window.showAnikotoPopupById = function(mal_id) {
       document.getElementById('popupOverlay').addEventListener('click', function(e){ if(e.target===this) window.hidePopup(); });
 
       /* ── POPULAR ANIME (Miruro-style list, sorted by score+popularity+rank) ── */
-      // Fetch Jikan via proxy with Jikan direct fallback
-      async function fetchPopularAnimeData(endpoint, params) {
-        const qs = params ? `?${params}` : '';
-        // 1) Try CF Worker proxy first (cached, no rate-limit issues)
-        try {
-          const proxyUrl = `${ANIUMI_PROXY}/jikan/${endpoint}${qs}`;
-          const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(8000) });
-          if (res.ok) {
-            const data = await res.json();
-            if (data?.data?.length) return data;
-          }
-        } catch(e) { /* proxy unavailable — fall through to direct */ }
-        // 2) Fallback: direct Jikan API
-        return fetchJikan(endpoint, params);
-      }
-
       async function loadPopularAnime() {
         try {
-          // Fetch top anime sorted by score (highly rated AND popular)
-          // Uses CF Worker proxy with automatic Jikan fallback
+          // Fetch top anime — proxy-first (CF cached), Jikan direct fallback built into fetchJikan
           const [page1, page2, page3] = await Promise.all([
-            fetchPopularAnimeData('top/anime', 'filter=bypopularity&limit=25&page=1'),
-            fetchPopularAnimeData('top/anime', 'filter=bypopularity&limit=25&page=2'),
-            fetchPopularAnimeData('top/anime', 'limit=25&page=1'),
+            fetchJikan('top/anime', 'filter=bypopularity&limit=25&page=1'),
+            fetchJikan('top/anime', 'filter=bypopularity&limit=25&page=2'),
+            fetchJikan('top/anime', 'limit=25&page=1'),
           ]);
           const all = [
             ...(page1.data||[]),
