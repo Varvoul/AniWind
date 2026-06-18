@@ -579,7 +579,7 @@
            the vertical space the form fields need. */
         border-top-left-radius:16px;border-top-right-radius:16px;
       }
-      .auth-mobile-carousel.carousel-signin{ aspect-ratio:16/5.5; }
+      .auth-mobile-carousel.carousel-signin{ aspect-ratio:16/7.5; }
       .auth-mobile-carousel.carousel-signup{ aspect-ratio:16/3.5; }
       .auth-mobile-carousel.carousel-forgot{ aspect-ratio:16/6; }
       .auth-form-col{
