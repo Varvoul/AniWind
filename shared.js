@@ -43,21 +43,32 @@
   ═══════════════════════════════════════════════════════════ */
   async function getUserGeo() {
     if (cachedGeo) return cachedGeo;
+    // Browser local timezone (always available, no API needed)
+    const localTz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+    // Compute UTC offset string e.g. "UTC+6" or "UTC-5"
+    const offsetMin  = -new Date().getTimezoneOffset();
+    const offsetSign = offsetMin >= 0 ? '+' : '-';
+    const offsetHrs  = Math.floor(Math.abs(offsetMin) / 60);
+    const offsetMins = Math.abs(offsetMin) % 60;
+    const utcOffset  = 'UTC' + offsetSign + offsetHrs + (offsetMins ? ':' + String(offsetMins).padStart(2,'0') : '');
     const fallback = {
       ip: null, country: null, country_code: null,
-      state: null, city: null, timezone: null
+      state: null, city: null,
+      local_timezone: localTz, utc_offset: utcOffset, timezone: localTz
     };
     try {
       const res = await fetch('https://ipapi.co/json/', { cache: 'no-store' });
       if (res.ok) {
         const j = await res.json();
         cachedGeo = {
-          ip:           j.ip || null,
-          country:      j.country_name || null,
-          country_code: j.country_code || null,
-          state:        j.region || null,
-          city:         j.city || null,
-          timezone:     j.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || null
+          ip:             j.ip || null,
+          country:        j.country_name || null,
+          country_code:   j.country_code || null,
+          state:          j.region || null,
+          city:           j.city || null,
+          local_timezone: localTz,
+          utc_offset:     utcOffset,
+          timezone:       localTz   // kept for backward compat
         };
         return cachedGeo;
       }
@@ -66,13 +77,11 @@
       const r2 = await fetch('https://api.ipify.org?format=json', { cache: 'no-store' });
       if (r2.ok) {
         const j2 = await r2.json();
-        cachedGeo = { ...fallback, ip: j2.ip || null,
-                      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || null };
+        cachedGeo = { ...fallback, ip: j2.ip || null };
         return cachedGeo;
       }
     } catch (e) { /* give up gracefully */ }
-    cachedGeo = { ...fallback,
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || null };
+    cachedGeo = fallback;
     return cachedGeo;
   }
 
@@ -524,7 +533,14 @@
     .auth-mobile-carousel{
       display:none;position:relative;width:100%;
       aspect-ratio:16/9;overflow:hidden;background:#000;flex-shrink:0;
+      transition:aspect-ratio .3s ease;
     }
+    /* Sign-in has less content → taller carousel looks balanced */
+    .auth-mobile-carousel.carousel-signin{ aspect-ratio:16/5.5; }
+    /* Sign-up has avatar+fields → keep image short */
+    .auth-mobile-carousel.carousel-signup{ aspect-ratio:16/4; }
+    /* Forgot password — minimal content, medium image */
+    .auth-mobile-carousel.carousel-forgot{ aspect-ratio:16/5; }
     .auth-mobile-carousel .mc-slide{
       position:absolute;inset:0;background-size:cover;background-position:center;
       opacity:0;transform:scale(1.06);
@@ -557,9 +573,11 @@
            well below the original 16/9.  16/6 ≈ 38vw tall — enough to
            show the anime character's face clearly without consuming
            the vertical space the form fields need. */
-        aspect-ratio:16/4;
         border-top-left-radius:16px;border-top-right-radius:16px;
       }
+      .auth-mobile-carousel.carousel-signin{ aspect-ratio:16/4.5; }
+      .auth-mobile-carousel.carousel-signup{ aspect-ratio:16/3.5; }
+      .auth-mobile-carousel.carousel-forgot{ aspect-ratio:16/4; }
       .auth-form-col{
         padding:10px 16px 12px;flex:1;
         border-radius:0 0 16px 16px;
@@ -625,7 +643,9 @@
     @media(max-width:480px){
       .auth-overlay{padding:8px;}
       .auth-modal{max-width:96vw;max-height:92vh;}
-      .auth-mobile-carousel{aspect-ratio:16/3.5;}
+      .auth-mobile-carousel.carousel-signin{ aspect-ratio:16/4; }
+      .auth-mobile-carousel.carousel-signup{ aspect-ratio:16/3; }
+      .auth-mobile-carousel.carousel-forgot{ aspect-ratio:16/3.5; }
       .auth-form-col{padding:8px 12px 10px;}
       .auth-heading{font-size:0.98rem;}
       .auth-subheading{font-size:0.66rem;margin-bottom:8px;}
@@ -648,7 +668,9 @@
     /* ── TINY PHONES (≤ 380px) — minimal ── */
     @media(max-width:380px){
       .auth-modal{max-width:98vw;max-height:94vh;}
-      .auth-mobile-carousel{aspect-ratio:16/3;}
+      .auth-mobile-carousel.carousel-signin{ aspect-ratio:16/3.5; }
+      .auth-mobile-carousel.carousel-signup{ aspect-ratio:16/2.5; }
+      .auth-mobile-carousel.carousel-forgot{ aspect-ratio:16/3; }
       .auth-form-col{padding:6px 10px 8px;}
       .auth-heading{font-size:0.92rem;}
       .auth-subheading{font-size:0.62rem;margin-bottom:6px;}
@@ -1660,6 +1682,12 @@
 
   function openModal(n = 0) {
     document.getElementById('authOverlay').classList.add('open');
+    // Set initial carousel class based on which slide we're opening
+    const _carousel = document.getElementById('authMobileCarousel');
+    if (_carousel) {
+      _carousel.classList.remove('carousel-signin','carousel-signup','carousel-forgot');
+      _carousel.classList.add(n === 0 ? 'carousel-signin' : n === 1 ? 'carousel-signup' : 'carousel-forgot');
+    }
     // Lock the body so the page behind the modal cannot scroll.
     // Save the current scroll offset first so we can restore it on close.
     aniumiSavedScrollY = window.scrollY || window.pageYOffset || 0;
@@ -1693,10 +1721,15 @@
     document.querySelectorAll('.form-slide').forEach((s, i) => {
       s.classList.toggle('active', i === n);
     });
-    // Each slide has its own hCaptcha widget.  Reset both so a stale
-    // token from the slide the user just left isn't reused for the new
-    // slide's submit (Supabase would reject it as "captcha_failed").
-    // Also keep the active slide's widget ready for the user to solve.
+    // Update carousel aspect-ratio class per slide so sign-in gets a
+    // taller image (less form content) and sign-up gets a shorter one.
+    const carousel = document.getElementById('authMobileCarousel');
+    if (carousel) {
+      carousel.classList.remove('carousel-signin','carousel-signup','carousel-forgot');
+      if (n === 0) carousel.classList.add('carousel-signin');
+      else if (n === 1) carousel.classList.add('carousel-signup');
+      else carousel.classList.add('carousel-forgot');
+    }
     resetHCaptcha();
   }
 
@@ -2104,17 +2137,20 @@
     try {
       const geo = await getUserGeo();
       const { data: cur } = await supabase
-        .from('profiles').select('login_count').eq('user_id', userId).maybeSingle();
+        .from('profiles').select('login_count,first_login_date').eq('user_id', userId).maybeSingle();
+      const now = new Date().toISOString();
       const patch = {
-        last_login_date: new Date().toISOString(),
+        last_login_date: now,
         login_count:     (cur?.login_count ? cur.login_count + 1 : 1),
-        ip_address_text: geo.ip || null,
-        country:         geo.country,
-        country_code:    geo.country_code,
-        state:           geo.state,
-        city:            geo.city,
-        timezone:        geo.timezone,
-        updated_at:      new Date().toISOString()
+        first_login_date: cur?.first_login_date || now,
+        ip_address_text: geo.ip            || null,
+        country:         geo.country       || null,
+        country_code:    geo.country_code  || null,
+        state:           geo.state         || null,
+        city:            geo.city          || null,
+        local_timezone:  geo.local_timezone|| geo.timezone || null,
+        utc_offset:      geo.utc_offset    || null,
+        updated_at:      now
       };
       await supabase.from('profiles').update(patch).eq('user_id', userId);
     } catch (e) { console.warn('[recordLogin] failed:', e); }
@@ -2178,24 +2214,27 @@
     const googleImg   = meta.avatar_url || meta.picture || null;
     const currentAvatar = profile?.avatar_url || googleImg || DEFAULT_AVATAR;
 
+    const now = new Date().toISOString();
     const patch = {
-      last_login_date: new Date().toISOString(),
+      last_login_date:         now,
       google_account_username: profile?.google_account_username || googleName,
       gmail_address:           profile?.gmail_address           || gmail,
       google_profile_image:    profile?.google_profile_image    || googleImg,
-      updated_at:              new Date().toISOString()
+      updated_at:              now
     };
     if (geo) {
-      patch.ip_address_text = geo.ip || null;
-      patch.country         = geo.country      || null;
-      patch.country_code    = geo.country_code || null;
-      patch.state           = geo.state        || null;
-      patch.city            = geo.city         || null;
-      patch.timezone        = geo.timezone     || null;
+      patch.ip_address_text = geo.ip             || null;
+      patch.country         = geo.country        || null;
+      patch.country_code    = geo.country_code   || null;
+      patch.state           = geo.state          || null;
+      patch.city            = geo.city           || null;
+      patch.local_timezone  = geo.local_timezone || geo.timezone || null;
+      patch.utc_offset      = geo.utc_offset     || null;
     }
     if (profile?.login_count) patch.login_count = profile.login_count + 1;
     else if (!profile) {
-      patch.first_login_date = new Date().toISOString();
+      patch.first_login_date = now;
+      patch.account_created_at = now;
       patch.login_count = 1;
     }
     try {
