@@ -487,7 +487,7 @@
     .form-slide:not(.active){pointer-events:none;}
 
     /* hCaptcha responsive scaling — smaller on mobile, normal on desktop */
-    .cf-wrap{display:flex;justify-content:center;min-height:78px;align-items:center;}
+    .cf-wrap{display:flex;justify-content:center;min-height:0;align-items:center;}
     .cf-wrap iframe{max-width:100%;transform-origin:center center;border:0;}
 
     /* Password + Confirm password side-by-side (saves vertical space) */
@@ -557,7 +557,7 @@
            well below the original 16/9.  16/6 ≈ 38vw tall — enough to
            show the anime character's face clearly without consuming
            the vertical space the form fields need. */
-        aspect-ratio:16/6;
+        aspect-ratio:16/4;
         border-top-left-radius:16px;border-top-right-radius:16px;
       }
       .auth-form-col{
@@ -607,13 +607,13 @@
       /* Avatar picker — pre-set with Frieren, click to change.
          Made slightly bigger (60→72) so the Frieren avatar is clearly
          visible as the default profile picture. */
-      .avatar-pick-wrap{margin-bottom:8px;}
-      .avatar-frame{width:72px;height:72px;}
+      .avatar-pick-wrap{margin-bottom:2px;}
+      .avatar-frame{width:56px;height:56px;}
       .avatar-frame::after{width:20px;height:20px;font-size:11px;}
       .avatar-pick-lbl{font-size:0.62rem;margin-top:5px;}
 
       /* Compact hCaptcha on mobile — minimum viable size. */
-      .cf-wrap{min-height:54px;margin:4px 0 6px;}
+      .cf-wrap{min-height:0;margin:2px 0 3px;}
       .cf-wrap iframe{transform:scale(.72);}
 
       /* Password strength bar — tighter. */
@@ -625,7 +625,7 @@
     @media(max-width:480px){
       .auth-overlay{padding:8px;}
       .auth-modal{max-width:96vw;max-height:92vh;}
-      .auth-mobile-carousel{aspect-ratio:16/5;}
+      .auth-mobile-carousel{aspect-ratio:16/3.5;}
       .auth-form-col{padding:8px 12px 10px;}
       .auth-heading{font-size:0.98rem;}
       .auth-subheading{font-size:0.66rem;margin-bottom:8px;}
@@ -636,9 +636,9 @@
       .btn-google{padding:7px;font-size:0.7rem;margin-bottom:6px;}
       .divider{margin:6px 0;font-size:0.62rem;}
       .auth-switch{margin-top:8px;font-size:0.64rem;}
-      .avatar-frame{width:60px;height:60px;}
-      .avatar-pick-wrap{margin-bottom:6px;}
-      .cf-wrap{min-height:48px;margin:3px 0 4px;}
+      .avatar-frame{width:50px;height:50px;}
+      .avatar-pick-wrap{margin-bottom:2px;}
+      .cf-wrap{min-height:0;margin:1px 0 3px;}
       .cf-wrap iframe{transform:scale(.66);}
       .terms-row{font-size:0.62rem;margin-bottom:6px;}
       /* Username + Email row — tighten gap on small phones. */
@@ -648,7 +648,7 @@
     /* ── TINY PHONES (≤ 380px) — minimal ── */
     @media(max-width:380px){
       .auth-modal{max-width:98vw;max-height:94vh;}
-      .auth-mobile-carousel{aspect-ratio:16/4;}
+      .auth-mobile-carousel{aspect-ratio:16/3;}
       .auth-form-col{padding:6px 10px 8px;}
       .auth-heading{font-size:0.92rem;}
       .auth-subheading{font-size:0.62rem;margin-bottom:6px;}
@@ -656,16 +656,16 @@
       .field-input{padding:6px 9px;font-size:0.7rem;}
       .btn-primary-full{padding:7px;font-size:0.7rem;}
       .btn-google{padding:6px;font-size:0.66rem;margin-bottom:5px;}
-      .cf-wrap{min-height:42px;}
+      .cf-wrap{min-height:0;}
       .cf-wrap iframe{transform:scale(.6);}
       .auth-switch{margin-top:6px;}
-      .avatar-frame{width:54px;height:54px;}
+      .avatar-frame{width:46px;height:46px;}
       .avatar-frame::after{width:18px;height:18px;font-size:10px;}
     }
 
     /* Fields */
     .auth-heading{font-size:1.25rem;font-weight:800;color:#fff;margin-bottom:4px;}
-    .auth-subheading{font-size:0.76rem;color:var(--text-muted,#888);margin-bottom:18px;}
+    .auth-subheading{font-size:0.76rem;color:var(--text-muted,#888);margin-bottom:10px;}
     .auth-subheading span{color:var(--btn-primary,#3b82f6);font-weight:600;}
     .field-group{margin-bottom:12px;}
     .field-group label{
@@ -698,7 +698,7 @@
     }
 
     /* Avatar frame */
-    .avatar-pick-wrap{display:flex;flex-direction:column;align-items:center;margin-bottom:14px;}
+    .avatar-pick-wrap{display:flex;flex-direction:column;align-items:center;margin-bottom:6px;}
     /* Two-column field row (username + email side-by-side on Sign Up) */
     .field-row-2{
       display:grid;grid-template-columns:1fr 1fr;gap:10px;
@@ -726,7 +726,7 @@
       font-size:12px;display:flex;align-items:center;justify-content:center;
       border:2px solid var(--bg-body,#13191f);pointer-events:none;
     }
-    .avatar-pick-lbl{font-size:0.66rem;color:var(--text-muted,#888);margin-top:8px;text-align:center;}
+    .avatar-pick-lbl{font-size:0.62rem;color:var(--text-muted,#888);margin-top:3px;text-align:center;}
 
     /* Avatar popup */
     .avatar-popup-overlay{
@@ -768,7 +768,7 @@
     .avatar-opt img{width:100%;height:100%;object-fit:cover;}
 
     /* Cloudflare Turnstile wrapper */
-    .cf-wrap{margin-bottom:12px;display:flex;justify-content:center;}
+    .cf-wrap{margin-bottom:4px;display:flex;justify-content:center;}
 
     /* Forgot password link */
     .forgot-btn{
