@@ -539,11 +539,12 @@
       transition:aspect-ratio .3s ease;
     }
     /* Sign-in has less content → taller carousel looks balanced */
-    .auth-mobile-carousel.carousel-signin{ aspect-ratio:16/5.5; }
-    /* Sign-up has avatar+fields → keep image short */
+    /* Sign-in & forgot: taller image — less form content below */
+    .auth-mobile-carousel.carousel-signin{ aspect-ratio:16/6.5; }
+    /* Sign-up: short — avatar + 4 fields need the space */
     .auth-mobile-carousel.carousel-signup{ aspect-ratio:16/4; }
-    /* Forgot password — minimal content, medium image */
-    .auth-mobile-carousel.carousel-forgot{ aspect-ratio:16/5; }
+    /* Forgot: tallest — only 1 field */
+    .auth-mobile-carousel.carousel-forgot{ aspect-ratio:16/7; }
     .auth-mobile-carousel .mc-slide{
       position:absolute;inset:0;background-size:cover;background-position:center;
       opacity:0;transform:scale(1.06);
@@ -578,9 +579,9 @@
            the vertical space the form fields need. */
         border-top-left-radius:16px;border-top-right-radius:16px;
       }
-      .auth-mobile-carousel.carousel-signin{ aspect-ratio:16/4.5; }
+      .auth-mobile-carousel.carousel-signin{ aspect-ratio:16/5.5; }
       .auth-mobile-carousel.carousel-signup{ aspect-ratio:16/3.5; }
-      .auth-mobile-carousel.carousel-forgot{ aspect-ratio:16/4; }
+      .auth-mobile-carousel.carousel-forgot{ aspect-ratio:16/6; }
       .auth-form-col{
         padding:10px 16px 12px;flex:1;
         border-radius:0 0 16px 16px;
@@ -647,9 +648,9 @@
     @media(max-width:480px){
       .auth-overlay{padding:8px;}
       .auth-modal{max-width:96vw;max-height:92vh;}
-      .auth-mobile-carousel.carousel-signin{ aspect-ratio:16/4; }
+      .auth-mobile-carousel.carousel-signin{ aspect-ratio:16/4.8; }
       .auth-mobile-carousel.carousel-signup{ aspect-ratio:16/3; }
-      .auth-mobile-carousel.carousel-forgot{ aspect-ratio:16/3.5; }
+      .auth-mobile-carousel.carousel-forgot{ aspect-ratio:16/5.2; }
       .auth-form-col{padding:8px 12px 10px;}
       .auth-heading{font-size:0.98rem;}
       .auth-subheading{font-size:0.66rem;margin-bottom:8px;}
@@ -673,9 +674,9 @@
     /* ── TINY PHONES (≤ 380px) — minimal ── */
     @media(max-width:380px){
       .auth-modal{max-width:98vw;max-height:94vh;}
-      .auth-mobile-carousel.carousel-signin{ aspect-ratio:16/3.5; }
+      .auth-mobile-carousel.carousel-signin{ aspect-ratio:16/4.2; }
       .auth-mobile-carousel.carousel-signup{ aspect-ratio:16/2.5; }
-      .auth-mobile-carousel.carousel-forgot{ aspect-ratio:16/3; }
+      .auth-mobile-carousel.carousel-forgot{ aspect-ratio:16/4.5; }
       .auth-form-col{padding:6px 10px 8px;}
       .auth-heading{font-size:0.92rem;}
       .auth-subheading{font-size:0.62rem;margin-bottom:6px;}
@@ -1320,9 +1321,9 @@
     initAvatarPicker();
 
     // Auth state listener with session expiry
-    supabase.auth.onAuthStateChange(async (_evt, session) => {
+    supabase.auth.onAuthStateChange(async (evt, session) => {
       currentUser = session?.user || null;
-      // Session expiry check: if session exists but is older than SESSION_MAX_AGE, sign out
+      // Session expiry check
       if (session) {
         const lastActivity = localStorage.getItem('aniumi_last_activity');
         const now = Date.now();
@@ -1333,7 +1334,9 @@
           localStorage.setItem('aniumi_last_activity', now.toString());
         }
       }
-      updateUserUI();
+      // Pass the auth event so handleOAuthCallback only increments
+      // login_count on a genuine new sign-in, not on every page load.
+      updateUserUI(evt);
     });
     // Track activity for session expiry
     ['click', 'keydown', 'scroll', 'mousemove'].forEach(evt => {
@@ -1402,6 +1405,12 @@
       // 3) Clear the local user state synchronously so the header
       //    reverts to "Sign In" instantly — don't wait for the network.
       currentUser = null;
+      // Clear OAuth login-counted flag so next sign-in is counted properly
+      try {
+        Object.keys(sessionStorage)
+          .filter(k => k.startsWith('aniumi_oauth_counted_'))
+          .forEach(k => sessionStorage.removeItem(k));
+      } catch(e) {}
       // 4) Update UI synchronously: hide avatar, show Sign In button.
       //    We pass { skipNetwork:true } so updateUserUI doesn't re-fetch
       //    the user from Supabase (which would still return the old
@@ -2084,7 +2093,7 @@
   /* ═══════════════════════════════════════════════════════════
      USER UI UPDATE
   ═══════════════════════════════════════════════════════════ */
-  async function updateUserUI() {
+  async function updateUserUI(authEvent) {
     const { data: { user } } = await supabase.auth.getUser();
     currentUser = user;
 
@@ -2122,7 +2131,7 @@
       if (mobDdUn) mobDdUn.textContent = username;
 
       // ─── OAuth redirect: pick up stashed geo & persist Google avatar ───
-      await handleOAuthCallback(user, profile);
+      await handleOAuthCallback(user, profile, authEvent);
 
       // ─── Start realtime subscriptions for this user ───
       initRealtime(user.id);
@@ -2140,25 +2149,44 @@
      on every password sign-in.
   ═══════════════════════════════════════════════════════════ */
   async function recordLogin(userId) {
+    // Uses an atomic Postgres RPC so login_count is never double-counted
+    // even if the function is called twice (tab restore, strict-mode etc.).
     try {
       const geo = await getUserGeo();
-      const { data: cur } = await supabase
-        .from('profiles').select('login_count,first_login_date').eq('user_id', userId).maybeSingle();
       const now = new Date().toISOString();
-      const patch = {
-        last_login_date: now,
-        login_count:     (cur?.login_count ? cur.login_count + 1 : 1),
-        first_login_date: cur?.first_login_date || now,
-        ip_address_text: geo.ip            || null,
-        country:         geo.country       || null,
-        country_code:    geo.country_code  || null,
-        state:           geo.state         || null,
-        city:            geo.city          || null,
-        local_timezone:  geo.local_timezone|| geo.timezone || null,
-        utc_offset:      geo.utc_offset    || null,
-        updated_at:      now
-      };
-      await supabase.from('profiles').update(patch).eq('user_id', userId);
+      // Atomic increment + geo update in one round-trip — no SELECT race.
+      const { error } = await supabase.rpc('increment_login', {
+        p_user_id:       userId,
+        p_now:           now,
+        p_ip:            geo.ip             || null,
+        p_country:       geo.country        || null,
+        p_country_code:  geo.country_code   || null,
+        p_state:         geo.state          || null,
+        p_city:          geo.city           || null,
+        p_local_tz:      geo.local_timezone || geo.timezone || null,
+        p_utc_offset:    geo.utc_offset     || null
+      });
+      if (error) {
+        // RPC not deployed yet — fall back to safe client-side increment
+        console.warn('[recordLogin] RPC failed, using fallback:', error.message);
+        const { data: cur } = await supabase
+          .from('profiles').select('login_count,first_login_date').eq('user_id', userId).maybeSingle();
+        const patch = {
+          last_login_date:  now,
+          // COALESCE(login_count,0)+1 — never set to 1 if already > 0
+          login_count:      (cur?.login_count != null ? cur.login_count + 1 : 1),
+          first_login_date: cur?.first_login_date || now,
+          ip_address_text:  geo.ip             || null,
+          country:          geo.country        || null,
+          country_code:     geo.country_code   || null,
+          state:            geo.state          || null,
+          city:             geo.city           || null,
+          local_timezone:   geo.local_timezone || geo.timezone || null,
+          utc_offset:       geo.utc_offset     || null,
+          updated_at:       now
+        };
+        await supabase.from('profiles').update(patch).eq('user_id', userId);
+      }
     } catch (e) { console.warn('[recordLogin] failed:', e); }
   }
 
@@ -2203,8 +2231,17 @@
        it lives forever (Google's URL can disappear if the user
        changes their Google photo).
   ═══════════════════════════════════════════════════════════ */
-  async function handleOAuthCallback(user, profile) {
+  async function handleOAuthCallback(user, profile, authEvent) {
     if (!user) return;
+    // Only run the login-count increment on a genuine new OAuth sign-in.
+    // 'SIGNED_IN' fires on fresh login AND on page-load token refresh —
+    // we distinguish them with a sessionStorage flag so refreshes don't
+    // double-count. 'USER_UPDATED' and 'TOKEN_REFRESHED' are never logins.
+    const isGenuineLogin = (authEvent === 'SIGNED_IN') &&
+      !sessionStorage.getItem('aniumi_oauth_counted_' + user.id);
+    if (isGenuineLogin) {
+      sessionStorage.setItem('aniumi_oauth_counted_' + user.id, '1');
+    }
     let geo = null;
     try { geo = JSON.parse(localStorage.getItem('aniumi_pending_geo') || 'null'); } catch(e){}
     try { localStorage.removeItem('aniumi_pending_geo'); } catch(e){}
@@ -2237,11 +2274,15 @@
       patch.local_timezone  = geo.local_timezone || geo.timezone || null;
       patch.utc_offset      = geo.utc_offset     || null;
     }
-    if (profile?.login_count) patch.login_count = profile.login_count + 1;
-    else if (!profile) {
-      patch.first_login_date = now;
-      patch.account_created_at = now;
-      patch.login_count = 1;
+    // Only increment login_count on a genuine new sign-in (not page refresh)
+    if (isGenuineLogin) {
+      if (profile?.login_count != null) {
+        patch.login_count = profile.login_count + 1;
+      } else {
+        patch.login_count    = 1;
+        patch.first_login_date = now;
+        patch.account_created_at = now;
+      }
     }
     try {
       await supabase.from('profiles').update(patch).eq('user_id', user.id);
