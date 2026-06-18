@@ -1,120 +1,120 @@
 /**
- * aniumi — Jikan API proxy for aniumi.vercel.app
- * 
+ * aniumi — Universal API proxy for aniumi.vercel.app
+ * Deployed at: https://aniumi.bionmovies47.workers.dev
+ *
  * Routes:
- *   /jikan/*        → https://api.jikan.moe/v4/*  (with caching + rate-limit retry)
- *   /health         → {"ok":true}
+ *   GET /jikan/<path>?<params>   → https://api.jikan.moe/v4/<path>?<params>
+ *   GET /tmdb/<path>?<params>    → https://api.themoviedb.org/3/<path>?<params>
+ *   GET /3/<path>?<params>       → https://api.themoviedb.org/3/<path>?<params>  (legacy compat)
+ *   GET /anikoto/<path>?<params> → https://anikoto.bionmovies47.workers.dev/<path>?<params>
+ *   GET /health                  → { ok: true }
  *
  * Features:
- *   - CORS headers so the browser can call it directly
- *   - Cloudflare Cache API (5-min TTL) to avoid hammering Jikan's 3 req/s limit
- *   - Automatic 429 retry with back-off (up to 3 attempts)
- *   - Forwards all query params unchanged
+ *   CORS open to any origin, CF Cache API (5-min Jikan / 10-min TMDB / 2-min Anikoto),
+ *   429/503 auto-retry with back-off, 8s timeout, graceful JSON errors.
+ *
+ * Env variable (CF dashboard → Workers → aniumi → Settings → Variables):
+ *   TMDB_API_KEY — your TMDB v3 Bearer read-access token
  */
 
-const JIKAN_BASE = 'https://api.jikan.moe/v4';
-const CACHE_TTL  = 300; // 5 minutes
-const MAX_RETRY  = 3;
-const ALLOWED_ORIGINS = [
-  'https://aniumi.vercel.app',
-  'https://aniocean.vercel.app',
-  'http://localhost',
-];
-
-const CORS_HEADERS = {
+const JIKAN_BASE   = 'https://api.jikan.moe/v4';
+const TMDB_BASE    = 'https://api.themoviedb.org/3';
+const ANIKOTO_BASE = 'https://anikoto.bionmovies47.workers.dev';
+const TTL          = { jikan: 300, tmdb: 600, anikoto: 120 };
+const CORS = {
   'Access-Control-Allow-Origin':  '*',
   'Access-Control-Allow-Methods': 'GET, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   'Access-Control-Max-Age':       '86400',
 };
 
 function jsonResp(data, status = 200, extra = {}) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: {
-      'Content-Type': 'application/json;charset=UTF-8',
-      ...CORS_HEADERS,
-      ...extra,
-    },
+    headers: { 'Content-Type': 'application/json;charset=UTF-8', ...CORS, ...extra },
   });
 }
 
-async function fetchJikanWithRetry(url, attempt = 1) {
-  const res = await fetch(url, {
-    headers: { 'Accept': 'application/json' },
-    cf: { cacheTtl: CACHE_TTL, cacheEverything: true },
-  });
+async function proxyFetch(upstreamUrl, authHeaders = {}, ttl = 300) {
+  const cache    = caches.default;
+  const cacheKey = new Request(upstreamUrl, { method: 'GET' });
 
-  // Jikan rate-limit: retry with exponential back-off
-  if (res.status === 429 && attempt < MAX_RETRY) {
-    const wait = attempt * 600; // 600ms, 1200ms
-    await new Promise(r => setTimeout(r, wait));
-    return fetchJikanWithRetry(url, attempt + 1);
+  // 1) Try CF cache first
+  const cached = await cache.match(cacheKey);
+  if (cached) {
+    const r = new Response(cached.body, cached);
+    r.headers.set('X-Cache', 'HIT');
+    r.headers.set('Access-Control-Allow-Origin', '*');
+    return r;
   }
 
-  return res;
+  // 2) Fetch upstream with up to 3 attempts (handles 429 rate-limits)
+  let lastErr;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const ctrl = new AbortController();
+      const tid  = setTimeout(() => ctrl.abort(), 8000);
+      const res  = await fetch(upstreamUrl, {
+        headers: { Accept: 'application/json', ...authHeaders },
+        signal: ctrl.signal,
+      });
+      clearTimeout(tid);
+
+      if ((res.status === 429 || res.status === 503) && attempt < 3) {
+        await new Promise(r => setTimeout(r, attempt * 700));
+        continue;
+      }
+      if (!res.ok) return jsonResp({ error: `Upstream ${res.status}`, url: upstreamUrl }, res.status);
+
+      const data  = await res.json();
+      const reply = jsonResp(data, 200, {
+        'Cache-Control': `public, max-age=${ttl}, s-maxage=${ttl}`,
+        'X-Cache': 'MISS',
+        'X-Proxied': upstreamUrl,
+      });
+      cache.put(cacheKey, reply.clone()).catch(() => {});
+      return reply;
+    } catch (e) {
+      lastErr = e;
+      if (attempt < 3) await new Promise(r => setTimeout(r, attempt * 500));
+    }
+  }
+  return jsonResp({ error: lastErr?.message || 'Fetch failed', url: upstreamUrl }, 502);
 }
 
 export default {
-  async fetch(request, env, ctx) {
-    const url    = new URL(request.url);
-    const path   = url.pathname;
+  async fetch(request, env) {
+    const { pathname: path, search } = new URL(request.url);
 
-    // ── Pre-flight CORS ──────────────────────────────────────
-    if (request.method === 'OPTIONS') {
-      return new Response(null, { status: 204, headers: CORS_HEADERS });
+    if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
+    if (path === '/health' || path === '/') {
+      return jsonResp({ ok: true, ts: Date.now(), routes: ['/jikan/*','/tmdb/*','/3/*','/anikoto/*'] });
     }
 
-    // ── Health check ─────────────────────────────────────────
-    if (path === '/health') {
-      return jsonResp({ ok: true, ts: Date.now() });
-    }
-
-    // ── Jikan proxy: /jikan/<endpoint>?<params> ───────────────
+    // ── Jikan ──────────────────────────────────────────────────────────────
     if (path.startsWith('/jikan/')) {
-      const jikanPath   = path.replace('/jikan/', '');
-      const queryString = url.search; // preserves ?filter=...&limit=...&page=...
-      const jikanUrl    = `${JIKAN_BASE}/${jikanPath}${queryString}`;
-
-      // Check Cloudflare cache first
-      const cache     = caches.default;
-      const cacheKey  = new Request(jikanUrl, { method: 'GET' });
-      const cached    = await cache.match(cacheKey);
-      if (cached) {
-        // Return cached response with a header so we can debug cache hits
-        const cachedClone = new Response(cached.body, cached);
-        cachedClone.headers.set('X-Cache', 'HIT');
-        cachedClone.headers.set('Access-Control-Allow-Origin', '*');
-        return cachedClone;
-      }
-
-      try {
-        const upstream = await fetchJikanWithRetry(jikanUrl);
-
-        if (!upstream.ok) {
-          return jsonResp(
-            { error: `Jikan returned ${upstream.status}`, url: jikanUrl },
-            upstream.status
-          );
-        }
-
-        const data = await upstream.json();
-        const resp = jsonResp(data, 200, {
-          'Cache-Control': `public, max-age=${CACHE_TTL}, s-maxage=${CACHE_TTL}`,
-          'X-Cache': 'MISS',
-          'X-Proxied-From': jikanUrl,
-        });
-
-        // Store in Cloudflare cache (non-blocking)
-        ctx.waitUntil(cache.put(cacheKey, resp.clone()));
-
-        return resp;
-      } catch (err) {
-        return jsonResp({ error: err.message, url: jikanUrl }, 502);
-      }
+      return proxyFetch(`${JIKAN_BASE}/${path.slice(7)}${search}`, {}, TTL.jikan);
     }
 
-    // ── 404 for anything else ─────────────────────────────────
+    // ── TMDB /tmdb/* (new clean route) ─────────────────────────────────────
+    if (path.startsWith('/tmdb/')) {
+      const key = env?.TMDB_API_KEY || '';
+      const auth = key ? { Authorization: `Bearer ${key}` } : {};
+      return proxyFetch(`${TMDB_BASE}/${path.slice(6)}${search}`, auth, TTL.tmdb);
+    }
+
+    // ── TMDB /3/* (legacy — keeps existing aniocen.workers.dev calls working) ─
+    if (path.startsWith('/3/')) {
+      const key = env?.TMDB_API_KEY || '';
+      const auth = key ? { Authorization: `Bearer ${key}` } : {};
+      return proxyFetch(`${TMDB_BASE}/${path.slice(3)}${search}`, auth, TTL.tmdb);
+    }
+
+    // ── Anikoto ────────────────────────────────────────────────────────────
+    if (path.startsWith('/anikoto/')) {
+      return proxyFetch(`${ANIKOTO_BASE}/${path.slice(9)}${search}`, {}, TTL.anikoto);
+    }
+
     return jsonResp({ error: 'Not found', path }, 404);
   },
 };
