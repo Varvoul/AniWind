@@ -423,6 +423,70 @@
     }
     .side-meta { font-size:0.6875rem; color:var(--text-muted); margin-top:2px; }
 
+    /* ── POPULAR ANIME LIST (Miruro-style) ── */
+    .pa-list { display:flex; flex-direction:column; gap:6px; }
+    .pa-row {
+      display:flex; align-items:center; gap:12px;
+      position:relative; overflow:hidden;
+      border-radius:10px; padding:10px 12px 10px 0;
+      cursor:pointer; text-decoration:none; color:#fff;
+      min-height:76px;
+      transition:transform .18s ease, box-shadow .18s ease;
+      background-color: var(--bg-card, #0f1923);
+    }
+    /* Background image blurred behind row */
+    .pa-row::before {
+      content:''; position:absolute; inset:0;
+      background-image:var(--pa-bg);
+      background-size:cover; background-position:center 20%;
+      filter:blur(3px) brightness(0.22) saturate(1.3);
+      transition:filter .3s ease;
+      z-index:0;
+    }
+    .pa-row:hover::before { filter:blur(2px) brightness(0.32) saturate(1.5); }
+    .pa-row:hover { transform:translateY(-1px); box-shadow:0 6px 20px rgba(0,0,0,.5); }
+    /* Rank number */
+    .pa-rank {
+      position:relative; z-index:1;
+      width:34px; flex-shrink:0; text-align:center;
+      font-size:1rem; font-weight:800; opacity:.22;
+      font-family:var(--font-title);
+    }
+    /* Top-3 ranks get special treatment */
+    .pa-row.rank-1 .pa-rank { opacity:1; color:#fbbf24; font-size:1.15rem; text-shadow:0 0 12px rgba(251,191,36,.6); }
+    .pa-row.rank-2 .pa-rank { opacity:1; color:#cbd5e1; font-size:1.1rem; }
+    .pa-row.rank-3 .pa-rank { opacity:1; color:#fb923c; font-size:1.05rem; }
+    .pa-row.rank-1 { border-left:3px solid #fbbf24; }
+    .pa-row.rank-2 { border-left:3px solid #94a3b8; }
+    .pa-row.rank-3 { border-left:3px solid #fb923c; }
+    /* Poster */
+    .pa-poster {
+      position:relative; z-index:1; flex-shrink:0;
+      width:46px; height:64px;
+      border-radius:6px; object-fit:cover;
+      box-shadow:0 3px 10px rgba(0,0,0,.5);
+    }
+    /* Info block */
+    .pa-info { position:relative; z-index:1; flex:1; min-width:0; }
+    .pa-title {
+      font-size:0.78rem; font-weight:700; color:#fff;
+      display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+      overflow:hidden; line-height:1.35; margin-bottom:5px;
+    }
+    .pa-meta {
+      display:flex; flex-wrap:wrap; gap:5px; align-items:center;
+    }
+    .pa-tag {
+      font-size:0.6rem; font-weight:600;
+      background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.18);
+      border-radius:20px; padding:2px 7px; color:#cbd5e1; white-space:nowrap;
+    }
+    .pa-score {
+      font-size:0.62rem; font-weight:700; color:#fbbf24;
+      display:flex; align-items:center; gap:3px;
+    }
+    .pa-score i { font-size:0.55rem; }
+
     /* popup */
     .popup-overlay { position:fixed; inset:0; z-index:500; display:flex; align-items:center; justify-content:center; pointer-events:none; }
     .popup-card { background:var(--bg-popup); border:1px solid var(--border-medium); border-radius:var(--radius-lg); padding:20px; max-width:520px; width:94%; max-height:85vh; overflow-y:auto; box-shadow:var(--shadow-lg); pointer-events:auto; display:none; position:relative; color:#fff; }
@@ -908,6 +972,10 @@
       <section class="section">
         <div class="section-header"><h2 class="section-title">Most Popular</h2></div>
         <div id="popularList"></div>
+      </section>
+      <section class="section" id="popularAnimeSec">
+        <div class="section-header"><h2 class="section-title">Popular Anime</h2></div>
+        <div id="popularAnimeList" class="pa-list"></div>
       </section>
       <div class="esw-widget" id="eswWidget">
         <div class="esw-head">
@@ -1570,53 +1638,73 @@ window.showAnikotoPopupById = function(mal_id) {
         }
       });
 
-      /* ── POPULAR (sidebar) ── */
+      /* ── POPULAR (sidebar) — TMDB only (movies + TV), no Jikan ── */
       let popularData = [];
       async function loadPopular() {
-        const [tmdbMovies, tmdbTV, jikan1, jikan2] = await Promise.all([
-          fetchTMDB('/discover/movie', 'sort_by=vote_count.desc&vote_count.gte=1000&language=en-US&page=1'),
-          fetchTMDB('/discover/tv', 'sort_by=vote_count.desc&vote_count.gte=1000&language=en-US&page=1'),
-          fetchJikan('top/anime', 'filter=bypopularity&limit=25&page=1'),
-          fetchJikan('top/anime', 'filter=bypopularity&limit=25&page=2')
+        // Fetch top-voted movies and TV from TMDB only
+        const [tmdbMovies, tmdbTV, tmdbMovies2, tmdbTV2] = await Promise.all([
+          fetchTMDB('/discover/movie', 'sort_by=vote_count.desc&vote_count.gte=5000&language=en-US&page=1'),
+          fetchTMDB('/discover/tv',    'sort_by=vote_count.desc&vote_count.gte=2000&language=en-US&page=1'),
+          fetchTMDB('/discover/movie', 'sort_by=vote_count.desc&vote_count.gte=5000&language=en-US&page=2'),
+          fetchTMDB('/discover/tv',    'sort_by=vote_count.desc&vote_count.gte=2000&language=en-US&page=2'),
         ]);
-        // Merge and deduplicate Jikan popular
-        const allJikanPop = [...(jikan1.data||[]), ...(jikan2.data||[])];
-        const jikanPopUnique = dedupById(allJikanPop, 'mal_id');
-        // Interleave anime + movies + TV so all types are visible
-        const animeItems = jikanPopUnique.slice(0,5).map(a => ({
-          id:`jikan-pop-${a.mal_id}`, title:a.title, poster:a.images?.jpg?.large_image_url||'',
-          type:'Anime', score:(a.score||0).toFixed(1), members:a.members,
-          genres:(a.genres||[]).map(g=>g.name),
-          synopsis:a.synopsis||''
+        const allMovies = [...(tmdbMovies.results||[]), ...(tmdbMovies2.results||[])];
+        const allTV     = [...(tmdbTV.results||[]),     ...(tmdbTV2.results||[])];
+
+        const movieItems = allMovies.slice(0,10).map(i => ({
+          id:`tmdb-pop-${i.id}`,
+          title: i.title||i.name||'Unknown',
+          original_title: i.original_title || i.title || '',
+          poster: tmdbImg(i.poster_path, 'w185'),
+          type: 'Movie',
+          score: i.vote_average ? Number(i.vote_average).toFixed(1) : 'N/A',
+          year: (i.release_date||'').slice(0,4) || '—',
+          certification: 'PG-13',
+          duration: i.runtime ? `${i.runtime} min` : '—',
+          genres: (i.genre_ids||[]).map(id => GENRE_MAP[id]).filter(Boolean),
+          synopsis: i.overview || 'No description available.',
+          members: i.vote_count || 0,
+          studio: '—',
         }));
-        const movieItems = (tmdbMovies.results||[]).slice(0,3).map(i => ({
-          id:`tmdb-pop-${i.id}`, title:i.title, poster:tmdbImg(i.poster_path,'w185'), type:'Movie',
-          score:(i.vote_average||0).toFixed(1), members:i.vote_count,
-          genres:(i.genre_ids||[]).map(id=>GENRE_MAP[id]||id),
-          overview:i.overview||''
+        const tvItems = allTV.slice(0,10).map(i => ({
+          id:`tmdb-tvpop-${i.id}`,
+          title: i.name||i.title||'Unknown',
+          original_title: i.original_name || i.name || '',
+          poster: tmdbImg(i.poster_path, 'w185'),
+          type: 'TV',
+          score: i.vote_average ? Number(i.vote_average).toFixed(1) : 'N/A',
+          year: (i.first_air_date||'').slice(0,4) || '—',
+          certification: 'TV-14',
+          duration: '—',
+          genres: (i.genre_ids||[]).map(id => GENRE_MAP[id]).filter(Boolean),
+          synopsis: i.overview || 'No description available.',
+          members: i.vote_count || 0,
+          studio: '—',
         }));
-        const tvItems = (tmdbTV.results||[]).slice(0,2).map(i => ({
-          id:`tmdb-tvpop-${i.id}`, title:i.name, poster:tmdbImg(i.poster_path,'w185'), type:'TV',
-          score:(i.vote_average||0).toFixed(1), members:i.vote_count,
-          genres:(i.genre_ids||[]).map(id=>GENRE_MAP[id]||id),
-          overview:i.overview||''
-        }));
-        // Interleave: anime, movie, tv pattern
+
+        // Interleave movie + tv, deduplicate, take top 10
         const interleaved = [];
-        const maxLen = Math.max(animeItems.length, movieItems.length, tvItems.length);
+        const maxLen = Math.max(movieItems.length, tvItems.length);
         for (let i = 0; i < maxLen; i++) {
-          if (animeItems[i]) interleaved.push(animeItems[i]);
           if (movieItems[i]) interleaved.push(movieItems[i]);
           if (tvItems[i]) interleaved.push(tvItems[i]);
         }
         const data = dedupById(interleaved, 'id').slice(0,10);
-        data.forEach((item,i)=>item.rank=i+1);
+        data.forEach((item,i) => item.rank = i+1);
         popularData = data;
+
         document.getElementById('popularList').innerHTML = data.map(s => `
           <a href="${infoUrl(s)}" class="sidebar-list-item" onmouseenter="showPopup(event,'${s.id}')" onmouseleave="window.popupTimer=setTimeout(hidePopup,500)">
             <span class="sidebar-rank">${s.rank}</span>
             <img class="sidebar-poster" src="${s.poster}" onerror="this.style.display='none'">
-            <div class="sidebar-info"><h4>${s.title}</h4><div class="side-meta"><i class="fas fa-star"></i> ${s.score} · ${s.members} members</div></div>
+            <div class="sidebar-info">
+              <h4>${s.title}</h4>
+              <div class="side-meta">
+                <i class="fas fa-star" style="color:var(--accent-gold)"></i> ${s.score}
+                &nbsp;·&nbsp;${s.type}
+                &nbsp;·&nbsp;${s.year}
+              </div>
+            </div>
           </a>`).join('');
       }
 
@@ -1643,14 +1731,28 @@ window.showAnikotoPopupById = function(mal_id) {
   const scoreLabel = show.type === 'Anime' ? 'MAL' : 'TMDB';
   const starIcon = '<i class="fas fa-star" style="color:var(--accent-gold)"></i>';
 
+  // Build duration safely — never produce "undefinedm"
+  const rawDuration = show.duration || (show.episode_run_time?.length ? show.episode_run_time[0] + 'm/ep' : null);
+  const safeYear    = show.year || (show.release_date||show.first_air_date||'').slice(0,4) || '';
+  const safeCert    = show.certification || (show.type === 'TV' ? 'TV-14' : 'PG-13');
+
+  const metaPills = [
+    show.type,
+    safeCert,
+    safeYear || null,
+    rawDuration || null,
+    show.studio && show.studio !== '—' ? show.studio : null,
+  ].filter(Boolean);
+
   const metaHtml = `
-    <span class="meta-pill">${show.type || ''}</span>
-    <span class="meta-pill">${show.certification || 'PG-13'}</span>
-    <span class="meta-pill">${scoreLabel} ${starIcon} ${show.score || '?'}</span>
-    <span class="meta-pill">${show.duration || show.episode_run_time?.[0] + 'm' || '?'}</span>
-    <span class="meta-pill">${show.studio || '?'}</span>
+    <span class="meta-pill">${metaPills[0] || ''}</span>
+    <span class="meta-pill">${safeCert}</span>
+    <span class="meta-pill">${scoreLabel} ${starIcon} ${show.score || 'N/A'}</span>
+    ${rawDuration ? `<span class="meta-pill"><i class="fas fa-clock" style="opacity:.7"></i> ${rawDuration}</span>` : ''}
+    ${safeYear ? `<span class="meta-pill"><i class="fas fa-calendar-alt" style="opacity:.7"></i> ${safeYear}</span>` : ''}
+    ${show.studio && show.studio !== '—' ? `<span class="meta-pill">${show.studio}</span>` : ''}
   `;
-  const genresHtml = (show.genres || []).map(g =>
+  const genresHtml = (show.genres || []).filter(Boolean).map(g =>
     `<a href="/search?genre=${encodeURIComponent(g)}" class="genre-pill">${g}</a>`
   ).join('');
 
@@ -1678,6 +1780,72 @@ window.showAnikotoPopupById = function(mal_id) {
       };
       document.getElementById('popupClose').addEventListener('click', window.hidePopup);
       document.getElementById('popupOverlay').addEventListener('click', function(e){ if(e.target===this) window.hidePopup(); });
+
+      /* ── POPULAR ANIME (Miruro-style list, sorted by score+popularity+rank) ── */
+      async function loadPopularAnime() {
+        try {
+          // Fetch top anime sorted by score (highly rated AND popular)
+          const [page1, page2, page3] = await Promise.all([
+            fetchJikan('top/anime', 'filter=bypopularity&limit=25&page=1'),
+            fetchJikan('top/anime', 'filter=bypopularity&limit=25&page=2'),
+            fetchJikan('top/anime', 'limit=25&page=1'),
+          ]);
+          const all = [
+            ...(page1.data||[]),
+            ...(page2.data||[]),
+            ...(page3.data||[]),
+          ];
+          // Deduplicate by mal_id
+          const seen = new Set();
+          const unique = all.filter(a => { if(seen.has(a.mal_id)) return false; seen.add(a.mal_id); return true; });
+          // Score each anime: weighted combo of MAL score + rank + popularity
+          const scored = unique.map(a => {
+            const malScore    = a.score || 0;
+            const rankPenalty = a.rank ? (1 / a.rank) * 100 : 0;
+            const popBonus    = a.popularity ? (1 / a.popularity) * 50 : 0;
+            return { ...a, _w: malScore * 10 + rankPenalty + popBonus };
+          });
+          scored.sort((a,b) => b._w - a._w);
+          const top25 = scored.slice(0, 25);
+
+          const slugify = t => (t||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+
+          const el = document.getElementById('popularAnimeList');
+          if (!el) return;
+
+          el.innerHTML = top25.map((a, idx) => {
+            const rank     = idx + 1;
+            const rankCls  = rank <= 3 ? ` rank-${rank}` : '';
+            const title    = a.title_english || a.title || 'Unknown';
+            const slug     = slugify(title);
+            const href     = `/info/anime/jikan-${a.mal_id}/${slug}`;
+            const poster   = a.images?.jpg?.large_image_url || a.images?.jpg?.image_url || '';
+            const bgImg    = poster;
+            const type     = a.type || 'TV';
+            const eps      = a.episodes != null ? a.episodes : '?';
+            const score    = a.score ? Number(a.score).toFixed(1) : 'N/A';
+            const studio   = a.studios?.length ? a.studios[0].name : '—';
+            const genres   = (a.genres||[]).slice(0,4).map(g=>g.name);
+
+            return `<a href="${href}" class="pa-row${rankCls}" style="--pa-bg:url('${bgImg}')">
+              <span class="pa-rank">${rank}</span>
+              <img class="pa-poster" src="${poster}" alt="${title.replace(/"/g,'&quot;')}" loading="lazy" onerror="this.style.opacity='0'">
+              <div class="pa-info">
+                <div class="pa-title">${title}</div>
+                <div class="pa-meta">
+                  <span class="pa-tag">${type}</span>
+                  <span class="pa-tag"><i class="fas fa-play" style="font-size:.5rem"></i> ${eps} eps</span>
+                  <span class="pa-score"><i class="fas fa-star"></i> ${score}</span>
+                  ${studio !== '—' ? `<span class="pa-tag">${studio}</span>` : ''}
+                  ${genres.map(g=>`<span class="pa-tag">${g}</span>`).join('')}
+                </div>
+              </div>
+            </a>`;
+          }).join('');
+        } catch(err) {
+          console.warn('[loadPopularAnime] failed:', err);
+        }
+      }
 
       /* ── SCHEDULE (COMPLETE REBUILD) ── */
                  /* ── NEW SCHEDULE (4‑column, localStorage, episode count) ── */
@@ -1984,6 +2152,7 @@ window.showAnikotoPopupById = function(mal_id) {
         loadCompleted(1);
         loadTrending('today');
         loadPopular();
+        loadPopularAnime();
         loadSchedule();
       }
       window.addEventListener('DOMContentLoaded', init);
