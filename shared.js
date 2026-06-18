@@ -522,12 +522,15 @@
     }
     .auth-back-link:hover{color:var(--btn-primary,#3b82f6);}
 
-    /* "Forgot password?" inline link */
+    /* "Forgot password?" inline link — sits below the password field, right-aligned */
     .forgot-inline{
-      font-size:0.66rem;color:var(--btn-primary,#3b82f6);
-      background:none;border:none;cursor:pointer;padding:0;
-      font-family:inherit;float:right;margin-top:-22px;
+      display:block;width:100%;text-align:right;
+      font-size:0.68rem;color:var(--btn-primary,#3b82f6);
+      background:none;border:none;cursor:pointer;padding:2px 0 0;
+      font-family:inherit;margin-top:5px;line-height:1;
+      transition:opacity .18s;
     }
+    .forgot-inline:hover{opacity:.72;}
 
     /* ─── MOBILE CAROUSEL (hidden on desktop) ─── */
     .auth-mobile-carousel{
@@ -612,6 +615,7 @@
       .field-err{font-size:0.62rem;margin-top:2px;}
       .form-err{font-size:0.66rem;margin-bottom:4px;min-height:14px;}
       .forgot-btn{font-size:0.66rem;margin-top:2px;margin-bottom:8px;}
+      .forgot-inline{font-size:0.66rem;margin-top:4px;margin-bottom:6px;}
       .terms-row{font-size:0.65rem;margin-bottom:8px;gap:6px;}
       .terms-row input[type=checkbox]{width:13px;height:13px;margin-top:1px;}
 
@@ -652,6 +656,7 @@
       .field-group{margin-bottom:6px;}
       .field-input{padding:7px 10px;font-size:0.74rem;}
       .forgot-btn{font-size:0.62rem;margin-bottom:6px;}
+      .forgot-inline{font-size:0.62rem;margin-top:3px;margin-bottom:5px;}
       .btn-primary-full{padding:8px;font-size:0.74rem;}
       .btn-google{padding:7px;font-size:0.7rem;margin-bottom:6px;}
       .divider{margin:6px 0;font-size:0.62rem;}
@@ -1139,15 +1144,16 @@
               <input class="field-input" type="text" id="loginUsername" placeholder="Your username or email" autocomplete="username">
             </div>
 
-            <!-- 2. Password (with inline Forgot link) -->
-            <div class="field-group">
+            <!-- 2. Password -->
+            <div class="field-group" style="margin-bottom:4px;">
               <label>Password</label>
               <div class="field-wrap">
                 <input class="field-input" type="password" id="loginPassword" placeholder="Your password" autocomplete="current-password" style="padding-right:38px;">
                 <button class="eye-btn" type="button" data-target="loginPassword">${SVG.eye}</button>
               </div>
-              <button class="forgot-inline" id="forgotLink" type="button">Forgot password?</button>
             </div>
+            <!-- Forgot password link — outside field-group so it never gets clipped -->
+            <button class="forgot-inline" id="forgotLink" type="button">Forgot password?</button>
 
             <!-- 3. hCaptcha -->
             <div class="cf-wrap">
