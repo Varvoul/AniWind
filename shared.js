@@ -23,7 +23,7 @@
   // Landscape images for the MOBILE auth modal carousel (crossfade every 3s).
   // Desktop keeps its static left-column image — these are mobile-only.
   const AUTH_CAROUSEL_IMAGES = [
-    'https://postimg.cc/V08qRGD1',
+    'https://i.postimg.cc/KjK0mCTK/9cde8b5c-129b-4019-8bb0-65c91b52191a.jpg',
     'https://i.postimg.cc/9MNCs2mn/c6a0dae09f9141a402966858be6768ae.jpg',
     'https://i.postimg.cc/h46KrK3c/0f71ce1f0c0dfb357586848e2000be96.jpg',
     'https://i.postimg.cc/7ZyDFm4f/12fc1dce99f4f6f2a345fcea1a2b2a27.jpg',
