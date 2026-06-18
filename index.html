@@ -1824,8 +1824,12 @@ window.showAnikotoPopupById = function(mal_id) {
             const type     = a.type || 'TV';
             const eps      = a.episodes != null ? a.episodes : '?';
             const score    = a.score ? Number(a.score).toFixed(1) : 'N/A';
-            const studio   = a.studios?.length ? a.studios[0].name : '—';
-            const genres   = (a.genres||[]).slice(0,4).map(g=>g.name);
+            const studio      = a.studios?.length ? a.studios[0].name : '—';
+            const genres      = (a.genres||[]).slice(0,4).map(g=>g.name);
+            const themes      = (a.themes||[]).slice(0,2).map(g=>g.name);
+            const demographic = (a.demographics||[]).slice(0,1).map(g=>g.name);
+            // Combine: genres first, then themes, then demographic — cap total tags at 7
+            const allTags = [...genres, ...themes, ...demographic].slice(0,7);
 
             return `<a href="${href}" class="pa-row${rankCls}" style="--pa-bg:url('${bgImg}')">
               <span class="pa-rank">${rank}</span>
@@ -1837,7 +1841,7 @@ window.showAnikotoPopupById = function(mal_id) {
                   <span class="pa-tag"><i class="fas fa-play" style="font-size:.5rem"></i> ${eps} eps</span>
                   <span class="pa-score"><i class="fas fa-star"></i> ${score}</span>
                   ${studio !== '—' ? `<span class="pa-tag">${studio}</span>` : ''}
-                  ${genres.map(g=>`<span class="pa-tag">${g}</span>`).join('')}
+                  ${allTags.map(g=>`<span class="pa-tag">${g}</span>`).join('')}
                 </div>
               </div>
             </a>`;
