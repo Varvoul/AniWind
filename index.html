@@ -1007,7 +1007,8 @@
     (function() {
       const ANIKOTO_API = 'https://anikoto.bionmovies47.workers.dev';
       const TMDB_PROXY = 'https://aniocen.bionmovies47.workers.dev';
-      const JIKAN_BASE = 'https://api.jikan.moe/v4';
+      const JIKAN_BASE    = 'https://api.jikan.moe/v4';
+      const ANIUMI_PROXY  = 'https://aniumi.bionmovies47.workers.dev'; // CF Worker proxy for Popular Anime
       const TMDB_IMAGE = 'https://image.tmdb.org/t/p';
       const tmdbImg = (p,s='w500') => p ? `${TMDB_IMAGE}/${s}${p}` : '';
       const tmdbBack = (p) => p ? `${TMDB_IMAGE}/w1280${p}` : '';
@@ -1782,13 +1783,30 @@ window.showAnikotoPopupById = function(mal_id) {
       document.getElementById('popupOverlay').addEventListener('click', function(e){ if(e.target===this) window.hidePopup(); });
 
       /* ── POPULAR ANIME (Miruro-style list, sorted by score+popularity+rank) ── */
+      // Fetch Jikan via proxy with Jikan direct fallback
+      async function fetchPopularAnimeData(endpoint, params) {
+        const qs = params ? `?${params}` : '';
+        // 1) Try CF Worker proxy first (cached, no rate-limit issues)
+        try {
+          const proxyUrl = `${ANIUMI_PROXY}/jikan/${endpoint}${qs}`;
+          const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(8000) });
+          if (res.ok) {
+            const data = await res.json();
+            if (data?.data?.length) return data;
+          }
+        } catch(e) { /* proxy unavailable — fall through to direct */ }
+        // 2) Fallback: direct Jikan API
+        return fetchJikan(endpoint, params);
+      }
+
       async function loadPopularAnime() {
         try {
           // Fetch top anime sorted by score (highly rated AND popular)
+          // Uses CF Worker proxy with automatic Jikan fallback
           const [page1, page2, page3] = await Promise.all([
-            fetchJikan('top/anime', 'filter=bypopularity&limit=25&page=1'),
-            fetchJikan('top/anime', 'filter=bypopularity&limit=25&page=2'),
-            fetchJikan('top/anime', 'limit=25&page=1'),
+            fetchPopularAnimeData('top/anime', 'filter=bypopularity&limit=25&page=1'),
+            fetchPopularAnimeData('top/anime', 'filter=bypopularity&limit=25&page=2'),
+            fetchPopularAnimeData('top/anime', 'limit=25&page=1'),
           ]);
           const all = [
             ...(page1.data||[]),
