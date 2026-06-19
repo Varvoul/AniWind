@@ -1078,7 +1078,7 @@
       const ANIUMI_PROXY  = 'https://aniumi.bionmovies47.workers.dev';
       /* Direct fallback URLs (used if proxy is unavailable) */
       const JIKAN_BASE    = 'https://api.jikan.moe/v4';
-      const TMDB_LEGACY   = 'https://aniocen.bionmovies47.workers.dev'; // old TMDB worker fallback
+      const TMDB_LEGACY   = 'https://aniocen.bionmovies47.workers.dev'; // working TMDB proxy
       const ANIKOTO_API   = 'https://anikoto.bionmovies47.workers.dev'; // direct anikoto fallback
       const TMDB_IMAGE = 'https://image.tmdb.org/t/p';
       const tmdbImg = (p,s='w500') => p ? `${TMDB_IMAGE}/${s}${p}` : '';
@@ -1154,21 +1154,22 @@
 
       async function fetchTMDB(endpoint, params='') {
         const qs = params ? `?${params}` : '';
-        // 1) Universal aniumi proxy (cached, no key on frontend)
+        // 1) aniumi universal proxy (try fast — 3s timeout so aniocen kicks in quickly)
         try {
           const res = await fetch(`${ANIUMI_PROXY}/tmdb${endpoint}${qs}`, {
             headers: { Accept: 'application/json' },
-            signal: AbortSignal.timeout(7000)
+            signal: AbortSignal.timeout(3000)
           });
           if (res.ok) return await res.json();
         } catch(e) {}
-        // 2) Legacy aniocen worker
+        // 2) aniocen worker — confirmed working, handles TMDB auth server-side
         try {
           const res = await fetch(`${TMDB_LEGACY}/3${endpoint}${qs}`, {
-            signal: AbortSignal.timeout(7000)
+            headers: { Accept: 'application/json' },
+            signal: AbortSignal.timeout(10000)
           });
           if (res.ok) return await res.json();
-        } catch(e) {}
+        } catch(e) { console.warn('[TMDB] aniocen failed:', e.message); }
         // 3) Direct TMDB API — guaranteed fallback with Bearer token
         try {
           const res = await fetch(`https://api.themoviedb.org/3${endpoint}${qs}`, {
