@@ -2790,11 +2790,16 @@ img { max-width: 100%; height: auto; display: block; }
         const primaryUrl = `${CONFIG.TMDB_WORKER}/3/${endpoint}/${currentState.id}${qs}`;
         const fallbackUrl = `${CONFIG.TMDB_LEGACY}/3/${endpoint}/${currentState.id}${qs}`;
 
-        async function tryFetch(url) {
-          const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+        async function tryFetch(url, extraHeaders={}) {
+          const res = await fetch(url, {
+            headers: { Accept: 'application/json', ...extraHeaders },
+            signal: AbortSignal.timeout(10000)
+          });
           if (!res.ok) throw new Error(`TMDB API error: ${res.status}`);
           return res.json();
         }
+        const directUrl = `https://api.themoviedb.org/3/${endpoint}/${currentState.id}${qs}`;
+        const tmdbAuth  = { Authorization: 'Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI0Yjc0YzE4NjlkZGQxMWEzNTM1MDFlNGI0MjY4MzA3YyIsIm5iZiI6MTc2NDM5Mzg3MS4yNTEwMDAyLCJzdWIiOiI2OTJhODM4ZjNkNTVkM2Y1NzJiOGVlYjIiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.qN331VqKQ5rfgvkadaRLYG6fNXp4t_lOee3K15f4gCo' };
 
         try {
           let data;
@@ -2802,7 +2807,12 @@ img { max-width: 100%; height: auto; display: block; }
             data = await tryFetch(primaryUrl);
           } catch(e) {
             console.warn('[TMDB] primary failed, trying fallback:', e.message);
-            data = await tryFetch(fallbackUrl);
+            try {
+              data = await tryFetch(fallbackUrl);
+            } catch(e2) {
+              console.warn('[TMDB] fallback failed, using direct API:', e2.message);
+              data = await tryFetch(directUrl, tmdbAuth);
+            }
           }
           if (!data.title && !data.name) throw new Error('Invalid TMDB response');
           currentState.data = data;
@@ -3959,7 +3969,17 @@ img { max-width: 100%; height: auto; display: block; }
             const endpoint = currentState.type;
             const voteMin = endpoint === 'movie' ? 150 : 100;
             const voteMax = endpoint === 'movie' ? 1200 : 1000;
-            const res = await fetch(`${CONFIG.TMDB_WORKER}/3/discover/${endpoint}?vote_average.gte=7.8&vote_count.gte=${voteMin}&vote_count.lte=${voteMax}&sort_by=popularity.asc&page=1`);
+            let res;
+            const _hgUrl = `${CONFIG.TMDB_WORKER}/3/discover/${endpoint}?vote_average.gte=7.8&vote_count.gte=${voteMin}&vote_count.lte=${voteMax}&sort_by=popularity.asc&page=1`;
+            try {
+              res = await fetch(_hgUrl, {signal: AbortSignal.timeout(7000)});
+              if (!res.ok) throw new Error('proxy fail');
+            } catch(e) {
+              res = await fetch(`https://api.themoviedb.org/3/discover/${endpoint}?vote_average.gte=7.8&vote_count.gte=${voteMin}&vote_count.lte=${voteMax}&sort_by=popularity.asc&page=1`, {
+                headers: {Authorization:'Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI0Yjc0YzE4NjlkZGQxMWEzNTM1MDFlNGI0MjY4MzA3YyIsIm5iZiI6MTc2NDM5Mzg3MS4yNTEwMDAyLCJzdWIiOiI2OTJhODM4ZjNkNTVkM2Y1NzJiOGVlYjIiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.qN331VqKQ5rfgvkadaRLYG6fNXp4t_lOee3K15f4gCo',Accept:'application/json'},
+                signal: AbortSignal.timeout(10000)
+              });
+            }
             const { results } = await res.json();
             items = results.slice(0, 17);
           }
@@ -4018,7 +4038,16 @@ img { max-width: 100%; height: auto; display: block; }
             const { data } = await res.json();
             items = data.slice(0, 19);
           } else {
-            const res = await fetch(`${CONFIG.TMDB_WORKER}/3/${currentState.type}/top_rated?page=1`);
+            let res;
+            try {
+              res = await fetch(`${CONFIG.TMDB_WORKER}/3/${currentState.type}/top_rated?page=1`, {signal:AbortSignal.timeout(7000)});
+              if (!res.ok) throw new Error('proxy fail');
+            } catch(e) {
+              res = await fetch(`https://api.themoviedb.org/3/${currentState.type}/top_rated?page=1`, {
+                headers: {Authorization:'Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI0Yjc0YzE4NjlkZGQxMWEzNTM1MDFlNGI0MjY4MzA3YyIsIm5iZiI6MTc2NDM5Mzg3MS4yNTEwMDAyLCJzdWIiOiI2OTJhODM4ZjNkNTVkM2Y1NzJiOGVlYjIiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.qN331VqKQ5rfgvkadaRLYG6fNXp4t_lOee3K15f4gCo',Accept:'application/json'},
+                signal: AbortSignal.timeout(10000)
+              });
+            }
             const { results } = await res.json();
             items = results.slice(0, 19);
           }
@@ -4075,7 +4104,16 @@ img { max-width: 100%; height: auto; display: block; }
             const { data } = await res.json();
             items = data.slice(0, 21);
           } else {
-            const res = await fetch(`${CONFIG.TMDB_WORKER}/3/${currentState.type}/popular?page=1`);
+            let res;
+            try {
+              res = await fetch(`${CONFIG.TMDB_WORKER}/3/${currentState.type}/popular?page=1`, {signal:AbortSignal.timeout(7000)});
+              if (!res.ok) throw new Error('proxy fail');
+            } catch(e) {
+              res = await fetch(`https://api.themoviedb.org/3/${currentState.type}/popular?page=1`, {
+                headers: {Authorization:'Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI0Yjc0YzE4NjlkZGQxMWEzNTM1MDFlNGI0MjY4MzA3YyIsIm5iZiI6MTc2NDM5Mzg3MS4yNTEwMDAyLCJzdWIiOiI2OTJhODM4ZjNkNTVkM2Y1NzJiOGVlYjIiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.qN331VqKQ5rfgvkadaRLYG6fNXp4t_lOee3K15f4gCo',Accept:'application/json'},
+                signal: AbortSignal.timeout(10000)
+              });
+            }
             const { results } = await res.json();
             items = results.slice(0, 21);
           }
@@ -4251,7 +4289,7 @@ img { max-width: 100%; height: auto; display: block; }
           // We try two strategies and merge: TMDB /recommendations (official) + /discover (filtered)
           const [recsRes, discoverRes] = await Promise.all([
             // Strategy 1: TMDB's own recommendation engine for this show
-            fetch(`${CONFIG.TMDB_WORKER}/3/${mediaType}/${currentState.id}/recommendations?page=1`),
+            fetch(`${CONFIG.TMDB_WORKER}/3/${mediaType}/${currentState.id}/recommendations?page=1`, {signal:AbortSignal.timeout(7000)}).then(r=>r.ok?r:fetch(`https://api.themoviedb.org/3/${mediaType}/${currentState.id}/recommendations?page=1`,{headers:{Authorization:'Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI0Yjc0YzE4NjlkZGQxMWEzNTM1MDFlNGI0MjY4MzA3YyIsIm5iZiI6MTc2NDM5Mzg3MS4yNTEwMDAyLCJzdWIiOiI2OTJhODM4ZjNkNTVkM2Y1NzJiOGVlYjIiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.qN331VqKQ5rfgvkadaRLYG6fNXp4t_lOee3K15f4gCo',Accept:'application/json'}})),
             // Strategy 2: Discover with matching genres + quality filter
             (() => {
               const p = new URLSearchParams({
@@ -4262,7 +4300,7 @@ img { max-width: 100%; height: auto; display: block; }
                 without_genres:       '',   // no exclusions — keep broad
                 page:                 '1'
               });
-              return fetch(`${CONFIG.TMDB_WORKER}/3/discover/${mediaType}?${p.toString()}`);
+              return fetch(`${CONFIG.TMDB_WORKER}/3/discover/${mediaType}?${p.toString()}`,{signal:AbortSignal.timeout(7000)}).then(r=>r.ok?r:fetch(`https://api.themoviedb.org/3/discover/${mediaType}?${p.toString()}`,{headers:{Authorization:'Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI0Yjc0YzE4NjlkZGQxMWEzNTM1MDFlNGI0MjY4MzA3YyIsIm5iZiI6MTc2NDM5Mzg3MS4yNTEwMDAyLCJzdWIiOiI2OTJhODM4ZjNkNTVkM2Y1NzJiOGVlYjIiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.qN331VqKQ5rfgvkadaRLYG6fNXp4t_lOee3K15f4gCo',Accept:'application/json'}}));
             })()
           ]);
 
@@ -4292,7 +4330,13 @@ img { max-width: 100%; height: auto; display: block; }
             gridContainer.innerHTML = final.map(item => renderTMDBRecCard(item, mediaType)).join('');
           } else {
             // Fallback: popular content of same type
-            const fbRes  = await fetch(`${CONFIG.TMDB_WORKER}/3/${mediaType}/popular?page=1`);
+            let fbRes;
+            try {
+              fbRes = await fetch(`${CONFIG.TMDB_WORKER}/3/${mediaType}/popular?page=1`,{signal:AbortSignal.timeout(7000)});
+              if(!fbRes.ok) throw 0;
+            } catch(e) {
+              fbRes = await fetch(`https://api.themoviedb.org/3/${mediaType}/popular?page=1`,{headers:{Authorization:'Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI0Yjc0YzE4NjlkZGQxMWEzNTM1MDFlNGI0MjY4MzA3YyIsIm5iZiI6MTc2NDM5Mzg3MS4yNTEwMDAyLCJzdWIiOiI2OTJhODM4ZjNkNTVkM2Y1NzJiOGVlYjIiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.qN331VqKQ5rfgvkadaRLYG6fNXp4t_lOee3K15f4gCo',Accept:'application/json'}});
+            }
             const fbData = fbRes.ok ? await fbRes.json() : { results: [] };
             const fbFinal = (fbData.results || []).filter(i => i.id !== currentState.id).slice(0, 24);
             gridContainer.innerHTML = fbFinal.length
