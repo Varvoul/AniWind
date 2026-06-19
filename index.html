@@ -1153,21 +1153,33 @@
       }
 
       async function fetchTMDB(endpoint, params='') {
-        // 1) Universal proxy — /tmdb/<endpoint> (cached 10 min, no API key needed on frontend)
+        const qs = params ? `?${params}` : '';
+        // 1) Universal aniumi proxy (cached, no key on frontend)
         try {
-          const qs  = params ? `?${params}` : '';
           const res = await fetch(`${ANIUMI_PROXY}/tmdb${endpoint}${qs}`, {
             headers: { Accept: 'application/json' },
-            signal: AbortSignal.timeout(8000)
+            signal: AbortSignal.timeout(7000)
           });
           if (res.ok) return await res.json();
-        } catch(e) { /* proxy down — fall through */ }
-        // 2) Legacy aniocen worker fallback (keeps working if aniumi is not yet deployed)
+        } catch(e) {}
+        // 2) Legacy aniocen worker
         try {
-          const qs  = params ? `?${params}` : '';
-          const res = await fetch(`${TMDB_LEGACY}/3${endpoint}${qs}`);
+          const res = await fetch(`${TMDB_LEGACY}/3${endpoint}${qs}`, {
+            signal: AbortSignal.timeout(7000)
+          });
           if (res.ok) return await res.json();
-        } catch(e) { /* both failed */ }
+        } catch(e) {}
+        // 3) Direct TMDB API — guaranteed fallback with Bearer token
+        try {
+          const res = await fetch(`https://api.themoviedb.org/3${endpoint}${qs}`, {
+            headers: {
+              Authorization: 'Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI0Yjc0YzE4NjlkZGQxMWEzNTM1MDFlNGI0MjY4MzA3YyIsIm5iZiI6MTc2NDM5Mzg3MS4yNTEwMDAyLCJzdWIiOiI2OTJhODM4ZjNkNTVkM2Y1NzJiOGVlYjIiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.qN331VqKQ5rfgvkadaRLYG6fNXp4t_lOee3K15f4gCo',
+              Accept: 'application/json'
+            },
+            signal: AbortSignal.timeout(10000)
+          });
+          if (res.ok) return await res.json();
+        } catch(e) { console.warn('[TMDB] all proxies failed:', e.message); }
         return { results: [] };
       }
       async function fetchJikan(endpoint, params='', retries=2) {
@@ -2008,9 +2020,9 @@ window.showAnikotoPopupById = function(mal_id) {
       }
       function injectSkeletons() {
         const $ = id => document.getElementById(id);
-        // Hero
-        const hero = $('heroSlider') || $('heroSection');
-        if (hero) hero.innerHTML = `<div class="skeleton sk-hero"></div>`;
+        // Hero — only replace the slides container, keep nav/dots/buttons intact
+        const slides = $('slidesContainer');
+        if (slides) slides.innerHTML = `<div class="skeleton sk-hero" style="border-radius:0;"></div>`;
         // Horizontal scroll sections (cards)
         [['topAiringList',8],['newReleasesList',8],['upcomingList',8],
          ['trendingList',8],['newAnioceanList',8],['completedGrid',10]
