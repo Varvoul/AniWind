@@ -2491,8 +2491,8 @@ img { max-width: 100%; height: auto; display: block; }
 
       const CONFIG = {
         ANIUMI_PROXY:   'https://aniumi.bionmovies47.workers.dev',   // universal proxy (Jikan/Anikoto)
-        TMDB_WORKER:    'https://tmdb-proxy.bionmovies47.workers.dev', // dedicated TMDB proxy (primary)
-        TMDB_LEGACY:    'https://aniocen.bionmovies47.workers.dev',   // old TMDB worker (fallback)
+        TMDB_WORKER:    'https://aniocen.bionmovies47.workers.dev',     // working TMDB proxy (primary)
+        TMDB_LEGACY:    'https://aniocen.bionmovies47.workers.dev',     // same — guaranteed fallback
         JIKAN_BASE:     'https://api.jikan.moe/v4',                   // Jikan direct fallback
         ANIKOTO_DIRECT: 'https://anikoto.bionmovies47.workers.dev',   // Anikoto direct fallback
         ALLANIME_API: 'https://allanime-api.shashankbhake.codes',
@@ -2788,31 +2788,31 @@ img { max-width: 100%; height: auto; display: block; }
         const endpoint = currentState.type;
         const qs = `?append_to_response=credits,videos,external_ids,images,content_ratings,release_dates&include_image_language=en,null`;
         const primaryUrl = `${CONFIG.TMDB_WORKER}/3/${endpoint}/${currentState.id}${qs}`;
-        const fallbackUrl = `${CONFIG.TMDB_LEGACY}/3/${endpoint}/${currentState.id}${qs}`;
+        // fallback goes directly to TMDB API with Bearer token
+        const fallbackUrl = `https://api.themoviedb.org/3/${endpoint}/${currentState.id}${qs}`;
 
         async function tryFetch(url, extraHeaders={}) {
           const res = await fetch(url, {
             headers: { Accept: 'application/json', ...extraHeaders },
-            signal: AbortSignal.timeout(10000)
+            signal: AbortSignal.timeout(12000)
           });
-          if (!res.ok) throw new Error(`TMDB API error: ${res.status}`);
+          if (!res.ok) {
+            const errBody = await res.text().catch(()=>'');
+            throw new Error(`TMDB API error: ${res.status} — ${errBody.slice(0,80)}`);
+          }
           return res.json();
         }
-        const directUrl = `https://api.themoviedb.org/3/${endpoint}/${currentState.id}${qs}`;
-        const tmdbAuth  = { Authorization: 'Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI0Yjc0YzE4NjlkZGQxMWEzNTM1MDFlNGI0MjY4MzA3YyIsIm5iZiI6MTc2NDM5Mzg3MS4yNTEwMDAyLCJzdWIiOiI2OTJhODM4ZjNkNTVkM2Y1NzJiOGVlYjIiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.qN331VqKQ5rfgvkadaRLYG6fNXp4t_lOee3K15f4gCo' };
+        const TMDB_TOKEN = 'eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI0Yjc0YzE4NjlkZGQxMWEzNTM1MDFlNGI0MjY4MzA3YyIsIm5iZiI6MTc2NDM5Mzg3MS4yNTEwMDAyLCJzdWIiOiI2OTJhODM4ZjNkNTVkM2Y1NzJiOGVlYjIiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.qN331VqKQ5rfgvkadaRLYG6fNXp4t_lOee3K15f4gCo';
 
         try {
           let data;
           try {
+            // Primary: aniocen worker (injects TMDB auth server-side, no token needed here)
             data = await tryFetch(primaryUrl);
           } catch(e) {
-            console.warn('[TMDB] primary failed, trying fallback:', e.message);
-            try {
-              data = await tryFetch(fallbackUrl);
-            } catch(e2) {
-              console.warn('[TMDB] fallback failed, using direct API:', e2.message);
-              data = await tryFetch(directUrl, tmdbAuth);
-            }
+            console.warn('[TMDB] proxy failed, using direct TMDB API:', e.message);
+            // Fallback: direct TMDB with Bearer token
+            data = await tryFetch(fallbackUrl, { Authorization: `Bearer ${TMDB_TOKEN}` });
           }
           if (!data.title && !data.name) throw new Error('Invalid TMDB response');
           currentState.data = data;
@@ -4289,7 +4289,7 @@ img { max-width: 100%; height: auto; display: block; }
           // We try two strategies and merge: TMDB /recommendations (official) + /discover (filtered)
           const [recsRes, discoverRes] = await Promise.all([
             // Strategy 1: TMDB's own recommendation engine for this show
-            fetch(`${CONFIG.TMDB_WORKER}/3/${mediaType}/${currentState.id}/recommendations?page=1`, {signal:AbortSignal.timeout(7000)}).then(r=>r.ok?r:fetch(`https://api.themoviedb.org/3/${mediaType}/${currentState.id}/recommendations?page=1`,{headers:{Authorization:'Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI0Yjc0YzE4NjlkZGQxMWEzNTM1MDFlNGI0MjY4MzA3YyIsIm5iZiI6MTc2NDM5Mzg3MS4yNTEwMDAyLCJzdWIiOiI2OTJhODM4ZjNkNTVkM2Y1NzJiOGVlYjIiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.qN331VqKQ5rfgvkadaRLYG6fNXp4t_lOee3K15f4gCo',Accept:'application/json'}})),
+            (async()=>{ const _tok='eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI0Yjc0YzE4NjlkZGQxMWEzNTM1MDFlNGI0MjY4MzA3YyIsIm5iZiI6MTc2NDM5Mzg3MS4yNTEwMDAyLCJzdWIiOiI2OTJhODM4ZjNkNTVkM2Y1NzJiOGVlYjIiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.qN331VqKQ5rfgvkadaRLYG6fNXp4t_lOee3K15f4gCo'; try { const r=await fetch(`${CONFIG.TMDB_WORKER}/3/${mediaType}/${currentState.id}/recommendations?page=1`,{signal:AbortSignal.timeout(8000)}); if(r.ok) return r; } catch(e){} return fetch(`https://api.themoviedb.org/3/${mediaType}/${currentState.id}/recommendations?page=1`,{headers:{Authorization:`Bearer ${_tok}`,Accept:'application/json'}}); })(),
             // Strategy 2: Discover with matching genres + quality filter
             (() => {
               const p = new URLSearchParams({
@@ -4300,7 +4300,9 @@ img { max-width: 100%; height: auto; display: block; }
                 without_genres:       '',   // no exclusions — keep broad
                 page:                 '1'
               });
-              return fetch(`${CONFIG.TMDB_WORKER}/3/discover/${mediaType}?${p.toString()}`,{signal:AbortSignal.timeout(7000)}).then(r=>r.ok?r:fetch(`https://api.themoviedb.org/3/discover/${mediaType}?${p.toString()}`,{headers:{Authorization:'Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI0Yjc0YzE4NjlkZGQxMWEzNTM1MDFlNGI0MjY4MzA3YyIsIm5iZiI6MTc2NDM5Mzg3MS4yNTEwMDAyLCJzdWIiOiI2OTJhODM4ZjNkNTVkM2Y1NzJiOGVlYjIiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.qN331VqKQ5rfgvkadaRLYG6fNXp4t_lOee3K15f4gCo',Accept:'application/json'}}));
+              const _tok2='eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI0Yjc0YzE4NjlkZGQxMWEzNTM1MDFlNGI0MjY4MzA3YyIsIm5iZiI6MTc2NDM5Mzg3MS4yNTEwMDAyLCJzdWIiOiI2OTJhODM4ZjNkNTVkM2Y1NzJiOGVlYjIiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.qN331VqKQ5rfgvkadaRLYG6fNXp4t_lOee3K15f4gCo';
+              try { const r=await fetch(`${CONFIG.TMDB_WORKER}/3/discover/${mediaType}?${p.toString()}`,{signal:AbortSignal.timeout(8000)}); if(r.ok) return r; } catch(e){}
+              return fetch(`https://api.themoviedb.org/3/discover/${mediaType}?${p.toString()}`,{headers:{Authorization:`Bearer ${_tok2}`,Accept:'application/json'}});
             })()
           ]);
 
