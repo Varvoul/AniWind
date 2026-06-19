@@ -424,68 +424,137 @@
     .side-meta { font-size:0.6875rem; color:var(--text-muted); margin-top:2px; }
 
     /* ── POPULAR ANIME LIST (Miruro-style) ── */
-    .pa-list { display:flex; flex-direction:column; gap:6px; }
-    .pa-row {
+    /* ── SKELETON WAVE ANIMATION ── */
+    @keyframes skeletonWave {
+      0%   { background-position: -400px 0; }
+      100% { background-position: 400px 0; }
+    }
+    .skeleton {
+      background: linear-gradient(90deg,
+        rgba(255,255,255,0.04) 25%,
+        rgba(255,255,255,0.10) 37%,
+        rgba(255,255,255,0.04) 63%);
+      background-size: 800px 100%;
+      animation: skeletonWave 1.4s ease infinite;
+      border-radius: 6px;
+    }
+    /* Skeleton placeholders for cards */
+    .skeleton-card {
+      background:var(--bg-card,#0f1923);
+      border-radius:10px; overflow:hidden;
+      flex-shrink:0;
+    }
+    .skeleton-card .sk-poster  { width:100%; aspect-ratio:2/3; }
+    .skeleton-card .sk-line    { height:10px; margin:8px 8px 4px; border-radius:4px; }
+    .skeleton-card .sk-line.w60{ width:60%; }
+    .skeleton-card .sk-line.w80{ width:80%; }
+    /* Skeleton for PA rows */
+    .sk-pa-row {
       display:flex; align-items:center; gap:12px;
+      background:var(--bg-card,#0f1923);
+      border-radius:10px; padding:10px 14px;
+      min-height:88px; overflow:hidden;
+    }
+    .sk-pa-rank { width:28px; height:20px; flex-shrink:0; border-radius:4px; }
+    .sk-pa-img  { width:56px; height:78px; border-radius:6px; flex-shrink:0; }
+    .sk-pa-body { flex:1; display:flex; flex-direction:column; gap:7px; }
+    .sk-pa-title{ height:13px; width:70%; border-radius:4px; }
+    .sk-pa-meta { display:flex; gap:5px; flex-wrap:wrap; }
+    .sk-pa-tag  { height:18px; border-radius:20px; }
+    /* Skeleton for sidebar rows */
+    .sk-side-row {
+      display:flex; align-items:center; gap:10px;
+      padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.05);
+    }
+    .sk-side-rank { width:20px; height:16px; border-radius:3px; flex-shrink:0; }
+    .sk-side-img  { width:38px; height:54px; border-radius:5px; flex-shrink:0; }
+    .sk-side-body { flex:1; display:flex; flex-direction:column; gap:6px; }
+    .sk-side-t    { height:11px; width:80%; border-radius:3px; }
+    .sk-side-m    { height:9px; width:50%; border-radius:3px; }
+    /* Skeleton for hero */
+    .sk-hero { width:100%; aspect-ratio:16/7; border-radius:12px; min-height:200px; }
+    /* Skeleton for schedule */
+    .sk-sched-row {
+      display:flex; align-items:center; gap:10px; padding:9px 0;
+      border-bottom:1px solid rgba(255,255,255,0.05);
+    }
+    .sk-sched-img  { width:44px; height:60px; border-radius:6px; flex-shrink:0; }
+    .sk-sched-body { flex:1; display:flex; flex-direction:column; gap:6px; }
+    .sk-sched-t    { height:11px; width:75%; border-radius:3px; }
+    .sk-sched-m    { height:9px; width:45%; border-radius:3px; }
+
+    /* ── POPULAR ANIME LIST (Miruro-style improved) ── */
+    .pa-list { display:flex; flex-direction:column; gap:5px; }
+    .pa-row {
+      display:flex; align-items:center; gap:0;
       position:relative; overflow:hidden;
-      border-radius:10px; padding:10px 12px 10px 0;
+      border-radius:10px;
       cursor:pointer; text-decoration:none; color:#fff;
-      min-height:76px;
-      transition:transform .18s ease, box-shadow .18s ease;
+      min-height:88px;
+      transition:transform .2s ease, box-shadow .2s ease;
       background-color: var(--bg-card, #0f1923);
     }
-    /* Background image blurred behind row */
+    /* RIGHT SIDE: actual bg image — visible on right, fades left */
     .pa-row::before {
       content:''; position:absolute; inset:0;
       background-image:var(--pa-bg);
       background-size:cover; background-position:center 20%;
-      filter:blur(3px) brightness(0.22) saturate(1.3);
+      filter:blur(1.5px) brightness(0.35) saturate(1.4);
       transition:filter .3s ease;
       z-index:0;
     }
-    .pa-row:hover::before { filter:blur(2px) brightness(0.32) saturate(1.5); }
-    .pa-row:hover { transform:translateY(-1px); box-shadow:0 6px 20px rgba(0,0,0,.5); }
+    /* LEFT SIDE: dark overlay that fades to transparent right — Miruro look */
+    .pa-row::after {
+      content:''; position:absolute; inset:0;
+      background:linear-gradient(to right,
+        var(--bg-card,#0f1923) 0%,
+        var(--bg-card,#0f1923) 38%,
+        rgba(10,18,28,0.72) 62%,
+        rgba(10,18,28,0.0) 100%);
+      z-index:1;
+      transition:opacity .3s ease;
+    }
+    .pa-row:hover::before { filter:blur(1px) brightness(0.48) saturate(1.6); }
+    .pa-row:hover::after  { opacity:0.82; }
+    .pa-row:hover { transform:translateY(-2px); box-shadow:0 8px 28px rgba(0,0,0,.6); }
     /* Rank number */
     .pa-rank {
-      position:relative; z-index:1;
-      width:34px; flex-shrink:0; text-align:center;
-      font-size:1rem; font-weight:800; opacity:.22;
-      font-family:var(--font-title);
+      position:relative; z-index:2;
+      width:38px; flex-shrink:0; text-align:center;
+      font-size:1rem; font-weight:800; opacity:.2;
+      font-family:var(--font-title); padding-left:6px;
     }
-    /* Top-3 ranks get special treatment */
-    .pa-row.rank-1 .pa-rank { opacity:1; color:#fbbf24; font-size:1.15rem; text-shadow:0 0 12px rgba(251,191,36,.6); }
-    .pa-row.rank-2 .pa-rank { opacity:1; color:#cbd5e1; font-size:1.1rem; }
-    .pa-row.rank-3 .pa-rank { opacity:1; color:#fb923c; font-size:1.05rem; }
+    .pa-row.rank-1 .pa-rank { opacity:1; color:#fbbf24; font-size:1.2rem; text-shadow:0 0 14px rgba(251,191,36,.7); }
+    .pa-row.rank-2 .pa-rank { opacity:1; color:#cbd5e1; font-size:1.12rem; }
+    .pa-row.rank-3 .pa-rank { opacity:1; color:#fb923c; font-size:1.06rem; }
     .pa-row.rank-1 { border-left:3px solid #fbbf24; }
     .pa-row.rank-2 { border-left:3px solid #94a3b8; }
     .pa-row.rank-3 { border-left:3px solid #fb923c; }
-    /* Poster */
+    /* Poster — bigger, like Miruro */
     .pa-poster {
-      position:relative; z-index:1; flex-shrink:0;
-      width:46px; height:64px;
-      border-radius:6px; object-fit:cover;
-      box-shadow:0 3px 10px rgba(0,0,0,.5);
+      position:relative; z-index:2; flex-shrink:0;
+      width:56px; height:78px; margin:5px 12px 5px 6px;
+      border-radius:7px; object-fit:cover;
+      box-shadow:0 4px 14px rgba(0,0,0,.65);
     }
-    /* Info block */
-    .pa-info { position:relative; z-index:1; flex:1; min-width:0; }
+    /* Info block — left side content */
+    .pa-info { position:relative; z-index:2; flex:1; min-width:0; padding:10px 14px 10px 0; }
     .pa-title {
-      font-size:0.78rem; font-weight:700; color:#fff;
+      font-size:0.82rem; font-weight:700; color:#fff;
       display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
-      overflow:hidden; line-height:1.35; margin-bottom:5px;
+      overflow:hidden; line-height:1.38; margin-bottom:6px;
     }
-    .pa-meta {
-      display:flex; flex-wrap:wrap; gap:5px; align-items:center;
-    }
+    .pa-meta { display:flex; flex-wrap:wrap; gap:4px; align-items:center; }
     .pa-tag {
-      font-size:0.6rem; font-weight:600;
-      background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.18);
-      border-radius:20px; padding:2px 7px; color:#cbd5e1; white-space:nowrap;
+      font-size:0.59rem; font-weight:600;
+      background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.16);
+      border-radius:20px; padding:2px 8px; color:#cbd5e1; white-space:nowrap;
     }
     .pa-score {
-      font-size:0.62rem; font-weight:700; color:#fbbf24;
-      display:flex; align-items:center; gap:3px;
+      font-size:0.64rem; font-weight:700; color:#fbbf24;
+      display:inline-flex; align-items:center; gap:3px;
     }
-    .pa-score i { font-size:0.55rem; }
+    .pa-score i { font-size:0.54rem; }
 
     /* popup */
     .popup-overlay { position:fixed; inset:0; z-index:500; display:flex; align-items:center; justify-content:center; pointer-events:none; }
@@ -1588,16 +1657,28 @@ window.showAnikotoPopupById = function(mal_id) {
 
       /* ── COMPLETED (paginated) ── */
       let completedCurrentPage = 1;
+      // Track seen mal_ids across completed pages to prevent Jikan duplicates
+      const _compSeenIds = new Set();
       async function loadCompleted(page=1) {
         completedCurrentPage = page;
         const today = new Date().toISOString().split('T')[0];
-        const [tv, anime] = await Promise.all([
+        // Fetch 2 Jikan pages to have enough unique anime after dedup
+        const [tv, anime, anime2] = await Promise.all([
           fetchTMDB('/discover/tv', `with_status=3&air_date.lte=${today}&sort_by=first_air_date.desc&page=${page}`),
-          fetchJikan('anime', `status=complete&order_by=start_date&sort=desc&page=${page}&limit=20`)
+          fetchJikan('anime', `status=complete&order_by=start_date&sort=desc&page=${page}&limit=25`),
+          fetchJikan('anime', `status=complete&order_by=start_date&sort=desc&page=${page+1}&limit=25`)
         ]);
+        // Deduplicate Jikan results by mal_id
+        const allAnime = [...(anime.data||[]), ...(anime2.data||[])];
+        const uniqueAnime = [];
+        const seenThisPage = new Set();
+        for (const a of allAnime) {
+          const key = String(a.mal_id);
+          if (!seenThisPage.has(key)) { seenThisPage.add(key); uniqueAnime.push(a); }
+        }
         const list = [
           ...(tv.results||[]).slice(0,10).map(i => ({id:`tmdb-comp-${i.id}`,title:i.name,poster:tmdbImg(i.poster_path),type:'TV',year:(i.first_air_date||'').slice(0,4),score:(i.vote_average||0).toFixed(1),quality:'HD'})),
-          ...(anime.data||[]).slice(0,10).map(a => ({id:`jikan-comp-${a.mal_id}`,title:a.title,poster:a.images?.jpg?.large_image_url||'',type:'Anime',year:(a.aired?.from||'').slice(0,4),score:(a.score||0).toFixed(1),quality:'HD'}))
+          ...uniqueAnime.slice(0,10).map(a => ({id:`jikan-comp-${a.mal_id}`,title:a.title,poster:a.images?.jpg?.large_image_url||'',type:'Anime',year:(a.aired?.from||'').slice(0,4),score:(a.score||0).toFixed(1),quality:'HD'}))
         ].slice(0,20);
         document.getElementById('completedGrid').innerHTML = list.map(s => `
           <a href="${infoUrl(s)}" class="show-card-grid">
@@ -1882,7 +1963,69 @@ window.showAnikotoPopupById = function(mal_id) {
         }
       }
 
-      /* ── SCHEDULE (COMPLETE REBUILD) ── */
+      /* ── SKELETON SCREENS — injected before any real data loads ── */
+      function skCards(n, w='140px', h='200px') {
+        return Array.from({length:n}, () => `
+          <div class="skeleton-card" style="width:${w};flex-shrink:0;">
+            <div class="skeleton sk-poster"></div>
+            <div class="skeleton sk-line w80"></div>
+            <div class="skeleton sk-line w60"></div>
+          </div>`).join('');
+      }
+      function skPaRows(n=8) {
+        return Array.from({length:n}, (_,i) => `
+          <div class="sk-pa-row">
+            <div class="skeleton sk-pa-rank"></div>
+            <div class="skeleton sk-pa-img"></div>
+            <div class="sk-pa-body">
+              <div class="skeleton sk-pa-title"></div>
+              <div class="sk-pa-meta">
+                ${Array.from({length:4},(_,j)=>`<div class="skeleton sk-pa-tag" style="width:${44+j*14}px"></div>`).join('')}
+              </div>
+            </div>
+          </div>`).join('');
+      }
+      function skSideRows(n=10) {
+        return Array.from({length:n}, () => `
+          <div class="sk-side-row">
+            <div class="skeleton sk-side-rank"></div>
+            <div class="skeleton sk-side-img"></div>
+            <div class="sk-side-body">
+              <div class="skeleton sk-side-t"></div>
+              <div class="skeleton sk-side-m"></div>
+            </div>
+          </div>`).join('');
+      }
+      function skSchedRows(n=8) {
+        return Array.from({length:n}, () => `
+          <div class="sk-sched-row">
+            <div class="skeleton sk-sched-img"></div>
+            <div class="sk-sched-body">
+              <div class="skeleton sk-sched-t"></div>
+              <div class="skeleton sk-sched-m"></div>
+            </div>
+          </div>`).join('');
+      }
+      function injectSkeletons() {
+        const $ = id => document.getElementById(id);
+        // Hero
+        const hero = $('heroSlider') || $('heroSection');
+        if (hero) hero.innerHTML = `<div class="skeleton sk-hero"></div>`;
+        // Horizontal scroll sections (cards)
+        [['topAiringList',8],['newReleasesList',8],['upcomingList',8],
+         ['trendingList',8],['newAnioceanList',8],['completedGrid',10]
+        ].forEach(([id,n]) => { const el=$(id); if(el) el.innerHTML=`<div style="display:flex;gap:10px;overflow:hidden;">${skCards(n)}</div>`; });
+        // Popular Anime list
+        const pa = $('popularAnimeList'); if(pa) pa.innerHTML = skPaRows(8);
+        // Sidebar (Most Popular)
+        const pop = $('popularList'); if(pop) pop.innerHTML = skSideRows(10);
+        // Schedule tabs
+        document.querySelectorAll('.schedule-day-content,.sched-content,[id^="sched-"]').forEach(el => {
+          el.innerHTML = skSchedRows(8);
+        });
+      }
+
+      /* ── SCHEDULE (COMPLETE REBUILD) ── 
                  /* ── NEW SCHEDULE (4‑column, localStorage, episode count) ── */
       let scheduleData = null;          // { monday: [anime], tuesday: [...], ... }
       let currentDay = null;            // 'monday' ... 'sunday'
@@ -2179,10 +2322,11 @@ window.showAnikotoPopupById = function(mal_id) {
       
 
       function init() {
+        injectSkeletons();
         loadHero();
         loadTopAiring();
         loadNewReleases();
-        loadNewAniocean(); // Load new section
+        loadNewAniocean();
         loadUpcoming();
         loadCompleted(1);
         loadTrending('today');
