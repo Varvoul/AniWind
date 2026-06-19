@@ -2159,6 +2159,40 @@ img { max-width: 100%; height: auto; display: block; }
     gap: 12px;
   }
 }
+    /* ── SKELETON WAVE (info page) ── */
+    @keyframes skeletonWave {
+      0%   { background-position: -400px 0; }
+      100% { background-position:  400px 0; }
+    }
+    .skeleton {
+      background: linear-gradient(90deg,
+        rgba(255,255,255,0.04) 25%,
+        rgba(255,255,255,0.10) 37%,
+        rgba(255,255,255,0.04) 63%);
+      background-size: 800px 100%;
+      animation: skeletonWave 1.4s ease infinite;
+      border-radius: 6px;
+      display: block;
+    }
+    .sk-backdrop { position:absolute; inset:0; z-index:0; }
+    .sk-info-wrap { display:flex; gap:18px; padding:20px 0; }
+    .sk-poster-lg { width:140px; height:200px; flex-shrink:0; border-radius:10px; }
+    .sk-info-body { flex:1; display:flex; flex-direction:column; gap:10px; }
+    .sk-title-lg  { height:22px; width:65%; border-radius:5px; }
+    .sk-meta-row  { display:flex; gap:8px; }
+    .sk-badge     { height:20px; border-radius:20px; }
+    .sk-desc      { height:11px; border-radius:4px; }
+    .sk-btn       { height:40px; width:130px; border-radius:30px; margin-top:6px; }
+    .sk-cast-wrap { display:flex; gap:10px; overflow:hidden; }
+    .sk-cast-card { flex-shrink:0; width:80px; }
+    .sk-cast-img  { width:80px; height:80px; border-radius:50%; }
+    .sk-cast-name { height:10px; width:70%; margin:6px auto 0; border-radius:3px; }
+    .sk-ep-row    { display:flex; align-items:center; gap:10px; padding:8px 0;
+                    border-bottom:1px solid rgba(255,255,255,0.05); }
+    .sk-ep-thumb  { width:80px; height:46px; border-radius:5px; flex-shrink:0; }
+    .sk-ep-body   { flex:1; display:flex; flex-direction:column; gap:6px; }
+    .sk-ep-t      { height:11px; width:75%; border-radius:3px; }
+    .sk-ep-m      { height:9px; width:45%; border-radius:3px; }
   </style>
   <script>
     // Runs before any HTML renders — disables browser scroll-restoration
@@ -2456,11 +2490,11 @@ img { max-width: 100%; height: auto; display: block; }
       'use strict';
 
       const CONFIG = {
-        ANIUMI_PROXY: 'https://aniumi.bionmovies47.workers.dev',  // universal CF Worker proxy
-        TMDB_WORKER:  'https://aniumi.bionmovies47.workers.dev',  // points to same worker (/3/* compat)
-        JIKAN_BASE:   'https://api.jikan.moe/v4',                 // direct fallback
-        ANIKOTO_DIRECT: 'https://anikoto.bionmovies47.workers.dev', // direct fallback
-        TMDB_LEGACY:  'https://aniocen.bionmovies47.workers.dev', // old worker fallback
+        ANIUMI_PROXY:   'https://aniumi.bionmovies47.workers.dev',   // universal proxy (Jikan/Anikoto)
+        TMDB_WORKER:    'https://tmdb-proxy.bionmovies47.workers.dev', // dedicated TMDB proxy (primary)
+        TMDB_LEGACY:    'https://aniocen.bionmovies47.workers.dev',   // old TMDB worker (fallback)
+        JIKAN_BASE:     'https://api.jikan.moe/v4',                   // Jikan direct fallback
+        ANIKOTO_DIRECT: 'https://anikoto.bionmovies47.workers.dev',   // Anikoto direct fallback
         ALLANIME_API: 'https://allanime-api.shashankbhake.codes',
         ANIMETHEMES_API: 'https://api.animethemes.moe/graphql',
         ANIMETHEMES_VIDEO: 'https://v.animethemes.moe',
@@ -2498,7 +2532,47 @@ img { max-width: 100%; height: auto; display: block; }
         bookmarkRowId: null, allAnimeData: null
       };
 
+      function injectInfoSkeletons() {
+        // Backdrop / hero
+        const bd = document.getElementById('showBackdrop') || document.querySelector('.backdrop-wrap,.show-backdrop');
+        if (bd) bd.innerHTML = `<div class="skeleton sk-backdrop"></div>`;
+        // Main info card
+        const infoCard = document.getElementById('showInfoCard') || document.querySelector('.show-info-card,.info-card-wrap');
+        if (infoCard) infoCard.innerHTML = `
+          <div class="sk-info-wrap">
+            <div class="skeleton sk-poster-lg"></div>
+            <div class="sk-info-body">
+              <div class="skeleton sk-title-lg"></div>
+              <div class="sk-meta-row">
+                ${[60,50,70,55].map(w=>`<div class="skeleton sk-badge" style="width:${w}px"></div>`).join('')}
+              </div>
+              ${[90,100,85,95,60].map(w=>`<div class="skeleton sk-desc" style="width:${w}%"></div>`).join('')}
+              <div class="skeleton sk-btn"></div>
+            </div>
+          </div>`;
+        // Cast
+        const cast = document.getElementById('castList') || document.querySelector('.cast-list,.cast-scroll');
+        if (cast) cast.innerHTML = `<div class="sk-cast-wrap">
+          ${Array.from({length:8},()=>`
+            <div class="sk-cast-card">
+              <div class="skeleton sk-cast-img"></div>
+              <div class="skeleton sk-cast-name"></div>
+            </div>`).join('')}
+        </div>`;
+        // Episodes
+        const eps = document.getElementById('episodeList') || document.querySelector('.episode-list,.ep-list');
+        if (eps) eps.innerHTML = Array.from({length:6},()=>`
+          <div class="sk-ep-row">
+            <div class="skeleton sk-ep-thumb"></div>
+            <div class="sk-ep-body">
+              <div class="skeleton sk-ep-t"></div>
+              <div class="skeleton sk-ep-m"></div>
+            </div>
+          </div>`).join('');
+      }
+
       document.addEventListener('DOMContentLoaded', async () => {
+        injectInfoSkeletons();
         // Remove hash so browser doesn't anchor-scroll to any element
         if (window.location.hash) {
           history.replaceState(null, '', window.location.pathname + window.location.search);
@@ -2712,16 +2786,25 @@ img { max-width: 100%; height: auto; display: block; }
 
       async function fetchTMDBData() {
         const endpoint = currentState.type;
-        const workerUrl = `${CONFIG.TMDB_WORKER}/3/${endpoint}/${currentState.id}?append_to_response=credits,videos,external_ids,images,content_ratings,release_dates&include_image_language=en,null`;
-        
-        try {
-          const res = await fetch(workerUrl);
-          if (res.status === 500) throw new Error('TMDB Worker proxy error');
+        const qs = `?append_to_response=credits,videos,external_ids,images,content_ratings,release_dates&include_image_language=en,null`;
+        const primaryUrl = `${CONFIG.TMDB_WORKER}/3/${endpoint}/${currentState.id}${qs}`;
+        const fallbackUrl = `${CONFIG.TMDB_LEGACY}/3/${endpoint}/${currentState.id}${qs}`;
+
+        async function tryFetch(url) {
+          const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
           if (!res.ok) throw new Error(`TMDB API error: ${res.status}`);
-          
-          const data = await res.json();
+          return res.json();
+        }
+
+        try {
+          let data;
+          try {
+            data = await tryFetch(primaryUrl);
+          } catch(e) {
+            console.warn('[TMDB] primary failed, trying fallback:', e.message);
+            data = await tryFetch(fallbackUrl);
+          }
           if (!data.title && !data.name) throw new Error('Invalid TMDB response');
-          
           currentState.data = data;
           currentState.title = data.title || data.name || 'Unknown';
         } catch (error) {
