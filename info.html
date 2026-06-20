@@ -2619,67 +2619,155 @@ img { max-width: 100%; height: auto; display: block; }
         }</div>`;
       }
 
+      // ── SKELETON OVERLAY SYSTEM ───────────────────────────────────────────
+      // Overlays sit ON TOP of real elements via position:absolute.
+      // Real DOM (posterImg, backdropImg, watchNowBtn etc.) is NEVER replaced
+      // so renderHero() / initUI() always find their elements.
+      // Call removeInfoSkeletons() once data is rendered to fade them out.
+
+      const SK_CLASS = 'sk-overlay';
+
+      function addSkOverlay(target, extraCss='') {
+        if (!target) return;
+        // Make parent position:relative so absolute overlay works
+        const pos = getComputedStyle(target).position;
+        if (pos === 'static') target.style.position = 'relative';
+        const ov = document.createElement('div');
+        ov.className = SK_CLASS;
+        ov.style.cssText = `position:absolute;inset:0;z-index:10;border-radius:inherit;
+          background:linear-gradient(90deg,#132f4c 25%,#1a3a5c 45%,#1f4468 55%,#132f4c 75%);
+          background-size:1200px 100%;animation:sk-wave 1.6s ease-in-out infinite;
+          pointer-events:none;${extraCss}`;
+        target.appendChild(ov);
+        return ov;
+      }
+
+      function addSkBlock(parent, h='12px', w='100%', mt='0') {
+        if (!parent) return;
+        const b = document.createElement('div');
+        b.className = SK_CLASS + ' sk-block';
+        b.style.cssText = `height:${h};width:${w};margin-top:${mt};border-radius:5px;
+          background:linear-gradient(90deg,#132f4c 25%,#1a3a5c 45%,#1f4468 55%,#132f4c 75%);
+          background-size:1200px 100%;animation:sk-wave 1.6s ease-in-out infinite;`;
+        parent.appendChild(b);
+        return b;
+      }
+
       function injectInfoSkeletons() {
         const $ = id => document.getElementById(id);
 
-        // 1) Backdrop
-        const bdWrap = document.querySelector('.backdrop-container');
-        if (bdWrap) {
-          bdWrap.innerHTML = `<div class="sk-backdrop-wrap"><div class="sk"></div></div>`;
+        // 1) Backdrop — overlay on top of blank <img>
+        const bd = document.querySelector('.backdrop-container');
+        if (bd) addSkOverlay(bd, 'border-radius:0;');
+
+        // 2) Poster — overlay on top of blank <img>
+        const pw = document.querySelector('.poster-wrapper');
+        if (pw) addSkOverlay(pw);
+
+        // 3) Title area — overlay on title-meta-container
+        const tm = document.querySelector('.title-meta-container');
+        if (tm) addSkOverlay(tm);
+
+        // 4) Synopsis — inject lines INSIDE synopsisText <p> (it's empty until render)
+        const synP = $('synopsisText');
+        if (synP) {
+          synP.innerHTML = '';
+          [100,95,88,72,50].forEach((w,i) => addSkBlock(synP, '11px', `${w}%`, i===0?'0':'7px'));
         }
 
-        // 2) Hero (poster + title block)
-        const posterWrapper = document.querySelector('.poster-wrapper');
-        if (posterWrapper) posterWrapper.innerHTML = `<div class="sk sk-poster"></div>`;
-
-        const titleMeta = document.querySelector('.title-meta-container');
-        if (titleMeta) titleMeta.innerHTML = `
-          <div class="sk-title-block">
-            <div class="sk sk-title"></div>
-            <div class="sk sk-subtitle"></div>
-            <div class="sk-badges">
-              ${[70,80,60,90,65].map(w=>`<div class="sk sk-badge" style="width:${w}px"></div>`).join('')}
-            </div>
-            ${[100,95,88,72].map(w=>`<div class="sk sk-synopsis" style="width:${w}%"></div>`).join('')}
-            <div class="sk-btn-row">
-              <div class="sk sk-btn" style="width:150px"></div>
-              <div class="sk sk-btn" style="width:130px"></div>
-            </div>
-          </div>`;
-
-        // 3) Details grid
+        // 5) Details grid — inject placeholder rows INSIDE the grid (it's empty until render)
         const dg = $('detailsGrid');
-        if (dg) dg.innerHTML = `
-          <div class="sk-details-grid">
-            ${Array.from({length:8},()=>`
-              <div class="sk-detail-row">
-                <div class="sk sk-detail-label"></div>
-                <div class="sk sk-detail-val"></div>
-              </div>`).join('')}
-          </div>`;
-
-        // 4) Synopsis
-        const syn = $('synopsisText') || $('synopsisContent');
-        if (syn) syn.innerHTML = Array.from({length:5},(_,i)=>
-          `<div class="sk sk-synopsis" style="width:${[100,95,88,72,50][i]}%;margin-bottom:6px"></div>`
-        ).join('');
-
-        // 5) Cast tab
-        const castList = $('castList');
-        if (castList) castList.innerHTML = skCastCards(10);
-
-        // 6) Recommendations
-        const recGrid = $('recommendForYouGrid');
-        if (recGrid) {
-          const recSec = $('recommendForYouSection');
-          if (recSec) recSec.style.display = 'block';
-          recGrid.innerHTML = skRecCards(8);
+        if (dg && dg.children.length === 0) {
+          const wrap = document.createElement('div');
+          wrap.className = SK_CLASS;
+          wrap.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%';
+          for (let i=0;i<8;i++) {
+            const row = document.createElement('div');
+            row.style.cssText = 'display:flex;flex-direction:column;gap:5px;';
+            addSkBlock(row, '9px', '40%');
+            addSkBlock(row, '13px', '70%', '2px');
+            wrap.appendChild(row);
+          }
+          dg.appendChild(wrap);
         }
 
-        // 7) Sidebar sections
+        // 6) Cast list — inject cards INSIDE castList (it's empty until render)
+        const castList = $('castList');
+        if (castList && castList.children.length === 0) {
+          const wrap = document.createElement('div');
+          wrap.className = SK_CLASS;
+          wrap.style.cssText = 'display:flex;gap:12px;overflow:hidden;padding:4px 0;';
+          for (let i=0;i<10;i++) {
+            const card = document.createElement('div');
+            card.style.cssText = 'flex-shrink:0;width:80px;display:flex;flex-direction:column;align-items:center;gap:7px;';
+            const circ = document.createElement('div');
+            circ.className = SK_CLASS;
+            circ.style.cssText = 'width:72px;height:72px;border-radius:50%;background:linear-gradient(90deg,#132f4c 25%,#1a3a5c 45%,#1f4468 55%,#132f4c 75%);background-size:1200px 100%;animation:sk-wave 1.6s ease-in-out infinite;';
+            addSkBlock(card, '10px', '80%');
+            addSkBlock(card, '9px', '60%', '2px');
+            card.insertBefore(circ, card.firstChild);
+            wrap.appendChild(card);
+          }
+          castList.appendChild(wrap);
+        }
+
+        // 7) Recommendations — inject cards inside the grid (initially empty/hidden)
+        const recGrid = $('recommendForYouGrid');
+        const recSec  = $('recommendForYouSection');
+        if (recGrid && recGrid.children.length === 0) {
+          if (recSec) recSec.style.display = 'block';
+          const wrap = document.createElement('div');
+          wrap.className = SK_CLASS;
+          wrap.style.cssText = 'display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:100%;';
+          for (let i=0;i<8;i++) {
+            const card = document.createElement('div');
+            card.style.cssText = 'border-radius:8px;overflow:hidden;background:#132f4c;';
+            const poster = document.createElement('div');
+            poster.className = SK_CLASS;
+            poster.style.cssText = 'width:100%;aspect-ratio:2/3;background:linear-gradient(90deg,#132f4c 25%,#1a3a5c 45%,#1f4468 55%,#132f4c 75%);background-size:1200px 100%;animation:sk-wave 1.6s ease-in-out infinite;';
+            card.appendChild(poster);
+            addSkBlock(card, '10px', '80%', '7px');
+            addSkBlock(card, '9px', '55%', '4px');
+            wrap.appendChild(card);
+          }
+          recGrid.appendChild(wrap);
+        }
+
+        // 8) Sidebar lists — inject rows inside empty lists
         [$('hiddenGemList'), $('topRankingList'), $('mostFavouriteList')].forEach(el => {
-          if (el) el.innerHTML = skItems(6);
+          if (!el || el.children.length > 0) return;
+          const frag = document.createDocumentFragment();
+          for (let i=0;i<6;i++) {
+            const row = document.createElement('div');
+            row.className = SK_CLASS;
+            row.style.cssText = 'display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.06);';
+            const img = document.createElement('div');
+            img.className = SK_CLASS;
+            img.style.cssText = 'width:44px;height:62px;flex-shrink:0;border-radius:6px;background:linear-gradient(90deg,#132f4c 25%,#1a3a5c 45%,#1f4468 55%,#132f4c 75%);background-size:1200px 100%;animation:sk-wave 1.6s ease-in-out infinite;';
+            const body = document.createElement('div');
+            body.style.cssText = 'flex:1;display:flex;flex-direction:column;gap:6px;';
+            addSkBlock(body, '11px', '80%');
+            addSkBlock(body, '9px', '50%', '2px');
+            row.appendChild(img);
+            row.appendChild(body);
+            frag.appendChild(row);
+          }
+          el.appendChild(frag);
         });
+      }
+
+      function removeInfoSkeletons() {
+        // Remove all overlay elements
+        document.querySelectorAll('.' + SK_CLASS).forEach(el => {
+          el.style.opacity = '0';
+          el.style.transition = 'opacity 0.3s ease';
+          setTimeout(() => el.remove(), 300);
+        });
+        // Reset any inline position:relative we added
+        [document.querySelector('.backdrop-container'),
+         document.querySelector('.poster-wrapper'),
+         document.querySelector('.title-meta-container')
+        ].forEach(el => { if (el) el.style.position = ''; });
       }
 
       document.addEventListener('DOMContentLoaded', async () => {
@@ -2702,6 +2790,7 @@ img { max-width: 100%; height: auto; display: block; }
 
         if (currentState.id && currentState.source) {
           await fetchShowData();
+          removeInfoSkeletons(); // Remove overlays — real elements now populated
           initUI();
           await fetchUserBookmarks();
 
@@ -2717,7 +2806,10 @@ img { max-width: 100%; height: auto; display: block; }
               loadRecommendations()
             ]);
           }
+          // Ensure any remaining skeleton nodes in lists are cleaned up
+          document.querySelectorAll('.' + SK_CLASS).forEach(el => el.remove());
         } else {
+          removeInfoSkeletons();
           showError('Invalid show URL format');
         }
         // Page fully loaded — user can now scroll freely
