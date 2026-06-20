@@ -2159,6 +2159,96 @@ img { max-width: 100%; height: auto; display: block; }
     gap: 12px;
   }
 }
+
+    /* ═══════════════════════════════════════════════════════
+       SKELETON SCREENS — site color schema (#0a1929 body, #132f4c card)
+       Wave sweeps left→right using --bg-surface highlights
+    ═══════════════════════════════════════════════════════ */
+    @keyframes sk-wave {
+      0%   { background-position: -600px 0; }
+      100% { background-position:  600px 0; }
+    }
+    .sk {
+      display: block;
+      border-radius: 6px;
+      background: linear-gradient(
+        90deg,
+        #132f4c 25%,
+        #1a3a5c 45%,
+        #1f4468 55%,
+        #132f4c 75%
+      );
+      background-size: 1200px 100%;
+      animation: sk-wave 1.6s ease-in-out infinite;
+    }
+
+    /* ── Backdrop skeleton ── */
+    .sk-backdrop-wrap {
+      width: 100%; height: 280px;
+      background: #0d2238;
+      position: relative; overflow: hidden;
+    }
+    .sk-backdrop-wrap .sk { position:absolute; inset:0; border-radius:0; height:100%; }
+
+    /* ── Hero section (poster + title block) ── */
+    .sk-hero-section {
+      display: flex; gap: 20px; padding: 20px 0 16px;
+    }
+    .sk-poster {
+      width: 160px; height: 230px; flex-shrink: 0; border-radius: 10px;
+    }
+    .sk-title-block {
+      flex: 1; display: flex; flex-direction: column; gap: 10px; padding-top: 6px;
+    }
+    .sk-title      { height: 28px; width: 70%; border-radius: 6px; }
+    .sk-subtitle   { height: 16px; width: 45%; border-radius: 4px; }
+    .sk-badges     { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+    .sk-badge      { height: 24px; border-radius: 20px; }
+    .sk-synopsis   { height: 11px; border-radius: 3px; }
+    .sk-btn-row    { display: flex; gap: 10px; margin-top: 6px; }
+    .sk-btn        { height: 42px; border-radius: 30px; }
+
+    /* ── Details grid skeleton ── */
+    .sk-details-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+      margin: 14px 0;
+    }
+    .sk-detail-row { display: flex; flex-direction: column; gap: 5px; }
+    .sk-detail-label { height: 9px; width: 40%; border-radius: 3px; opacity: .5; }
+    .sk-detail-val   { height: 13px; width: 70%; border-radius: 4px; }
+
+    /* ── Cast skeleton ── */
+    .sk-cast-wrap {
+      display: flex; gap: 12px; overflow: hidden; padding: 4px 0;
+    }
+    .sk-cast-card  { flex-shrink: 0; width: 80px; display: flex; flex-direction: column; align-items: center; gap: 7px; }
+    .sk-cast-img   { width: 72px; height: 72px; border-radius: 50%; }
+    .sk-cast-name  { height: 10px; width: 80%; border-radius: 3px; }
+    .sk-cast-role  { height: 9px; width: 60%; border-radius: 3px; opacity: .6; }
+
+    /* ── Recommendations grid skeleton ── */
+    .sk-recs-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+    }
+    @media(min-width:600px) { .sk-recs-grid { grid-template-columns: repeat(4,1fr); } }
+    .sk-rec-card   { border-radius: 8px; overflow: hidden; background: #132f4c; }
+    .sk-rec-poster { width: 100%; aspect-ratio: 2/3; }
+    .sk-rec-title  { height: 10px; margin: 7px 8px 4px; width: 80%; border-radius: 3px; }
+    .sk-rec-meta   { height: 9px; margin: 0 8px 8px; width: 55%; border-radius: 3px; opacity:.6; }
+
+    /* ── Sidebar skeleton ── */
+    .sk-sidebar-item {
+      display: flex; gap: 10px; align-items: center;
+      padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .sk-side-img  { width: 44px; height: 62px; flex-shrink:0; border-radius: 6px; }
+    .sk-side-body { flex:1; display:flex; flex-direction:column; gap:6px; }
+    .sk-side-t    { height: 11px; width: 80%; border-radius: 3px; }
+    .sk-side-m    { height: 9px; width: 50%; border-radius: 3px; opacity:.6; }
+
+    /* ── Section heading skeleton ── */
+    .sk-section-title { height: 18px; width: 160px; border-radius: 5px; margin-bottom: 12px; }
+
   </style>
   <script>
     // Runs before any HTML renders — disables browser scroll-restoration
@@ -2494,6 +2584,104 @@ img { max-width: 100%; height: auto; display: block; }
         bookmarkRowId: null, allAnimeData: null
       };
 
+      // ─── Skeleton helpers ──────────────────────────────────────────────────
+      function skItems(n, cls='sk-sidebar-item') {
+        return Array.from({length:n}, () =>
+          `<div class="${cls}">
+             <div class="sk sk-side-img"></div>
+             <div class="sk-side-body">
+               <div class="sk sk-side-t"></div>
+               <div class="sk sk-side-m"></div>
+             </div>
+           </div>`
+        ).join('');
+      }
+      function skCastCards(n=8) {
+        return `<div class="sk-cast-wrap">${
+          Array.from({length:n}, () =>
+            `<div class="sk-cast-card">
+               <div class="sk sk-cast-img"></div>
+               <div class="sk sk-cast-name"></div>
+               <div class="sk sk-cast-role"></div>
+             </div>`
+          ).join('')
+        }</div>`;
+      }
+      function skRecCards(n=8) {
+        return `<div class="sk-recs-grid">${
+          Array.from({length:n}, () =>
+            `<div class="sk-rec-card">
+               <div class="sk sk-rec-poster"></div>
+               <div class="sk sk-rec-title"></div>
+               <div class="sk sk-rec-meta"></div>
+             </div>`
+          ).join('')
+        }</div>`;
+      }
+
+      function injectInfoSkeletons() {
+        const $ = id => document.getElementById(id);
+
+        // 1) Backdrop
+        const bdWrap = document.querySelector('.backdrop-container');
+        if (bdWrap) {
+          bdWrap.innerHTML = `<div class="sk-backdrop-wrap"><div class="sk"></div></div>`;
+        }
+
+        // 2) Hero (poster + title block)
+        const posterWrapper = document.querySelector('.poster-wrapper');
+        if (posterWrapper) posterWrapper.innerHTML = `<div class="sk sk-poster"></div>`;
+
+        const titleMeta = document.querySelector('.title-meta-container');
+        if (titleMeta) titleMeta.innerHTML = `
+          <div class="sk-title-block">
+            <div class="sk sk-title"></div>
+            <div class="sk sk-subtitle"></div>
+            <div class="sk-badges">
+              ${[70,80,60,90,65].map(w=>`<div class="sk sk-badge" style="width:${w}px"></div>`).join('')}
+            </div>
+            ${[100,95,88,72].map(w=>`<div class="sk sk-synopsis" style="width:${w}%"></div>`).join('')}
+            <div class="sk-btn-row">
+              <div class="sk sk-btn" style="width:150px"></div>
+              <div class="sk sk-btn" style="width:130px"></div>
+            </div>
+          </div>`;
+
+        // 3) Details grid
+        const dg = $('detailsGrid');
+        if (dg) dg.innerHTML = `
+          <div class="sk-details-grid">
+            ${Array.from({length:8},()=>`
+              <div class="sk-detail-row">
+                <div class="sk sk-detail-label"></div>
+                <div class="sk sk-detail-val"></div>
+              </div>`).join('')}
+          </div>`;
+
+        // 4) Synopsis
+        const syn = $('synopsisText') || $('synopsisContent');
+        if (syn) syn.innerHTML = Array.from({length:5},(_,i)=>
+          `<div class="sk sk-synopsis" style="width:${[100,95,88,72,50][i]}%;margin-bottom:6px"></div>`
+        ).join('');
+
+        // 5) Cast tab
+        const castList = $('castList');
+        if (castList) castList.innerHTML = skCastCards(10);
+
+        // 6) Recommendations
+        const recGrid = $('recommendForYouGrid');
+        if (recGrid) {
+          const recSec = $('recommendForYouSection');
+          if (recSec) recSec.style.display = 'block';
+          recGrid.innerHTML = skRecCards(8);
+        }
+
+        // 7) Sidebar sections
+        [$('hiddenGemList'), $('topRankingList'), $('mostFavouriteList')].forEach(el => {
+          if (el) el.innerHTML = skItems(6);
+        });
+      }
+
       document.addEventListener('DOMContentLoaded', async () => {
         // Remove hash so browser doesn't anchor-scroll to any element
         if (window.location.hash) {
@@ -2505,6 +2693,9 @@ img { max-width: 100%; height: auto; display: block; }
         // Parse URL first — currentState.id must exist before auth/bookmark calls
         parseUrl();
         initTabSwitching();
+
+        // Inject skeletons immediately so user sees structure, not blank page
+        injectInfoSkeletons();
 
         // Auth
         if (typeof window.supabaseClient !== 'undefined') await initAuth();
@@ -2700,21 +2891,62 @@ img { max-width: 100%; height: auto; display: block; }
       }
 
       async function fetchTMDBData() {
-        const endpoint = currentState.type;
-        const workerUrl = `${CONFIG.TMDB_WORKER}/3/${endpoint}/${currentState.id}?append_to_response=credits,videos,external_ids,images,content_ratings,release_dates&include_image_language=en,null`;
-        
-        try {
-          const res = await fetch(workerUrl);
-          if (res.status === 500) throw new Error('TMDB Worker proxy error');
-          if (!res.ok) throw new Error(`TMDB API error: ${res.status}`);
-          
+        const endpoint  = currentState.type;   // "movie" or "tv"
+        const id        = currentState.id;
+        const appendQs  = 'append_to_response=credits,videos,external_ids,images,content_ratings,release_dates&include_image_language=en,null';
+        const TMDB_TOK  = 'eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI0Yjc0YzE4NjlkZGQxMWEzNTM1MDFlNGI0MjY4MzA3YyIsIm5iZiI6MTc2NDM5Mzg3MS4yNTEwMDAyLCJzdWIiOiI2OTJhODM4ZjNkNTVkM2Y1NzJiOGVlYjIiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.qN331VqKQ5rfgvkadaRLYG6fNXp4t_lOee3K15f4gCo';
+
+        // ── Tier 1: aniocen worker (no auth header needed — worker injects it) ──
+        const tier1 = `${CONFIG.TMDB_WORKER}/3/${endpoint}/${id}?${appendQs}`;
+        // ── Tier 2: Direct TMDB API with Bearer token ──────────────────────────
+        const tier2 = `https://api.themoviedb.org/3/${endpoint}/${id}?${appendQs}`;
+        // ── Tier 3: mapplee.com — same TMDB data structure, no auth required ───
+        const tier3 = `https://mapplee.com/api/tmdb/${endpoint}/${id}?language=en-US`;
+
+        async function tryUrl(url, headers={}) {
+          const res = await fetch(url, {
+            headers: { Accept: 'application/json', ...headers },
+            signal: AbortSignal.timeout(12000)
+          });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
           const data = await res.json();
-          if (!data.title && !data.name) throw new Error('Invalid TMDB response');
-          
-          currentState.data = data;
+          if (!data.id && !data.title && !data.name) throw new Error('Empty response');
+          return data;
+        }
+
+        try {
+          let data;
+          // Try tier 1 (aniocen proxy)
+          try {
+            data = await tryUrl(tier1);
+            console.log('[TMDB] ✅ aniocen proxy');
+          } catch(e1) {
+            console.warn('[TMDB] aniocen failed:', e1.message);
+            // Try tier 2 (direct TMDB)
+            try {
+              data = await tryUrl(tier2, { Authorization: `Bearer ${TMDB_TOK}` });
+              console.log('[TMDB] ✅ direct API');
+            } catch(e2) {
+              console.warn('[TMDB] direct API failed:', e2.message);
+              // Try tier 3 (mapplee.com) — returns identical TMDB structure
+              data = await tryUrl(tier3);
+              console.log('[TMDB] ✅ mapplee fallback');
+            }
+          }
+
+          // mapplee response may use slightly different field names — normalise
+          if (!data.credits && data.cast) {
+            data.credits = { cast: data.cast, crew: data.crew || [] };
+          }
+          if (!data.videos && data.video_results) {
+            data.videos = { results: data.video_results };
+          }
+          if (!data.images) data.images = { posters:[], backdrops:[], logos:[] };
+
+          currentState.data  = data;
           currentState.title = data.title || data.name || 'Unknown';
         } catch (error) {
-          console.error('TMDB fetch failed:', error);
+          console.error('[TMDB] all tiers failed:', error.message);
           currentState.data = { title: currentState.title || 'Unknown', overview: '' };
           throw error;
         }
