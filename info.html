@@ -1675,6 +1675,8 @@ img { max-width: 100%; height: auto; display: block; }
 
 /* Smooth fade for grid updates */
 #sunkenTreasuresGrid {
+  /* Prevent layout-shift scroll during page transitions */
+  contain: layout;
   transition: opacity 0.2s ease;
 }
 
@@ -4664,7 +4666,14 @@ function renderSunkenPagination(currentPage, totalPages, container) {
   prevBtn.disabled = currentPage === 1;
   prevBtn.onclick = (e) => {
     e.preventDefault();
-    if (currentPage > 1) loadSunkenTreasures(currentPage - 1);
+    e.currentTarget.blur(); // prevent browser auto-scroll to focused button
+    if (currentPage > 1) {
+      const savedY = window.scrollY;
+      loadSunkenTreasures(currentPage - 1).then(() => {
+        // Restore exact scroll position after DOM update
+        window.scrollTo({ top: savedY, behavior: 'instant' });
+      });
+    }
   };
   container.appendChild(prevBtn);
   
@@ -4682,7 +4691,14 @@ function renderSunkenPagination(currentPage, totalPages, container) {
   nextBtn.disabled = currentPage === totalPages;
   nextBtn.onclick = (e) => {
     e.preventDefault();
-    if (currentPage < totalPages) loadSunkenTreasures(currentPage + 1);
+    e.currentTarget.blur(); // prevent browser auto-scroll to focused button
+    if (currentPage < totalPages) {
+      const savedY = window.scrollY;
+      loadSunkenTreasures(currentPage + 1).then(() => {
+        // Restore exact scroll position after DOM update
+        window.scrollTo({ top: savedY, behavior: 'instant' });
+      });
+    }
   };
   container.appendChild(nextBtn);
 }
