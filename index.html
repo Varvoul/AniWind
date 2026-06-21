@@ -1411,88 +1411,147 @@ window.showAnikotoPopupById = function(mal_id) {
 };
 
       /* ── HERO ── */
+      // Hero shows ALL currently airing TV anime (type=tv, status=airing).
+      // Fetches up to 5 Jikan pages (125 anime max) in parallel.
+      // Results are cached in sessionStorage for this browser session so
+      // navigating back/forward is instant. Cache expires after 6 hours
+      // so new airing anime appear automatically without a page reload.
       let heroData=[], currentSlide=0;
+      const HERO_CACHE_KEY   = 'aniumi_hero_airing_tv';
+      const HERO_CACHE_TTL   = 6 * 60 * 60 * 1000; // 6 hours
+
       async function loadHero() {
-        const [airingAnime, onAirTV, nowMovies] = await Promise.all([
-          fetchJikan('top/anime', 'filter=airing&limit=10'),
-          fetchTMDB('/tv/on_the_air', 'language=en-US&page=1'),
-          fetchTMDB('/movie/now_playing', 'language=en-US&page=1')
-        ]);
-        const animes = (airingAnime.data||[]).map(a => ({
-          id:`jikan-${a.mal_id}`, title:a.title, type:'Anime',
-          genres:(a.genres||[]).map(g=>g.name), score:(a.score||0).toFixed(1),
-          year:(a.aired?.from||'').slice(0,4), duration:a.duration||'?',
-          synopsis:a.synopsis||'', backdrop: a.images?.jpg?.large_image_url||'',
-          poster:a.images?.jpg?.large_image_url||'', certification:a.rating||'PG-13',
-        }));
-        const moviesPromises = (nowMovies.results||[]).slice(0,7).map(async i => {
-          const detail = await fetchTMDB(`/movie/${i.id}`, 'language=en-US');
-          const d = detail || {};
-          return {
-            id:`tmdb-movie-${i.id}`, title:i.title, type:'Movie',
-            genres:(i.genre_ids||[]).map(id => GENRE_MAP[id]||id),
-            score:(i.vote_average||0).toFixed(1),
-            year:(i.release_date||'').slice(0,4),
-            duration: d.runtime ? `${d.runtime} min` : '2h 10m',
-            synopsis:i.overview||'', backdrop:tmdbBack(i.backdrop_path), poster:tmdbImg(i.poster_path),
-            certification: d.adult ? '18+' : (d.release_dates?.results?.find(r=>r.iso_3166_1==='US')?.release_dates?.[0]?.certification || 'PG-13'),
-          };
-        });
-        const movies = await Promise.all(moviesPromises);
-        const tvPromises = (onAirTV.results||[]).slice(0,7).map(async i => {
-          const detail = await fetchTMDB(`/tv/${i.id}`, 'language=en-US');
-          const d = detail || {};
-          return {
-            id:`tmdb-tv-${i.id}`, title:i.name, type:'TV',
-            genres:(i.genre_ids||[]).map(id => GENRE_MAP[id]||id),
-            score:(i.vote_average||0).toFixed(1),
-            year:(i.first_air_date||'').slice(0,4),
-            duration: d.episode_run_time?.length ? `${d.episode_run_time[0]}m/ep` : '45m/ep',
-            synopsis:i.overview||'', backdrop:tmdbBack(i.backdrop_path), poster:tmdbImg(i.poster_path),
-            certification: d.content_ratings?.results?.find(r=>r.iso_3166_1==='US')?.rating || 'PG-13',
-          };
-        });
-        const tvs = await Promise.all(tvPromises);
-        const interleaved = [];
-        const max = Math.max(animes.length, tvs.length, movies.length);
-        for (let i=0; i<max; i++) {
-          if(animes[i]) interleaved.push(animes[i]);
-          if(tvs[i]) interleaved.push(tvs[i]);
-          if(movies[i]) interleaved.push(movies[i]);
+        // ── 1) Try sessionStorage cache first ────────────────────────────
+        try {
+          const raw = sessionStorage.getItem(HERO_CACHE_KEY);
+          if (raw) {
+            const { data, ts } = JSON.parse(raw);
+            if (Array.isArray(data) && data.length > 0 && (Date.now() - ts) < HERO_CACHE_TTL) {
+              heroData = data;
+              renderHero();
+              return;
+            }
+          }
+        } catch(e) { /* corrupt cache — fetch fresh */ }
+
+        // ── 2) Fetch pages 1-5 of airing TV anime in parallel ────────────
+        // type=tv ensures only TV series (no movies, specials, OVAs).
+        // filter=airing = currently broadcasting right now.
+        // order_by=popularity so the most-watched shows appear first in the slider.
+        const pages = [1, 2, 3, 4, 5];
+        const pageParams = pages.map(p =>
+          `filter=airing&type=tv&order_by=popularity&sort=asc&limit=25&page=${p}&sfw=true`
+        );
+
+        let rawResults = [];
+        try {
+          const responses = await Promise.allSettled(
+            pageParams.map(params => fetchJikan('top/anime', params))
+          );
+          for (const r of responses) {
+            if (r.status === 'fulfilled' && Array.isArray(r.value?.data)) {
+              rawResults.push(...r.value.data);
+            }
+          }
+        } catch(e) {
+          console.warn('[Hero] fetch error:', e.message);
         }
-        // Deduplicate hero data by id
-        heroData = dedupById(interleaved, 'id').slice(0,19);
+
+        // ── 3) Deduplicate by mal_id ───────────────────────────────────────
+        const seenIds = new Set();
+        const unique = [];
+        for (const a of rawResults) {
+          const id = Number(a.mal_id);
+          if (!id || seenIds.has(id)) continue;
+          // Extra safety: skip anything not TV or not currently airing
+          if (a.type && a.type !== 'TV') continue;
+          if (a.status && !a.status.toLowerCase().includes('airing')) continue;
+          seenIds.add(id);
+          unique.push(a);
+        }
+
+        // ── 4) Map to hero slide format ───────────────────────────────────
+        const slides = unique.map(a => ({
+          id:            `jikan-${a.mal_id}`,
+          title:         a.title_english || a.title || 'Unknown',
+          type:          'Anime',
+          genres:        (a.genres||[]).map(g => g.name),
+          themes:        (a.themes||[]).map(g => g.name),
+          score:         a.score ? Number(a.score).toFixed(1) : 'N/A',
+          year:          (a.aired?.from||'').slice(0, 4) || new Date().getFullYear(),
+          duration:      a.duration && a.duration !== 'Unknown' ? a.duration : '24 min/ep',
+          episodes:      a.episodes || '?',
+          synopsis:      a.synopsis || '',
+          backdrop:      a.images?.jpg?.large_image_url || a.images?.webp?.large_image_url || '',
+          poster:        a.images?.jpg?.large_image_url || a.images?.webp?.large_image_url || '',
+          certification: a.rating || 'PG-13',
+          studio:        a.studios?.length ? a.studios[0].name : '',
+          mal_id:        a.mal_id,
+        }));
+
+        // ── 5) Filter out slides with no backdrop image (blank hero) ──────
+        heroData = slides.filter(s => s.backdrop.length > 0);
+
+        // ── 6) Cache in sessionStorage for 6 hours ────────────────────────
+        try {
+          sessionStorage.setItem(HERO_CACHE_KEY, JSON.stringify({
+            data: heroData,
+            ts:   Date.now()
+          }));
+        } catch(e) { /* storage full — skip cache */ }
+
+        console.log(`[Hero] ${heroData.length} unique airing TV anime loaded`);
         renderHero();
       }
       function renderHero() {
         const container = document.getElementById('slidesContainer');
-        container.innerHTML = heroData.map((s,i) => `
+        const slugify = t => (t||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+        container.innerHTML = heroData.map((s,i) => {
+          const allTags = [...(s.genres||[]).slice(0,3), ...(s.themes||[]).slice(0,1)];
+          const infoHref = `/info/anime/jikan-${s.mal_id}/${slugify(s.title)}`;
+          return `
           <div class="slide" data-index="${i}" style="background-image:url('${s.backdrop||s.poster}');">
             <div class="slide-content">
               <h1 class="slide-title">${s.title}</h1>
               <div class="slide-meta">
-                <span class="meta-badge">${s.type}</span>
+                <span class="meta-badge">TV</span>
+                <span class="meta-badge" style="color:var(--accent-gold);border-color:var(--accent-gold);">● Airing</span>
                 <span class="meta-badge"><i class="fas fa-calendar-alt"></i> ${s.year}</span>
                 <span class="meta-badge"><i class="fas fa-clock"></i> ${s.duration}</span>
-                <span class="meta-badge">${s.certification||'PG-13'}</span>
-                ${s.genres.slice(0,3).map(g => `<span class="meta-badge">${g}</span>`).join('')}
+                ${s.episodes !== '?' ? `<span class="meta-badge"><i class="fas fa-play"></i> ${s.episodes} eps</span>` : ''}
+                ${s.studio ? `<span class="meta-badge">${s.studio}</span>` : ''}
+                ${allTags.map(g => `<span class="meta-badge">${g}</span>`).join('')}
                 <span class="meta-badge"><i class="fas fa-star" style="color:var(--accent-gold)"></i> ${s.score}</span>
               </div>
-              <p class="slide-synopsis">${s.synopsis?.slice(0,250)||''}</p>
+              <p class="slide-synopsis">${s.synopsis?.slice(0,260)||''}</p>
               <div class="slide-actions">
                 <a href="/watch/${s.id}" class="btn-watch"><i class="fas fa-play"></i> Watch Now</a>
-                <a href="${infoUrl(s)}" class="btn-heart-slide"><i class="far fa-heart"></i></a>
+                <a href="${infoHref}" class="btn-heart-slide"><i class="far fa-heart"></i></a>
               </div>
             </div>
-          </div>`).join('');
-        document.getElementById('sliderDots').innerHTML = heroData.map((_,i) => `<span class="dot${i===0?' active':''}" data-index="${i}"></span>`).join('');
+          </div>`;
+        }).join('');
+        // Dots — show max 30 dots (condensed for large sets)
+        const totalSlides = heroData.length;
+        const showDots = Math.min(totalSlides, 30);
+        document.getElementById('sliderDots').innerHTML = Array.from({length:showDots},(_,i) =>
+          `<span class="dot${i===0?' active':''}" data-index="${i}"></span>`
+        ).join('');
         currentSlide=0; updateSlidePos();
-        document.getElementById('slideCounter').textContent = `1 / ${heroData.length}`;
+        document.getElementById('slideCounter').textContent = `1 / ${totalSlides}`;
       }
       function goToSlide(i) { currentSlide = ((i%heroData.length)+heroData.length)%heroData.length; updateSlidePos(); }
       function updateSlidePos() {
         document.getElementById('slidesContainer').style.transform = `translateX(-${currentSlide*100}%)`;
-        document.querySelectorAll('#sliderDots .dot').forEach((d,idx) => d.classList.toggle('active', idx===currentSlide));
+        // Dots are capped at 30 — highlight the proportionally closest dot
+        const dots = document.querySelectorAll('#sliderDots .dot');
+        const total = heroData.length;
+        dots.forEach((d,idx) => {
+          // Map dot index to slide range — each dot represents total/dots.length slides
+          const ratio = total / dots.length;
+          const active = Math.round(currentSlide / ratio) === idx;
+          d.classList.toggle('active', active);
+        });
         document.getElementById('slideCounter').textContent = `${currentSlide+1} / ${heroData.length}`;
       }
       document.getElementById('prevSlide').addEventListener('click', ()=>goToSlide(currentSlide-1));
