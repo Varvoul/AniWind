@@ -2256,6 +2256,7 @@ img { max-width: 100%; height: auto; display: block; }
     // Runs before any HTML renders — disables browser scroll-restoration
     if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
   </script>
+  <script src="/aniumi-cache.js"></script>
 </head>
 <body>
   <!-- Header/Footer injected by shared.js -->
@@ -3073,6 +3074,14 @@ img { max-width: 100%; height: auto; display: block; }
 
           currentState.data  = data;
           currentState.title = data.title || data.name || 'Unknown';
+          // Cache the full show info JSON globally (6h TTL)
+          if (window.AniCache && data.id) {
+            const sid = `tmdb-${endpoint}-${data.id}`;
+            window.AniCache.set({ cacheKey:`info:show_info:${sid}`, pageSource:'info',
+              section:'show_info', showId:sid,
+              tmdbId:data.id, data,
+            });
+          }
         } catch (error) {
           console.error('[TMDB] all tiers failed:', error.message);
           currentState.data = { title: currentState.title || 'Unknown', overview: '' };
@@ -4154,6 +4163,15 @@ img { max-width: 100%; height: auto; display: block; }
       }
 
       async function loadHiddenGems(isAnime) {
+        const _hgKey = `info:hidden_gem:${currentState.id}`;
+        if (window.AniCache) {
+          const cached = await window.AniCache.get(_hgKey);
+          if (cached) {
+            const el = document.getElementById('hiddenGemList');
+            if (el) el.innerHTML = cached._html || '';
+            return;
+          }
+        }
         const container = document.getElementById('hiddenGemList');
         const cacheKey = `sidebar_gems_${isAnime ? 'anime' : currentState.type}`;
         try {
@@ -4217,6 +4235,15 @@ img { max-width: 100%; height: auto; display: block; }
       }
 
       async function loadTopRanking(isAnime) {
+        const _trKey = `info:top_ranking:${currentState.type || currentState.source}`;
+        if (window.AniCache) {
+          const cached = await window.AniCache.get(_trKey);
+          if (cached) {
+            const el = document.getElementById('topRankingList');
+            if (el) el.innerHTML = cached._html || '';
+            return;
+          }
+        }
         const container = document.getElementById('topRankingList');
         const cacheKey = `sidebar_top_${isAnime ? 'anime' : currentState.type}`;
         try {
@@ -4274,6 +4301,15 @@ img { max-width: 100%; height: auto; display: block; }
       }
 
       async function loadMostFavourite(isAnime) {
+        const _mfKey = `info:most_favourite:${currentState.type || currentState.source}`;
+        if (window.AniCache) {
+          const cached = await window.AniCache.get(_mfKey);
+          if (cached) {
+            const el = document.getElementById('mostFavouriteList');
+            if (el) el.innerHTML = cached._html || '';
+            return;
+          }
+        }
         const container = document.getElementById('mostFavouriteList');
         const cacheKey = `sidebar_fav_${isAnime ? 'anime' : currentState.type}`;
         try {
@@ -4383,6 +4419,15 @@ img { max-width: 100%; height: auto; display: block; }
 
       // Water Temple — genre-matched anime recommendations using the current show's actual genres
       async function loadWaterTemple() {
+        const _wtKey = `info:water_temple:${currentState.id}`;
+        if (window.AniCache) {
+          const cached = await window.AniCache.get(_wtKey);
+          if (cached && cached.length > 0) {
+            const el = document.getElementById('waterTempleGrid');
+            if (el) el.innerHTML = cached.map(s => renderAnimeRecCard ? renderAnimeRecCard(s) : '').join('');
+            return;
+          }
+        }
         const section = document.getElementById('waterTempleSection');
         const gridContainer = document.getElementById('waterTempleGrid');
 
@@ -4466,6 +4511,15 @@ img { max-width: 100%; height: auto; display: block; }
 
       // Recommend for You — TMDB movie/TV genre+popularity+score based recommendations
       async function loadRecommendForYou() {
+        const _rfyKey = `info:recommended_for_you:${currentState.id}`;
+        if (window.AniCache) {
+          const cached = await window.AniCache.get(_rfyKey);
+          if (cached && cached.length > 0) {
+            const el = document.getElementById('recommendForYouGrid');
+            if (el) el.innerHTML = cached.map(s => renderShowCard ? renderShowCard(s) : '').join('');
+            return;
+          }
+        }
         const section = document.getElementById('recommendForYouSection');
         const gridContainer = document.getElementById('recommendForYouGrid');
 
@@ -4579,9 +4633,29 @@ img { max-width: 100%; height: auto; display: block; }
 // Persists across page navigations so the same anime never appears twice
 const _sunkenSeenIds = new Set();
 
+// In-memory store for all 7 pre-cached Sunken Treasure pages
+let _sunkenCachePages = {};   // { 1:[...], 2:[...], ... 7:[...] }
+let _sunkenCacheLoaded = false;
+
 async function loadSunkenTreasures(page = 1) {
   const gridContainer = document.getElementById('sunkenTreasuresGrid');
   const paginationContainer = document.getElementById('sunkenPagination');
+
+  // ── Supabase cache read (all 7 pages bundled) ─────────────────
+  if (window.AniCache && !_sunkenCacheLoaded) {
+    const cached = await window.AniCache.get(`info:sunken_treasure:${currentState.id}`);
+    if (cached?.pages) {
+      _sunkenCachePages  = cached.pages;
+      _sunkenCacheLoaded = true;
+    }
+  }
+  if (_sunkenCacheLoaded && _sunkenCachePages[page]) {
+    const items = _sunkenCachePages[page];
+    gridContainer.style.opacity = '1';
+    gridContainer.innerHTML = items.map(a => renderAnimeRecCard(a)).join('');
+    renderSunkenPagination(page, SUNKEN_GENRE_COMBOS.length, paginationContainer);
+    return Promise.resolve();
+  }
 
   // Show loading state
   gridContainer.style.opacity = '0.5';
@@ -4686,6 +4760,21 @@ async function loadSunkenTreasures(page = 1) {
 
     // Mark all rendered anime as seen so they won't appear on future pages
     uniqueResults.slice(0, 24).forEach(a => _sunkenSeenIds.add(Number(a.mal_id)));
+    // Store page in memory cache
+    _sunkenCachePages[page] = uniqueResults.slice(0, 24);
+    // After page 7 is loaded, push all 7 pages to Supabase (non-blocking)
+    const cachedPageCount = Object.keys(_sunkenCachePages).length;
+    if (cachedPageCount >= 7 && window.AniCache && !_sunkenCacheLoaded) {
+      _sunkenCacheLoaded = true;
+      window.AniCache.set({
+        cacheKey: `info:sunken_treasure:${currentState.id}`,
+        pageSource:'info', section:'sunken_treasure',
+        showId: currentState.source === 'jikan' ? `jikan-${currentState.id}` : null,
+        data: { pages: _sunkenCachePages, total: SUNKEN_GENRE_COMBOS.length },
+        itemCount: cachedPageCount * 24,
+      });
+      console.log('[Cache] ✅ Sunken Treasure 7 pages stored to Supabase');
+    }
 
     // Render
     gridContainer.style.opacity = '1';
