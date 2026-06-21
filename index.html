@@ -957,6 +957,7 @@
   transform: scale(1.02);
 }
   </style>
+  <script src="/aniumi-cache.js"></script>
 </head>
 <body>
   <!-- header injected by shared.js -->
@@ -1228,6 +1229,13 @@
 window.anioceanData = {};
 
 async function loadNewAniocean() {
+  if (window.AniCache) {
+    const cached = await window.AniCache.get('index:new_on_aniumi');
+    if (cached) {
+      document.getElementById('newAnioceanList').innerHTML = cached._html || '';
+      return;
+    }
+  }
   const grid = document.getElementById('newAnioceanGrid');
 
   // Helper to render the grid from an array of anime objects (Anikoto or Jikan format)
@@ -1421,7 +1429,17 @@ window.showAnikotoPopupById = function(mal_id) {
       const HERO_CACHE_TTL   = 6 * 60 * 60 * 1000; // 6 hours
 
       async function loadHero() {
-        // ── 1) Try sessionStorage cache first ────────────────────────────
+        // ── 1) Try Supabase global cache first ───────────────────────────
+        const _heroCacheKey = 'index:hero_slider';
+        if (window.AniCache) {
+          const cached = await window.AniCache.get(_heroCacheKey);
+          if (cached && Array.isArray(cached) && cached.length > 0) {
+            heroData = cached;
+            renderHero();
+            return;
+          }
+        }
+        // ── 1b) sessionStorage fallback ──────────────────────────────────
         try {
           const raw = sessionStorage.getItem(HERO_CACHE_KEY);
           if (raw) {
@@ -1502,6 +1520,14 @@ window.showAnikotoPopupById = function(mal_id) {
 
         console.log(`[Hero] ${heroData.length} unique airing TV anime loaded`);
         renderHero();
+        // Push final data to Supabase cache (non-blocking)
+        if (window.AniCache && heroData.length > 0) {
+          window.AniCache.set({
+            cacheKey: 'index:hero_slider',
+            pageSource: 'index', section: 'hero_slider',
+            data: heroData, itemCount: heroData.length,
+          });
+        }
       }
       function renderHero() {
         const container = document.getElementById('slidesContainer');
@@ -1560,6 +1586,10 @@ window.showAnikotoPopupById = function(mal_id) {
 
       /* ── TOP AIRING ── */
       async function loadTopAiring() {
+        if (window.AniCache) {
+          const cached = await window.AniCache.get('index:top_airing');
+          if (cached) { renderTopAiring(cached); return; }
+        }
         // Fetch multiple pages to get more airing anime and avoid empty results
         const [tvOnAir, jikanAir1, jikanAir2] = await Promise.all([
           fetchTMDB('/tv/on_the_air', 'language=en-US&page=1'),
@@ -1601,7 +1631,18 @@ window.showAnikotoPopupById = function(mal_id) {
 
       /* ── NEW RELEASES ── */
       let allReleases = {all:[], anime:[], movie:[], tv:[]};
+      let _newReleasesCache = null; // in-memory for filter toggles
+
       async function loadNewReleases() {
+        if (window.AniCache && !_newReleasesCache) {
+          const cached = await window.AniCache.get('index:new_releases');
+          if (cached) {
+            _newReleasesCache = cached;
+            if (!currentNewReleasesFilter) currentNewReleasesFilter = 'all';
+            renderNewReleases(currentNewReleasesFilter);
+            return;
+          }
+        }
         const [nowMovies, onAirTv, jikanNow1, jikanNow2] = await Promise.all([
           fetchTMDB('/movie/now_playing', 'language=en-US&page=1'),
           fetchTMDB('/tv/on_the_air', 'language=en-US&page=1'),
@@ -1729,9 +1770,19 @@ window.showAnikotoPopupById = function(mal_id) {
 
       /* ── COMPLETED (paginated) ── */
       let completedCurrentPage = 1;
-      // Track seen mal_ids across completed pages to prevent Jikan duplicates
       const _compSeenIds = new Set();
+      let _completedPagesCache = {};
       async function loadCompleted(page=1) {
+        if (window.AniCache && !_completedPagesCache[page]) {
+          const cached = await window.AniCache.get('index:recently_completed');
+          if (cached?.pages) _completedPagesCache = cached.pages;
+        }
+        if (_completedPagesCache[page]) {
+          const el = document.getElementById('completedGrid');
+          if (el) el.innerHTML = _completedPagesCache[page].map(s => renderShowCard(s)).join('');
+          renderPagination(page);
+          return;
+        }
         completedCurrentPage = page;
         const today = new Date().toISOString().split('T')[0];
         // Fetch 2 Jikan pages to have enough unique anime after dedup
@@ -1785,7 +1836,21 @@ window.showAnikotoPopupById = function(mal_id) {
 
       /* ── TRENDING ── */
       let trendingData=[];
+      let _trendingCache = {};
       async function loadTrending(period='today') {
+        const periodKey = period === 'today' ? 'day' : period;
+        if (window.AniCache && !_trendingCache[periodKey]) {
+          const cached = await window.AniCache.get('index:trending_now');
+          if (cached && cached[periodKey]) {
+            _trendingCache = cached;
+          }
+        }
+        if (_trendingCache[periodKey]) {
+          // render from cache
+          const el = document.getElementById('trendingList');
+          if (el) el.innerHTML = _trendingCache[periodKey].map(s => renderShowCard(s)).join('');
+          return;
+        }
         let tmdb,jikan;
         if(period==='today') { tmdb=await fetchTMDB('/trending/all/day'); jikan=await fetchJikan('top/anime','filter=airing&limit=10'); }
         else if(period==='week') { tmdb=await fetchTMDB('/trending/all/week'); jikan=await fetchJikan('top/anime','filter=airing&limit=10'); }
@@ -1825,6 +1890,20 @@ window.showAnikotoPopupById = function(mal_id) {
       /* ── POPULAR (sidebar) — TMDB only (movies + TV), no Jikan ── */
       let popularData = [];
       async function loadPopular() {
+        if (window.AniCache) {
+          const cached = await window.AniCache.get('index:most_popular');
+          if (cached) {
+            popularData = cached;
+            document.getElementById('popularList').innerHTML = cached.map(s => `
+              <a href="${infoUrl(s)}" class="sidebar-list-item" onmouseenter="showPopup(event,'${s.id}')" onmouseleave="window.popupTimer=setTimeout(hidePopup,500)">
+                <span class="sidebar-rank">${s.rank}</span>
+                <img class="sidebar-poster" src="${s.poster}" onerror="this.style.display='none'">
+                <div class="sidebar-info"><h4>${s.title}</h4>
+                <div class="side-meta"><i class="fas fa-star" style="color:var(--accent-gold)"></i> ${s.score} &nbsp;·&nbsp;${s.type} &nbsp;·&nbsp;${s.year}</div></div>
+              </a>`).join('');
+            return;
+          }
+        }
         // Fetch top-voted movies and TV from TMDB only
         const [tmdbMovies, tmdbTV, tmdbMovies2, tmdbTV2] = await Promise.all([
           fetchTMDB('/discover/movie', 'sort_by=vote_count.desc&vote_count.gte=5000&language=en-US&page=1'),
@@ -1890,6 +1969,10 @@ window.showAnikotoPopupById = function(mal_id) {
               </div>
             </div>
           </a>`).join('');
+        if (window.AniCache && data.length > 0) {
+          window.AniCache.set({ cacheKey:'index:most_popular', pageSource:'index',
+            section:'most_popular', data, itemCount:data.length });
+        }
       }
 
       /* ── POPUP (FIXED) ── */
@@ -1968,6 +2051,14 @@ window.showAnikotoPopupById = function(mal_id) {
       /* ── POPULAR ANIME (Miruro-style list, sorted by score+popularity+rank) ── */
       async function loadPopularAnime() {
         try {
+          if (window.AniCache) {
+            const cached = await window.AniCache.get('index:popular_anime');
+            if (cached && cached.length > 0) {
+              const el = document.getElementById('popularAnimeList');
+              if (el) el.innerHTML = cached.map(r => r._html || '').filter(Boolean).join('');
+              return;
+            }
+          }
           // Fetch top anime — proxy-first (CF cached), Jikan direct fallback built into fetchJikan
           const [page1, page2, page3] = await Promise.all([
             fetchJikan('top/anime', 'filter=bypopularity&limit=25&page=1'),
@@ -2276,6 +2367,15 @@ window.showAnikotoPopupById = function(mal_id) {
 
       // ---------- Main loader (sequential fetch, localStorage) ----------
       async function loadSchedule() {
+        if (window.AniCache) {
+          const cached = await window.AniCache.get('index:schedule');
+          if (cached) {
+            window._scheduleData = cached;
+            const activeDay = document.querySelector('.schedule-tab.active')?.dataset.day || 'monday';
+            renderScheduleForDay(activeDay);
+            return;
+          }
+        }
         const STORAGE_KEY = 'aniocean_schedule_cache';
         const CACHE_TTL = 24 * 60 * 60 * 1000;
         const cached = localStorage.getItem(STORAGE_KEY);
