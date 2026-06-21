@@ -4575,96 +4575,127 @@ img { max-width: 100%; height: auto; display: block; }
       // Bug fix: jikanRecLoading element was inside gridContainer and got destroyed by
       // gridContainer.innerHTML on first render, causing null-ref crash on page 2+.
       // Now shows loading state by setting gridContainer HTML directly each time.
+// Tracks every mal_id shown across ALL Sunken Treasures pages this session
+// Persists across page navigations so the same anime never appears twice
+const _sunkenSeenIds = new Set();
+
 async function loadSunkenTreasures(page = 1) {
   const gridContainer = document.getElementById('sunkenTreasuresGrid');
   const paginationContainer = document.getElementById('sunkenPagination');
-  
-  // Show loading state — write directly into gridContainer (safe on every page)
+
+  // Show loading state
   gridContainer.style.opacity = '0.5';
   gridContainer.innerHTML = `<div class="loading-text" style="grid-column:1/-1;text-align:center;padding:40px 0;">Loading page ${page}...</div>`;
   paginationContainer.classList.add('loading');
-  
+
   try {
-    // Each page uses a DIFFERENT genre combo for unique results
     const comboIndex = (page - 1) % SUNKEN_GENRE_COMBOS.length;
     const [genreA, genreB] = SUNKEN_GENRE_COMBOS[comboIndex];
-    
+
     console.log(`🔗 Sunken Treasures - Page ${page}/${SUNKEN_GENRE_COMBOS.length}, Combo ${comboIndex + 1}: [${genreA},${genreB}]`);
-    
-    // Build Jikan API URL — include page param so API returns page-matched results
-    const params = new URLSearchParams({
-      genres: `${genreA},${genreB}`,
-      type: 'tv',
-      min_score: '6.5',
-      max_score: '10',
-      order_by: 'popularity',
-      sort: 'asc',
-      limit: '24',
-      page: String(page),
-      sfw: 'true'
-    });
-    
-    const apiUrl = `https://api.jikan.moe/v4/anime?${params.toString()}`;
-    
-    // Cache key includes page + genre combo
-    const cacheKey = `sunken_tv_page${page}_g${genreA}_${genreB}`;
-    const cached = localStorage.getItem(cacheKey);
-    let data;
-    
-    if (cached) {
-      try {
-        const { results, timestamp } = JSON.parse(cached);
-        if (Date.now() - timestamp < 24 * 60 * 60 * 1000) {
-          console.log('✅ Using cached results for page', page);
-          data = { data: results };
+
+    // Try up to 3 Jikan pages for this genre combo to find enough unseen anime
+    // (genre combos overlap so popular titles appear in multiple combos)
+    let uniqueResults = [];
+    const maxJikanPages = 3;
+
+    for (let jPage = 1; jPage <= maxJikanPages && uniqueResults.length < 12; jPage++) {
+      const params = new URLSearchParams({
+        genres: `${genreA},${genreB}`,
+        type: 'tv',
+        min_score: '6.5',
+        order_by: 'popularity',
+        sort: 'asc',
+        limit: '25',
+        page: String(jPage),
+        sfw: 'true'
+      });
+
+      const cacheKey = `sunken_p${page}_g${genreA}_${genreB}_jp${jPage}`;
+      const cached = localStorage.getItem(cacheKey);
+      let raw = [];
+
+      if (cached) {
+        try {
+          const { results, timestamp } = JSON.parse(cached);
+          if (Date.now() - timestamp < 24 * 60 * 60 * 1000) {
+            raw = results;
+          }
+        } catch(e) {}
+      }
+
+      if (!raw.length) {
+        const apiUrl = `https://api.jikan.moe/v4/anime?${params.toString()}`;
+        try {
+          // Use aniumi proxy (cached, rate-limit safe) with direct Jikan fallback
+          let res;
+          try {
+            res = await fetch(
+              `https://aniumi.bionmovies47.workers.dev/jikan/anime?${params.toString()}`,
+              { signal: AbortSignal.timeout(7000) }
+            );
+            if (!res.ok) throw new Error('proxy fail');
+          } catch(e) {
+            res = await fetch(apiUrl);
+          }
+          if (!res.ok) break;
+          const json = await res.json();
+          raw = json.data || [];
+          localStorage.setItem(cacheKey, JSON.stringify({ results: raw, timestamp: Date.now() }));
+        } catch(e) {
+          console.warn(`Jikan page ${jPage} failed:`, e.message);
+          break;
         }
-      } catch (e) { /* ignore corrupt cache */ }
+      }
+
+      // Filter: remove current show + already-seen mal_ids (cross-page dedup)
+      const currentId = currentState.source === 'jikan' ? Number(currentState.id) : null;
+      for (const a of raw) {
+        const id = Number(a.mal_id);
+        if (currentId && id === currentId) continue;  // skip current show
+        if (_sunkenSeenIds.has(id)) continue;          // skip cross-page duplicate
+        // Within-page dedup (shouldn't happen but guard anyway)
+        if (uniqueResults.some(r => Number(r.mal_id) === id)) continue;
+        uniqueResults.push(a);
+        if (uniqueResults.length >= 24) break;
+      }
+
+      // Small delay between Jikan pages to respect rate limit
+      if (jPage < maxJikanPages && uniqueResults.length < 12) {
+        await new Promise(r => setTimeout(r, 400));
+      }
     }
-    
-    // Fetch fresh data if not cached
-    if (!data) {
-      console.log('🌐 Fetching from Jikan API:', apiUrl);
-      const response = await fetch(apiUrl);
-      if (!response.ok) throw new Error(`Jikan API error: ${response.status}`);
-      data = await response.json();
-      console.log(`✅ Received ${data.data?.length || 0} results`);
-      
-      // Cache the results
-      localStorage.setItem(cacheKey, JSON.stringify({
-        results: data.data,
-        timestamp: Date.now()
-      }));
+
+    // Fallback: if still empty, grab from top anime (always unique enough)
+    if (uniqueResults.length === 0) {
+      console.warn('⚠️ No unseen results, using top anime fallback for page', page);
+      try {
+        const fbRes = await fetch(
+          `https://api.jikan.moe/v4/top/anime?type=tv&limit=25&page=${page}`
+        );
+        const fbData = await fbRes.json();
+        const currentId = currentState.source === 'jikan' ? Number(currentState.id) : null;
+        uniqueResults = (fbData.data || []).filter(a => {
+          const id = Number(a.mal_id);
+          if (currentId && id === currentId) return false;
+          if (_sunkenSeenIds.has(id)) return false;
+          return true;
+        }).slice(0, 24);
+      } catch(e) { /* ignore */ }
     }
-    
-    // Handle empty results with fallback to top anime
-    if (!data.data || data.data.length === 0) {
-      console.log('⚠️ No results, fetching popular TV anime as fallback');
-      const fallbackUrl = `https://api.jikan.moe/v4/top/anime?type=tv&limit=24&page=${page}`;
-      const fallbackRes = await fetch(fallbackUrl);
-      const fallbackData = await fallbackRes.json();
-      data.data = fallbackData.data || [];
-    }
-    
-    // Filter out current show if on anime page
-    const currentId = currentState.source === 'jikan' ? currentState.id : null;
-    const results = currentId 
-      ? data.data.filter(a => a.mal_id !== currentId)
-      : data.data;
-    
-    // Restore opacity and render cards
+
+    // Mark all rendered anime as seen so they won't appear on future pages
+    uniqueResults.slice(0, 24).forEach(a => _sunkenSeenIds.add(Number(a.mal_id)));
+
+    // Render
     gridContainer.style.opacity = '1';
-    
-    if (results.length > 0) {
-      console.log(`🎨 Rendering ${Math.min(24, results.length)} anime cards for page ${page}`);
-      gridContainer.innerHTML = results.slice(0, 24).map(anime => renderAnimeRecCard(anime)).join('');
-      
-      // Update pagination with current page number
+
+    if (uniqueResults.length > 0) {
+      console.log(`🎨 Rendering ${Math.min(24, uniqueResults.length)} unique anime (${_sunkenSeenIds.size} seen total)`);
+      gridContainer.innerHTML = uniqueResults.slice(0, 24).map(anime => renderAnimeRecCard(anime)).join('');
       renderSunkenPagination(page, SUNKEN_GENRE_COMBOS.length, paginationContainer);
-      
-      // Smooth scroll to section top
-      // scrollIntoView removed — user controls their own scroll position
     } else {
-      gridContainer.innerHTML = '<div class="loading-text" style="grid-column:1/-1;text-align:center;padding:40px 0;">No anime found for this combination</div>';
+      gridContainer.innerHTML = '<div class="loading-text" style="grid-column:1/-1;text-align:center;padding:40px 0;">No new anime found — try a different page</div>';
       renderSunkenPagination(page, SUNKEN_GENRE_COMBOS.length, paginationContainer);
     }
     
