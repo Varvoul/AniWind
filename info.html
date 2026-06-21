@@ -2563,11 +2563,45 @@ img { max-width: 100%; height: auto; display: block; }
         'm': 'data-start="m"', 'r': 'data-start="r"', 's': 'data-start="s"'
       };
 
-      // Jikan Genre IDs for Sunken Treasures (18 popular genres)
-      const JIKAN_GENRE_POOL = [1, 2, 4, 8, 10, 14, 22, 24, 37, 41, 46, 50, 62, 76, 81, 91, 104, 117];
-      
-      // Generate 30 unique 2-genre combinations for Sunken Treasures
-      function generateGenreCombos(pool, count = 30) {
+      // Jikan Genre IDs for Sunken Treasures
+      // 30 genres → C(30,2) = 435 unique 2-genre pairs → covers 390 pages easily
+      // Genre IDs: https://api.jikan.moe/v4/genres/anime
+      const JIKAN_GENRE_POOL = [
+        1,   // Action
+        2,   // Adventure
+        4,   // Comedy
+        8,   // Drama
+        10,  // Fantasy
+        14,  // Horror
+        22,  // Romance
+        24,  // Sci-Fi
+        37,  // Supernatural
+        41,  // Suspense
+        46,  // Award Winning
+        50,  // Sports
+        62,  // Iyashikei
+        76,  // Idols & Celebrities  
+        81,  // Mythology
+        91,  // Reverse Harem
+        104, // Medical
+        117, // Isekai
+        7,   // Mystery
+        36,  // Slice of Life
+        30,  // Sports (alt)
+        23,  // School
+        27,  // Shounen
+        42,  // Seinen
+        43,  // Josei
+        9,   // Ecchi
+        18,  // Mecha
+        38,  // Military
+        58,  // Gore
+        75,  // Gag Humor
+      ];
+
+      // Generate up to `count` unique 2-genre combinations
+      // With 30 genres → 435 unique pairs (more than enough for 390 pages)
+      function generateGenreCombos(pool, count = 390) {
         const combos = [];
         for (let i = 0; i < pool.length && combos.length < count; i++) {
           for (let j = i + 1; j < pool.length && combos.length < count; j++) {
@@ -2576,8 +2610,8 @@ img { max-width: 100%; height: auto; display: block; }
         }
         return combos.slice(0, count);
       }
-      
-      const SUNKEN_GENRE_COMBOS = generateGenreCombos(JIKAN_GENRE_POOL, 30);
+
+      const SUNKEN_GENRE_COMBOS = generateGenreCombos(JIKAN_GENRE_POOL, 390);
 
       let currentState = {
         source: null, id: null, type: null, title: '',
@@ -4555,7 +4589,7 @@ async function loadSunkenTreasures(page = 1) {
     const comboIndex = (page - 1) % SUNKEN_GENRE_COMBOS.length;
     const [genreA, genreB] = SUNKEN_GENRE_COMBOS[comboIndex];
     
-    console.log(`🔗 Sunken Treasures - Page ${page}, Combo ${comboIndex + 1}/30: [${genreA},${genreB}]`);
+    console.log(`🔗 Sunken Treasures - Page ${page}/${SUNKEN_GENRE_COMBOS.length}, Combo ${comboIndex + 1}: [${genreA},${genreB}]`);
     
     // Build Jikan API URL — include page param so API returns page-matched results
     const params = new URLSearchParams({
