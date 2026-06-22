@@ -2196,31 +2196,91 @@ window.showAnikotoPopupById = function(mal_id) {
       const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
       const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-      // ---------- Helper: fetch 3 pages for one day, with delays ----------
+      // ---------- Helper: fetch schedule for one day (direct Jikan → proxy, 3 pages) ----------
+      // WHY bypass proxy for schedules:
+      //   The ANIUMI proxy caches responses by URL for 5 min. If Jikan returned 0
+      //   results during that window (happens often for tue/thu/fri/sun due to JST
+      //   timezone boundary edge cases + Jikan quirks), the proxy keeps serving that
+      //   stale empty response to everyone for the full TTL. We therefore ALWAYS hit
+      //   direct Jikan first for /schedules so we never get a cached-zero, and only
+      //   fall back to the proxy if direct Jikan itself is unreachable.
       async function fetchDaySchedules(day) {
-        const pagesToTry = [1, 2, 3];
+        const DIRECT = `${JIKAN_BASE}/schedules`;
+        const PROXY  = `${ANIUMI_PROXY}/jikan/schedules`;
+
         let allAnime = [];
 
-        for (const page of pagesToTry) {
-          try {
-            const res = await fetchJikan('schedules', `filter=${day}&sfw=true&limit=25&page=${page}`);
-            if (res.data && res.data.length > 0) {
-              allAnime.push(...res.data);
+        for (const page of [1, 2, 3]) {
+          const qs = `?filter=${day}&sfw=true&limit=25&page=${page}`;
+          let pageData = null;
+
+          // Tier 1: direct Jikan with up to 3 retry attempts on 429
+          for (let attempt = 1; attempt <= 3 && pageData === null; attempt++) {
+            try {
+              const res = await fetch(`${DIRECT}${qs}`, {
+                headers: { Accept: 'application/json' },
+                signal: AbortSignal.timeout(10000)
+              });
+              if (res.status === 429) {
+                console.warn(`[Schedule] ${day} p${page} rate-limited, waiting ${attempt * 2}s...`);
+                await new Promise(r => setTimeout(r, attempt * 2000));
+                continue;
+              }
+              if (res.ok) {
+                const json = await res.json();
+                const items = json.data || [];
+                const totalItems = json.pagination?.items?.total ?? -1;
+                // If page 1 returns 0 AND Jikan confirms total=0, no need for more pages
+                if (items.length === 0 && totalItems === 0 && page === 1) {
+                  console.warn(`[Schedule] ${day}: confirmed 0 results from Jikan, skipping p2/p3`);
+                  pageData = [];
+                  allAnime = []; // clear so outer loop also stops
+                } else {
+                  pageData = items;
+                }
+              }
+            } catch (e) {
+              console.warn(`[Schedule] ${day} p${page} direct attempt ${attempt}:`, e.message);
             }
-            // Wait 0.5s between pages to avoid rate limiting
-            await new Promise(r => setTimeout(r, 500));
-          } catch (err) {
-            console.warn(`Failed to fetch ${day} page ${page}:`, err);
           }
+
+          // Tier 2: proxy fallback (only if direct completely failed / timed out)
+          if (pageData === null) {
+            try {
+              const res = await fetch(`${PROXY}${qs}`, {
+                headers: { Accept: 'application/json' },
+                signal: AbortSignal.timeout(8000)
+              });
+              if (res.ok) {
+                const json = await res.json();
+                pageData = json.data || [];
+              }
+            } catch (e) {
+              console.warn(`[Schedule] ${day} p${page} proxy fallback failed:`, e.message);
+              pageData = [];
+            }
+          }
+
+          if (pageData && pageData.length > 0) {
+            allAnime.push(...pageData);
+            // Page not full — no more pages for this day
+            if (pageData.length < 25) break;
+          } else if (page === 1) {
+            // Both tiers returned nothing on page 1 — stop for this day
+            break;
+          }
+
+          // Respect Jikan's rate limit between pages
+          if (page < 3) await new Promise(r => setTimeout(r, 400));
         }
 
         // Deduplicate by mal_id
-        const unique = new Map();
+        const seen = new Map();
         for (const anime of allAnime) {
-          if (!unique.has(anime.mal_id)) unique.set(anime.mal_id, anime);
+          if (!seen.has(anime.mal_id)) seen.set(anime.mal_id, anime);
         }
-        const result = Array.from(unique.values());
-        console.log(`✅ ${day}: ${result.length} unique anime`);
+        const result = Array.from(seen.values());
+        console.log(`[Schedule] ${day}: ${result.length} unique anime`);
         return result;
       }
 
@@ -2395,45 +2455,54 @@ window.showAnikotoPopupById = function(mal_id) {
         if (cached) {
           try {
             const { data, timestamp } = JSON.parse(cached);
-            // BUGFIX (v2): the previous code cached ANY result, including
-            // empty arrays produced by Jikan rate-limit failures.  That
-            // meant one bad fetch could leave the schedule blank for
-            // 24 hours.  Now we ONLY trust a cache entry that has at
-            // least one day with data — otherwise we refetch.
-            const hasAnyData = data && Object.values(data).some(arr => Array.isArray(arr) && arr.length > 0);
-            if (Date.now() - timestamp < CACHE_TTL && hasAnyData) {
+            // Only trust the cache if:
+            //   (a) it's within the 24h TTL
+            //   (b) at least 3 days actually have data (guards against partial-outage cache)
+            const daysWithData = data
+              ? Object.values(data).filter(arr => Array.isArray(arr) && arr.length > 0).length
+              : 0;
+            if (Date.now() - timestamp < CACHE_TTL && daysWithData >= 3) {
               scheduleData = data;
               needFetch = false;
-              console.log('Schedule loaded from localStorage');
-            } else if (!hasAnyData) {
-              console.warn('Cached schedule was empty — refetching (ignoring stale cache).');
+              console.log(`[Schedule] Loaded from localStorage (${daysWithData}/7 days with data)`);
+            } else {
+              console.warn(`[Schedule] Cache invalid (daysWithData=${daysWithData}) — refetching`);
             }
-          } catch(e) { console.warn('Cache parse error', e); }
+          } catch(e) { console.warn('[Schedule] Cache parse error:', e); }
         }
 
         if (needFetch) {
-          console.log('Fetching schedule one day at a time...');
+          console.log('[Schedule] Fetching all 7 days in parallel (staggered)...');
           scheduleData = {};
-          let fetchedAny = false;
-          for (const day of DAYS) {
-            scheduleData[day] = await fetchDaySchedules(day);
-            if (scheduleData[day].length > 0) fetchedAny = true;
-            await new Promise(r => setTimeout(r, 500)); // delay between days
-          }
-          // BUGFIX (v2): only persist the cache if we actually got data.
-          // Otherwise a transient Jikan outage would poison the cache
-          // for 24 hours and the user would see "No episodes scheduled"
-          // even after Jikan recovers.
-          if (fetchedAny) {
+
+          // Fetch all 7 days concurrently but stagger starts by 600 ms each so we
+          // don't hammer Jikan with 7 simultaneous requests and trigger mass 429s.
+          const dayPromises = DAYS.map((day, idx) =>
+            new Promise(r => setTimeout(r, idx * 600))
+              .then(() => fetchDaySchedules(day))
+              .then(results => { scheduleData[day] = results; })
+              .catch(err => {
+                console.warn(`[Schedule] ${day} fetch error:`, err);
+                scheduleData[day] = [];
+              })
+          );
+          await Promise.all(dayPromises);
+
+          const fetchedAny = DAYS.some(d => (scheduleData[d]?.length ?? 0) > 0);
+          const fetchedCount = DAYS.filter(d => (scheduleData[d]?.length ?? 0) > 0).length;
+          console.log(`[Schedule] Fetched ${fetchedCount}/7 days with data`);
+
+          // Only cache if at least 3 days returned data (guards against partial outages)
+          if (fetchedCount >= 3) {
             try {
               localStorage.setItem(STORAGE_KEY, JSON.stringify({
                 data: scheduleData,
                 timestamp: Date.now()
               }));
-              console.log('Schedule cached for 24 hours');
+              console.log('[Schedule] Cached to localStorage');
             } catch(e) { console.warn('Could not write schedule cache:', e); }
           } else {
-            console.warn('Schedule fetch returned no data — NOT caching (will retry next page load).');
+            console.warn(`[Schedule] Only ${fetchedCount}/7 days fetched — NOT caching (will retry next load)`);
           }
         }
 
