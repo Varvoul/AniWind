@@ -4189,7 +4189,7 @@ img { max-width: 100%; height: auto; display: block; }
               media_type: isAnime ? 'anime' : currentState.type,
               limit: 17
             }).catch(() => []);
-            if (dbItems.length) {
+            if (Array.isArray(dbItems) && dbItems.length) {
               const htmlOut = dbItems.map((s, i) => renderSidebarItem(
                 isAnime
                   ? { mal_id: s.mal_id, title: s.title, images: { jpg: { image_url: s.poster } }, score: s.score }
@@ -4224,9 +4224,13 @@ img { max-width: 100%; height: auto; display: block; }
               ? { id:`jikan-${item.mal_id}`, type:'Anime', title:item.title_english||item.title, poster:item.images?.jpg?.large_image_url||'', score:item.score, members:item.members, genres:(item.genres||[]).map(g=>g.name), show_status:item.status||'Currently Airing', mal_id:item.mal_id }
               : { id:`tmdb-${currentState.type}-${item.id}`, type:currentState.type==='movie'?'Movie':'TV', title:item.title||item.name, poster:item.poster_path?`https://image.tmdb.org/t/p/w185${item.poster_path}`:'', score:item.vote_average, members:item.vote_count, show_status:currentState.type==='movie'?'Released':'Returning Series' }
             );
-            await window.AniCache.save(rows);
-            await window.AniCache.stampSection(gemKey, rows.length);
-            await window.AniCache.stampSection(`hidden_gem_${isAnime?'anime':currentState.type}`, rows.length);
+            const mType = isAnime ? 'anime' : currentState.type;
+            // Save to shows table for row-level storage
+            window.AniCache.save(rows).catch(()=>{});
+            // Also store full array in media_cache so get({section,media_type}) works
+            window.AniCache.set({ cacheKey: gemKey, pageSource:'info', section:'hidden_gem',
+              mediaType: mType, data: rows, itemCount: rows.length }).catch(()=>{});
+            window.AniCache.stampSection(`hidden_gem_${mType}`, rows.length).catch(()=>{});
           }
         } catch (e) {
           container.innerHTML = '<div class="loading-text">Failed to load</div>';
@@ -4260,7 +4264,7 @@ img { max-width: 100%; height: auto; display: block; }
               media_type: isAnime ? 'anime' : currentState.type,
               limit: 19
             }).catch(() => []);
-            if (dbItems.length) {
+            if (Array.isArray(dbItems) && dbItems.length) {
               const htmlOut = dbItems.map((s, i) => renderSidebarItem(
                 isAnime
                   ? { mal_id: s.mal_id, title: s.title, images: { jpg: { image_url: s.poster } }, score: s.score, rank: i+1 }
@@ -4291,8 +4295,11 @@ img { max-width: 100%; height: auto; display: block; }
               ? { id:`jikan-${item.mal_id}`, type:'Anime', title:item.title_english||item.title, poster:item.images?.jpg?.large_image_url||'', score:item.score, members:item.members, genres:(item.genres||[]).map(g=>g.name), show_status:item.status||'Currently Airing', mal_id:item.mal_id }
               : { id:`tmdb-${currentState.type}-${item.id}`, type:currentState.type==='movie'?'Movie':'TV', title:item.title||item.name, poster:item.poster_path?`https://image.tmdb.org/t/p/w185${item.poster_path}`:'', score:item.vote_average, show_status:currentState.type==='movie'?'Released':'Returning Series' }
             );
-            await window.AniCache.save(rows);
-            await window.AniCache.stampSection(rankKey, rows.length);
+            const mTypeR = isAnime ? 'anime' : currentState.type;
+            window.AniCache.save(rows).catch(()=>{});
+            window.AniCache.set({ cacheKey: rankKey, pageSource:'info', section:'top_ranking',
+              mediaType: mTypeR, data: rows, itemCount: rows.length }).catch(()=>{});
+            window.AniCache.stampSection(rankKey, rows.length).catch(()=>{});
           }
         } catch (e) {
           container.innerHTML = '<div class="loading-text">Failed to load</div>';
@@ -4322,11 +4329,11 @@ img { max-width: 100%; height: auto; display: block; }
           const favKey = `most_fav_${isAnime?'anime':currentState.type}`;
           if (window.AniCache && await window.AniCache.isSectionFresh(favKey)) {
             const dbItems = await window.AniCache.get({
-              section: 'popular',
+              section: 'most_favourite',
               media_type: isAnime ? 'anime' : currentState.type,
               limit: 21
             }).catch(() => []);
-            if (dbItems.length) {
+            if (Array.isArray(dbItems) && dbItems.length) {
               const htmlOut = dbItems.map((s, i) => renderSidebarItem(
                 isAnime
                   ? { mal_id: s.mal_id, title: s.title, images: { jpg: { image_url: s.poster } }, score: s.score, favorites: s.popularity }
@@ -4357,9 +4364,11 @@ img { max-width: 100%; height: auto; display: block; }
               ? { id:`jikan-${item.mal_id}`, type:'Anime', title:item.title_english||item.title, poster:item.images?.jpg?.large_image_url||'', score:item.score, members:item.members||item.favorites, genres:(item.genres||[]).map(g=>g.name), show_status:item.status||'Currently Airing', mal_id:item.mal_id }
               : { id:`tmdb-${currentState.type}-${item.id}`, type:currentState.type==='movie'?'Movie':'TV', title:item.title||item.name, poster:item.poster_path?`https://image.tmdb.org/t/p/w185${item.poster_path}`:'', score:item.vote_average, members:item.vote_count, show_status:currentState.type==='movie'?'Released':'Returning Series' }
             );
-            await window.AniCache.save(rows);
-            await window.AniCache.stampSection(favKey, rows.length);
-            // Also stamp per-section keys so isSectionFresh works next visit
+            const mTypeF = isAnime ? 'anime' : currentState.type;
+            window.AniCache.save(rows).catch(()=>{});
+            window.AniCache.set({ cacheKey: favKey, pageSource:'info', section:'most_favourite',
+              mediaType: mTypeF, data: rows, itemCount: rows.length }).catch(()=>{});
+            window.AniCache.stampSection(favKey, rows.length).catch(()=>{});
           }
         } catch (e) {
           container.innerHTML = '<div class="loading-text">Failed to load</div>';
