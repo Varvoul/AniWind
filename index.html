@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%234299e1'/%3E%3Cstop offset='100%25' style='stop-color:%23805ad5'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' rx='20' fill='url(%23g)'/%3E%3Ctext x='50' y='68' font-family='Arial,sans-serif' font-size='55' font-weight='bold' fill='white' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
   <title>Aniocean· Stream Anime, Movies & TV-Show</title>
   <meta name="description" content="Watch the latest anime, movies, and TV series for free on Aniocean. Discover new releases effortlessly with real-time search and multi-language subs.">
@@ -1155,23 +1156,15 @@
 
       async function fetchTMDB(endpoint, params='') {
         const qs = params ? `?${params}` : '';
-        // 1) aniumi universal proxy (try fast — 3s timeout so aniocen kicks in quickly)
-        try {
-          const res = await fetch(`${ANIUMI_PROXY}/tmdb${endpoint}${qs}`, {
-            headers: { Accept: 'application/json' },
-            signal: AbortSignal.timeout(3000)
-          });
-          if (res.ok) return await res.json();
-        } catch(e) {}
-        // 2) aniocen worker — confirmed working, handles TMDB auth server-side
+        // 1) aniocen worker — confirmed working, handles TMDB auth server-side
         try {
           const res = await fetch(`${TMDB_LEGACY}/3${endpoint}${qs}`, {
             headers: { Accept: 'application/json' },
             signal: AbortSignal.timeout(10000)
           });
           if (res.ok) return await res.json();
-        } catch(e) { console.warn('[TMDB] aniocen failed:', e.message); }
-        // 3) Direct TMDB API — guaranteed fallback with Bearer token
+        } catch(e) {}
+        // 2) Direct TMDB API — guaranteed fallback with Bearer token
         try {
           const res = await fetch(`https://api.themoviedb.org/3${endpoint}${qs}`, {
             headers: {
@@ -1181,33 +1174,52 @@
             signal: AbortSignal.timeout(10000)
           });
           if (res.ok) return await res.json();
-        } catch(e) { console.warn('[TMDB] all proxies failed:', e.message); }
+        } catch(e) {}
+        // 3) aniumi universal proxy (last resort — may not have TMDB_API_KEY set)
+        try {
+          const res = await fetch(`${ANIUMI_PROXY}/tmdb${endpoint}${qs}`, {
+            headers: { Accept: 'application/json' },
+            signal: AbortSignal.timeout(5000)
+          });
+          if (res.ok) return await res.json();
+        } catch(e) {}
         return { results: [] };
       }
       async function fetchJikan(endpoint, params='', retries=2) {
         const qs = params ? `?${params}` : '';
-        // 1) Universal proxy — cached 5 min, handles Jikan rate-limits server-side
+        // 1) Universal proxy — cached 5 min at CF edge, absorbs 429s server-side
         try {
           const res = await fetch(`${ANIUMI_PROXY}/jikan/${endpoint}${qs}`, {
             headers: { Accept: 'application/json' },
-            signal: AbortSignal.timeout(8000)
+            signal: AbortSignal.timeout(10000)
           });
           if (res.ok) return await res.json();
+          if (res.status === 429) {
+            // Proxy also rate-limited — wait and retry once via proxy
+            await new Promise(r => setTimeout(r, 2000));
+            try {
+              const r2 = await fetch(`${ANIUMI_PROXY}/jikan/${endpoint}${qs}`, {
+                headers: { Accept: 'application/json' },
+                signal: AbortSignal.timeout(10000)
+              });
+              if (r2.ok) return await r2.json();
+            } catch(e) {}
+          }
         } catch(e) { /* proxy down — fall through to direct */ }
-        // 2) Direct Jikan with retry (safety net)
+        // 2) Direct Jikan with retry (safety net — longer backoff to respect rate limits)
         const directUrl = `${JIKAN_BASE}/${endpoint}${qs}`;
         for (let attempt = 1; attempt <= retries; attempt++) {
           try {
-            const res = await fetch(directUrl);
+            const res = await fetch(directUrl, { signal: AbortSignal.timeout(12000) });
             if (res.ok) return await res.json();
             if (res.status === 429) {
-              await new Promise(r => setTimeout(r, attempt * 1500));
+              await new Promise(r => setTimeout(r, attempt * 2500));
               continue;
             }
             return { data: [] };
           } catch(e) {
-            if (attempt === retries) { console.error('Jikan fetch failed:', e); return { data: [] }; }
-            await new Promise(r => setTimeout(r, attempt * 1000));
+            if (attempt === retries) { return { data: [] }; }
+            await new Promise(r => setTimeout(r, attempt * 2000));
           }
         }
         return { data: [] };

@@ -1,5 +1,5 @@
 /**
- * aniumi-cache.js  v3.0
+ * aniumi-cache.js  v3.1
  * Global Supabase media cache — aniumi.vercel.app
  *
  * Tables used:
@@ -13,8 +13,10 @@
  *   8h  : sidebar sections (hidden_gem, top_ranking, most_favourite etc.)
  *   24h : schedule
  *
- * Partial-failure safe: if fetcher() throws, nothing is written and the
- * NEXT visitor retries. Other sections are unaffected.
+ * v3.1: Replaced broken RPC calls (upsert_media_cache / get_media_cache /
+ *   get_sidebar_items) with direct REST API calls to media_cache table.
+ *   The RPC functions referenced a non-existent "show_info" column in the
+ *   "shows" relation, causing 42703 errors on every page load.
  */
 (function () {
   'use strict';
@@ -57,65 +59,98 @@
     }
   }
 
-  async function rpc(fn, params) {
-    return req(`rpc/${fn}`, {
-      method: 'POST', body: JSON.stringify(params),
-      headers: { Prefer: 'return=representation' },
-    });
-  }
-
   // ══════════════════════════════════════════════════════════════
-  // CORE CACHE  (media_cache table)
+  // CORE CACHE  (media_cache table — direct REST, no RPC)
   // ══════════════════════════════════════════════════════════════
 
   /**
    * get(keyOrQuery)
-   *   string  → look up by cache_key, return data if not expired
-   *   object  → { section, media_type, limit } → query sidebar items
+   *   string  → look up by cache_key in media_cache, return data if not expired
+   *   object  → { section, media_type, limit } → query shows table for sidebar items
    */
   async function get(keyOrQuery) {
     if (typeof keyOrQuery === 'string') {
-      const rows = await rpc('get_media_cache', { p_cache_key: keyOrQuery });
-      if (Array.isArray(rows) && rows[0]?.data) return rows[0].data;
-      return null;
+      // Direct REST query — replaces broken rpc('get_media_cache')
+      const rows = await req(
+        `media_cache?cache_key=eq.${encodeURIComponent(keyOrQuery)}&select=data,expires_at&limit=1`
+      );
+      if (!Array.isArray(rows) || !rows[0]) return null;
+      // Check expiry
+      if (rows[0].expires_at && new Date(rows[0].expires_at) <= new Date()) return null;
+      return rows[0].data;
     }
-    // Object query — used by loadHiddenGems / loadTopRanking / loadMostFavourite
-    // to fetch previously stored sidebar item arrays
+    // Object query — query shows table for sidebar items
+    // Replaces broken rpc('get_sidebar_items')
     const { section, media_type, limit = 20 } = keyOrQuery;
-    const rows = await rpc('get_sidebar_items', {
-      p_section: section, p_media_type: media_type, p_limit: limit
-    });
-    // rows may be the data jsonb directly or an array of rows
-    if (!rows) return [];
-    if (Array.isArray(rows)) return rows;
-    if (typeof rows === 'object' && !Array.isArray(rows) && rows !== null) {
-      // single jsonb value returned
-      return Array.isArray(rows.data) ? rows.data : [];
+    let query = `shows?select=*&limit=${limit}`;
+
+    // Build order/filter based on section
+    switch (section) {
+      case 'hidden_gem':
+        query += '&rating_score=gt.7.4&popularity=gt.0&order=rating_score.desc.nullslast,popularity.asc';
+        break;
+      case 'top_ranking':
+        query += '&rating_score=gt.0&order=rating_score.desc.nullslast,popularity.desc';
+        break;
+      case 'most_favourite':
+      case 'popular':
+        query += '&popularity=gt.0&order=popularity.desc.nullslast,rating_score.desc';
+        break;
+      default:
+        query += '&order=popularity.desc.nullslast';
     }
-    return [];
+
+    // Filter by media_type if specified
+    if (media_type) {
+      const types = media_type.split(',').map(t => t.trim());
+      if (types.length === 1) {
+        query += `&media_type=eq.${encodeURIComponent(types[0])}`;
+      } else {
+        query += `&media_type=in.(${types.map(t => encodeURIComponent(t)).join(',')})`;
+      }
+    }
+
+    const rows = await req(query);
+    if (!Array.isArray(rows)) return [];
+    return rows;
   }
 
   /**
    * set({ cacheKey, pageSource, section, subKey?, showId?,
    *        malId?, tmdbId?, anikotoId?, mediaType?, data, itemCount? })
+   *
+   * Direct REST upsert into media_cache — replaces broken rpc('upsert_media_cache')
+   * which referenced a non-existent "show_info" column in the "shows" table.
    */
   async function set({ cacheKey, pageSource, section, subKey = null,
     showId = null, malId = null, tmdbId = null, anikotoId = null,
     mediaType = null, data, itemCount = null }) {
     const ttl = TTL[section] || 2;
-    return rpc('upsert_media_cache', {
-      p_cache_key:      cacheKey,
-      p_page_source:    pageSource,
-      p_section:        section,
-      p_sub_key:        subKey,
-      p_show_id:        showId,
-      p_mal_id:         malId   ? Number(malId)  : null,
-      p_tmdb_id:        tmdbId  ? Number(tmdbId) : null,
-      p_anikoto_id:     anikotoId || null,
-      p_data:           data,
-      p_item_count:     itemCount ?? (Array.isArray(data) ? data.length : null),
-      p_interval_hours: ttl,
-      p_media_type:     mediaType,
+    const now = new Date().toISOString();
+    const expiresAt = new Date(Date.now() + ttl * 3600 * 1000).toISOString();
+
+    const row = {
+      cache_key:     cacheKey,
+      page_source:   pageSource,
+      section:       section,
+      sub_key:       subKey,
+      show_id:       showId,
+      mal_id:        malId   ? Number(malId)  : null,
+      tmdb_id:       tmdbId  ? Number(tmdbId) : null,
+      anikoto_id:    anikotoId || null,
+      data:          data,
+      item_count:    itemCount ?? (Array.isArray(data) ? data.length : null),
+      interval_hours: ttl,
+      media_type:    mediaType,
+      fetched_at:    now,
+      expires_at:    expiresAt,
+      updated_at:    now,
+    };
+
+    return req('media_cache', {
+      method: 'POST',
+      body: JSON.stringify(row),
+      headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
     });
   }
 
@@ -126,14 +161,14 @@
     showId, malId, tmdbId, anikotoId, mediaType, fetcher }) {
     const cached = await get(cacheKey);
     if (cached !== null) {
-      console.log(`[AniCache] ✅ HIT  ${cacheKey}`);
+      console.log(`[AniCache] HIT ${cacheKey}`);
       return cached;
     }
-    console.log(`[AniCache] ⬇️  MISS ${cacheKey}`);
+    console.log(`[AniCache] MISS ${cacheKey}`);
     let fresh;
     try { fresh = await fetcher(); } catch (e) {
-      console.warn(`[AniCache] ❌ fetch failed (${cacheKey}):`, e.message);
-      return null; // partial failure — only this section falls back to API
+      console.warn(`[AniCache] fetch failed (${cacheKey}):`, e.message);
+      return null;
     }
     if (!fresh) return null;
     set({ cacheKey, pageSource, section, subKey, showId, malId,
@@ -147,17 +182,17 @@
 
   /**
    * findShow(mediaId) → show row | null
-   * Returns null if not found OR if show_info_fetched_at > 6h ago (stale)
+   * Returns null if not found OR if fetched_at > 6h ago (stale)
    */
   async function findShow(mediaId) {
     const rows = await req(
-      `shows?show_id=eq.${encodeURIComponent(mediaId)}&select=*&limit=1`
+      `shows?media_id=eq.${encodeURIComponent(mediaId)}&select=*&limit=1`
     );
     if (!Array.isArray(rows) || !rows[0]) return null;
     const row = rows[0];
     // Freshness check — 6h
-    if (row.show_info_fetched_at) {
-      const age = Date.now() - new Date(row.show_info_fetched_at).getTime();
+    if (row.fetched_at) {
+      const age = Date.now() - new Date(row.fetched_at).getTime();
       if (age > 6 * 3600 * 1000) return null;
     }
     return row;
@@ -211,10 +246,10 @@
         tmdb_movie_tv_runtime:r.runtime ? String(r.runtime) : (r.episode_run_time?.[0] ? String(r.episode_run_time[0]) : null),
         poster:               r.poster || r.poster_url || null,
         poster_url:           r.poster || r.poster_url || null,
-        poster_path:          r.poster_path || null,
+        poster_path:          r.poster_path || r.poster || r.poster_url || null,
         backdrop:             r.backdrop || r.backdrop_url || null,
         backdrop_url:         r.backdrop || r.backdrop_url || null,
-        backdrop_path:        r.backdrop_path || null,
+        backdrop_path:        r.backdrop_path || r.backdrop || r.backdrop_url || null,
         popularity:           r.popularity || r.members != null ? Number(r.popularity || r.members) : null,
         rank:                 r.rank != null ? Number(r.rank) : null,
         show_info_fetched_at: now,
@@ -249,10 +284,6 @@
     if (details.trailers   !== undefined) patch.trailers   = details.trailers;
     if (details.themes     !== undefined) patch.themes     = details.themes;
     if (details.statistics !== undefined) patch.statistics = details.statistics;
-    // Merge show_info sub-keys into show_details
-    if (details.show_info  !== undefined) {
-      Object.assign(patch, details.show_info);
-    }
     return req('show_details', {
       method: 'POST',
       body: JSON.stringify(patch),
@@ -297,8 +328,6 @@
   /**
    * stampSection(cacheKey, itemCount)
    * Writes a lightweight freshness stamp into media_cache.
-   * Sidebar code calls this AFTER saving items to `shows` table
-   * so isSectionFresh returns true next time.
    */
   async function stampSection(cacheKey, itemCount) {
     const parts   = cacheKey.split(':');
@@ -314,7 +343,7 @@
 
   /**
    * saveSchedule(scheduleData)
-   * { monday:[...], tuesday:[...], ... wednesday, thursday, friday, saturday, sunday }
+   * { monday:[...], tuesday:[...], ... }
    */
   async function saveSchedule(scheduleData) {
     return set({
@@ -334,5 +363,5 @@
     TTL,
   };
 
-  console.log('[AniCache] v3.0 ready — Supabase cache active');
+  console.log('[AniCache] v3.1 ready — Supabase cache active (direct REST, no RPC)');
 })();

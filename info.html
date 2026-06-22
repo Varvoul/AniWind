@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%234299e1'/%3E%3Cstop offset='100%25' style='stop-color:%23805ad5'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' rx='20' fill='url(%23g)'/%3E%3Ctext x='50' y='68' font-family='Arial,sans-serif' font-size='55' font-weight='bold' fill='white' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Aniocean - Show Details</title>
   <meta name="description" content="Stream anime, movies, and TV shows on Aniocean">
@@ -16,7 +17,6 @@
   <!-- Shared CSS/JS -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="/shared.js"></script>
-  <script src="/supabase-cache.js"></script>
   
   <!-- Page-specific CSS -->
   <style>
@@ -3095,7 +3095,9 @@ img { max-width: 100%; height: auto; display: block; }
           // Use the English title or romaji title as search query
           const searchTitle = currentState.data?.title_english || query;
           const encoded = encodeURIComponent(searchTitle);
-          const res = await fetch(`${CONFIG.ALLANIME_API}/search?query=${encoded}`);
+          const res = await fetch(`${CONFIG.ALLANIME_API}/search?query=${encoded}`, {
+            signal: AbortSignal.timeout(6000) // 6s timeout — API is often unreachable
+          });
           if (!res.ok) return;
           const results = await res.json();
           if (!Array.isArray(results)) return;
@@ -3373,7 +3375,7 @@ img { max-width: 100%; height: auto; display: block; }
           details.push({ label: 'Popularity', value: formatNumber(data.popularity) });
         }
         if (data.rank !== undefined) {
-          details.push({ label: 'Rank', value: `#${data.rank}` });
+          details.push({ label: 'Rank', value: data.rank ? `#${data.rank}` : '—' });
         }
         
         const studios = isAnime ? data.studios : data.production_companies || data.networks;
@@ -4141,17 +4143,17 @@ img { max-width: 100%; height: auto; display: block; }
         }
       }
 
-      // Fetch with automatic retry on 429 rate-limit response
+      // Fetch with automatic retry on 429/504 rate-limit/timeout responses
       async function fetchWithRetry(url, maxRetries = 2, baseDelay = 1500) {
         for (let attempt = 0; attempt <= maxRetries; attempt++) {
           try {
-            const res = await fetch(url);
-            if (res.status === 429) {
+            const res = await fetch(url, { signal: AbortSignal.timeout(12000) });
+            if (res.status === 429 || res.status === 504) {
               if (attempt < maxRetries) {
                 await new Promise(r => setTimeout(r, baseDelay * (attempt + 1)));
                 continue;
               }
-              throw new Error('Rate limited');
+              throw new Error(res.status === 429 ? 'Rate limited' : `HTTP ${res.status}`);
             }
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             return res;
@@ -4392,7 +4394,7 @@ img { max-width: 100%; height: auto; display: block; }
         const studio = isAnime ? item.studios?.[0]?.name : item.production_companies?.[0]?.name || item.networks?.[0]?.name;
         const langBadges = isAnime ? `<span class="lang-badge sub"><i class="fa-solid fa-closed-captioning"></i></span><span class="lang-badge dub"><i class="fa-solid fa-microphone"></i></span>` : '';
         const popularity = item.popularity || item.vote_count || '';
-        const itemRank = item.rank || item.popularity ? `#${Math.round(item.rank || item.popularity)}` : '';
+        const itemRank = item.rank ? `#${item.rank}` : (item.popularity ? `#${Math.round(item.popularity)}` : '');
         
         const urlType = isAnime ? 'anime' : currentState.type;
         const source = isAnime ? 'jikan' : (currentState.type === 'movie' ? 'tmdb-movie' : 'tmdb-tv');
@@ -4449,13 +4451,11 @@ img { max-width: 100%; height: auto; display: block; }
           const data = currentState.data;
 
           // Collect all genre/theme/demographic MAL IDs from the current show
-          // These come from show details: genres + themes + demographics
           const genreIds  = (data.genres       || []).map(g => g.mal_id).filter(Boolean);
           const themeIds  = (data.themes        || []).map(t => t.mal_id).filter(Boolean);
           const demoIds   = (data.demographics  || []).map(d => d.mal_id).filter(Boolean);
 
           // Use all genres for a broad, accurate match — up to 3 to stay within Jikan limits
-          // Priority: genres first (most accurate), then demographics, then themes
           const combinedIds = [...new Set([...genreIds, ...demoIds, ...themeIds])];
           const selectedGenres = combinedIds.slice(0, 3);
 
@@ -4463,7 +4463,7 @@ img { max-width: 100%; height: auto; display: block; }
           const randomPage = Math.floor(Math.random() * 4) + 1;
 
           const params = new URLSearchParams({
-            order_by:  'score',       // sort by score so results are genuinely good
+            order_by:  'score',
             sort:      'desc',
             limit:     '24',
             sfw:       'true',
@@ -4475,7 +4475,10 @@ img { max-width: 100%; height: auto; display: block; }
 
           if (selectedGenres.length > 0) params.append('genres', selectedGenres.join(','));
 
-          const apiUrl = `https://api.jikan.moe/v4/anime?${params.toString()}`;
+          // Use CF worker proxy to avoid direct Jikan rate limits & 504s
+          const PROXY = 'https://aniumi.bionmovies47.workers.dev';
+          const directUrl = `https://api.jikan.moe/v4/anime?${params.toString()}`;
+          const proxyUrl  = `${PROXY}/jikan/anime?${params.toString()}`;
 
           // Cache key: genre ids + anime type + page — 10 min TTL for freshness+variety
           const cacheKey = `wt2_${selectedGenres.join('_')}_${(data.type||'tv').toLowerCase()}_p${randomPage}`;
@@ -4490,7 +4493,13 @@ img { max-width: 100%; height: auto; display: block; }
           }
 
           if (!results) {
-            const response = await fetchWithRetry(apiUrl);
+            // Try proxy first (cached at CF edge, less rate-limiting), then direct as fallback
+            let response;
+            try {
+              response = await fetchWithRetry(proxyUrl);
+            } catch(e) {
+              try { response = await fetchWithRetry(directUrl); } catch(e2) { throw e2; }
+            }
             const apiData  = await response.json();
             results = apiData.data || [];
             try { localStorage.setItem(cacheKey, JSON.stringify({ data: results, timestamp: Date.now() })); } catch(e) {}
@@ -4501,10 +4510,17 @@ img { max-width: 100%; height: auto; display: block; }
 
           if (filtered.length > 0) {
             gridContainer.innerHTML = filtered.map(anime => renderAnimeRecCard(anime)).join('');
+            // Cache the results in Supabase for other visitors
+            if (window.AniCache) window.AniCache.set({ cacheKey: _wtKey, pageSource:'info', section:'water_temple', data: filtered }).catch(()=>{});
           } else {
             // Fallback: top-scored anime of same type, no genre filter
             const fbParams = new URLSearchParams({ order_by: 'score', sort: 'desc', limit: '24', sfw: 'true', type: (data.type || 'tv').toLowerCase(), min_score: '7.5' });
-            const fbRes  = await fetchWithRetry(`https://api.jikan.moe/v4/anime?${fbParams.toString()}`);
+            let fbRes;
+            try {
+              fbRes = await fetchWithRetry(`${PROXY}/jikan/anime?${fbParams.toString()}`);
+            } catch(e) {
+              try { fbRes = await fetchWithRetry(`https://api.jikan.moe/v4/anime?${fbParams.toString()}`); } catch(e2) { throw e2; }
+            }
             const fbData = await fbRes.json();
             const fbFiltered = (fbData.data || []).filter(a => a.mal_id !== currentState.id).slice(0, 24);
             gridContainer.innerHTML = fbFiltered.length
@@ -4513,8 +4529,8 @@ img { max-width: 100%; height: auto; display: block; }
           }
 
         } catch (error) {
-          console.error('❌ Water Temple error:', error);
-          gridContainer.innerHTML = '<div class="loading-text">Failed to load recommendations</div>';
+          console.warn('Water Temple error:', error.message);
+          gridContainer.innerHTML = '<div class="loading-text">Recommendations temporarily unavailable</div>';
         }
       }
 
