@@ -80,8 +80,12 @@
       return rows[0].data;
     }
     // Object query — query shows table for sidebar items
-    // Replaces broken rpc('get_sidebar_items')
+    // NOTE: shows table uses "type" column (values: "Anime","Movie","TV"), NOT "media_type"
     const { section, media_type, limit = 20 } = keyOrQuery;
+    // Map media_type filter to shows.type values
+    const typeMap = { anime: 'Anime', movie: 'Movie', tv: 'TV' };
+    const typeValue = media_type ? (typeMap[media_type.toLowerCase()] || media_type) : null;
+
     let query = `shows?select=*&limit=${limit}`;
 
     // Build order/filter based on section
@@ -100,14 +104,9 @@
         query += '&order=popularity.desc.nullslast';
     }
 
-    // Filter by media_type if specified
-    if (media_type) {
-      const types = media_type.split(',').map(t => t.trim());
-      if (types.length === 1) {
-        query += `&media_type=eq.${encodeURIComponent(types[0])}`;
-      } else {
-        query += `&media_type=in.(${types.map(t => encodeURIComponent(t)).join(',')})`;
-      }
+    // Filter by type if specified
+    if (typeValue) {
+      query += `&type=eq.${encodeURIComponent(typeValue)}`;
     }
 
     const rows = await req(query);

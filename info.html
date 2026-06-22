@@ -2917,43 +2917,59 @@ img { max-width: 100%; height: auto; display: block; }
             const dbShow = await window.AniCache.findShow(_mediaId).catch(()=>null);
             if (dbShow) {
               console.log('[AniCache] info: loaded from shows table', _mediaId);
-              // Hydrate currentState.data from DB so all render functions work
+
+              // Also try to load the FULL cached API response from media_cache
+              // This contains fields not stored in shows table (relations, broadcast, themes, etc.)
+              const fullCacheKey = `info:show_info:${_mediaId}`;
+              const fullData = await window.AniCache.get(fullCacheKey).catch(()=>null);
+
               currentState.data = currentState.data || {};
-              Object.assign(currentState.data, {
-                title:            dbShow.eng_title || dbShow.default_title || dbShow.title,
-                title_english:    dbShow.eng_title,
-                title_japanese:   dbShow.japanese_title,
-                synopsis:         dbShow.synopsis || dbShow.overview,
-                overview:         dbShow.overview || dbShow.synopsis,
-                score:            dbShow.mal_score || dbShow.tmdb_average_score || dbShow.rating_score,
-                vote_average:     dbShow.tmdb_average_score,
-                status:           dbShow.show_status,
-                aired:            { from: dbShow.aired_date },
-                release_date:     dbShow.aired_date,
-                first_air_date:   dbShow.aired_date,
-                episodes:         dbShow.total_episodes,
-                duration:         dbShow.anime_duration_time || null,
-                episode_run_time: dbShow.tmdb_movie_tv_runtime ? [parseInt(dbShow.tmdb_movie_tv_runtime)] : [],
-                runtime:          dbShow.tmdb_movie_tv_runtime ? parseInt(dbShow.tmdb_movie_tv_runtime) : null,
-                rating:           dbShow.content_rating,
-                certification:    dbShow.content_rating,
-                studios:          dbShow.studio_name ? dbShow.studio_name.split(',').map(n=>({name:n.trim()})) : [],
-                genres:           (() => {
-                  const g = dbShow.genres;
-                  if (!g) return [];
-                  if (Array.isArray(g)) return g.map(n=>({name:String(typeof n==='object'?n?.name:n).trim()}));
-                  const str = String(g).replace(/^[{["\s]+|[}\]"\s]+$/g,'');
-                  return str.split(',').map(n=>({name:n.trim().replace(/^"|"$/g,'')})).filter(x=>x.name);
-                })(),
-                popularity:       dbShow.popularity,
-                members:          dbShow.popularity,
-                rank:             dbShow.rank,
-                premiered:        dbShow.premiered,
-                images:           { jpg: { large_image_url: dbShow.poster, image_url: dbShow.poster } },
-                poster_path:      dbShow.poster_path || null,
-                backdrop_path:    dbShow.backdrop_path || null,
-              });
-              currentState.title = dbShow.eng_title || dbShow.default_title || dbShow.title || 'Unknown';
+
+              if (fullData && typeof fullData === 'object' && !Array.isArray(fullData)) {
+                // We have the full API response cached — use it directly for complete rendering
+                console.log('[AniCache] info: full API data found in cache', _mediaId);
+                currentState.data = { ...currentState.data, ...fullData };
+                // Ensure basic fields are set from DB row (in case cache is older)
+                currentState.data.title = currentState.data.title_english || currentState.data.title || dbShow.eng_title || dbShow.default_title;
+                currentState.title = currentState.data.title;
+              } else {
+                // Only sparse shows table data — hydrate what we can
+                Object.assign(currentState.data, {
+                  title:            dbShow.eng_title || dbShow.default_title || dbShow.title,
+                  title_english:    dbShow.eng_title,
+                  title_japanese:   dbShow.japanese_title,
+                  synopsis:         dbShow.synopsis || dbShow.overview,
+                  overview:         dbShow.overview || dbShow.synopsis,
+                  score:            dbShow.mal_score || dbShow.tmdb_average_score || dbShow.rating_score,
+                  vote_average:     dbShow.tmdb_average_score,
+                  status:           dbShow.show_status,
+                  aired:            { from: dbShow.aired_date },
+                  release_date:     dbShow.aired_date,
+                  first_air_date:   dbShow.aired_date,
+                  episodes:         dbShow.total_episodes,
+                  duration:         dbShow.anime_duration_time || null,
+                  episode_run_time: dbShow.tmdb_movie_tv_runtime ? [parseInt(dbShow.tmdb_movie_tv_runtime)] : [],
+                  runtime:          dbShow.tmdb_movie_tv_runtime ? parseInt(dbShow.tmdb_movie_tv_runtime) : null,
+                  rating:           dbShow.content_rating,
+                  certification:    dbShow.content_rating,
+                  studios:          dbShow.studio_name ? dbShow.studio_name.split(',').map(n=>({name:n.trim()})) : [],
+                  genres:           (() => {
+                    const g = dbShow.genres;
+                    if (!g) return [];
+                    if (Array.isArray(g)) return g.map(n=>({name:String(typeof n==='object'?n?.name:n).trim()}));
+                    const str = String(g).replace(/^[{["\s]+|[}\]"\s]+$/g,'');
+                    return str.split(',').map(n=>({name:n.trim().replace(/^"|"$/g,'')})).filter(x=>x.name);
+                  })(),
+                  popularity:       dbShow.popularity,
+                  members:          dbShow.popularity,
+                  rank:             dbShow.rank,
+                  premiered:        dbShow.premiered,
+                  images:           { jpg: { large_image_url: dbShow.poster, image_url: dbShow.poster } },
+                  poster_path:      dbShow.poster_path || null,
+                  backdrop_path:    dbShow.backdrop_path || null,
+                });
+                currentState.title = dbShow.eng_title || dbShow.default_title || dbShow.title || 'Unknown';
+              }
 
               document.title = `${currentState.title} - Aniocean`;
               renderHero(); renderStats(); renderSynopsis(); renderDetails();
@@ -3017,6 +3033,14 @@ img { max-width: 100%; height: auto; display: block; }
         const { data } = await res.json();
         currentState.data = data;
         currentState.title = data.title_english || data.title || 'Unknown';
+        // Cache full Jikan response (6h TTL) so DB-loaded visitors get relations, broadcast, themes, etc.
+        if (window.AniCache) {
+          const sid = `jikan-${currentState.id}`;
+          window.AniCache.set({ cacheKey:`info:show_info:${sid}`, pageSource:'info',
+            section:'show_info', showId:sid,
+            malId:currentState.id, data,
+          }).catch(()=>{});
+        }
       }
 
       async function fetchTMDBData() {
@@ -3223,7 +3247,10 @@ img { max-width: 100%; height: auto; display: block; }
         document.getElementById('platformLabel').textContent = platform;
         document.getElementById('platformStar').style.color = starColor;
         document.getElementById('ratingValue').textContent = rating ? rating.toFixed(1) : 'N/A';
-        document.getElementById('formatValue').textContent = data.type || currentState.type;
+        document.getElementById('formatValue').textContent =
+          (data.type && data.type !== 'Anime' && data.type !== 'Movie' && data.type !== 'TV')
+            ? data.type  // Jikan format: TV, OVA, ONA, Movie, Music, etc.
+            : (isAnime ? (data.type === 'Movie' ? 'Movie' : 'TV') : currentState.type);
         
         // Duration — for TMDB use runtime (movie) or episode_run_time (TV)
         let duration = null;
