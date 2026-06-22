@@ -251,8 +251,8 @@
 
     /* ── LAYOUT ── */
     .main-layout { display:flex; gap:0; max-width:100%; }
-    .main-content { flex:1; min-width:0; padding:0 16px; }
-    .sidebar-right { flex:0 0 340px; max-width:340px; padding:0 16px 0 8px; position:sticky; top:80px; align-self:flex-start; max-height:calc(100vh - 100px); overflow-y:auto; }
+    .main-content { flex:0 0 68%; max-width:68%; padding:0 16px; }
+    .sidebar-right { flex:0 0 32%; max-width:32%; padding:0 16px 0 8px; }
     .section { margin:30px 0; }
     .section-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:8px; }
     .section-title { font-family:var(--font-title); font-size:1.35rem; color:var(--text-widget-title); }
@@ -423,139 +423,6 @@
     }
     .side-meta { font-size:0.6875rem; color:var(--text-muted); margin-top:2px; }
 
-    /* ── POPULAR ANIME LIST (Miruro-style) ── */
-    /* ── SKELETON WAVE ANIMATION ── */
-    @keyframes skeletonWave {
-      0%   { background-position: -400px 0; }
-      100% { background-position: 400px 0; }
-    }
-    .skeleton {
-      background: linear-gradient(90deg,
-        rgba(255,255,255,0.04) 25%,
-        rgba(255,255,255,0.10) 37%,
-        rgba(255,255,255,0.04) 63%);
-      background-size: 800px 100%;
-      animation: skeletonWave 1.4s ease infinite;
-      border-radius: 6px;
-    }
-    /* Skeleton placeholders for cards */
-    .skeleton-card {
-      background:var(--bg-card,#0f1923);
-      border-radius:10px; overflow:hidden;
-      flex-shrink:0;
-    }
-    .skeleton-card .sk-poster  { width:100%; aspect-ratio:2/3; }
-    .skeleton-card .sk-line    { height:10px; margin:8px 8px 4px; border-radius:4px; }
-    .skeleton-card .sk-line.w60{ width:60%; }
-    .skeleton-card .sk-line.w80{ width:80%; }
-    /* Skeleton for PA rows */
-    .sk-pa-row {
-      display:flex; align-items:center; gap:12px;
-      background:var(--bg-card,#0f1923);
-      border-radius:10px; padding:10px 14px;
-      min-height:88px; overflow:hidden;
-    }
-    .sk-pa-rank { width:28px; height:20px; flex-shrink:0; border-radius:4px; }
-    .sk-pa-img  { width:56px; height:78px; border-radius:6px; flex-shrink:0; }
-    .sk-pa-body { flex:1; display:flex; flex-direction:column; gap:7px; }
-    .sk-pa-title{ height:13px; width:70%; border-radius:4px; }
-    .sk-pa-meta { display:flex; gap:5px; flex-wrap:wrap; }
-    .sk-pa-tag  { height:18px; border-radius:20px; }
-    /* Skeleton for sidebar rows */
-    .sk-side-row {
-      display:flex; align-items:center; gap:10px;
-      padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.05);
-    }
-    .sk-side-rank { width:20px; height:16px; border-radius:3px; flex-shrink:0; }
-    .sk-side-img  { width:38px; height:54px; border-radius:5px; flex-shrink:0; }
-    .sk-side-body { flex:1; display:flex; flex-direction:column; gap:6px; }
-    .sk-side-t    { height:11px; width:80%; border-radius:3px; }
-    .sk-side-m    { height:9px; width:50%; border-radius:3px; }
-    /* Skeleton for hero */
-    .sk-hero { width:100%; aspect-ratio:16/7; border-radius:12px; min-height:200px; }
-    /* Skeleton for schedule */
-    .sk-sched-row {
-      display:flex; align-items:center; gap:10px; padding:9px 0;
-      border-bottom:1px solid rgba(255,255,255,0.05);
-    }
-    .sk-sched-img  { width:44px; height:60px; border-radius:6px; flex-shrink:0; }
-    .sk-sched-body { flex:1; display:flex; flex-direction:column; gap:6px; }
-    .sk-sched-t    { height:11px; width:75%; border-radius:3px; }
-    .sk-sched-m    { height:9px; width:45%; border-radius:3px; }
-
-    /* ── POPULAR ANIME LIST (Miruro-style improved) ── */
-    .pa-list { display:flex; flex-direction:column; gap:5px; }
-    .pa-row {
-      display:flex; align-items:center; gap:0;
-      position:relative; overflow:hidden;
-      border-radius:10px;
-      cursor:pointer; text-decoration:none; color:#fff;
-      min-height:88px;
-      transition:transform .2s ease, box-shadow .2s ease;
-      background-color: var(--bg-card, #0f1923);
-    }
-    /* RIGHT SIDE: actual bg image — visible on right, fades left */
-    .pa-row::before {
-      content:''; position:absolute; inset:0;
-      background-image:var(--pa-bg);
-      background-size:cover; background-position:center 20%;
-      filter:blur(1.5px) brightness(0.35) saturate(1.4);
-      transition:filter .3s ease;
-      z-index:0;
-    }
-    /* LEFT SIDE: dark overlay that fades to transparent right — Miruro look */
-    .pa-row::after {
-      content:''; position:absolute; inset:0;
-      background:linear-gradient(to right,
-        var(--bg-card,#0f1923) 0%,
-        var(--bg-card,#0f1923) 38%,
-        rgba(10,18,28,0.72) 62%,
-        rgba(10,18,28,0.0) 100%);
-      z-index:1;
-      transition:opacity .3s ease;
-    }
-    .pa-row:hover::before { filter:blur(1px) brightness(0.48) saturate(1.6); }
-    .pa-row:hover::after  { opacity:0.82; }
-    .pa-row:hover { transform:translateY(-2px); box-shadow:0 8px 28px rgba(0,0,0,.6); }
-    /* Rank number */
-    .pa-rank {
-      position:relative; z-index:2;
-      width:38px; flex-shrink:0; text-align:center;
-      font-size:1rem; font-weight:800; opacity:.2;
-      font-family:var(--font-title); padding-left:6px;
-    }
-    .pa-row.rank-1 .pa-rank { opacity:1; color:#fbbf24; font-size:1.2rem; text-shadow:0 0 14px rgba(251,191,36,.7); }
-    .pa-row.rank-2 .pa-rank { opacity:1; color:#cbd5e1; font-size:1.12rem; }
-    .pa-row.rank-3 .pa-rank { opacity:1; color:#fb923c; font-size:1.06rem; }
-    .pa-row.rank-1 { border-left:3px solid #fbbf24; }
-    .pa-row.rank-2 { border-left:3px solid #94a3b8; }
-    .pa-row.rank-3 { border-left:3px solid #fb923c; }
-    /* Poster — bigger, like Miruro */
-    .pa-poster {
-      position:relative; z-index:2; flex-shrink:0;
-      width:56px; height:78px; margin:5px 12px 5px 6px;
-      border-radius:7px; object-fit:cover;
-      box-shadow:0 4px 14px rgba(0,0,0,.65);
-    }
-    /* Info block — left side content */
-    .pa-info { position:relative; z-index:2; flex:1; min-width:0; padding:10px 14px 10px 0; }
-    .pa-title {
-      font-size:0.82rem; font-weight:700; color:#fff;
-      display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
-      overflow:hidden; line-height:1.38; margin-bottom:6px;
-    }
-    .pa-meta { display:flex; flex-wrap:wrap; gap:4px; align-items:center; }
-    .pa-tag {
-      font-size:0.59rem; font-weight:600;
-      background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.16);
-      border-radius:20px; padding:2px 8px; color:#cbd5e1; white-space:nowrap;
-    }
-    .pa-score {
-      font-size:0.64rem; font-weight:700; color:#fbbf24;
-      display:inline-flex; align-items:center; gap:3px;
-    }
-    .pa-score i { font-size:0.54rem; }
-
     /* popup */
     .popup-overlay { position:fixed; inset:0; z-index:500; display:flex; align-items:center; justify-content:center; pointer-events:none; }
     .popup-card { background:var(--bg-popup); border:1px solid var(--border-medium); border-radius:var(--radius-lg); padding:20px; max-width:520px; width:94%; max-height:85vh; overflow-y:auto; box-shadow:var(--shadow-lg); pointer-events:auto; display:none; position:relative; color:#fff; }
@@ -659,8 +526,7 @@
     }
 
     /* SCHEDULE */
-    @keyframes schedSpin { to { transform: rotate(360deg); } }
-    .esw-widget {
+    .esw-widget { 
       background:var(--bg-card); 
       border:1px solid var(--border-subtle); 
       border-radius:var(--radius-md); 
@@ -914,7 +780,6 @@
     @media (max-width:1024px) {
       .main-layout { flex-direction:column; }
       .main-content, .sidebar-right { flex:1; max-width:100%; }
-      .sidebar-right { position:static; max-height:none; overflow-y:visible; }
     }
     @media (max-width:768px) {
       .horizontal-scroll { gap:10px; }
@@ -957,7 +822,6 @@
   transform: scale(1.02);
 }
   </style>
-  <script src="/aniumi-cache.js"></script>
 </head>
 <body>
   <!-- header injected by shared.js -->
@@ -999,7 +863,7 @@
         <div class="grid-container" id="newReleasesGrid"></div>
       </section>
 
-      <!-- NEW ON ANIOCEAN SECTION -->
+      <!-- NEW ON ANIUMI SECTION -->
       <section class="section">
         <div class="section-header">
           <h2 class="section-title">New on Aniumi</h2>
@@ -1043,10 +907,6 @@
         <div class="section-header"><h2 class="section-title">Most Popular</h2></div>
         <div id="popularList"></div>
       </section>
-      <section class="section" id="popularAnimeSec">
-        <div class="section-header"><h2 class="section-title">Popular Anime</h2></div>
-        <div id="popularAnimeList" class="pa-list"></div>
-      </section>
       <div class="esw-widget" id="eswWidget">
         <div class="esw-head">
           <span>📅 Schedule</span>
@@ -1075,12 +935,9 @@
 
   <script>
     (function() {
-      /* ── Universal proxy — single CF Worker for all API traffic ── */
-      const ANIUMI_PROXY  = 'https://aniumi.bionmovies47.workers.dev';
-      /* Direct fallback URLs (used if proxy is unavailable) */
-      const JIKAN_BASE    = 'https://api.jikan.moe/v4';
-      const TMDB_LEGACY   = 'https://aniocen.bionmovies47.workers.dev'; // working TMDB proxy
-      const ANIKOTO_API   = 'https://anikoto.bionmovies47.workers.dev'; // direct anikoto fallback
+      const ANIKOTO_API = 'https://anikoto.bionmovies47.workers.dev';
+      const TMDB_PROXY = 'https://aniocen.bionmovies47.workers.dev';
+      const JIKAN_BASE = 'https://api.jikan.moe/v4';
       const TMDB_IMAGE = 'https://image.tmdb.org/t/p';
       const tmdbImg = (p,s='w500') => p ? `${TMDB_IMAGE}/${s}${p}` : '';
       const tmdbBack = (p) => p ? `${TMDB_IMAGE}/w1280${p}` : '';
@@ -1093,16 +950,16 @@
         let type = 'anime';
         let prefixId = id;
 
-        if (id.startsWith('jikan-')) {
+        if (id.startsWith('jikan-') || id.startsWith('jikan-air-') || id.startsWith('jikan-up-') || id.startsWith('jikan-comp-')) {
           type = 'anime';
-          prefixId = id.replace(/^jikan-(?:air-|up-|comp-|tr-|pop-)?/, 'jikan-');
+          prefixId = id.replace(/^jikan-(?:air|up|comp-)?/, 'jikan-');
         } else if (id.startsWith('tmdb-mv-') || id.startsWith('tmdb-movie-') || id.startsWith('tmdb-up-')) {
           type = 'movie';
           const numeric = id.replace(/^tmdb-(?:mv|movie|up)-/, '');
           prefixId = `tmdb-movie-${numeric}`;
-        } else if (id.startsWith('tmdb-tv-') || id.startsWith('tmdb-tvpop-') || (id.startsWith('tmdb-comp-') && !id.includes('movie'))) {
+        } else if (id.startsWith('tmdb-tv-') || (id.startsWith('tmdb-comp-') && !id.includes('movie'))) {
           type = 'tv';
-          const numeric = id.replace(/^tmdb-(?:tv|tvpop|comp)-/, '');
+          const numeric = id.replace(/^tmdb-(?:tv|comp)-/, '');
           prefixId = `tmdb-tv-${numeric}`;
         } else if (/^\d+$/.test(id)) {
           type = 'anime';
@@ -1127,101 +984,46 @@
       };
 
       async function fetchAnikoto(endpoint) {
-        // 1) Try universal proxy (cached, CORS-safe)
-        try {
-          const proxyPath = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-          const res = await fetch(`${ANIUMI_PROXY}/anikoto${proxyPath}`, {
-            headers: { Accept: 'application/json' },
-            signal: AbortSignal.timeout(8000)
-          });
-          if (res.ok) {
-            const json = await res.json();
-            return { ok: true, data: json.data || json };
-          }
-        } catch(e) { /* proxy down — fall through */ }
-        // 2) Direct Anikoto fallback
-        try {
-          const res = await fetch(`${ANIKOTO_API}${endpoint}`, {
-            headers: { Accept: 'application/json' }
-          });
-          if (!res.ok) return { ok: false, data: [] };
-          const json = await res.json();
-          return { ok: true, data: json.data || json };
-        } catch(e) {
-          console.error('Anikoto fetch error:', e);
-          return { ok: false, data: [] };
-        }
-      }
+  try {
+    const res = await fetch(`${ANIKOTO_API}${endpoint}`, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' }
+    });
+    if (!res.ok) {
+      console.error(`Anikoto API HTTP ${res.status}`);
+      return { ok: false, data: [] };
+    }
+    const json = await res.json();
+    // Wrap the raw JSON with an ok flag, ensuring data is accessible
+    return { ok: true, data: json.data || json };
+  } catch(e) {
+    console.error('Anikoto fetch error:', e);
+    return { ok: false, data: [] };
+  }
+}
 
       async function fetchTMDB(endpoint, params='') {
-        const qs = params ? `?${params}` : '';
-        // 1) aniumi universal proxy (try fast — 3s timeout so aniocen kicks in quickly)
-        try {
-          const res = await fetch(`${ANIUMI_PROXY}/tmdb${endpoint}${qs}`, {
-            headers: { Accept: 'application/json' },
-            signal: AbortSignal.timeout(3000)
-          });
-          if (res.ok) return await res.json();
-        } catch(e) {}
-        // 2) aniocen worker — confirmed working, handles TMDB auth server-side
-        try {
-          const res = await fetch(`${TMDB_LEGACY}/3${endpoint}${qs}`, {
-            headers: { Accept: 'application/json' },
-            signal: AbortSignal.timeout(10000)
-          });
-          if (res.ok) return await res.json();
-        } catch(e) { console.warn('[TMDB] aniocen failed:', e.message); }
-        // 3) Direct TMDB API — guaranteed fallback with Bearer token
-        try {
-          const res = await fetch(`https://api.themoviedb.org/3${endpoint}${qs}`, {
-            headers: {
-              Authorization: 'Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI0Yjc0YzE4NjlkZGQxMWEzNTM1MDFlNGI0MjY4MzA3YyIsIm5iZiI6MTc2NDM5Mzg3MS4yNTEwMDAyLCJzdWIiOiI2OTJhODM4ZjNkNTVkM2Y1NzJiOGVlYjIiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.qN331VqKQ5rfgvkadaRLYG6fNXp4t_lOee3K15f4gCo',
-              Accept: 'application/json'
-            },
-            signal: AbortSignal.timeout(10000)
-          });
-          if (res.ok) return await res.json();
-        } catch(e) { console.warn('[TMDB] all proxies failed:', e.message); }
-        return { results: [] };
+        const url = `${TMDB_PROXY}/3${endpoint}?${params}`;
+        const res = await fetch(url); if(!res.ok) return {results:[]};
+        return res.json();
       }
-      async function fetchJikan(endpoint, params='', retries=2) {
-        const qs = params ? `?${params}` : '';
-        // 1) Universal proxy — cached 5 min, handles Jikan rate-limits server-side
-        try {
-          const res = await fetch(`${ANIUMI_PROXY}/jikan/${endpoint}${qs}`, {
-            headers: { Accept: 'application/json' },
-            signal: AbortSignal.timeout(8000)
-          });
-          if (res.ok) return await res.json();
-        } catch(e) { /* proxy down — fall through to direct */ }
-        // 2) Direct Jikan with retry (safety net)
-        const directUrl = `${JIKAN_BASE}/${endpoint}${qs}`;
+      async function fetchJikan(endpoint, params='', retries=3) {
+        const url = `${JIKAN_BASE}/${endpoint}?${params}`;
         for (let attempt = 1; attempt <= retries; attempt++) {
           try {
-            const res = await fetch(directUrl);
-            if (res.ok) return await res.json();
-            if (res.status === 429) {
-              await new Promise(r => setTimeout(r, attempt * 1500));
+            const res = await fetch(url);
+            if (res.ok) return res.json();
+            if (res.status === 429 && attempt < retries) {
+              await new Promise(r => setTimeout(r, 1000 * attempt)); // exponential backoff
               continue;
             }
-            return { data: [] };
+            return {data:[]};
           } catch(e) {
-            if (attempt === retries) { console.error('Jikan fetch failed:', e); return { data: [] }; }
-            await new Promise(r => setTimeout(r, attempt * 1000));
+            if (attempt < retries) { await new Promise(r => setTimeout(r, 1000 * attempt)); continue; }
+            return {data:[]};
           }
         }
-        return { data: [] };
-      }
-
-      /* Deduplicate anime by mal_id across all sources */
-      function dedupById(items, idKey='id') {
-        const seen = new Set();
-        return items.filter(item => {
-          const key = item[idKey];
-          if (seen.has(key)) return false;
-          seen.add(key);
-          return true;
-        });
+        return {data:[]};
       }
 
       /* ── NEW ON ANIOCEAN ── */
@@ -1229,13 +1031,6 @@
 window.anioceanData = {};
 
 async function loadNewAniocean() {
-  if (window.AniCache) {
-    const cached = await window.AniCache.get('index:new_on_aniumi');
-    if (cached) {
-      document.getElementById('newAnioceanList').innerHTML = cached._html || '';
-      return;
-    }
-  }
   const grid = document.getElementById('newAnioceanGrid');
 
   // Helper to render the grid from an array of anime objects (Anikoto or Jikan format)
@@ -1299,7 +1094,7 @@ async function loadNewAniocean() {
 
   // ----- PRIMARY: Anikoto proxy -----
   try {
-    const response = await fetchAnikoto('/recent-anime?page=1&per_page=50');
+    const response = await fetchAnikoto('/recent-anime?page=1&per_page=20');
     if (response.ok && response.data && response.data.length > 0) {
       const data = response.data;
       const formatted = data.map(anime => ({
@@ -1318,10 +1113,8 @@ async function loadNewAniocean() {
         is_sub: anime.is_sub || 0,
         is_dub: anime.is_dub || 0
       }));
-      // Deduplicate by mal_id
-      const unique = dedupById(formatted, 'mal_id');
-      if (renderAnimeList(unique.slice(0,20))) {
-        console.log(`✓ Loaded ${unique.length} anime from Anikoto proxy for "New on Aniocean"`);
+      if (renderAnimeList(formatted)) {
+        console.log(`✓ Loaded ${formatted.length} anime from Anikoto proxy for "New on Aniumi"`);
         return;
       }
     }
@@ -1330,7 +1123,7 @@ async function loadNewAniocean() {
   }
 
   // ----- FALLBACK: Jikan (current season, pages 1-3) -----
-  console.log('Falling back to Jikan for "New on Aniocean"');
+  console.log('Falling back to Jikan for "New on Aniumi"');
   try {
     const pages = await Promise.all([
       fetchJikan('seasons/now', 'limit=25&page=1'),
@@ -1340,7 +1133,13 @@ async function loadNewAniocean() {
 
     const allAnime = pages.flatMap(page => page.data || []);
     // Deduplicate by mal_id
-    const uniqueAnime = dedupById(allAnime, 'mal_id');
+    const uniqueMap = new Map();
+    for (const a of allAnime) {
+      if (!uniqueMap.has(a.mal_id)) {
+        uniqueMap.set(a.mal_id, a);
+      }
+    }
+    const uniqueAnime = Array.from(uniqueMap.values());
 
     if (uniqueAnime.length === 0) {
       throw new Error('No anime data from Jikan');
@@ -1365,7 +1164,7 @@ async function loadNewAniocean() {
     }));
 
     if (renderAnimeList(formattedJikan)) {
-      console.log(`✓ Loaded ${formattedJikan.length} anime from Jikan (fallback) for "New on Aniocean"`);
+      console.log(`✓ Loaded ${formattedJikan.length} anime from Jikan (fallback) for "New on Aniumi"`);
       return;
     }
   } catch (error) {
@@ -1419,165 +1218,87 @@ window.showAnikotoPopupById = function(mal_id) {
 };
 
       /* ── HERO ── */
-      // Hero shows ALL currently airing TV anime (type=tv, status=airing).
-      // Fetches up to 5 Jikan pages (125 anime max) in parallel.
-      // Results are cached in sessionStorage for this browser session so
-      // navigating back/forward is instant. Cache expires after 6 hours
-      // so new airing anime appear automatically without a page reload.
       let heroData=[], currentSlide=0;
-      const HERO_CACHE_KEY   = 'aniumi_hero_airing_tv';
-      const HERO_CACHE_TTL   = 6 * 60 * 60 * 1000; // 6 hours
-
       async function loadHero() {
-        // ── 1) Try Supabase global cache first ───────────────────────────
-        const _heroCacheKey = 'index:hero_slider';
-        if (window.AniCache) {
-          const cached = await window.AniCache.get(_heroCacheKey);
-          if (cached && Array.isArray(cached) && cached.length > 0) {
-            heroData = cached;
-            renderHero();
-            return;
-          }
-        }
-        // ── 1b) sessionStorage fallback ──────────────────────────────────
-        try {
-          const raw = sessionStorage.getItem(HERO_CACHE_KEY);
-          if (raw) {
-            const { data, ts } = JSON.parse(raw);
-            if (Array.isArray(data) && data.length > 0 && (Date.now() - ts) < HERO_CACHE_TTL) {
-              heroData = data;
-              renderHero();
-              return;
-            }
-          }
-        } catch(e) { /* corrupt cache — fetch fresh */ }
-
-        // ── 2) Fetch pages 1-5 of airing TV anime in parallel ────────────
-        // type=tv ensures only TV series (no movies, specials, OVAs).
-        // filter=airing = currently broadcasting right now.
-        // order_by=popularity so the most-watched shows appear first in the slider.
-        const pages = [1, 2, 3, 4, 5];
-        const pageParams = pages.map(p =>
-          `filter=airing&type=tv&order_by=popularity&sort=asc&limit=25&page=${p}&sfw=true`
-        );
-
-        let rawResults = [];
-        try {
-          const responses = await Promise.allSettled(
-            pageParams.map(params => fetchJikan('top/anime', params))
-          );
-          for (const r of responses) {
-            if (r.status === 'fulfilled' && Array.isArray(r.value?.data)) {
-              rawResults.push(...r.value.data);
-            }
-          }
-        } catch(e) {
-          console.warn('[Hero] fetch error:', e.message);
-        }
-
-        // ── 3) Deduplicate by mal_id ───────────────────────────────────────
-        const seenIds = new Set();
-        const unique = [];
-        for (const a of rawResults) {
-          const id = Number(a.mal_id);
-          if (!id || seenIds.has(id)) continue;
-          // Extra safety: skip anything not TV or not currently airing
-          if (a.type && a.type !== 'TV') continue;
-          if (a.status && !a.status.toLowerCase().includes('airing')) continue;
-          seenIds.add(id);
-          unique.push(a);
-        }
-
-        // ── 4) Map to hero slide format ───────────────────────────────────
-        const slides = unique.map(a => ({
-          id:            `jikan-${a.mal_id}`,
-          title:         a.title_english || a.title || 'Unknown',
-          type:          'Anime',
-          genres:        (a.genres||[]).map(g => g.name),
-          themes:        (a.themes||[]).map(g => g.name),
-          score:         a.score ? Number(a.score).toFixed(1) : 'N/A',
-          year:          (a.aired?.from||'').slice(0, 4) || new Date().getFullYear(),
-          duration:      a.duration && a.duration !== 'Unknown' ? a.duration : '24 min/ep',
-          episodes:      a.episodes || '?',
-          synopsis:      a.synopsis || '',
-          backdrop:      a.images?.jpg?.large_image_url || a.images?.webp?.large_image_url || '',
-          poster:        a.images?.jpg?.large_image_url || a.images?.webp?.large_image_url || '',
-          certification: a.rating || 'PG-13',
-          studio:        a.studios?.length ? a.studios[0].name : '',
-          mal_id:        a.mal_id,
+        const [airingAnime, onAirTV, nowMovies] = await Promise.all([
+          fetchJikan('top/anime', 'filter=airing&limit=7'),
+          fetchTMDB('/tv/on_the_air', 'language=en-US&page=1'),
+          fetchTMDB('/movie/now_playing', 'language=en-US&page=1')
+        ]);
+        const animes = (airingAnime.data||[]).map(a => ({
+          id:`jikan-${a.mal_id}`, title:a.title, type:'Anime',
+          genres:(a.genres||[]).map(g=>g.name), score:(a.score||0).toFixed(1),
+          year:(a.aired?.from||'').slice(0,4), duration:a.duration||'?',
+          synopsis:a.synopsis||'', backdrop: a.images?.jpg?.large_image_url||'',
+          poster:a.images?.jpg?.large_image_url||'', certification:a.rating||'PG-13',
         }));
-
-        // ── 5) Filter out slides with no backdrop image (blank hero) ──────
-        heroData = slides.filter(s => s.backdrop.length > 0);
-
-        // ── 6) Cache in sessionStorage for 6 hours ────────────────────────
-        try {
-          sessionStorage.setItem(HERO_CACHE_KEY, JSON.stringify({
-            data: heroData,
-            ts:   Date.now()
-          }));
-        } catch(e) { /* storage full — skip cache */ }
-
-        console.log(`[Hero] ${heroData.length} unique airing TV anime loaded`);
-        renderHero();
-        // Push final data to Supabase cache (non-blocking)
-        if (window.AniCache && heroData.length > 0) {
-          window.AniCache.set({
-            cacheKey: 'index:hero_slider',
-            pageSource: 'index', section: 'hero_slider',
-            data: heroData, itemCount: heroData.length,
-          });
+        const moviesPromises = (nowMovies.results||[]).slice(0,7).map(async i => {
+          const detail = await fetchTMDB(`/movie/${i.id}`, 'language=en-US');
+          const d = detail || {};
+          return {
+            id:`tmdb-movie-${i.id}`, title:i.title, type:'Movie',
+            genres:(i.genre_ids||[]).map(id => GENRE_MAP[id]||id),
+            score:(i.vote_average||0).toFixed(1),
+            year:(i.release_date||'').slice(0,4),
+            duration: d.runtime ? `${d.runtime} min` : '2h 10m',
+            synopsis:i.overview||'', backdrop:tmdbBack(i.backdrop_path), poster:tmdbImg(i.poster_path),
+            certification: d.adult ? '18+' : (d.release_dates?.results?.find(r=>r.iso_3166_1==='US')?.release_dates?.[0]?.certification || 'PG-13'),
+          };
+        });
+        const movies = await Promise.all(moviesPromises);
+        const tvPromises = (onAirTV.results||[]).slice(0,7).map(async i => {
+          const detail = await fetchTMDB(`/tv/${i.id}`, 'language=en-US');
+          const d = detail || {};
+          return {
+            id:`tmdb-tv-${i.id}`, title:i.name, type:'TV',
+            genres:(i.genre_ids||[]).map(id => GENRE_MAP[id]||id),
+            score:(i.vote_average||0).toFixed(1),
+            year:(i.first_air_date||'').slice(0,4),
+            duration: d.episode_run_time?.length ? `${d.episode_run_time[0]}m/ep` : '45m/ep',
+            synopsis:i.overview||'', backdrop:tmdbBack(i.backdrop_path), poster:tmdbImg(i.poster_path),
+            certification: d.content_ratings?.results?.find(r=>r.iso_3166_1==='US')?.rating || 'PG-13',
+          };
+        });
+        const tvs = await Promise.all(tvPromises);
+        const interleaved = [];
+        const max = Math.max(animes.length, tvs.length, movies.length);
+        for (let i=0; i<max; i++) {
+          if(animes[i]) interleaved.push(animes[i]);
+          if(tvs[i]) interleaved.push(tvs[i]);
+          if(movies[i]) interleaved.push(movies[i]);
         }
+        heroData = interleaved.slice(0,19);
+        renderHero();
       }
       function renderHero() {
         const container = document.getElementById('slidesContainer');
-        const slugify = t => (t||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
-        container.innerHTML = heroData.map((s,i) => {
-          const allTags = [...(s.genres||[]).slice(0,3), ...(s.themes||[]).slice(0,1)];
-          const infoHref = `/info/anime/jikan-${s.mal_id}/${slugify(s.title)}`;
-          return `
+        container.innerHTML = heroData.map((s,i) => `
           <div class="slide" data-index="${i}" style="background-image:url('${s.backdrop||s.poster}');">
             <div class="slide-content">
               <h1 class="slide-title">${s.title}</h1>
               <div class="slide-meta">
-                <span class="meta-badge">TV</span>
-                <span class="meta-badge" style="color:var(--accent-gold);border-color:var(--accent-gold);">● Airing</span>
+                <span class="meta-badge">${s.type}</span>
                 <span class="meta-badge"><i class="fas fa-calendar-alt"></i> ${s.year}</span>
                 <span class="meta-badge"><i class="fas fa-clock"></i> ${s.duration}</span>
-                ${s.episodes !== '?' ? `<span class="meta-badge"><i class="fas fa-play"></i> ${s.episodes} eps</span>` : ''}
-                ${s.studio ? `<span class="meta-badge">${s.studio}</span>` : ''}
-                ${allTags.map(g => `<span class="meta-badge">${g}</span>`).join('')}
+                <span class="meta-badge">${s.certification||'PG-13'}</span>
+                ${s.genres.slice(0,3).map(g => `<span class="meta-badge">${g}</span>`).join('')}
                 <span class="meta-badge"><i class="fas fa-star" style="color:var(--accent-gold)"></i> ${s.score}</span>
               </div>
-              <p class="slide-synopsis">${s.synopsis?.slice(0,260)||''}</p>
+              <p class="slide-synopsis">${s.synopsis?.slice(0,250)||''}</p>
               <div class="slide-actions">
                 <a href="/watch/${s.id}" class="btn-watch"><i class="fas fa-play"></i> Watch Now</a>
-                <a href="${infoHref}" class="btn-heart-slide"><i class="far fa-heart"></i></a>
+                <a href="${infoUrl(s)}" class="btn-heart-slide"><i class="far fa-heart"></i></a>
               </div>
             </div>
-          </div>`;
-        }).join('');
-        // Dots — show max 30 dots (condensed for large sets)
-        const totalSlides = heroData.length;
-        const showDots = Math.min(totalSlides, 30);
-        document.getElementById('sliderDots').innerHTML = Array.from({length:showDots},(_,i) =>
-          `<span class="dot${i===0?' active':''}" data-index="${i}"></span>`
-        ).join('');
+          </div>`).join('');
+        document.getElementById('sliderDots').innerHTML = heroData.map((_,i) => `<span class="dot${i===0?' active':''}" data-index="${i}"></span>`).join('');
         currentSlide=0; updateSlidePos();
-        document.getElementById('slideCounter').textContent = `1 / ${totalSlides}`;
+        document.getElementById('slideCounter').textContent = `1 / ${heroData.length}`;
       }
       function goToSlide(i) { currentSlide = ((i%heroData.length)+heroData.length)%heroData.length; updateSlidePos(); }
       function updateSlidePos() {
         document.getElementById('slidesContainer').style.transform = `translateX(-${currentSlide*100}%)`;
-        // Dots are capped at 30 — highlight the proportionally closest dot
-        const dots = document.querySelectorAll('#sliderDots .dot');
-        const total = heroData.length;
-        dots.forEach((d,idx) => {
-          // Map dot index to slide range — each dot represents total/dots.length slides
-          const ratio = total / dots.length;
-          const active = Math.round(currentSlide / ratio) === idx;
-          d.classList.toggle('active', active);
-        });
+        document.querySelectorAll('#sliderDots .dot').forEach((d,idx) => d.classList.toggle('active', idx===currentSlide));
         document.getElementById('slideCounter').textContent = `${currentSlide+1} / ${heroData.length}`;
       }
       document.getElementById('prevSlide').addEventListener('click', ()=>goToSlide(currentSlide-1));
@@ -1586,31 +1307,21 @@ window.showAnikotoPopupById = function(mal_id) {
 
       /* ── TOP AIRING ── */
       async function loadTopAiring() {
-        if (window.AniCache) {
-          const cached = await window.AniCache.get('index:top_airing');
-          if (cached) { renderTopAiring(cached); return; }
-        }
-        // Fetch multiple pages to get more airing anime and avoid empty results
-        const [tvOnAir, jikanAir1, jikanAir2] = await Promise.all([
+        const [tvOnAir, jikanAir] = await Promise.all([
           fetchTMDB('/tv/on_the_air', 'language=en-US&page=1'),
-          fetchJikan('top/anime', 'filter=airing&limit=25&page=1'),
-          fetchJikan('top/anime', 'filter=airing&limit=25&page=2')
+          fetchJikan('top/anime', 'filter=airing&limit=20')
         ]);
-        const tv = (tvOnAir.results||[]).slice(0,30).map(i => ({
+        const tv = (tvOnAir.results||[]).slice(0,20).map(i => ({
           id:`tmdb-tv-${i.id}`, title:i.name, poster:tmdbImg(i.poster_path), type:'TV',
           duration:'45m/ep', score:(i.vote_average||0).toFixed(1),
           status:'Airing', episodes: i.number_of_episodes||'?',
         }));
-        const allJikan = [...(jikanAir1.data||[]), ...(jikanAir2.data||[])];
-        // Deduplicate by mal_id
-        const jikanUnique = dedupById(allJikan, 'mal_id');
-        const anime = jikanUnique.map(a => ({
+        const anime = (jikanAir.data||[]).slice(0,20).map(a => ({
           id:`jikan-air-${a.mal_id}`, title:a.title, poster:a.images?.jpg?.large_image_url||'', type:'Anime',
           duration: a.duration||'?', score:(a.score||0).toFixed(1),
           status: a.status||'Airing', episodes: a.episodes||'?',
         }));
-        // Deduplicate combined list by id
-        const combined = dedupById([...tv, ...anime], 'id').slice(0,60);
+        const combined = [...tv, ...anime].slice(0,40);
         renderTopAiring(combined);
       }
       function renderTopAiring(shows) {
@@ -1631,41 +1342,26 @@ window.showAnikotoPopupById = function(mal_id) {
 
       /* ── NEW RELEASES ── */
       let allReleases = {all:[], anime:[], movie:[], tv:[]};
-      let _newReleasesCache = null; // in-memory for filter toggles
-
       async function loadNewReleases() {
-        if (window.AniCache && !_newReleasesCache) {
-          const cached = await window.AniCache.get('index:new_releases');
-          if (cached) {
-            _newReleasesCache = cached;
-            if (!currentNewReleasesFilter) currentNewReleasesFilter = 'all';
-            renderNewReleases(currentNewReleasesFilter);
-            return;
-          }
-        }
-        const [nowMovies, onAirTv, jikanNow1, jikanNow2] = await Promise.all([
+        const [nowMovies, onAirTv, jikanNow] = await Promise.all([
           fetchTMDB('/movie/now_playing', 'language=en-US&page=1'),
           fetchTMDB('/tv/on_the_air', 'language=en-US&page=1'),
-          fetchJikan('seasons/now', 'limit=25&page=1'),
-          fetchJikan('seasons/now', 'limit=25&page=2')
+          fetchJikan('seasons/now', 'limit=25')
         ]);
-        const movies = (nowMovies.results||[]).slice(0,10).map(i => ({
+        const movies = (nowMovies.results||[]).slice(0,20).map(i => ({
           id:`tmdb-mv-${i.id}`, title:i.title, poster:tmdbImg(i.poster_path), type:'Movie',
           score:(i.vote_average||0).toFixed(1), details:'1h 45m', cert:'PG-13', quality:'HD'
         }));
-        const tv = (onAirTv.results||[]).slice(0,10).map(i => ({
+        const tv = (onAirTv.results||[]).slice(0,20).map(i => ({
           id:`tmdb-tv-${i.id}`, title:i.name, poster:tmdbImg(i.poster_path), type:'TV',
           score:(i.vote_average||0).toFixed(1), details: 'S?', cert:'PG-13', quality:'HD'
         }));
-        // Merge pages and deduplicate
-        const allJikanNow = [...(jikanNow1.data||[]), ...(jikanNow2.data||[])];
-        const jikanNowUnique = dedupById(allJikanNow, 'mal_id');
-        const anime = jikanNowUnique.slice(0,20).map(a => ({
+        const anime = (jikanNow.data||[]).slice(0,20).map(a => ({
           id:`jikan-${a.mal_id}`, title:a.title, poster:a.images?.jpg?.large_image_url||'', type:'Anime',
           score:(a.score||0).toFixed(1), duration: a.duration||'?', status: a.status||'Airing',
           rating: a.rating||'none', quality:'HD'
         }));
-        allReleases = { all: dedupById([...anime,...movies,...tv], 'id').slice(0,50), anime, movie:movies, tv };
+        allReleases = { all: [...movies,...tv,...anime].slice(0,60), anime, movie:movies, tv };
         renderNewReleases('all');
       }
       function renderNewReleases(filter) {
@@ -1725,16 +1421,11 @@ window.showAnikotoPopupById = function(mal_id) {
       /* ── UPCOMING ── */
       let upcomingShows=[];
       async function loadUpcoming() {
-        const [tmdbUp, jikanUp1, jikanUp2, jikanUp3] = await Promise.all([
+        const [tmdbUp, jikanUp] = await Promise.all([
           fetchTMDB('/movie/upcoming', 'language=en-US&page=1'),
-          fetchJikan('top/anime', 'filter=upcoming&limit=25&page=1'),
-          fetchJikan('top/anime', 'filter=upcoming&limit=25&page=2'),
-          fetchJikan('top/anime', 'filter=upcoming&limit=25&page=3')
+          fetchJikan('top/anime', 'filter=upcoming&limit=20')
         ]);
-        // Merge and deduplicate Jikan upcoming
-        const allJikanUp = [...(jikanUp1.data||[]), ...(jikanUp2.data||[]), ...(jikanUp3.data||[])];
-        const jikanUpUnique = dedupById(allJikanUp, 'mal_id');
-        upcomingShows = dedupById([
+        upcomingShows = [
           ...(tmdbUp.results||[]).slice(0,40).map(i => ({
             id:`tmdb-up-${i.id}`, title:i.title, original_title:i.original_title||i.title,
             type:'Movie', poster:tmdbImg(i.poster_path), score:(i.vote_average||0).toFixed(1),
@@ -1742,15 +1433,15 @@ window.showAnikotoPopupById = function(mal_id) {
             synopsis:i.overview||'', certification: i.adult?'18+':'PG-13',
             studio:'?', backdrop:tmdbBack(i.backdrop_path), duration:'2h 10m'
           })),
-          ...jikanUpUnique.map(a => ({
+          ...(jikanUp.data||[]).slice(0,40).map(a => ({
             id:`jikan-up-${a.mal_id}`, title:a.title_english||a.title, original_title:a.title_japanese||a.title,
             type:'Anime', poster:a.images?.jpg?.large_image_url||'',
             score:(a.score||0).toFixed(1), genres:(a.genres||[]).map(g=>g.name),
             releaseDate:(a.aired?.from||'').slice(0,10), synopsis:a.synopsis||'',
             certification: a.rating||'PG-13', studio:(a.studios||[])[0]?.name||'?',
-            duration: a.duration||'?', mal_id: a.mal_id
+            duration: a.duration||'?'
           }))
-        ], 'id').slice(0,100);
+        ].slice(0,80);
         renderUpcoming();
       }
       function renderUpcoming() {
@@ -1770,38 +1461,16 @@ window.showAnikotoPopupById = function(mal_id) {
 
       /* ── COMPLETED (paginated) ── */
       let completedCurrentPage = 1;
-      const _compSeenIds = new Set();
-      let _completedPagesCache = {};
       async function loadCompleted(page=1) {
-        if (window.AniCache && !_completedPagesCache[page]) {
-          const cached = await window.AniCache.get('index:recently_completed');
-          if (cached?.pages) _completedPagesCache = cached.pages;
-        }
-        if (_completedPagesCache[page]) {
-          const el = document.getElementById('completedGrid');
-          if (el) el.innerHTML = _completedPagesCache[page].map(s => renderShowCard(s)).join('');
-          renderPagination(page);
-          return;
-        }
         completedCurrentPage = page;
         const today = new Date().toISOString().split('T')[0];
-        // Fetch 2 Jikan pages to have enough unique anime after dedup
-        const [tv, anime, anime2] = await Promise.all([
+        const [tv, anime] = await Promise.all([
           fetchTMDB('/discover/tv', `with_status=3&air_date.lte=${today}&sort_by=first_air_date.desc&page=${page}`),
-          fetchJikan('anime', `status=complete&order_by=start_date&sort=desc&page=${page}&limit=25`),
-          fetchJikan('anime', `status=complete&order_by=start_date&sort=desc&page=${page+1}&limit=25`)
+          fetchJikan('anime', `status=complete&order_by=start_date&sort=desc&page=${page}&limit=20`)
         ]);
-        // Deduplicate Jikan results by mal_id
-        const allAnime = [...(anime.data||[]), ...(anime2.data||[])];
-        const uniqueAnime = [];
-        const seenThisPage = new Set();
-        for (const a of allAnime) {
-          const key = String(a.mal_id);
-          if (!seenThisPage.has(key)) { seenThisPage.add(key); uniqueAnime.push(a); }
-        }
         const list = [
           ...(tv.results||[]).slice(0,10).map(i => ({id:`tmdb-comp-${i.id}`,title:i.name,poster:tmdbImg(i.poster_path),type:'TV',year:(i.first_air_date||'').slice(0,4),score:(i.vote_average||0).toFixed(1),quality:'HD'})),
-          ...uniqueAnime.slice(0,10).map(a => ({id:`jikan-comp-${a.mal_id}`,title:a.title,poster:a.images?.jpg?.large_image_url||'',type:'Anime',year:(a.aired?.from||'').slice(0,4),score:(a.score||0).toFixed(1),quality:'HD'}))
+          ...(anime.data||[]).slice(0,10).map(a => ({id:`jikan-comp-${a.mal_id}`,title:a.title,poster:a.images?.jpg?.large_image_url||'',type:'Anime',year:(a.aired?.from||'').slice(0,4),score:(a.score||0).toFixed(1),quality:'HD'}))
         ].slice(0,20);
         document.getElementById('completedGrid').innerHTML = list.map(s => `
           <a href="${infoUrl(s)}" class="show-card-grid">
@@ -1836,21 +1505,7 @@ window.showAnikotoPopupById = function(mal_id) {
 
       /* ── TRENDING ── */
       let trendingData=[];
-      let _trendingCache = {};
       async function loadTrending(period='today') {
-        const periodKey = period === 'today' ? 'day' : period;
-        if (window.AniCache && !_trendingCache[periodKey]) {
-          const cached = await window.AniCache.get('index:trending_now');
-          if (cached && cached[periodKey]) {
-            _trendingCache = cached;
-          }
-        }
-        if (_trendingCache[periodKey]) {
-          // render from cache
-          const el = document.getElementById('trendingList');
-          if (el) el.innerHTML = _trendingCache[periodKey].map(s => renderShowCard(s)).join('');
-          return;
-        }
         let tmdb,jikan;
         if(period==='today') { tmdb=await fetchTMDB('/trending/all/day'); jikan=await fetchJikan('top/anime','filter=airing&limit=10'); }
         else if(period==='week') { tmdb=await fetchTMDB('/trending/all/week'); jikan=await fetchJikan('top/anime','filter=airing&limit=10'); }
@@ -1887,92 +1542,42 @@ window.showAnikotoPopupById = function(mal_id) {
         }
       });
 
-      /* ── POPULAR (sidebar) — TMDB only (movies + TV), no Jikan ── */
+      /* ── POPULAR ── */
       let popularData = [];
       async function loadPopular() {
-        if (window.AniCache) {
-          const cached = await window.AniCache.get('index:most_popular');
-          if (cached) {
-            popularData = cached;
-            document.getElementById('popularList').innerHTML = cached.map(s => `
-              <a href="${infoUrl(s)}" class="sidebar-list-item" onmouseenter="showPopup(event,'${s.id}')" onmouseleave="window.popupTimer=setTimeout(hidePopup,500)">
-                <span class="sidebar-rank">${s.rank}</span>
-                <img class="sidebar-poster" src="${s.poster}" onerror="this.style.display='none'">
-                <div class="sidebar-info"><h4>${s.title}</h4>
-                <div class="side-meta"><i class="fas fa-star" style="color:var(--accent-gold)"></i> ${s.score} &nbsp;·&nbsp;${s.type} &nbsp;·&nbsp;${s.year}</div></div>
-              </a>`).join('');
-            return;
-          }
-        }
-        // Fetch top-voted movies and TV from TMDB only
-        const [tmdbMovies, tmdbTV, tmdbMovies2, tmdbTV2] = await Promise.all([
-          fetchTMDB('/discover/movie', 'sort_by=vote_count.desc&vote_count.gte=5000&language=en-US&page=1'),
-          fetchTMDB('/discover/tv',    'sort_by=vote_count.desc&vote_count.gte=2000&language=en-US&page=1'),
-          fetchTMDB('/discover/movie', 'sort_by=vote_count.desc&vote_count.gte=5000&language=en-US&page=2'),
-          fetchTMDB('/discover/tv',    'sort_by=vote_count.desc&vote_count.gte=2000&language=en-US&page=2'),
+        // Fetch all three sources in parallel — each has its own retry logic
+        const [tmdbMovies, tmdbTv, jikan] = await Promise.all([
+          fetchTMDB('/discover/movie', 'sort_by=vote_count.desc&vote_count.gte=1000&language=en-US&page=1'),
+          fetchTMDB('/discover/tv', 'sort_by=vote_count.desc&vote_count.gte=500&language=en-US&page=1'),
+          fetchJikan('top/anime', 'filter=bypopularity&limit=10')
         ]);
-        const allMovies = [...(tmdbMovies.results||[]), ...(tmdbMovies2.results||[])];
-        const allTV     = [...(tmdbTV.results||[]),     ...(tmdbTV2.results||[])];
-
-        const movieItems = allMovies.slice(0,10).map(i => ({
-          id:`tmdb-pop-${i.id}`,
-          title: i.title||i.name||'Unknown',
-          original_title: i.original_title || i.title || '',
-          poster: tmdbImg(i.poster_path, 'w185'),
-          type: 'Movie',
-          score: i.vote_average ? Number(i.vote_average).toFixed(1) : 'N/A',
-          year: (i.release_date||'').slice(0,4) || '—',
-          certification: 'PG-13',
-          duration: i.runtime ? `${i.runtime} min` : '—',
-          genres: (i.genre_ids||[]).map(id => GENRE_MAP[id]).filter(Boolean),
-          synopsis: i.overview || 'No description available.',
-          members: i.vote_count || 0,
-          studio: '—',
+        const movies = (tmdbMovies.results||[]).slice(0,7).map(i => ({
+          id:`tmdb-pop-${i.id}`, title:i.title, poster:tmdbImg(i.poster_path,'w185'), type:'Movie',
+          score:(i.vote_average||0).toFixed(1), members:i.vote_count,
+          genres:(i.genre_ids||[]).map(id=>GENRE_MAP[id]||id),
+          overview:i.overview||''
         }));
-        const tvItems = allTV.slice(0,10).map(i => ({
-          id:`tmdb-tvpop-${i.id}`,
-          title: i.name||i.title||'Unknown',
-          original_title: i.original_name || i.name || '',
-          poster: tmdbImg(i.poster_path, 'w185'),
-          type: 'TV',
-          score: i.vote_average ? Number(i.vote_average).toFixed(1) : 'N/A',
-          year: (i.first_air_date||'').slice(0,4) || '—',
-          certification: 'TV-14',
-          duration: '—',
-          genres: (i.genre_ids||[]).map(id => GENRE_MAP[id]).filter(Boolean),
-          synopsis: i.overview || 'No description available.',
-          members: i.vote_count || 0,
-          studio: '—',
+        const tv = (tmdbTv.results||[]).slice(0,8).map(i => ({
+          id:`tmdb-pop-tv-${i.id}`, title:i.name, poster:tmdbImg(i.poster_path,'w185'), type:'TV',
+          score:(i.vote_average||0).toFixed(1), members:i.vote_count,
+          genres:(i.genre_ids||[]).map(id=>GENRE_MAP[id]||id),
+          overview:i.overview||''
         }));
-
-        // Interleave movie + tv, deduplicate, take top 10
-        const interleaved = [];
-        const maxLen = Math.max(movieItems.length, tvItems.length);
-        for (let i = 0; i < maxLen; i++) {
-          if (movieItems[i]) interleaved.push(movieItems[i]);
-          if (tvItems[i]) interleaved.push(tvItems[i]);
-        }
-        const data = dedupById(interleaved, 'id').slice(0,10);
-        data.forEach((item,i) => item.rank = i+1);
+        const anime = (jikan.data||[]).slice(0,10).map(a => ({
+          id:`jikan-pop-${a.mal_id}`, title:a.title, poster:a.images?.jpg?.large_image_url||'',
+          type:'Anime', score:(a.score||0).toFixed(1), members:a.members,
+          genres:(a.genres||[]).map(g=>g.name),
+          synopsis:a.synopsis||''
+        }));
+        const data = [...anime, ...tv, ...movies].sort((a,b)=>b.members-a.members).slice(0,25);
+        data.forEach((item,i)=>item.rank=i+1);
         popularData = data;
-
         document.getElementById('popularList').innerHTML = data.map(s => `
           <a href="${infoUrl(s)}" class="sidebar-list-item" onmouseenter="showPopup(event,'${s.id}')" onmouseleave="window.popupTimer=setTimeout(hidePopup,500)">
             <span class="sidebar-rank">${s.rank}</span>
             <img class="sidebar-poster" src="${s.poster}" onerror="this.style.display='none'">
-            <div class="sidebar-info">
-              <h4>${s.title}</h4>
-              <div class="side-meta">
-                <i class="fas fa-star" style="color:var(--accent-gold)"></i> ${s.score}
-                &nbsp;·&nbsp;${s.type}
-                &nbsp;·&nbsp;${s.year}
-              </div>
-            </div>
+            <div class="sidebar-info"><h4>${s.title}</h4><div class="side-meta"><i class="fas fa-star"></i> ${s.score} · ${s.type}</div></div>
           </a>`).join('');
-        if (window.AniCache && data.length > 0) {
-          window.AniCache.set({ cacheKey:'index:most_popular', pageSource:'index',
-            section:'most_popular', data, itemCount:data.length });
-        }
       }
 
       /* ── POPUP (FIXED) ── */
@@ -1980,8 +1585,6 @@ window.showAnikotoPopupById = function(mal_id) {
   clearTimeout(window.popupTimer);
   const show = [...upcomingShows, ...trendingData, ...popularData].find(s => s.id === id);
   if (!show) return;
-  // Save to media_cache (dedup prevents duplicates)
-  if (window.AniCache) window.AniCache.save([show]).catch(()=>{});
 
   // Check if this is an upcoming show
   const isUpcoming = upcomingShows.some(s => s.id === id);
@@ -1998,28 +1601,14 @@ window.showAnikotoPopupById = function(mal_id) {
   const scoreLabel = show.type === 'Anime' ? 'MAL' : 'TMDB';
   const starIcon = '<i class="fas fa-star" style="color:var(--accent-gold)"></i>';
 
-  // Build duration safely — never produce "undefinedm"
-  const rawDuration = show.duration || (show.episode_run_time?.length ? show.episode_run_time[0] + 'm/ep' : null);
-  const safeYear    = show.year || (show.release_date||show.first_air_date||'').slice(0,4) || '';
-  const safeCert    = show.certification || (show.type === 'TV' ? 'TV-14' : 'PG-13');
-
-  const metaPills = [
-    show.type,
-    safeCert,
-    safeYear || null,
-    rawDuration || null,
-    show.studio && show.studio !== '—' ? show.studio : null,
-  ].filter(Boolean);
-
   const metaHtml = `
-    <span class="meta-pill">${metaPills[0] || ''}</span>
-    <span class="meta-pill">${safeCert}</span>
-    <span class="meta-pill">${scoreLabel} ${starIcon} ${show.score || 'N/A'}</span>
-    ${rawDuration ? `<span class="meta-pill"><i class="fas fa-clock" style="opacity:.7"></i> ${rawDuration}</span>` : ''}
-    ${safeYear ? `<span class="meta-pill"><i class="fas fa-calendar-alt" style="opacity:.7"></i> ${safeYear}</span>` : ''}
-    ${show.studio && show.studio !== '—' ? `<span class="meta-pill">${show.studio}</span>` : ''}
+    <span class="meta-pill">${show.type || ''}</span>
+    <span class="meta-pill">${show.certification || 'PG-13'}</span>
+    <span class="meta-pill">${scoreLabel} ${starIcon} ${show.score || '?'}</span>
+    <span class="meta-pill">${show.duration || show.episode_run_time?.[0] + 'm' || '?'}</span>
+    <span class="meta-pill">${show.studio || '?'}</span>
   `;
-  const genresHtml = (show.genres || []).filter(Boolean).map(g =>
+  const genresHtml = (show.genres || []).map(g =>
     `<a href="/search?genre=${encodeURIComponent(g)}" class="genre-pill">${g}</a>`
   ).join('');
 
@@ -2048,147 +1637,7 @@ window.showAnikotoPopupById = function(mal_id) {
       document.getElementById('popupClose').addEventListener('click', window.hidePopup);
       document.getElementById('popupOverlay').addEventListener('click', function(e){ if(e.target===this) window.hidePopup(); });
 
-      /* ── POPULAR ANIME (Miruro-style list, sorted by score+popularity+rank) ── */
-      async function loadPopularAnime() {
-        try {
-          if (window.AniCache) {
-            const cached = await window.AniCache.get('index:popular_anime');
-            if (cached && cached.length > 0) {
-              const el = document.getElementById('popularAnimeList');
-              if (el) el.innerHTML = cached.map(r => r._html || '').filter(Boolean).join('');
-              return;
-            }
-          }
-          // Fetch top anime — proxy-first (CF cached), Jikan direct fallback built into fetchJikan
-          const [page1, page2, page3] = await Promise.all([
-            fetchJikan('top/anime', 'filter=bypopularity&limit=25&page=1'),
-            fetchJikan('top/anime', 'filter=bypopularity&limit=25&page=2'),
-            fetchJikan('top/anime', 'limit=25&page=1'),
-          ]);
-          const all = [
-            ...(page1.data||[]),
-            ...(page2.data||[]),
-            ...(page3.data||[]),
-          ];
-          // Deduplicate by mal_id
-          const seen = new Set();
-          const unique = all.filter(a => { if(seen.has(a.mal_id)) return false; seen.add(a.mal_id); return true; });
-          // Score each anime: weighted combo of MAL score + rank + popularity
-          const scored = unique.map(a => {
-            const malScore    = a.score || 0;
-            const rankPenalty = a.rank ? (1 / a.rank) * 100 : 0;
-            const popBonus    = a.popularity ? (1 / a.popularity) * 50 : 0;
-            return { ...a, _w: malScore * 10 + rankPenalty + popBonus };
-          });
-          scored.sort((a,b) => b._w - a._w);
-          const top25 = scored.slice(0, 25);
-
-          const slugify = t => (t||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
-
-          const el = document.getElementById('popularAnimeList');
-          if (!el) return;
-
-          el.innerHTML = top25.map((a, idx) => {
-            const rank     = idx + 1;
-            const rankCls  = rank <= 3 ? ` rank-${rank}` : '';
-            const title    = a.title_english || a.title || 'Unknown';
-            const slug     = slugify(title);
-            const href     = `/info/anime/jikan-${a.mal_id}/${slug}`;
-            const poster   = a.images?.jpg?.large_image_url || a.images?.jpg?.image_url || '';
-            const bgImg    = poster;
-            const type     = a.type || 'TV';
-            const eps      = a.episodes != null ? a.episodes : '?';
-            const score    = a.score ? Number(a.score).toFixed(1) : 'N/A';
-            const studio      = a.studios?.length ? a.studios[0].name : '—';
-            const genres      = (a.genres||[]).slice(0,4).map(g=>g.name);
-            const themes      = (a.themes||[]).slice(0,2).map(g=>g.name);
-            const demographic = (a.demographics||[]).slice(0,1).map(g=>g.name);
-            // Combine: genres first, then themes, then demographic — cap total tags at 7
-            const allTags = [...genres, ...themes, ...demographic].slice(0,7);
-
-            return `<a href="${href}" class="pa-row${rankCls}" style="--pa-bg:url('${bgImg}')">
-              <span class="pa-rank">${rank}</span>
-              <img class="pa-poster" src="${poster}" alt="${title.replace(/"/g,'&quot;')}" loading="lazy" onerror="this.style.opacity='0'">
-              <div class="pa-info">
-                <div class="pa-title">${title}</div>
-                <div class="pa-meta">
-                  <span class="pa-tag">${type}</span>
-                  <span class="pa-tag"><i class="fas fa-play" style="font-size:.5rem"></i> ${eps} eps</span>
-                  <span class="pa-score"><i class="fas fa-star"></i> ${score}</span>
-                  ${studio !== '—' ? `<span class="pa-tag">${studio}</span>` : ''}
-                  ${allTags.map(g=>`<span class="pa-tag">${g}</span>`).join('')}
-                </div>
-              </div>
-            </a>`;
-          }).join('');
-        } catch(err) {
-          console.warn('[loadPopularAnime] failed:', err);
-        }
-      }
-
-      /* ── SKELETON SCREENS — injected before any real data loads ── */
-      function skCards(n, w='140px', h='200px') {
-        return Array.from({length:n}, () => `
-          <div class="skeleton-card" style="width:${w};flex-shrink:0;">
-            <div class="skeleton sk-poster"></div>
-            <div class="skeleton sk-line w80"></div>
-            <div class="skeleton sk-line w60"></div>
-          </div>`).join('');
-      }
-      function skPaRows(n=8) {
-        return Array.from({length:n}, (_,i) => `
-          <div class="sk-pa-row">
-            <div class="skeleton sk-pa-rank"></div>
-            <div class="skeleton sk-pa-img"></div>
-            <div class="sk-pa-body">
-              <div class="skeleton sk-pa-title"></div>
-              <div class="sk-pa-meta">
-                ${Array.from({length:4},(_,j)=>`<div class="skeleton sk-pa-tag" style="width:${44+j*14}px"></div>`).join('')}
-              </div>
-            </div>
-          </div>`).join('');
-      }
-      function skSideRows(n=10) {
-        return Array.from({length:n}, () => `
-          <div class="sk-side-row">
-            <div class="skeleton sk-side-rank"></div>
-            <div class="skeleton sk-side-img"></div>
-            <div class="sk-side-body">
-              <div class="skeleton sk-side-t"></div>
-              <div class="skeleton sk-side-m"></div>
-            </div>
-          </div>`).join('');
-      }
-      function skSchedRows(n=8) {
-        return Array.from({length:n}, () => `
-          <div class="sk-sched-row">
-            <div class="skeleton sk-sched-img"></div>
-            <div class="sk-sched-body">
-              <div class="skeleton sk-sched-t"></div>
-              <div class="skeleton sk-sched-m"></div>
-            </div>
-          </div>`).join('');
-      }
-      function injectSkeletons() {
-        const $ = id => document.getElementById(id);
-        // Hero — only replace the slides container, keep nav/dots/buttons intact
-        const slides = $('slidesContainer');
-        if (slides) slides.innerHTML = `<div class="skeleton sk-hero" style="border-radius:0;"></div>`;
-        // Horizontal scroll sections (cards)
-        [['topAiringList',8],['newReleasesList',8],['upcomingList',8],
-         ['trendingList',8],['newAnioceanList',8],['completedGrid',10]
-        ].forEach(([id,n]) => { const el=$(id); if(el) el.innerHTML=`<div style="display:flex;gap:10px;overflow:hidden;">${skCards(n)}</div>`; });
-        // Popular Anime list
-        const pa = $('popularAnimeList'); if(pa) pa.innerHTML = skPaRows(8);
-        // Sidebar (Most Popular)
-        const pop = $('popularList'); if(pop) pop.innerHTML = skSideRows(10);
-        // Schedule tabs
-        document.querySelectorAll('.schedule-day-content,.sched-content,[id^="sched-"]').forEach(el => {
-          el.innerHTML = skSchedRows(8);
-        });
-      }
-
-      /* ── SCHEDULE (COMPLETE REBUILD) ── 
+      /* ── SCHEDULE (COMPLETE REBUILD) ── */
                  /* ── NEW SCHEDULE (4‑column, localStorage, episode count) ── */
       let scheduleData = null;          // { monday: [anime], tuesday: [...], ... }
       let currentDay = null;            // 'monday' ... 'sunday'
@@ -2196,91 +1645,31 @@ window.showAnikotoPopupById = function(mal_id) {
       const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
       const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-      // ---------- Helper: fetch schedule for one day (direct Jikan → proxy, 3 pages) ----------
-      // WHY bypass proxy for schedules:
-      //   The ANIUMI proxy caches responses by URL for 5 min. If Jikan returned 0
-      //   results during that window (happens often for tue/thu/fri/sun due to JST
-      //   timezone boundary edge cases + Jikan quirks), the proxy keeps serving that
-      //   stale empty response to everyone for the full TTL. We therefore ALWAYS hit
-      //   direct Jikan first for /schedules so we never get a cached-zero, and only
-      //   fall back to the proxy if direct Jikan itself is unreachable.
+      // ---------- Helper: fetch 3 pages for one day, with delays ----------
       async function fetchDaySchedules(day) {
-        const DIRECT = `${JIKAN_BASE}/schedules`;
-        const PROXY  = `${ANIUMI_PROXY}/jikan/schedules`;
-
+        const pagesToTry = [1, 2, 3];
         let allAnime = [];
 
-        for (const page of [1, 2, 3]) {
-          const qs = `?filter=${day}&sfw=true&limit=25&page=${page}`;
-          let pageData = null;
-
-          // Tier 1: direct Jikan with up to 3 retry attempts on 429
-          for (let attempt = 1; attempt <= 3 && pageData === null; attempt++) {
-            try {
-              const res = await fetch(`${DIRECT}${qs}`, {
-                headers: { Accept: 'application/json' },
-                signal: AbortSignal.timeout(10000)
-              });
-              if (res.status === 429) {
-                console.warn(`[Schedule] ${day} p${page} rate-limited, waiting ${attempt * 2}s...`);
-                await new Promise(r => setTimeout(r, attempt * 2000));
-                continue;
-              }
-              if (res.ok) {
-                const json = await res.json();
-                const items = json.data || [];
-                const totalItems = json.pagination?.items?.total ?? -1;
-                // If page 1 returns 0 AND Jikan confirms total=0, no need for more pages
-                if (items.length === 0 && totalItems === 0 && page === 1) {
-                  console.warn(`[Schedule] ${day}: confirmed 0 results from Jikan, skipping p2/p3`);
-                  pageData = [];
-                  allAnime = []; // clear so outer loop also stops
-                } else {
-                  pageData = items;
-                }
-              }
-            } catch (e) {
-              console.warn(`[Schedule] ${day} p${page} direct attempt ${attempt}:`, e.message);
+        for (const page of pagesToTry) {
+          try {
+            const res = await fetchJikan('schedules', `filter=${day}&sfw=true&limit=25&page=${page}`);
+            if (res.data && res.data.length > 0) {
+              allAnime.push(...res.data);
             }
+            // Wait 0.5s between pages to avoid rate limiting
+            await new Promise(r => setTimeout(r, 500));
+          } catch (err) {
+            console.warn(`Failed to fetch ${day} page ${page}:`, err);
           }
-
-          // Tier 2: proxy fallback (only if direct completely failed / timed out)
-          if (pageData === null) {
-            try {
-              const res = await fetch(`${PROXY}${qs}`, {
-                headers: { Accept: 'application/json' },
-                signal: AbortSignal.timeout(8000)
-              });
-              if (res.ok) {
-                const json = await res.json();
-                pageData = json.data || [];
-              }
-            } catch (e) {
-              console.warn(`[Schedule] ${day} p${page} proxy fallback failed:`, e.message);
-              pageData = [];
-            }
-          }
-
-          if (pageData && pageData.length > 0) {
-            allAnime.push(...pageData);
-            // Page not full — no more pages for this day
-            if (pageData.length < 25) break;
-          } else if (page === 1) {
-            // Both tiers returned nothing on page 1 — stop for this day
-            break;
-          }
-
-          // Respect Jikan's rate limit between pages
-          if (page < 3) await new Promise(r => setTimeout(r, 400));
         }
 
         // Deduplicate by mal_id
-        const seen = new Map();
+        const unique = new Map();
         for (const anime of allAnime) {
-          if (!seen.has(anime.mal_id)) seen.set(anime.mal_id, anime);
+          if (!unique.has(anime.mal_id)) unique.set(anime.mal_id, anime);
         }
-        const result = Array.from(seen.values());
-        console.log(`[Schedule] ${day}: ${result.length} unique anime`);
+        const result = Array.from(unique.values());
+        console.log(`✅ ${day}: ${result.length} unique anime`);
         return result;
       }
 
@@ -2427,93 +1816,38 @@ window.showAnikotoPopupById = function(mal_id) {
 
       // ---------- Main loader (sequential fetch, localStorage) ----------
       async function loadSchedule() {
-        if (window.AniCache) {
-          const cached = await window.AniCache.get('index:schedule');
-          if (cached) {
-            window._scheduleData = cached;
-            const activeDay = document.querySelector('.schedule-tab.active')?.dataset.day || 'monday';
-            renderScheduleForDay(activeDay);
-            return;
-          }
-        }
         const STORAGE_KEY = 'aniocean_schedule_cache';
         const CACHE_TTL = 24 * 60 * 60 * 1000;
         const cached = localStorage.getItem(STORAGE_KEY);
         let needFetch = true;
 
-        // Show a loading indicator immediately so the user never sees
-        // "No episodes scheduled" while we're still fetching.
-        const loadingHtml = '<div style="text-align:center;padding:30px 10px;color:var(--text-muted);font-size:0.85rem;">'
-          + '<div style="display:inline-block;width:24px;height:24px;border:2px solid rgba(255,255,255,.15);'
-          + 'border-top-color:var(--btn-primary,#3b82f6);border-radius:50%;'
-          + 'animation:schedSpin .8s linear infinite;margin-bottom:10px;"></div>'
-          + '<div>Loading schedule…</div></div>';
-        // Try to show loading state in the current day's container.
-        const body0 = document.getElementById('eswBody');
-        if (body0) body0.innerHTML = loadingHtml;
-
         if (cached) {
           try {
             const { data, timestamp } = JSON.parse(cached);
-            // Only trust the cache if:
-            //   (a) it's within the 24h TTL
-            //   (b) at least 3 days actually have data (guards against partial-outage cache)
-            const daysWithData = data
-              ? Object.values(data).filter(arr => Array.isArray(arr) && arr.length > 0).length
-              : 0;
-            if (Date.now() - timestamp < CACHE_TTL && daysWithData >= 3) {
+            if (Date.now() - timestamp < CACHE_TTL && data) {
               scheduleData = data;
               needFetch = false;
-              console.log(`[Schedule] Loaded from localStorage (${daysWithData}/7 days with data)`);
-            } else {
-              console.warn(`[Schedule] Cache invalid (daysWithData=${daysWithData}) — refetching`);
+              console.log('Schedule loaded from localStorage');
             }
-          } catch(e) { console.warn('[Schedule] Cache parse error:', e); }
+          } catch(e) { console.warn('Cache parse error', e); }
         }
 
         if (needFetch) {
-          console.log('[Schedule] Fetching all 7 days in parallel (staggered)...');
+          console.log('Fetching schedule one day at a time...');
           scheduleData = {};
-
-          // Fetch all 7 days concurrently but stagger starts by 600 ms each so we
-          // don't hammer Jikan with 7 simultaneous requests and trigger mass 429s.
-          const dayPromises = DAYS.map((day, idx) =>
-            new Promise(r => setTimeout(r, idx * 600))
-              .then(() => fetchDaySchedules(day))
-              .then(results => { scheduleData[day] = results; })
-              .catch(err => {
-                console.warn(`[Schedule] ${day} fetch error:`, err);
-                scheduleData[day] = [];
-              })
-          );
-          await Promise.all(dayPromises);
-
-          const fetchedAny = DAYS.some(d => (scheduleData[d]?.length ?? 0) > 0);
-          const fetchedCount = DAYS.filter(d => (scheduleData[d]?.length ?? 0) > 0).length;
-          console.log(`[Schedule] Fetched ${fetchedCount}/7 days with data`);
-
-          // Only cache if at least 3 days returned data (guards against partial outages)
-          if (fetchedCount >= 3) {
-            try {
-              localStorage.setItem(STORAGE_KEY, JSON.stringify({
-                data: scheduleData,
-                timestamp: Date.now()
-              }));
-              console.log('[Schedule] Cached to localStorage');
-            } catch(e) { console.warn('Could not write schedule cache:', e); }
-          } else {
-            console.warn(`[Schedule] Only ${fetchedCount}/7 days fetched — NOT caching (will retry next load)`);
+          for (const day of DAYS) {
+            scheduleData[day] = await fetchDaySchedules(day);
+            await new Promise(r => setTimeout(r, 500)); // delay between days
           }
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({
+            data: scheduleData,
+            timestamp: Date.now()
+          }));
+          console.log('Schedule cached for 24 hours');
         }
 
         // Expose scheduleData globally for debugging
         window.scheduleData = scheduleData;
-        if (window.AniCache && scheduleData) {
-          for (const [, list] of Object.entries(scheduleData)) {
-            if (list?.length) await window.AniCache.saveSchedule(list);
-          }
-          await window.AniCache.stampSection('schedule');
-        }
 
         // Determine current day (Monday‑Sunday)
         const now = new Date();
@@ -2563,16 +1897,14 @@ window.showAnikotoPopupById = function(mal_id) {
       
 
       function init() {
-        injectSkeletons();
         loadHero();
         loadTopAiring();
         loadNewReleases();
-        loadNewAniocean();
+        loadNewAniocean(); // Load new section
         loadUpcoming();
         loadCompleted(1);
         loadTrending('today');
         loadPopular();
-        loadPopularAnime();
         loadSchedule();
       }
       window.addEventListener('DOMContentLoaded', init);
