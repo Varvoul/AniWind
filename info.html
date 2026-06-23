@@ -3019,9 +3019,9 @@ img { max-width: 100%; height: auto; display: block; }
                 // We have the full API response cached — use it directly for complete rendering
                 console.log('[AniCache] info: full API data found in cache', _mediaId);
                 currentState.data = { ...currentState.data, ...fullData };
-                // Ensure basic fields are set from DB row (in case cache is older)
-                currentState.data.title = currentState.data.title_english || currentState.data.title || dbShow.eng_title || dbShow.default_title;
-                currentState.title = currentState.data.title;
+                // Set page display title to English (for breadcrumb, tab, share, etc.)
+                // Do NOT overwrite data.title — for anime it holds the romaji title needed by renderDetails()
+                currentState.title = currentState.data.title_english || currentState.data.title || dbShow.eng_title || dbShow.default_title;
               } else {
                 // Only sparse shows table data — hydrate what we can
                 console.log('[AniCache] info: only sparse DB data, will background-refresh', _mediaId);
@@ -4634,11 +4634,18 @@ img { max-width: 100%; height: auto; display: block; }
         if (window.AniCache) {
           try {
             const cached = await window.AniCache.get(_wtKey);
+            console.log('[AniCache] WaterTemple cache check:', cached ? `${cached.length} items` : 'null');
             if (cached && cached.length > 0) {
               const sec = document.getElementById('waterTempleSection');
               const el = document.getElementById('waterTempleGrid');
-              if (sec) sec.style.display = 'block';
-              if (el) el.innerHTML = cached.map(s => renderAnimeRecCard ? renderAnimeRecCard(s) : '').join('');
+              if (!sec) { console.warn('[AniCache] WaterTemple: section element missing'); }
+              else { sec.style.display = 'block'; }
+              if (!el) { console.warn('[AniCache] WaterTemple: grid element missing'); }
+              else {
+                const html = cached.map(s => renderAnimeRecCard ? renderAnimeRecCard(s) : '').join('');
+                el.innerHTML = html;
+                console.log('[AniCache] WaterTemple rendered', html.length, 'chars HTML');
+              }
               return;
             }
           } catch (e) {
