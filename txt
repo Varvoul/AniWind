@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%234299e1'/%3E%3Cstop offset='100%25' style='stop-color:%23805ad5'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' rx='20' fill='url(%23g)'/%3E%3Ctext x='50' y='68' font-family='Arial,sans-serif' font-size='55' font-weight='bold' fill='white' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Aniocean - Show Details</title>
   <meta name="description" content="Stream anime, movies, and TV shows on Aniocean">
@@ -1674,6 +1675,8 @@ img { max-width: 100%; height: auto; display: block; }
 
 /* Smooth fade for grid updates */
 #sunkenTreasuresGrid {
+  /* Prevent layout-shift scroll during page transitions */
+  contain: layout;
   transition: opacity 0.2s ease;
 }
 
@@ -2158,11 +2161,102 @@ img { max-width: 100%; height: auto; display: block; }
     gap: 12px;
   }
 }
+
+    /* ═══════════════════════════════════════════════════════
+       SKELETON SCREENS — site color schema (#0a1929 body, #132f4c card)
+       Wave sweeps left→right using --bg-surface highlights
+    ═══════════════════════════════════════════════════════ */
+    @keyframes sk-wave {
+      0%   { background-position: -600px 0; }
+      100% { background-position:  600px 0; }
+    }
+    .sk {
+      display: block;
+      border-radius: 6px;
+      background: linear-gradient(
+        90deg,
+        #132f4c 25%,
+        #1a3a5c 45%,
+        #1f4468 55%,
+        #132f4c 75%
+      );
+      background-size: 1200px 100%;
+      animation: sk-wave 1.6s ease-in-out infinite;
+    }
+
+    /* ── Backdrop skeleton ── */
+    .sk-backdrop-wrap {
+      width: 100%; height: 280px;
+      background: #0d2238;
+      position: relative; overflow: hidden;
+    }
+    .sk-backdrop-wrap .sk { position:absolute; inset:0; border-radius:0; height:100%; }
+
+    /* ── Hero section (poster + title block) ── */
+    .sk-hero-section {
+      display: flex; gap: 20px; padding: 20px 0 16px;
+    }
+    .sk-poster {
+      width: 160px; height: 230px; flex-shrink: 0; border-radius: 10px;
+    }
+    .sk-title-block {
+      flex: 1; display: flex; flex-direction: column; gap: 10px; padding-top: 6px;
+    }
+    .sk-title      { height: 28px; width: 70%; border-radius: 6px; }
+    .sk-subtitle   { height: 16px; width: 45%; border-radius: 4px; }
+    .sk-badges     { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+    .sk-badge      { height: 24px; border-radius: 20px; }
+    .sk-synopsis   { height: 11px; border-radius: 3px; }
+    .sk-btn-row    { display: flex; gap: 10px; margin-top: 6px; }
+    .sk-btn        { height: 42px; border-radius: 30px; }
+
+    /* ── Details grid skeleton ── */
+    .sk-details-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+      margin: 14px 0;
+    }
+    .sk-detail-row { display: flex; flex-direction: column; gap: 5px; }
+    .sk-detail-label { height: 9px; width: 40%; border-radius: 3px; opacity: .5; }
+    .sk-detail-val   { height: 13px; width: 70%; border-radius: 4px; }
+
+    /* ── Cast skeleton ── */
+    .sk-cast-wrap {
+      display: flex; gap: 12px; overflow: hidden; padding: 4px 0;
+    }
+    .sk-cast-card  { flex-shrink: 0; width: 80px; display: flex; flex-direction: column; align-items: center; gap: 7px; }
+    .sk-cast-img   { width: 72px; height: 72px; border-radius: 50%; }
+    .sk-cast-name  { height: 10px; width: 80%; border-radius: 3px; }
+    .sk-cast-role  { height: 9px; width: 60%; border-radius: 3px; opacity: .6; }
+
+    /* ── Recommendations grid skeleton ── */
+    .sk-recs-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+    }
+    @media(min-width:600px) { .sk-recs-grid { grid-template-columns: repeat(4,1fr); } }
+    .sk-rec-card   { border-radius: 8px; overflow: hidden; background: #132f4c; }
+    .sk-rec-poster { width: 100%; aspect-ratio: 2/3; }
+    .sk-rec-title  { height: 10px; margin: 7px 8px 4px; width: 80%; border-radius: 3px; }
+    .sk-rec-meta   { height: 9px; margin: 0 8px 8px; width: 55%; border-radius: 3px; opacity:.6; }
+
+    /* ── Sidebar skeleton ── */
+    .sk-sidebar-item {
+      display: flex; gap: 10px; align-items: center;
+      padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .sk-side-img  { width: 44px; height: 62px; flex-shrink:0; border-radius: 6px; }
+    .sk-side-body { flex:1; display:flex; flex-direction:column; gap:6px; }
+    .sk-side-t    { height: 11px; width: 80%; border-radius: 3px; }
+    .sk-side-m    { height: 9px; width: 50%; border-radius: 3px; opacity:.6; }
+
+    /* ── Section heading skeleton ── */
+    .sk-section-title { height: 18px; width: 160px; border-radius: 5px; margin-bottom: 12px; }
+
   </style>
   <script>
     // Runs before any HTML renders — disables browser scroll-restoration
     if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
   </script>
+  <script src="/aniumi-cache.js"></script>
 </head>
 <body>
   <!-- Header/Footer injected by shared.js -->
@@ -2470,11 +2564,45 @@ img { max-width: 100%; height: auto; display: block; }
         'm': 'data-start="m"', 'r': 'data-start="r"', 's': 'data-start="s"'
       };
 
-      // Jikan Genre IDs for Sunken Treasures (18 popular genres)
-      const JIKAN_GENRE_POOL = [1, 2, 4, 8, 10, 14, 22, 24, 37, 41, 46, 50, 62, 76, 81, 91, 104, 117];
-      
-      // Generate 30 unique 2-genre combinations for Sunken Treasures
-      function generateGenreCombos(pool, count = 30) {
+      // Jikan Genre IDs for Sunken Treasures
+      // 30 genres → C(30,2) = 435 unique 2-genre pairs → covers 390 pages easily
+      // Genre IDs: https://api.jikan.moe/v4/genres/anime
+      const JIKAN_GENRE_POOL = [
+        1,   // Action
+        2,   // Adventure
+        4,   // Comedy
+        8,   // Drama
+        10,  // Fantasy
+        14,  // Horror
+        22,  // Romance
+        24,  // Sci-Fi
+        37,  // Supernatural
+        41,  // Suspense
+        46,  // Award Winning
+        50,  // Sports
+        62,  // Iyashikei
+        76,  // Idols & Celebrities  
+        81,  // Mythology
+        91,  // Reverse Harem
+        104, // Medical
+        117, // Isekai
+        7,   // Mystery
+        36,  // Slice of Life
+        30,  // Sports (alt)
+        23,  // School
+        27,  // Shounen
+        42,  // Seinen
+        43,  // Josei
+        9,   // Ecchi
+        18,  // Mecha
+        38,  // Military
+        58,  // Gore
+        75,  // Gag Humor
+      ];
+
+      // Generate up to `count` unique 2-genre combinations
+      // With 30 genres → 435 unique pairs (more than enough for 390 pages)
+      function generateGenreCombos(pool, count = 390) {
         const combos = [];
         for (let i = 0; i < pool.length && combos.length < count; i++) {
           for (let j = i + 1; j < pool.length && combos.length < count; j++) {
@@ -2483,8 +2611,8 @@ img { max-width: 100%; height: auto; display: block; }
         }
         return combos.slice(0, count);
       }
-      
-      const SUNKEN_GENRE_COMBOS = generateGenreCombos(JIKAN_GENRE_POOL, 30);
+
+      const SUNKEN_GENRE_COMBOS = generateGenreCombos(JIKAN_GENRE_POOL, 390);
 
       let currentState = {
         source: null, id: null, type: null, title: '',
@@ -2492,6 +2620,192 @@ img { max-width: 100%; height: auto; display: block; }
         selectedStatuses: [], dropdownTimer: null,
         bookmarkRowId: null, allAnimeData: null
       };
+
+      // ─── Skeleton helpers ──────────────────────────────────────────────────
+      function skItems(n, cls='sk-sidebar-item') {
+        return Array.from({length:n}, () =>
+          `<div class="${cls}">
+             <div class="sk sk-side-img"></div>
+             <div class="sk-side-body">
+               <div class="sk sk-side-t"></div>
+               <div class="sk sk-side-m"></div>
+             </div>
+           </div>`
+        ).join('');
+      }
+      function skCastCards(n=8) {
+        return `<div class="sk-cast-wrap">${
+          Array.from({length:n}, () =>
+            `<div class="sk-cast-card">
+               <div class="sk sk-cast-img"></div>
+               <div class="sk sk-cast-name"></div>
+               <div class="sk sk-cast-role"></div>
+             </div>`
+          ).join('')
+        }</div>`;
+      }
+      function skRecCards(n=8) {
+        return `<div class="sk-recs-grid">${
+          Array.from({length:n}, () =>
+            `<div class="sk-rec-card">
+               <div class="sk sk-rec-poster"></div>
+               <div class="sk sk-rec-title"></div>
+               <div class="sk sk-rec-meta"></div>
+             </div>`
+          ).join('')
+        }</div>`;
+      }
+
+      // ── SKELETON OVERLAY SYSTEM ───────────────────────────────────────────
+      // Overlays sit ON TOP of real elements via position:absolute.
+      // Real DOM (posterImg, backdropImg, watchNowBtn etc.) is NEVER replaced
+      // so renderHero() / initUI() always find their elements.
+      // Call removeInfoSkeletons() once data is rendered to fade them out.
+
+      const SK_CLASS = 'sk-overlay';
+
+      function addSkOverlay(target, extraCss='') {
+        if (!target) return;
+        // Make parent position:relative so absolute overlay works
+        const pos = getComputedStyle(target).position;
+        if (pos === 'static') target.style.position = 'relative';
+        const ov = document.createElement('div');
+        ov.className = SK_CLASS;
+        ov.style.cssText = `position:absolute;inset:0;z-index:10;border-radius:inherit;
+          background:linear-gradient(90deg,#132f4c 25%,#1a3a5c 45%,#1f4468 55%,#132f4c 75%);
+          background-size:1200px 100%;animation:sk-wave 1.6s ease-in-out infinite;
+          pointer-events:none;${extraCss}`;
+        target.appendChild(ov);
+        return ov;
+      }
+
+      function addSkBlock(parent, h='12px', w='100%', mt='0') {
+        if (!parent) return;
+        const b = document.createElement('div');
+        b.className = SK_CLASS + ' sk-block';
+        b.style.cssText = `height:${h};width:${w};margin-top:${mt};border-radius:5px;
+          background:linear-gradient(90deg,#132f4c 25%,#1a3a5c 45%,#1f4468 55%,#132f4c 75%);
+          background-size:1200px 100%;animation:sk-wave 1.6s ease-in-out infinite;`;
+        parent.appendChild(b);
+        return b;
+      }
+
+      function injectInfoSkeletons() {
+        const $ = id => document.getElementById(id);
+
+        // 1) Backdrop — overlay on top of blank <img>
+        const bd = document.querySelector('.backdrop-container');
+        if (bd) addSkOverlay(bd, 'border-radius:0;');
+
+        // 2) Poster — overlay on top of blank <img>
+        const pw = document.querySelector('.poster-wrapper');
+        if (pw) addSkOverlay(pw);
+
+        // 3) Title area — overlay on title-meta-container
+        const tm = document.querySelector('.title-meta-container');
+        if (tm) addSkOverlay(tm);
+
+        // 4) Synopsis — inject lines INSIDE synopsisText <p> (it's empty until render)
+        const synP = $('synopsisText');
+        if (synP) {
+          synP.innerHTML = '';
+          [100,95,88,72,50].forEach((w,i) => addSkBlock(synP, '11px', `${w}%`, i===0?'0':'7px'));
+        }
+
+        // 5) Details grid — inject placeholder rows INSIDE the grid (it's empty until render)
+        const dg = $('detailsGrid');
+        if (dg && dg.children.length === 0) {
+          const wrap = document.createElement('div');
+          wrap.className = SK_CLASS;
+          wrap.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%';
+          for (let i=0;i<8;i++) {
+            const row = document.createElement('div');
+            row.style.cssText = 'display:flex;flex-direction:column;gap:5px;';
+            addSkBlock(row, '9px', '40%');
+            addSkBlock(row, '13px', '70%', '2px');
+            wrap.appendChild(row);
+          }
+          dg.appendChild(wrap);
+        }
+
+        // 6) Cast list — inject cards INSIDE castList (it's empty until render)
+        const castList = $('castList');
+        if (castList && castList.children.length === 0) {
+          const wrap = document.createElement('div');
+          wrap.className = SK_CLASS;
+          wrap.style.cssText = 'display:flex;gap:12px;overflow:hidden;padding:4px 0;';
+          for (let i=0;i<10;i++) {
+            const card = document.createElement('div');
+            card.style.cssText = 'flex-shrink:0;width:80px;display:flex;flex-direction:column;align-items:center;gap:7px;';
+            const circ = document.createElement('div');
+            circ.className = SK_CLASS;
+            circ.style.cssText = 'width:72px;height:72px;border-radius:50%;background:linear-gradient(90deg,#132f4c 25%,#1a3a5c 45%,#1f4468 55%,#132f4c 75%);background-size:1200px 100%;animation:sk-wave 1.6s ease-in-out infinite;';
+            addSkBlock(card, '10px', '80%');
+            addSkBlock(card, '9px', '60%', '2px');
+            card.insertBefore(circ, card.firstChild);
+            wrap.appendChild(card);
+          }
+          castList.appendChild(wrap);
+        }
+
+        // 7) Recommendations — inject cards inside the grid (initially empty/hidden)
+        const recGrid = $('recommendForYouGrid');
+        const recSec  = $('recommendForYouSection');
+        if (recGrid && recGrid.children.length === 0) {
+          if (recSec) recSec.style.display = 'block';
+          const wrap = document.createElement('div');
+          wrap.className = SK_CLASS;
+          wrap.style.cssText = 'display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:100%;';
+          for (let i=0;i<8;i++) {
+            const card = document.createElement('div');
+            card.style.cssText = 'border-radius:8px;overflow:hidden;background:#132f4c;';
+            const poster = document.createElement('div');
+            poster.className = SK_CLASS;
+            poster.style.cssText = 'width:100%;aspect-ratio:2/3;background:linear-gradient(90deg,#132f4c 25%,#1a3a5c 45%,#1f4468 55%,#132f4c 75%);background-size:1200px 100%;animation:sk-wave 1.6s ease-in-out infinite;';
+            card.appendChild(poster);
+            addSkBlock(card, '10px', '80%', '7px');
+            addSkBlock(card, '9px', '55%', '4px');
+            wrap.appendChild(card);
+          }
+          recGrid.appendChild(wrap);
+        }
+
+        // 8) Sidebar lists — inject rows inside empty lists
+        [$('hiddenGemList'), $('topRankingList'), $('mostFavouriteList')].forEach(el => {
+          if (!el || el.children.length > 0) return;
+          const frag = document.createDocumentFragment();
+          for (let i=0;i<6;i++) {
+            const row = document.createElement('div');
+            row.className = SK_CLASS;
+            row.style.cssText = 'display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.06);';
+            const img = document.createElement('div');
+            img.className = SK_CLASS;
+            img.style.cssText = 'width:44px;height:62px;flex-shrink:0;border-radius:6px;background:linear-gradient(90deg,#132f4c 25%,#1a3a5c 45%,#1f4468 55%,#132f4c 75%);background-size:1200px 100%;animation:sk-wave 1.6s ease-in-out infinite;';
+            const body = document.createElement('div');
+            body.style.cssText = 'flex:1;display:flex;flex-direction:column;gap:6px;';
+            addSkBlock(body, '11px', '80%');
+            addSkBlock(body, '9px', '50%', '2px');
+            row.appendChild(img);
+            row.appendChild(body);
+            frag.appendChild(row);
+          }
+          el.appendChild(frag);
+        });
+      }
+
+      function removeInfoSkeletons() {
+        // Remove all overlay elements
+        document.querySelectorAll('.' + SK_CLASS).forEach(el => {
+          el.style.opacity = '0';
+          el.style.transition = 'opacity 0.3s ease';
+          setTimeout(() => el.remove(), 300);
+        });
+        // Reset any inline position:relative we added
+        [document.querySelector('.backdrop-container'),
+         document.querySelector('.poster-wrapper'),
+         document.querySelector('.title-meta-container')
+        ].forEach(el => { if (el) el.style.position = ''; });
+      }
 
       document.addEventListener('DOMContentLoaded', async () => {
         // Remove hash so browser doesn't anchor-scroll to any element
@@ -2505,11 +2819,15 @@ img { max-width: 100%; height: auto; display: block; }
         parseUrl();
         initTabSwitching();
 
+        // Inject skeletons immediately so user sees structure, not blank page
+        injectInfoSkeletons();
+
         // Auth
         if (typeof window.supabaseClient !== 'undefined') await initAuth();
 
         if (currentState.id && currentState.source) {
           await fetchShowData();
+          removeInfoSkeletons(); // Remove overlays — real elements now populated
           initUI();
           await fetchUserBookmarks();
 
@@ -2525,7 +2843,10 @@ img { max-width: 100%; height: auto; display: block; }
               loadRecommendations()
             ]);
           }
+          // Ensure any remaining skeleton nodes in lists are cleaned up
+          document.querySelectorAll('.' + SK_CLASS).forEach(el => el.remove());
         } else {
+          removeInfoSkeletons();
           showError('Invalid show URL format');
         }
         // Page fully loaded — user can now scroll freely
@@ -2583,17 +2904,199 @@ img { max-width: 100%; height: auto; display: block; }
 
       async function fetchShowData() {
         try {
-          if (currentState.source === 'jikan') await fetchJikanData();
-          else if (currentState.source === 'tmdb') await fetchTMDBData();
-          
+          // Build canonical media_id
+          const _src    = currentState.source;
+          const _id     = currentState.id;
+          const _type   = currentState.type; // 'anime'|'movie'|'tv'
+          const _mediaId = _src === 'jikan'
+            ? `jikan-${_id}`
+            : `tmdb-${_type}-${_id}`;
+
+          // 1. Try shows table first
+          if (window.AniCache) {
+            const dbShow = await window.AniCache.findShow(_mediaId).catch(()=>null);
+            if (dbShow) {
+              console.log('[AniCache] info: loaded from shows table', _mediaId);
+
+              // Also try to load the FULL cached API response from media_cache
+              // This contains fields not stored in shows table (relations, broadcast, themes, etc.)
+              const fullCacheKey = `info:full_data:${_mediaId}`;
+              const fullData = await window.AniCache.get(fullCacheKey).catch(()=>null);
+
+              currentState.data = currentState.data || {};
+
+              if (fullData && typeof fullData === 'object' && !Array.isArray(fullData)) {
+                // We have the full API response cached — use it directly for complete rendering
+                console.log('[AniCache] info: full API data found in cache', _mediaId);
+                currentState.data = { ...currentState.data, ...fullData };
+                // Ensure basic fields are set from DB row (in case cache is older)
+                currentState.data.title = currentState.data.title_english || currentState.data.title || dbShow.eng_title || dbShow.default_title;
+                currentState.title = currentState.data.title;
+              } else {
+                // Only sparse shows table data — hydrate what we can
+                console.log('[AniCache] info: only sparse DB data, will background-refresh', _mediaId);
+
+                // Parse premiered string (e.g. "Spring 2024") into season + year
+                let parsedSeason = null, parsedYear = null;
+                if (dbShow.premiered) {
+                  const pParts = String(dbShow.premiered).trim().split(/\s+/);
+                  if (pParts.length === 2) {
+                    parsedSeason = pParts[0].toLowerCase();
+                    parsedYear = parseInt(pParts[1]) || null;
+                  }
+                }
+
+                Object.assign(currentState.data, {
+                  // title = romaji for anime (Jikan's default title), NOT english
+                  title:            dbShow.default_title || dbShow.title || dbShow.eng_title,
+                  title_english:    dbShow.eng_title || null,
+                  title_japanese:   dbShow.japanese_title || null,
+                  mal_id:           dbShow.mal_id ? parseInt(dbShow.mal_id) : currentState.id,
+                  synopsis:         dbShow.synopsis || dbShow.overview,
+                  overview:         dbShow.overview || dbShow.synopsis,
+                  score:            dbShow.mal_score || dbShow.tmdb_average_score || dbShow.rating_score,
+                  vote_average:     dbShow.tmdb_average_score,
+                  status:           dbShow.show_status,
+                  aired:            { from: dbShow.aired_date },
+                  release_date:     dbShow.aired_date,
+                  first_air_date:   dbShow.aired_date,
+                  episodes:         dbShow.total_episodes,
+                  duration:         dbShow.anime_duration_time || null,
+                  episode_run_time: dbShow.tmdb_movie_tv_runtime ? [parseInt(dbShow.tmdb_movie_tv_runtime)] : [],
+                  runtime:          dbShow.tmdb_movie_tv_runtime ? parseInt(dbShow.tmdb_movie_tv_runtime) : null,
+                  rating:           dbShow.content_rating,
+                  certification:    dbShow.content_rating,
+                  studios:          dbShow.studio_name ? dbShow.studio_name.split(',').map(n=>({name:n.trim()})) : [],
+                  genres:           (() => {
+                    const g = dbShow.genres;
+                    if (!g) return [];
+                    if (Array.isArray(g)) return g.map(n=>({name:String(typeof n==='object'?n?.name:n).trim()}));
+                    const str = String(g).replace(/^[{["\s]+|[}\]"\s]+$/g,'');
+                    return str.split(',').map(n=>({name:n.trim().replace(/^"|"$/g,'')})).filter(x=>x.name);
+                  })(),
+                  popularity:       dbShow.popularity,
+                  members:          dbShow.popularity,
+                  rank:             dbShow.rank,
+                  premiered:        dbShow.premiered,
+                  season:           parsedSeason,
+                  year:             parsedYear,
+                  // DO NOT set data.type from dbShow.type (which is "Anime") — let renderStats() default to "TV"
+                  images:           { jpg: { large_image_url: dbShow.poster, image_url: dbShow.poster } },
+                  poster_path:      dbShow.poster_path || null,
+                  backdrop_path:    dbShow.backdrop_path || null,
+                });
+                currentState.title = dbShow.eng_title || dbShow.default_title || dbShow.title || 'Unknown';
+              }
+
+              document.title = `${currentState.title} - Aniocean`;
+              renderHero(); renderStats(); renderSynopsis(); renderDetails();
+              renderSeasons(); renderTabs();
+
+              // If we only had sparse data, do a background API fetch to get complete data
+              // (relations, broadcast, producers, synonyms, etc.) and re-render when ready
+              if (!fullData) {
+                console.log('[AniCache] info: starting background refresh for complete data', _mediaId);
+                (async () => {
+                  try {
+                    if (_src === 'jikan') await fetchJikanData();
+                    else if (_src === 'tmdb') await fetchTMDBData();
+
+                    // Re-render sections that depend on full API data
+                    renderHero(); renderStats(); renderSynopsis(); renderDetails();
+                    renderSeasons();
+
+                    // Save to shows table with the new complete data
+                    if (window.AniCache && currentState.data) {
+                      const d2 = currentState.data;
+                      const isA2 = _src === 'jikan';
+                      const saveRow2 = {
+                        id: _mediaId, media_id: _mediaId,
+                        type: isA2 ? 'Anime' : (_type === 'movie' ? 'Movie' : 'TV'),
+                        title: currentState.title,
+                        eng_title: d2.title_english || null,
+                        default_title: isA2 ? (d2.title || null) : null,
+                        japanese_title: d2.title_japanese || null,
+                        mal_id: d2.mal_id ? String(d2.mal_id) : null,
+                        tmdb_id: !isA2 ? String(_id) : null,
+                        synopsis: d2.synopsis || null, overview: d2.overview || null,
+                        genres: (d2.genres || []).map(g => g?.name || g),
+                        studios: (d2.studios || []).map(s => s?.name || s),
+                        score: d2.score || d2.vote_average || null,
+                        show_status: d2.status || null,
+                        premiered: isA2 ? (d2.premiered || null) : null,
+                        poster: d2.images?.jpg?.large_image_url
+                                || (d2.poster_path ? `https://image.tmdb.org/t/p/w500${d2.poster_path}` : null),
+                        backdrop: d2.images?.jpg?.large_image_url
+                                || (d2.backdrop_path ? `https://image.tmdb.org/t/p/w1280${d2.backdrop_path}` : null),
+                        episodes: d2.episodes || null,
+                        duration: d2.duration || (d2.episode_run_time?.[0] ? `${d2.episode_run_time[0]}m/ep` : null)
+                                || (d2.runtime ? `${d2.runtime} min` : null),
+                        content_rating: d2.rating || d2.certification || null,
+                        aired_date: d2.aired?.from || d2.release_date || d2.first_air_date || null,
+                        popularity: d2.popularity || d2.members || null,
+                        rank: d2.rank || null,
+                      };
+                      await window.AniCache.save([saveRow2]);
+                    }
+                    await window.AniCache.stampSection(`info_${_mediaId}`, 1);
+                    console.log('[AniCache] info: background refresh complete', _mediaId);
+                  } catch (e) {
+                    console.warn('[AniCache] info: background refresh failed:', e.message);
+                  }
+                })();
+                return; // Don't fall through to live API — background refresh handles it
+              }
+
+              // GLOBAL cache: skip live API if this show was recently fetched by any user
+              if (await window.AniCache.isSectionFresh(`info_${_mediaId}`)) return;
+            }
+          }
+
+          // 2. Live API fetch
+          if (_src === 'jikan') await fetchJikanData();
+          else if (_src === 'tmdb') await fetchTMDBData();
+
           document.title = `${currentState.title} - Aniocean`;
-          renderHero(); 
-          renderStats(); 
-          renderSynopsis(); 
-          renderDetails();
-          renderSeasons(); // async — runs independently, no await needed
-          renderTabs();
-          
+          renderHero(); renderStats(); renderSynopsis(); renderDetails();
+          renderSeasons(); renderTabs();
+
+          // 3. Save to Supabase after API fetch (dedup handled inside AniCache.save)
+          if (window.AniCache && currentState.data) {
+            const d = currentState.data;
+            const isA = _src === 'jikan';
+            const saveRow = {
+              id:             _mediaId,
+              media_id:       _mediaId,
+              type:           isA ? 'Anime' : (_type === 'movie' ? 'Movie' : 'TV'),
+              title:          currentState.title,
+              eng_title:      d.title_english || null,
+              default_title:  isA ? (d.title || null) : null,
+              japanese_title: d.title_japanese || null,
+              mal_id:         d.mal_id ? String(d.mal_id) : null,
+              tmdb_id:        !isA ? String(_id) : null,
+              synopsis:       d.synopsis || null,
+              overview:       d.overview || null,
+              genres:         (d.genres || []).map(g => g?.name || g),
+              studios:        (d.studios || []).map(s => s?.name || s),
+              score:          d.score || d.vote_average || null,
+              show_status:    d.status || null,
+              premiered:      isA ? (d.premiered || null) : null,
+              poster:         d.images?.jpg?.large_image_url
+                              || (d.poster_path ? `https://image.tmdb.org/t/p/w500${d.poster_path}` : null),
+              backdrop:       d.images?.jpg?.large_image_url
+                              || (d.backdrop_path ? `https://image.tmdb.org/t/p/w1280${d.backdrop_path}` : null),
+              episodes:       d.episodes || null,
+              duration:       d.duration || (d.episode_run_time?.[0] ? `${d.episode_run_time[0]}m/ep` : null)
+                              || (d.runtime ? `${d.runtime} min` : null),
+              content_rating: d.rating || d.certification || null,
+              aired_date:     d.aired?.from || d.release_date || d.first_air_date || null,
+              popularity:     d.popularity || d.members || null,
+              rank:           d.rank || null,
+            };
+            await window.AniCache.save([saveRow]);
+            await window.AniCache.stampSection(`info_${_mediaId}`, 1);
+          }
+
         } catch (error) {
           console.error('Failed to fetch show data:', error);
           showError('Could not load show information. Please try again.');
@@ -2606,24 +3109,83 @@ img { max-width: 100%; height: auto; display: block; }
         const { data } = await res.json();
         currentState.data = data;
         currentState.title = data.title_english || data.title || 'Unknown';
+        // Cache full Jikan response (6h TTL) so DB-loaded visitors get relations, broadcast, themes, etc.
+        if (window.AniCache) {
+          const sid = `jikan-${currentState.id}`;
+          const saveResult = await window.AniCache.set({ cacheKey:`info:full_data:${sid}`, pageSource:'info',
+            section:'info_full_data', showId:sid,
+            malId:currentState.id, data,
+          });
+          if (!saveResult) console.warn('[AniCache] Failed to save full Jikan data to media_cache for', sid);
+        }
       }
 
       async function fetchTMDBData() {
-        const endpoint = currentState.type;
-        const workerUrl = `${CONFIG.TMDB_WORKER}/3/${endpoint}/${currentState.id}?append_to_response=credits,videos,external_ids,images,content_ratings,release_dates&include_image_language=en,null`;
-        
-        try {
-          const res = await fetch(workerUrl);
-          if (res.status === 500) throw new Error('TMDB Worker proxy error');
-          if (!res.ok) throw new Error(`TMDB API error: ${res.status}`);
-          
+        const endpoint  = currentState.type;   // "movie" or "tv"
+        const id        = currentState.id;
+        const appendQs  = 'append_to_response=credits,videos,external_ids,images,content_ratings,release_dates&include_image_language=en,null';
+        const TMDB_TOK  = 'eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI0Yjc0YzE4NjlkZGQxMWEzNTM1MDFlNGI0MjY4MzA3YyIsIm5iZiI6MTc2NDM5Mzg3MS4yNTEwMDAyLCJzdWIiOiI2OTJhODM4ZjNkNTVkM2Y1NzJiOGVlYjIiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.qN331VqKQ5rfgvkadaRLYG6fNXp4t_lOee3K15f4gCo';
+
+        // ── Tier 1: aniocen worker (no auth header needed — worker injects it) ──
+        const tier1 = `${CONFIG.TMDB_WORKER}/3/${endpoint}/${id}?${appendQs}`;
+        // ── Tier 2: Direct TMDB API with Bearer token ──────────────────────────
+        const tier2 = `https://api.themoviedb.org/3/${endpoint}/${id}?${appendQs}`;
+        // ── Tier 3: mapplee.com — same TMDB data structure, no auth required ───
+        const tier3 = `https://mapplee.com/api/tmdb/${endpoint}/${id}?language=en-US`;
+
+        async function tryUrl(url, headers={}) {
+          const res = await fetch(url, {
+            headers: { Accept: 'application/json', ...headers },
+            signal: AbortSignal.timeout(12000)
+          });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
           const data = await res.json();
-          if (!data.title && !data.name) throw new Error('Invalid TMDB response');
-          
-          currentState.data = data;
+          if (!data.id && !data.title && !data.name) throw new Error('Empty response');
+          return data;
+        }
+
+        try {
+          let data;
+          // Try tier 1 (aniocen proxy)
+          try {
+            data = await tryUrl(tier1);
+            console.log('[TMDB] ✅ aniocen proxy');
+          } catch(e1) {
+            console.warn('[TMDB] aniocen failed:', e1.message);
+            // Try tier 2 (direct TMDB)
+            try {
+              data = await tryUrl(tier2, { Authorization: `Bearer ${TMDB_TOK}` });
+              console.log('[TMDB] ✅ direct API');
+            } catch(e2) {
+              console.warn('[TMDB] direct API failed:', e2.message);
+              // Try tier 3 (mapplee.com) — returns identical TMDB structure
+              data = await tryUrl(tier3);
+              console.log('[TMDB] ✅ mapplee fallback');
+            }
+          }
+
+          // mapplee response may use slightly different field names — normalise
+          if (!data.credits && data.cast) {
+            data.credits = { cast: data.cast, crew: data.crew || [] };
+          }
+          if (!data.videos && data.video_results) {
+            data.videos = { results: data.video_results };
+          }
+          if (!data.images) data.images = { posters:[], backdrops:[], logos:[] };
+
+          currentState.data  = data;
           currentState.title = data.title || data.name || 'Unknown';
+          // Cache the full show info JSON globally (6h TTL) — await to ensure it's saved
+          if (window.AniCache && data.id) {
+            const sid = `tmdb-${endpoint}-${data.id}`;
+            const saveResult = await window.AniCache.set({ cacheKey:`info:full_data:${sid}`, pageSource:'info',
+              section:'info_full_data', showId:sid,
+              tmdbId:data.id, data,
+            });
+            if (!saveResult) console.warn('[AniCache] Failed to save full TMDB data to media_cache for', sid);
+          }
         } catch (error) {
-          console.error('TMDB fetch failed:', error);
+          console.error('[TMDB] all tiers failed:', error.message);
           currentState.data = { title: currentState.title || 'Unknown', overview: '' };
           throw error;
         }
@@ -2635,7 +3197,9 @@ img { max-width: 100%; height: auto; display: block; }
           // Use the English title or romaji title as search query
           const searchTitle = currentState.data?.title_english || query;
           const encoded = encodeURIComponent(searchTitle);
-          const res = await fetch(`${CONFIG.ALLANIME_API}/search?query=${encoded}`);
+          const res = await fetch(`${CONFIG.ALLANIME_API}/search?query=${encoded}`, {
+            signal: AbortSignal.timeout(6000) // 6s timeout — API is often unreachable
+          });
           if (!res.ok) return;
           const results = await res.json();
           if (!Array.isArray(results)) return;
@@ -2656,7 +3220,7 @@ img { max-width: 100%; height: auto; display: block; }
             // Update episode display in details grid if already rendered
             updateEpisodeDetail(match.episodes_sub, match.episodes_dub);
           }
-        } catch (e) { console.warn('AllAnime API fetch failed:', e); }
+        } catch (e) { /* AllAnime often unreachable — silent */ }
       }
 
       function updateEpisodeDetail(subCount, dubCount) {
@@ -2699,8 +3263,8 @@ img { max-width: 100%; height: auto; display: block; }
         document.getElementById('showTitle').textContent = currentState.title;
         
         const metaParts = [];
-        const score = isAnime ? data.score : data.vote_average;
-        if (score) metaParts.push(`★ ${score.toFixed(1)}`);
+        const score = isAnime ? data.score : (data.vote_average || data.score);
+        if (score != null) metaParts.push(`★ ${typeof score==='string' ? score : Number(score).toFixed(1)}`);
         metaParts.push(data.type || typeNameMap[currentState.type] || currentState.type);
         const studio = getFirstStudio(data, isAnime);
         if (studio) metaParts.push(studio);
@@ -2761,7 +3325,10 @@ img { max-width: 100%; height: auto; display: block; }
         document.getElementById('platformLabel').textContent = platform;
         document.getElementById('platformStar').style.color = starColor;
         document.getElementById('ratingValue').textContent = rating ? rating.toFixed(1) : 'N/A';
-        document.getElementById('formatValue').textContent = data.type || currentState.type;
+        document.getElementById('formatValue').textContent =
+          (data.type && data.type !== 'Anime' && data.type !== 'Movie' && data.type !== 'TV')
+            ? data.type  // Jikan format: TV, OVA, ONA, Movie, Music, etc.
+            : (isAnime ? (data.type === 'Movie' ? 'Movie' : 'TV') : currentState.type);
         
         // Duration — for TMDB use runtime (movie) or episode_run_time (TV)
         let duration = null;
@@ -2913,7 +3480,7 @@ img { max-width: 100%; height: auto; display: block; }
           details.push({ label: 'Popularity', value: formatNumber(data.popularity) });
         }
         if (data.rank !== undefined) {
-          details.push({ label: 'Rank', value: `#${data.rank}` });
+          details.push({ label: 'Rank', value: data.rank ? `#${data.rank}` : '—' });
         }
         
         const studios = isAnime ? data.studios : data.production_companies || data.networks;
@@ -3069,12 +3636,87 @@ img { max-width: 100%; height: auto; display: block; }
         }
       }
 
-      function renderTabs() {
-        loadCastData(); 
-        loadArtworkData(); 
-        loadTrailerData(); 
-        loadThemesData(); 
+      async function renderTabs() {
+        // Try show_details table first for tabs (1-hour TTL)
+        if (window.AniCache) {
+          const _src  = currentState.source;
+          const _id   = currentState.id;
+          const _type = currentState.type;
+          const _mid  = _src === 'jikan' ? `jikan-${_id}` : `tmdb-${_type}-${_id}`;
+          const dbDet = await window.AniCache.getDetails(_mid).catch(()=>null);
+          if (dbDet) {
+            console.log('[AniCache] show_details loaded from DB for', _mid);
+            if (dbDet.cast_crew)        _renderCastFromDB(dbDet.cast_crew);
+            if (dbDet.artwork)          _renderArtworkFromDB(dbDet.artwork);
+            if (dbDet.trailers)         _renderTrailersFromDB(dbDet.trailers);
+            if (dbDet.themes)           _renderThemesFromDB(dbDet.themes);
+            loadStatisticsData();
+            // Still load missing tabs from API if any are null
+            if (!dbDet.cast_crew)   loadCastData();
+            if (!dbDet.artwork)     loadArtworkData();
+            if (!dbDet.trailers)    loadTrailerData();
+            if (!dbDet.themes)      loadThemesData();
+            return;
+          }
+        }
+        // No DB data — load everything from API
+        loadCastData();
+        loadArtworkData();
+        loadTrailerData();
+        loadThemesData();
         loadStatisticsData();
+      }
+
+      // ── DB render helpers ──────────────────────────────────────────────
+      function _renderCastFromDB(castArr) {
+        const container = document.getElementById('castList');
+        if (!container || !castArr || !castArr.length) return;
+        container.innerHTML = castArr.map(c => `
+          <div class="cast-pair">
+            <div class="cast-item">
+              <div class="cast-img-wrap"><img src="${c.char_img||''}" onerror="this.src='/placeholder.jpg'"></div>
+              <div class="cast-info"><div class="cast-name">${c.char_name||''}</div><div class="cast-role">${c.role||''}</div></div>
+            </div>
+            <div class="cast-item cast-right">
+              <div class="cast-info" style="text-align:right"><div class="cast-name">${c.va_name||''}</div><div class="cast-role">${c.va_lang||''}</div></div>
+              <div class="cast-img-wrap"><img src="${c.va_img||''}" onerror="this.src='/placeholder.jpg'"></div>
+            </div>
+          </div>`).join('');
+      }
+
+      function _renderArtworkFromDB(artArr) {
+        const container = document.getElementById('artworkGrid');
+        if (!container || !artArr || !artArr.length) return;
+        container.innerHTML = artArr.map(a => `
+          <div class="artwork-item" onclick="window.open('${a.url||a.thumb}','_blank')">
+            <img src="${a.thumb||a.url}" loading="lazy" onerror="this.parentElement.style.display='none'">
+            <div class="artwork-label">${(a.type||'').toUpperCase()}</div>
+          </div>`).join('');
+      }
+
+      function _renderTrailersFromDB(trailerArr) {
+        const container = document.getElementById('trailerContainer');
+        if (!container || !trailerArr || !trailerArr.length) return;
+        // Use the same .video-wrapper structure as loadTrailerData() for consistent 16:9 responsive layout
+        container.innerHTML = trailerArr.map(t => `
+          <div class="video-title">${escapeHtml(t.name||t.title||currentState.title + ' - Trailer')}</div>
+          <div class="video-wrapper">
+            <iframe src="https://www.youtube.com/embed/${t.key||t.youtube_id}" allowfullscreen loading="lazy" title="Trailer"></iframe>
+          </div>`).join('');
+      }
+
+      function _renderThemesFromDB(themeArr) {
+        const opContainer = document.getElementById('openingThemesList');
+        const edContainer = document.getElementById('endingThemesList');
+        if (!opContainer && !edContainer) return;
+        const ops = (themeArr||[]).filter(t => t.type==='OP');
+        const eds = (themeArr||[]).filter(t => t.type==='ED');
+        if (opContainer) opContainer.innerHTML = ops.length ? ops.map(t => `
+          <div class="theme-item"><span class="theme-badge">OP${t.num||''}</span><span class="theme-title">${t.title||''}</span>
+          ${t.video_url ? `<video controls src="${t.video_url}"></video>` : ''}</div>`).join('') : '<p class="loading-text">No opening themes</p>';
+        if (edContainer) edContainer.innerHTML = eds.length ? eds.map(t => `
+          <div class="theme-item"><span class="theme-badge">ED${t.num||''}</span><span class="theme-title">${t.title||''}</span>
+          ${t.video_url ? `<video controls src="${t.video_url}"></video>` : ''}</div>`).join('') : '<p class="loading-text">No ending themes</p>';
       }
 
       function initUI() {
@@ -3607,17 +4249,17 @@ img { max-width: 100%; height: auto; display: block; }
         }
       }
 
-      // Fetch with automatic retry on 429 rate-limit response
+      // Fetch with automatic retry on 429/504 rate-limit/timeout responses
       async function fetchWithRetry(url, maxRetries = 2, baseDelay = 1500) {
         for (let attempt = 0; attempt <= maxRetries; attempt++) {
           try {
-            const res = await fetch(url);
-            if (res.status === 429) {
+            const res = await fetch(url, { signal: AbortSignal.timeout(12000) });
+            if (res.status === 429 || res.status === 504) {
               if (attempt < maxRetries) {
                 await new Promise(r => setTimeout(r, baseDelay * (attempt + 1)));
                 continue;
               }
-              throw new Error('Rate limited');
+              throw new Error(res.status === 429 ? 'Rate limited' : `HTTP ${res.status}`);
             }
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             return res;
@@ -3629,15 +4271,45 @@ img { max-width: 100%; height: auto; display: block; }
       }
 
       async function loadHiddenGems(isAnime) {
+        const _hgKey = `info:hidden_gem:${currentState.id}`;
+        if (window.AniCache) {
+          const cached = await window.AniCache.get(_hgKey);
+          if (cached) {
+            const el = document.getElementById('hiddenGemList');
+            if (el) el.innerHTML = cached._html || '';
+            return;
+          }
+        }
         const container = document.getElementById('hiddenGemList');
         const cacheKey = `sidebar_gems_${isAnime ? 'anime' : currentState.type}`;
         try {
-          // Check cache first (15 min TTL for sidebar)
+          // sessionStorage (15 min TTL)
           const cached = sessionStorage.getItem(cacheKey);
           if (cached) {
-            const { html, ts } = JSON.parse(cached);
-            if (Date.now() - ts < 15 * 60 * 1000) { container.innerHTML = html; return; }
+            const { html: ch, ts } = JSON.parse(cached);
+            if (Date.now() - ts < 15 * 60 * 1000) { container.innerHTML = ch; return; }
           }
+          // Supabase shows table
+          const gemKey = `hidden_gems_${isAnime?'anime':currentState.type}`;
+          if (window.AniCache && await window.AniCache.isSectionFresh(gemKey)) {
+            const dbItems = await window.AniCache.get({
+              section: 'hidden_gem',
+              media_type: isAnime ? 'anime' : currentState.type,
+              limit: 17
+            }).catch(() => []);
+            if (Array.isArray(dbItems) && dbItems.length) {
+              const htmlOut = dbItems.map((s, i) => renderSidebarItem(
+                isAnime
+                  ? { mal_id: s.mal_id, title: s.title, images: { jpg: { image_url: s.poster } }, score: s.score }
+                  : { id: s.tmdb_id, title: s.title, name: s.title, _supaImg: s.poster, poster: s.poster, vote_average: Number(s.score||0), score: Number(s.score||0) },
+                i + 1, isAnime
+              )).join('');
+              container.innerHTML = htmlOut;
+              try { sessionStorage.setItem(cacheKey, JSON.stringify({ html: htmlOut, ts: Date.now() })); } catch(e) {}
+              return;
+            }
+          }
+          // Live API
           let items = [];
           if (isAnime) {
             const res = await fetchWithRetry('https://api.jikan.moe/v4/anime?min_score=8.0&order_by=popularity&sort=desc&limit=17');
@@ -3651,82 +4323,184 @@ img { max-width: 100%; height: auto; display: block; }
             const { results } = await res.json();
             items = results.slice(0, 17);
           }
-          const html = items.map((item, i) => renderSidebarItem(item, i + 1, isAnime)).join('');
-          container.innerHTML = html;
-          try { sessionStorage.setItem(cacheKey, JSON.stringify({ html, ts: Date.now() })); } catch(e) {}
-        } catch (e) { 
-          container.innerHTML = '<div class="loading-text">Failed to load</div>'; 
-          console.error('Hidden gems load error:', e); 
+          const htmlOut = items.map((item, i) => renderSidebarItem(item, i + 1, isAnime)).join('');
+          container.innerHTML = htmlOut;
+          try { sessionStorage.setItem(cacheKey, JSON.stringify({ html: htmlOut, ts: Date.now() })); } catch(e) {}
+          // Save to Supabase
+          if (window.AniCache && items.length) {
+            const rows = items.map(item => isAnime
+              ? { id:`jikan-${item.mal_id}`, type:'Anime', title:item.title_english||item.title, poster:item.images?.jpg?.large_image_url||'', score:item.score, members:item.members, genres:(item.genres||[]).map(g=>g.name), show_status:item.status||'Currently Airing', mal_id:item.mal_id }
+              : { id:`tmdb-${currentState.type}-${item.id}`, type:currentState.type==='movie'?'Movie':'TV', title:item.title||item.name, poster:item.poster_path?`https://image.tmdb.org/t/p/w185${item.poster_path}`:'', score:item.vote_average, members:item.vote_count, show_status:currentState.type==='movie'?'Released':'Returning Series' }
+            );
+            const mType = isAnime ? 'anime' : currentState.type;
+            // Save to shows table for row-level storage
+            window.AniCache.save(rows).catch(()=>{});
+            // Also store full array in media_cache so get({section,media_type}) works
+            window.AniCache.set({ cacheKey: gemKey, pageSource:'info', section:'hidden_gem',
+              mediaType: mType, data: rows, itemCount: rows.length }).catch(()=>{});
+            window.AniCache.stampSection(`hidden_gem_${mType}`, rows.length).catch(()=>{});
+          }
+        } catch (e) {
+          container.innerHTML = '<div class="loading-text">Failed to load</div>';
+          console.error('Hidden gems load error:', e);
         }
       }
 
       async function loadTopRanking(isAnime) {
+        const _trKey = `info:top_ranking:${currentState.type || currentState.source}`;
+        if (window.AniCache) {
+          const cached = await window.AniCache.get(_trKey);
+          if (cached) {
+            const el = document.getElementById('topRankingList');
+            if (el) el.innerHTML = cached._html || '';
+            return;
+          }
+        }
         const container = document.getElementById('topRankingList');
         const cacheKey = `sidebar_top_${isAnime ? 'anime' : currentState.type}`;
         try {
           const cached = sessionStorage.getItem(cacheKey);
           if (cached) {
-            const { html, ts } = JSON.parse(cached);
-            if (Date.now() - ts < 15 * 60 * 1000) { container.innerHTML = html; return; }
+            const { html: ch, ts } = JSON.parse(cached);
+            if (Date.now() - ts < 15 * 60 * 1000) { container.innerHTML = ch; return; }
           }
+          // Supabase shows table
+          const rankKey = `top_ranking_${isAnime?'anime':currentState.type}`;
+          if (window.AniCache && await window.AniCache.isSectionFresh(rankKey)) {
+            const dbItems = await window.AniCache.get({
+              section: 'top_ranking',
+              media_type: isAnime ? 'anime' : currentState.type,
+              limit: 19
+            }).catch(() => []);
+            if (Array.isArray(dbItems) && dbItems.length) {
+              const htmlOut = dbItems.map((s, i) => renderSidebarItem(
+                isAnime
+                  ? { mal_id: s.mal_id, title: s.title, images: { jpg: { image_url: s.poster } }, score: s.score, rank: i+1 }
+                  : { id: s.tmdb_id, title: s.title, name: s.title, _supaImg: s.poster, poster: s.poster, vote_average: Number(s.score||0), score: Number(s.score||0) },
+                i + 1, isAnime, true
+              )).join('');
+              container.innerHTML = htmlOut;
+              try { sessionStorage.setItem(cacheKey, JSON.stringify({ html: htmlOut, ts: Date.now() })); } catch(e) {}
+              return;
+            }
+          }
+          // Live API
           let items = [];
           if (isAnime) {
             const res = await fetchWithRetry('https://api.jikan.moe/v4/top/anime?limit=19');
-            const { data } = await res.json(); 
+            const { data } = await res.json();
             items = data.slice(0, 19);
           } else {
             const res = await fetch(`${CONFIG.TMDB_WORKER}/3/${currentState.type}/top_rated?page=1`);
-            const { results } = await res.json(); 
+            const { results } = await res.json();
             items = results.slice(0, 19);
           }
-          const html = items.map((item, i) => renderSidebarItem(item, i + 1, isAnime, true)).join('');
-          container.innerHTML = html;
-          try { sessionStorage.setItem(cacheKey, JSON.stringify({ html, ts: Date.now() })); } catch(e) {}
-        } catch (e) { 
-          container.innerHTML = '<div class="loading-text">Failed to load</div>'; 
-          console.error('Top ranking load error:', e); 
+          const htmlOut = items.map((item, i) => renderSidebarItem(item, i + 1, isAnime, true)).join('');
+          container.innerHTML = htmlOut;
+          try { sessionStorage.setItem(cacheKey, JSON.stringify({ html: htmlOut, ts: Date.now() })); } catch(e) {}
+          if (window.AniCache && items.length) {
+            const rows = items.map(item => isAnime
+              ? { id:`jikan-${item.mal_id}`, type:'Anime', title:item.title_english||item.title, poster:item.images?.jpg?.large_image_url||'', score:item.score, members:item.members, genres:(item.genres||[]).map(g=>g.name), show_status:item.status||'Currently Airing', mal_id:item.mal_id }
+              : { id:`tmdb-${currentState.type}-${item.id}`, type:currentState.type==='movie'?'Movie':'TV', title:item.title||item.name, poster:item.poster_path?`https://image.tmdb.org/t/p/w185${item.poster_path}`:'', score:item.vote_average, show_status:currentState.type==='movie'?'Released':'Returning Series' }
+            );
+            const mTypeR = isAnime ? 'anime' : currentState.type;
+            window.AniCache.save(rows).catch(()=>{});
+            window.AniCache.set({ cacheKey: rankKey, pageSource:'info', section:'top_ranking',
+              mediaType: mTypeR, data: rows, itemCount: rows.length }).catch(()=>{});
+            window.AniCache.stampSection(rankKey, rows.length).catch(()=>{});
+          }
+        } catch (e) {
+          container.innerHTML = '<div class="loading-text">Failed to load</div>';
+          console.error('Top ranking load error:', e);
         }
       }
 
       async function loadMostFavourite(isAnime) {
+        const _mfKey = `info:most_favourite:${currentState.type || currentState.source}`;
+        if (window.AniCache) {
+          const cached = await window.AniCache.get(_mfKey);
+          if (cached) {
+            const el = document.getElementById('mostFavouriteList');
+            if (el) el.innerHTML = cached._html || '';
+            return;
+          }
+        }
         const container = document.getElementById('mostFavouriteList');
         const cacheKey = `sidebar_fav_${isAnime ? 'anime' : currentState.type}`;
         try {
           const cached = sessionStorage.getItem(cacheKey);
           if (cached) {
-            const { html, ts } = JSON.parse(cached);
-            if (Date.now() - ts < 15 * 60 * 1000) { container.innerHTML = html; return; }
+            const { html: ch, ts } = JSON.parse(cached);
+            if (Date.now() - ts < 15 * 60 * 1000) { container.innerHTML = ch; return; }
           }
+          // Supabase shows table
+          const favKey = `most_fav_${isAnime?'anime':currentState.type}`;
+          if (window.AniCache && await window.AniCache.isSectionFresh(favKey)) {
+            const dbItems = await window.AniCache.get({
+              section: 'most_favourite',
+              media_type: isAnime ? 'anime' : currentState.type,
+              limit: 21
+            }).catch(() => []);
+            if (Array.isArray(dbItems) && dbItems.length) {
+              const htmlOut = dbItems.map((s, i) => renderSidebarItem(
+                isAnime
+                  ? { mal_id: s.mal_id, title: s.title, images: { jpg: { image_url: s.poster } }, score: s.score, favorites: s.popularity }
+                  : { id: s.tmdb_id, title: s.title, name: s.title, _supaImg: s.poster, poster: s.poster, vote_average: Number(s.score||0), score: Number(s.score||0) },
+                i + 1, isAnime
+              )).join('');
+              container.innerHTML = htmlOut;
+              try { sessionStorage.setItem(cacheKey, JSON.stringify({ html: htmlOut, ts: Date.now() })); } catch(e) {}
+              return;
+            }
+          }
+          // Live API
           let items = [];
           if (isAnime) {
             const res = await fetchWithRetry('https://api.jikan.moe/v4/top/anime?filter=favorite&limit=21');
-            const { data } = await res.json(); 
+            const { data } = await res.json();
             items = data.slice(0, 21);
           } else {
             const res = await fetch(`${CONFIG.TMDB_WORKER}/3/${currentState.type}/popular?page=1`);
-            const { results } = await res.json(); 
+            const { results } = await res.json();
             items = results.slice(0, 21);
           }
-          const html = items.map((item, i) => renderSidebarItem(item, i + 1, isAnime)).join('');
-          container.innerHTML = html;
-          try { sessionStorage.setItem(cacheKey, JSON.stringify({ html, ts: Date.now() })); } catch(e) {}
-        } catch (e) { 
-          container.innerHTML = '<div class="loading-text">Failed to load</div>'; 
-          console.error('Most favourite load error:', e); 
+          const htmlOut = items.map((item, i) => renderSidebarItem(item, i + 1, isAnime)).join('');
+          container.innerHTML = htmlOut;
+          try { sessionStorage.setItem(cacheKey, JSON.stringify({ html: htmlOut, ts: Date.now() })); } catch(e) {}
+          if (window.AniCache && items.length) {
+            const rows = items.map(item => isAnime
+              ? { id:`jikan-${item.mal_id}`, type:'Anime', title:item.title_english||item.title, poster:item.images?.jpg?.large_image_url||'', score:item.score, members:item.members||item.favorites, genres:(item.genres||[]).map(g=>g.name), show_status:item.status||'Currently Airing', mal_id:item.mal_id }
+              : { id:`tmdb-${currentState.type}-${item.id}`, type:currentState.type==='movie'?'Movie':'TV', title:item.title||item.name, poster:item.poster_path?`https://image.tmdb.org/t/p/w185${item.poster_path}`:'', score:item.vote_average, members:item.vote_count, show_status:currentState.type==='movie'?'Released':'Returning Series' }
+            );
+            const mTypeF = isAnime ? 'anime' : currentState.type;
+            window.AniCache.save(rows).catch(()=>{});
+            window.AniCache.set({ cacheKey: favKey, pageSource:'info', section:'most_favourite',
+              mediaType: mTypeF, data: rows, itemCount: rows.length }).catch(()=>{});
+            window.AniCache.stampSection(favKey, rows.length).catch(()=>{});
+          }
+        } catch (e) {
+          container.innerHTML = '<div class="loading-text">Failed to load</div>';
+          console.error('Most favourite load error:', e);
         }
       }
 
       function renderSidebarItem(item, rank, isAnime, showRank = false) {
         const title = isAnime ? (item.title_english || item.title) : (item.title || item.name);
-        const poster = isAnime ? item.images?.jpg?.image_url : item.poster_path ? `https://image.tmdb.org/t/p/w92${item.poster_path}` : '';
-        const score = isAnime ? item.score : item.vote_average;
+        // Support pre-built full URL (_supaImg from DB cache) AND standard API paths
+        const poster = isAnime
+          ? (item.images?.jpg?.image_url || item._supaImg || item.poster || '')
+          : (item._supaImg || item.poster || (item.poster_path ? `https://image.tmdb.org/t/p/w92${item.poster_path}` : ''));
+        const scoreRaw = isAnime
+          ? (item.score || item.rating_score || 0)
+          : (item.vote_average || item.score || item.rating_score || 0);
+        const score = scoreRaw;
         const type = isAnime ? item.type : currentState.type;
         const year = isAnime ? item.aired?.from?.slice(0,4) : (item.release_date || item.first_air_date)?.slice(0,4);
         const genres = (item.genres || []).slice(0, 2).map(g => g.name || g).join(', ');
         const studio = isAnime ? item.studios?.[0]?.name : item.production_companies?.[0]?.name || item.networks?.[0]?.name;
         const langBadges = isAnime ? `<span class="lang-badge sub"><i class="fa-solid fa-closed-captioning"></i></span><span class="lang-badge dub"><i class="fa-solid fa-microphone"></i></span>` : '';
         const popularity = item.popularity || item.vote_count || '';
-        const itemRank = item.rank || item.popularity ? `#${Math.round(item.rank || item.popularity)}` : '';
+        const itemRank = item.rank ? `#${item.rank}` : (item.popularity ? `#${Math.round(item.popularity)}` : '');
         
         const urlType = isAnime ? 'anime' : currentState.type;
         const source = isAnime ? 'jikan' : (currentState.type === 'movie' ? 'tmdb-movie' : 'tmdb-tv');
@@ -3739,7 +4513,7 @@ img { max-width: 100%; height: auto; display: block; }
           <img class="sidebar-poster" src="${poster}" alt="${title}" loading="lazy" onerror="this.style.display='none'">
           <div class="sidebar-info">
             <h4>${escapeHtml(title)}</h4>
-            <div class="side-meta">⭐ ${score?.toFixed(1) || 'N/A'} · ${type}${year ? ` · ${year}` : ''}</div>
+            <div class="side-meta">⭐ ${(typeof score==="string" ? score : Number(score||0).toFixed(1)) || 'N/A'} · ${type}${year ? ` · ${year}` : ''}</div>
           </div>
         </a>`;
       }
@@ -3762,6 +4536,15 @@ img { max-width: 100%; height: auto; display: block; }
 
       // Water Temple — genre-matched anime recommendations using the current show's actual genres
       async function loadWaterTemple() {
+        const _wtKey = `info:water_temple:${currentState.id}`;
+        if (window.AniCache) {
+          const cached = await window.AniCache.get(_wtKey);
+          if (cached && cached.length > 0) {
+            const el = document.getElementById('waterTempleGrid');
+            if (el) el.innerHTML = cached.map(s => renderAnimeRecCard ? renderAnimeRecCard(s) : '').join('');
+            return;
+          }
+        }
         const section = document.getElementById('waterTempleSection');
         const gridContainer = document.getElementById('waterTempleGrid');
 
@@ -3774,13 +4557,11 @@ img { max-width: 100%; height: auto; display: block; }
           const data = currentState.data;
 
           // Collect all genre/theme/demographic MAL IDs from the current show
-          // These come from show details: genres + themes + demographics
           const genreIds  = (data.genres       || []).map(g => g.mal_id).filter(Boolean);
           const themeIds  = (data.themes        || []).map(t => t.mal_id).filter(Boolean);
           const demoIds   = (data.demographics  || []).map(d => d.mal_id).filter(Boolean);
 
           // Use all genres for a broad, accurate match — up to 3 to stay within Jikan limits
-          // Priority: genres first (most accurate), then demographics, then themes
           const combinedIds = [...new Set([...genreIds, ...demoIds, ...themeIds])];
           const selectedGenres = combinedIds.slice(0, 3);
 
@@ -3788,7 +4569,7 @@ img { max-width: 100%; height: auto; display: block; }
           const randomPage = Math.floor(Math.random() * 4) + 1;
 
           const params = new URLSearchParams({
-            order_by:  'score',       // sort by score so results are genuinely good
+            order_by:  'score',
             sort:      'desc',
             limit:     '24',
             sfw:       'true',
@@ -3800,7 +4581,10 @@ img { max-width: 100%; height: auto; display: block; }
 
           if (selectedGenres.length > 0) params.append('genres', selectedGenres.join(','));
 
-          const apiUrl = `https://api.jikan.moe/v4/anime?${params.toString()}`;
+          // Use CF worker proxy to avoid direct Jikan rate limits & 504s
+          const PROXY = 'https://aniumi.bionmovies47.workers.dev';
+          const directUrl = `https://api.jikan.moe/v4/anime?${params.toString()}`;
+          const proxyUrl  = `${PROXY}/jikan/anime?${params.toString()}`;
 
           // Cache key: genre ids + anime type + page — 10 min TTL for freshness+variety
           const cacheKey = `wt2_${selectedGenres.join('_')}_${(data.type||'tv').toLowerCase()}_p${randomPage}`;
@@ -3815,7 +4599,13 @@ img { max-width: 100%; height: auto; display: block; }
           }
 
           if (!results) {
-            const response = await fetchWithRetry(apiUrl);
+            // Try proxy first (cached at CF edge, less rate-limiting), then direct as fallback
+            let response;
+            try {
+              response = await fetchWithRetry(proxyUrl);
+            } catch(e) {
+              try { response = await fetchWithRetry(directUrl); } catch(e2) { throw e2; }
+            }
             const apiData  = await response.json();
             results = apiData.data || [];
             try { localStorage.setItem(cacheKey, JSON.stringify({ data: results, timestamp: Date.now() })); } catch(e) {}
@@ -3826,10 +4616,17 @@ img { max-width: 100%; height: auto; display: block; }
 
           if (filtered.length > 0) {
             gridContainer.innerHTML = filtered.map(anime => renderAnimeRecCard(anime)).join('');
+            // Cache the results in Supabase for other visitors
+            if (window.AniCache) window.AniCache.set({ cacheKey: _wtKey, pageSource:'info', section:'water_temple', data: filtered }).catch(()=>{});
           } else {
             // Fallback: top-scored anime of same type, no genre filter
             const fbParams = new URLSearchParams({ order_by: 'score', sort: 'desc', limit: '24', sfw: 'true', type: (data.type || 'tv').toLowerCase(), min_score: '7.5' });
-            const fbRes  = await fetchWithRetry(`https://api.jikan.moe/v4/anime?${fbParams.toString()}`);
+            let fbRes;
+            try {
+              fbRes = await fetchWithRetry(`${PROXY}/jikan/anime?${fbParams.toString()}`);
+            } catch(e) {
+              try { fbRes = await fetchWithRetry(`https://api.jikan.moe/v4/anime?${fbParams.toString()}`); } catch(e2) { throw e2; }
+            }
             const fbData = await fbRes.json();
             const fbFiltered = (fbData.data || []).filter(a => a.mal_id !== currentState.id).slice(0, 24);
             gridContainer.innerHTML = fbFiltered.length
@@ -3838,13 +4635,22 @@ img { max-width: 100%; height: auto; display: block; }
           }
 
         } catch (error) {
-          console.error('❌ Water Temple error:', error);
-          gridContainer.innerHTML = '<div class="loading-text">Failed to load recommendations</div>';
+          console.warn('Water Temple error:', error.message);
+          gridContainer.innerHTML = '<div class="loading-text">Recommendations temporarily unavailable</div>';
         }
       }
 
       // Recommend for You — TMDB movie/TV genre+popularity+score based recommendations
       async function loadRecommendForYou() {
+        const _rfyKey = `info:recommended_for_you:${currentState.id}`;
+        if (window.AniCache) {
+          const cached = await window.AniCache.get(_rfyKey);
+          if (cached && cached.length > 0) {
+            const el = document.getElementById('recommendForYouGrid');
+            if (el) el.innerHTML = cached.map(s => renderShowCard ? renderShowCard(s) : '').join('');
+            return;
+          }
+        }
         const section = document.getElementById('recommendForYouSection');
         const gridContainer = document.getElementById('recommendForYouGrid');
 
@@ -3954,96 +4760,162 @@ img { max-width: 100%; height: auto; display: block; }
       // Bug fix: jikanRecLoading element was inside gridContainer and got destroyed by
       // gridContainer.innerHTML on first render, causing null-ref crash on page 2+.
       // Now shows loading state by setting gridContainer HTML directly each time.
+// Tracks every mal_id shown across ALL Sunken Treasures pages this session
+// Persists across page navigations so the same anime never appears twice
+const _sunkenSeenIds = new Set();
+
+// In-memory store for all 7 pre-cached Sunken Treasure pages
+let _sunkenCachePages = {};   // { 1:[...], 2:[...], ... 7:[...] }
+let _sunkenCacheLoaded = false;
+
 async function loadSunkenTreasures(page = 1) {
   const gridContainer = document.getElementById('sunkenTreasuresGrid');
   const paginationContainer = document.getElementById('sunkenPagination');
-  
-  // Show loading state — write directly into gridContainer (safe on every page)
+
+  // ── Supabase cache read (all 7 pages bundled) ─────────────────
+  if (window.AniCache && !_sunkenCacheLoaded) {
+    const cached = await window.AniCache.get(`info:sunken_treasure:${currentState.id}`);
+    if (cached?.pages) {
+      _sunkenCachePages  = cached.pages;
+      _sunkenCacheLoaded = true;
+    }
+  }
+  if (_sunkenCacheLoaded && _sunkenCachePages[page]) {
+    const items = _sunkenCachePages[page];
+    gridContainer.style.opacity = '1';
+    gridContainer.innerHTML = items.map(a => renderAnimeRecCard(a)).join('');
+    renderSunkenPagination(page, SUNKEN_GENRE_COMBOS.length, paginationContainer);
+    return Promise.resolve();
+  }
+
+  // Show loading state
   gridContainer.style.opacity = '0.5';
   gridContainer.innerHTML = `<div class="loading-text" style="grid-column:1/-1;text-align:center;padding:40px 0;">Loading page ${page}...</div>`;
   paginationContainer.classList.add('loading');
-  
+
   try {
-    // Each page uses a DIFFERENT genre combo for unique results
     const comboIndex = (page - 1) % SUNKEN_GENRE_COMBOS.length;
     const [genreA, genreB] = SUNKEN_GENRE_COMBOS[comboIndex];
-    
-    console.log(`🔗 Sunken Treasures - Page ${page}, Combo ${comboIndex + 1}/30: [${genreA},${genreB}]`);
-    
-    // Build Jikan API URL — include page param so API returns page-matched results
-    const params = new URLSearchParams({
-      genres: `${genreA},${genreB}`,
-      type: 'tv',
-      min_score: '6.5',
-      max_score: '10',
-      order_by: 'popularity',
-      sort: 'asc',
-      limit: '24',
-      page: String(page),
-      sfw: 'true'
-    });
-    
-    const apiUrl = `https://api.jikan.moe/v4/anime?${params.toString()}`;
-    
-    // Cache key includes page + genre combo
-    const cacheKey = `sunken_tv_page${page}_g${genreA}_${genreB}`;
-    const cached = localStorage.getItem(cacheKey);
-    let data;
-    
-    if (cached) {
-      try {
-        const { results, timestamp } = JSON.parse(cached);
-        if (Date.now() - timestamp < 24 * 60 * 60 * 1000) {
-          console.log('✅ Using cached results for page', page);
-          data = { data: results };
+
+    console.log(`🔗 Sunken Treasures - Page ${page}/${SUNKEN_GENRE_COMBOS.length}, Combo ${comboIndex + 1}: [${genreA},${genreB}]`);
+
+    // Try up to 3 Jikan pages for this genre combo to find enough unseen anime
+    // (genre combos overlap so popular titles appear in multiple combos)
+    let uniqueResults = [];
+    const maxJikanPages = 3;
+
+    for (let jPage = 1; jPage <= maxJikanPages && uniqueResults.length < 12; jPage++) {
+      const params = new URLSearchParams({
+        genres: `${genreA},${genreB}`,
+        type: 'tv',
+        min_score: '6.5',
+        order_by: 'popularity',
+        sort: 'asc',
+        limit: '25',
+        page: String(jPage),
+        sfw: 'true'
+      });
+
+      const cacheKey = `sunken_p${page}_g${genreA}_${genreB}_jp${jPage}`;
+      const cached = localStorage.getItem(cacheKey);
+      let raw = [];
+
+      if (cached) {
+        try {
+          const { results, timestamp } = JSON.parse(cached);
+          if (Date.now() - timestamp < 24 * 60 * 60 * 1000) {
+            raw = results;
+          }
+        } catch(e) {}
+      }
+
+      if (!raw.length) {
+        const apiUrl = `https://api.jikan.moe/v4/anime?${params.toString()}`;
+        try {
+          // Use aniumi proxy (cached, rate-limit safe) with direct Jikan fallback
+          let res;
+          try {
+            res = await fetch(
+              `https://aniumi.bionmovies47.workers.dev/jikan/anime?${params.toString()}`,
+              { signal: AbortSignal.timeout(7000) }
+            );
+            if (!res.ok) throw new Error('proxy fail');
+          } catch(e) {
+            res = await fetch(apiUrl);
+          }
+          if (!res.ok) break;
+          const json = await res.json();
+          raw = json.data || [];
+          localStorage.setItem(cacheKey, JSON.stringify({ results: raw, timestamp: Date.now() }));
+        } catch(e) {
+          console.warn(`Jikan page ${jPage} failed:`, e.message);
+          break;
         }
-      } catch (e) { /* ignore corrupt cache */ }
+      }
+
+      // Filter: remove current show + already-seen mal_ids (cross-page dedup)
+      const currentId = currentState.source === 'jikan' ? Number(currentState.id) : null;
+      for (const a of raw) {
+        const id = Number(a.mal_id);
+        if (currentId && id === currentId) continue;  // skip current show
+        if (_sunkenSeenIds.has(id)) continue;          // skip cross-page duplicate
+        // Within-page dedup (shouldn't happen but guard anyway)
+        if (uniqueResults.some(r => Number(r.mal_id) === id)) continue;
+        uniqueResults.push(a);
+        if (uniqueResults.length >= 24) break;
+      }
+
+      // Small delay between Jikan pages to respect rate limit
+      if (jPage < maxJikanPages && uniqueResults.length < 12) {
+        await new Promise(r => setTimeout(r, 400));
+      }
     }
-    
-    // Fetch fresh data if not cached
-    if (!data) {
-      console.log('🌐 Fetching from Jikan API:', apiUrl);
-      const response = await fetch(apiUrl);
-      if (!response.ok) throw new Error(`Jikan API error: ${response.status}`);
-      data = await response.json();
-      console.log(`✅ Received ${data.data?.length || 0} results`);
-      
-      // Cache the results
-      localStorage.setItem(cacheKey, JSON.stringify({
-        results: data.data,
-        timestamp: Date.now()
-      }));
+
+    // Fallback: if still empty, grab from top anime (always unique enough)
+    if (uniqueResults.length === 0) {
+      console.warn('⚠️ No unseen results, using top anime fallback for page', page);
+      try {
+        const fbRes = await fetch(
+          `https://api.jikan.moe/v4/top/anime?type=tv&limit=25&page=${page}`
+        );
+        const fbData = await fbRes.json();
+        const currentId = currentState.source === 'jikan' ? Number(currentState.id) : null;
+        uniqueResults = (fbData.data || []).filter(a => {
+          const id = Number(a.mal_id);
+          if (currentId && id === currentId) return false;
+          if (_sunkenSeenIds.has(id)) return false;
+          return true;
+        }).slice(0, 24);
+      } catch(e) { /* ignore */ }
     }
-    
-    // Handle empty results with fallback to top anime
-    if (!data.data || data.data.length === 0) {
-      console.log('⚠️ No results, fetching popular TV anime as fallback');
-      const fallbackUrl = `https://api.jikan.moe/v4/top/anime?type=tv&limit=24&page=${page}`;
-      const fallbackRes = await fetch(fallbackUrl);
-      const fallbackData = await fallbackRes.json();
-      data.data = fallbackData.data || [];
+
+    // Mark all rendered anime as seen so they won't appear on future pages
+    uniqueResults.slice(0, 24).forEach(a => _sunkenSeenIds.add(Number(a.mal_id)));
+    // Store page in memory cache
+    _sunkenCachePages[page] = uniqueResults.slice(0, 24);
+    // After page 7 is loaded, push all 7 pages to Supabase (non-blocking)
+    const cachedPageCount = Object.keys(_sunkenCachePages).length;
+    if (cachedPageCount >= 7 && window.AniCache && !_sunkenCacheLoaded) {
+      _sunkenCacheLoaded = true;
+      window.AniCache.set({
+        cacheKey: `info:sunken_treasure:${currentState.id}`,
+        pageSource:'info', section:'sunken_treasure',
+        showId: currentState.source === 'jikan' ? `jikan-${currentState.id}` : null,
+        data: { pages: _sunkenCachePages, total: SUNKEN_GENRE_COMBOS.length },
+        itemCount: cachedPageCount * 24,
+      });
+      console.log('[Cache] ✅ Sunken Treasure 7 pages stored to Supabase');
     }
-    
-    // Filter out current show if on anime page
-    const currentId = currentState.source === 'jikan' ? currentState.id : null;
-    const results = currentId 
-      ? data.data.filter(a => a.mal_id !== currentId)
-      : data.data;
-    
-    // Restore opacity and render cards
+
+    // Render
     gridContainer.style.opacity = '1';
-    
-    if (results.length > 0) {
-      console.log(`🎨 Rendering ${Math.min(24, results.length)} anime cards for page ${page}`);
-      gridContainer.innerHTML = results.slice(0, 24).map(anime => renderAnimeRecCard(anime)).join('');
-      
-      // Update pagination with current page number
+
+    if (uniqueResults.length > 0) {
+      console.log(`🎨 Rendering ${Math.min(24, uniqueResults.length)} unique anime (${_sunkenSeenIds.size} seen total)`);
+      gridContainer.innerHTML = uniqueResults.slice(0, 24).map(anime => renderAnimeRecCard(anime)).join('');
       renderSunkenPagination(page, SUNKEN_GENRE_COMBOS.length, paginationContainer);
-      
-      // Smooth scroll to section top
-      // scrollIntoView removed — user controls their own scroll position
     } else {
-      gridContainer.innerHTML = '<div class="loading-text" style="grid-column:1/-1;text-align:center;padding:40px 0;">No anime found for this combination</div>';
+      gridContainer.innerHTML = '<div class="loading-text" style="grid-column:1/-1;text-align:center;padding:40px 0;">No new anime found — try a different page</div>';
       renderSunkenPagination(page, SUNKEN_GENRE_COMBOS.length, paginationContainer);
     }
     
@@ -4079,7 +4951,14 @@ function renderSunkenPagination(currentPage, totalPages, container) {
   prevBtn.disabled = currentPage === 1;
   prevBtn.onclick = (e) => {
     e.preventDefault();
-    if (currentPage > 1) loadSunkenTreasures(currentPage - 1);
+    e.currentTarget.blur(); // prevent browser auto-scroll to focused button
+    if (currentPage > 1) {
+      const savedY = window.scrollY;
+      loadSunkenTreasures(currentPage - 1).then(() => {
+        // Restore exact scroll position after DOM update
+        window.scrollTo({ top: savedY, behavior: 'instant' });
+      });
+    }
   };
   container.appendChild(prevBtn);
   
@@ -4097,7 +4976,14 @@ function renderSunkenPagination(currentPage, totalPages, container) {
   nextBtn.disabled = currentPage === totalPages;
   nextBtn.onclick = (e) => {
     e.preventDefault();
-    if (currentPage < totalPages) loadSunkenTreasures(currentPage + 1);
+    e.currentTarget.blur(); // prevent browser auto-scroll to focused button
+    if (currentPage < totalPages) {
+      const savedY = window.scrollY;
+      loadSunkenTreasures(currentPage + 1).then(() => {
+        // Restore exact scroll position after DOM update
+        window.scrollTo({ top: savedY, behavior: 'instant' });
+      });
+    }
   };
   container.appendChild(nextBtn);
 }
@@ -4160,6 +5046,15 @@ function renderSunkenPagination(currentPage, totalPages, container) {
             }
             
             // Build list layout matching image 3 style
+            // AniCache: capture cast for DB storage
+            window._lastCastData = chars.slice(0, 20).map(c => ({
+              char_name: c.character?.name || '',
+              char_img:  c.character?.images?.jpg?.image_url || '',
+              role:      c.role || 'Supporting',
+              va_name:   (c.voice_actors||[]).find(v=>v.language==='Japanese')?.person?.name || '',
+              va_img:    (c.voice_actors||[]).find(v=>v.language==='Japanese')?.person?.images?.jpg?.image_url || '',
+              va_lang:   'Japanese',
+            }));
             const castRows = chars.slice(0, 20).map(c => {
               const character = c.character;
               const charImg = character.images?.jpg?.image_url || character.images?.webp?.image_url || '';
@@ -4268,6 +5163,13 @@ function renderSunkenPagination(currentPage, totalPages, container) {
           });
         });
       });
+      // AniCache: save cast to show_details
+      if (window.AniCache && window._lastCastData && window._lastCastData.length) {
+        const _mid = currentState.source==='jikan'
+          ? `jikan-${currentState.id}`
+          : `tmdb-${currentState.type}-${currentState.id}`;
+        window.AniCache.saveDetails(_mid, {cast_crew: window._lastCastData}).catch(()=>{});
+      }
 
       async function loadArtworkData() {
         const container = document.getElementById('artworkGrid');
@@ -4344,6 +5246,7 @@ function renderSunkenPagination(currentPage, totalPages, container) {
         }
 
         const typeLabel = { poster: 'Poster', backdrop: 'Backdrop', logo: 'Logo' };
+        window._lastArtworkData = images.map(i => ({type:i.type, url:i.url, thumb:i.thumb}));
         container.innerHTML = images.map(img => `
           <div class="artwork-item artwork-item--${img.type}"
                onclick="document.getElementById('lightboxImg').src='${escapeHtml(img.url)}';document.getElementById('artworkLightbox').classList.add('show')">
@@ -4353,6 +5256,13 @@ function renderSunkenPagination(currentPage, totalPages, container) {
             <span class="artwork-type-badge">${typeLabel[img.type] || ''}</span>
           </div>
         `).join('');
+      // AniCache: save artwork to show_details
+      if (window.AniCache && window._lastArtworkData && window._lastArtworkData.length) {
+        const _mid = currentState.source==='jikan'
+          ? `jikan-${currentState.id}`
+          : `tmdb-${currentState.type}-${currentState.id}`;
+        window.AniCache.saveDetails(_mid, {artwork: window._lastArtworkData}).catch(()=>{});
+      }
       }
 
       async function loadTrailerData() {
@@ -4378,6 +5288,16 @@ function renderSunkenPagination(currentPage, totalPages, container) {
           `;
         } else {
           container.innerHTML = '<p class="loading-text">No trailer available</p>';
+        }
+        // AniCache: save trailer to show_details
+        if (window.AniCache && trailerUrl) {
+          const _mid = currentState.source==='jikan'
+            ? `jikan-${currentState.id}`
+            : `tmdb-${currentState.type}-${currentState.id}`;
+          const ytKey = trailerUrl.replace(/.*embed[/]/, '').replace(/[?].*/, '');
+          window.AniCache.saveDetails(_mid, {
+            trailers: [{ key: ytKey, url: trailerUrl, name: currentState.title + ' - Trailer', site: 'YouTube' }]
+          }).catch(()=>{});
         }
       }
 
@@ -4407,6 +5327,13 @@ function renderSunkenPagination(currentPage, totalPages, container) {
           }
 
           const allThemes = animeEntry.animethemes;
+          // AniCache: flatten themes for DB storage
+          window._lastThemesData = allThemes.map(t => ({
+            type:      t.type,
+            num:       t.sequence || 1,
+            title:     t.song?.title || '',
+            video_url: t.animethemeentries?.[0]?.videos?.[0]?.link || null,
+          }));
           const ops = allThemes.filter(t => t.type === 'OP').sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
           const eds = allThemes.filter(t => t.type === 'ED').sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
           const posterImg = currentState.data.images?.jpg?.image_url || '';
@@ -4473,6 +5400,11 @@ function renderSunkenPagination(currentPage, totalPages, container) {
           container.innerHTML = '<p class="loading-text">Failed to load theme songs</p>';
         }
       }
+      // AniCache: save themes to show_details
+      if (window.AniCache && window._lastThemesData && window._lastThemesData.length) {
+        const _mid = `jikan-${currentState.id}`;
+        window.AniCache.saveDetails(_mid, {themes: window._lastThemesData}).catch(()=>{});
+      }
 
       async function loadStatisticsData() {
         renderHistogram(); 
@@ -4508,9 +5440,9 @@ function renderSunkenPagination(currentPage, totalPages, container) {
         const container = document.getElementById('metricCards');
         const data = currentState.data;
         const isAnime = currentState.source === 'jikan';
-        const rank = isAnime ? data.rank : data.popularity;
-        const popularity = isAnime ? data.popularity : data.vote_count;
-        const members = isAnime ? data.members : data.popularity;
+        const rank       = isAnime ? (data.rank       || null) : (data.popularity  || null);
+        const popularity = isAnime ? (data.popularity || null) : (data.vote_count   || null);
+        const members    = isAnime ? (data.members    || null) : (data.popularity   || null);
         container.innerHTML = `
           <div class="metric-card"><div class="metric-value">${rank ? `#${rank}` : '—'}</div><div class="metric-label">Rank</div><div class="metric-trend up">↑ 2 this week</div></div>
           <div class="metric-card"><div class="metric-value">${formatNumber(popularity)}</div><div class="metric-label">Popularity</div><div class="metric-trend up">↑ 5%</div></div>
@@ -4525,10 +5457,12 @@ function renderSunkenPagination(currentPage, totalPages, container) {
         return div.innerHTML; 
       }
       
-      function formatNumber(num) { 
-        if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M'; 
-        if (num >= 1000) return (num / 1000).toFixed(1) + 'K'; 
-        return num.toString(); 
+      function formatNumber(num) {
+        if (num == null || num === undefined || isNaN(num)) return '—';
+        const n = Number(num);
+        if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+        if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+        return n.toString();
       }
       
       function showError(message) { 
