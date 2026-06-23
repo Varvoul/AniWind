@@ -27,7 +27,7 @@
   const TTL = {
     hero_slider:2, top_airing:2, new_releases:2, new_on_aniumi:2,
     recently_completed:2, trending_now:2,
-    show_info:8,
+    show_info:8, info_full_data:8,
     top_ranking:8, most_popular:8, popular_anime:8,
     hidden_gem:8, most_favourite:8, recommended_for_you:8,
     water_temple:8, sunken_treasure:8,

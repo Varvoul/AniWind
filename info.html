@@ -2920,7 +2920,7 @@ img { max-width: 100%; height: auto; display: block; }
 
               // Also try to load the FULL cached API response from media_cache
               // This contains fields not stored in shows table (relations, broadcast, themes, etc.)
-              const fullCacheKey = `info:show_info:${_mediaId}`;
+              const fullCacheKey = `info:full_data:${_mediaId}`;
               const fullData = await window.AniCache.get(fullCacheKey).catch(()=>null);
 
               currentState.data = currentState.data || {};
@@ -3112,8 +3112,8 @@ img { max-width: 100%; height: auto; display: block; }
         // Cache full Jikan response (6h TTL) so DB-loaded visitors get relations, broadcast, themes, etc.
         if (window.AniCache) {
           const sid = `jikan-${currentState.id}`;
-          const saveResult = await window.AniCache.set({ cacheKey:`info:show_info:${sid}`, pageSource:'info',
-            section:'show_info', showId:sid,
+          const saveResult = await window.AniCache.set({ cacheKey:`info:full_data:${sid}`, pageSource:'info',
+            section:'info_full_data', showId:sid,
             malId:currentState.id, data,
           });
           if (!saveResult) console.warn('[AniCache] Failed to save full Jikan data to media_cache for', sid);
@@ -3178,8 +3178,8 @@ img { max-width: 100%; height: auto; display: block; }
           // Cache the full show info JSON globally (6h TTL) — await to ensure it's saved
           if (window.AniCache && data.id) {
             const sid = `tmdb-${endpoint}-${data.id}`;
-            const saveResult = await window.AniCache.set({ cacheKey:`info:show_info:${sid}`, pageSource:'info',
-              section:'show_info', showId:sid,
+            const saveResult = await window.AniCache.set({ cacheKey:`info:full_data:${sid}`, pageSource:'info',
+              section:'info_full_data', showId:sid,
               tmdbId:data.id, data,
             });
             if (!saveResult) console.warn('[AniCache] Failed to save full TMDB data to media_cache for', sid);
@@ -3220,7 +3220,7 @@ img { max-width: 100%; height: auto; display: block; }
             // Update episode display in details grid if already rendered
             updateEpisodeDetail(match.episodes_sub, match.episodes_dub);
           }
-        } catch (e) { console.warn('AllAnime API fetch failed:', e); }
+        } catch (e) { /* AllAnime often unreachable — silent */ }
       }
 
       function updateEpisodeDetail(subCount, dubCount) {
