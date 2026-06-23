@@ -39,7 +39,7 @@
     hero_slider:2, top_airing:2, new_releases:2, new_on_aniumi:2,
     recently_completed:2, trending_now:2,
     show_info:8, info_full_data:8,
-    water_temple:8, sunken_treasure:8, recommended_for_you:8,
+    water_temple:8, sunken_treasure:8, show_recs:8,
     // Sidebar sections: 72h (3 days) — these lists change very slowly
     top_ranking:72, most_popular:72, popular_anime:72,
     hidden_gem:72, most_favourite:72,

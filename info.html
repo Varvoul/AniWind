@@ -4797,7 +4797,7 @@ img { max-width: 100%; height: auto; display: block; }
             // Cache recommendations to DB (permanent for ended, 8h for returning)
             if (window.AniCache) {
               window.AniCache.set({ cacheKey: _rfyKey, pageSource:'info',
-                section:'recommended_for_you', showId:`tmdb-${mediaType}-${currentState.id}`,
+                section:'show_recs',
                 tmdbId: currentState.id, data: final, itemCount: final.length,
                 permanent: currentState.isPermanent,
               }).catch(()=>{});
