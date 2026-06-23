@@ -4739,6 +4739,10 @@ img { max-width: 100%; height: auto; display: block; }
             gridContainer.innerHTML = fbFiltered.length
               ? fbFiltered.map(anime => renderAnimeRecCard(anime)).join('')
               : '<div class="loading-text">No recommendations found</div>';
+            // Cache fallback data too
+            if (fbFiltered.length && window.AniCache) {
+              window.AniCache.set({ cacheKey: _wtKey, pageSource:'info', section:'water_temple', data: fbFiltered, permanent: currentState.isPermanent }).catch(()=>{});
+            }
           }
 
         } catch (error) {
@@ -4845,6 +4849,13 @@ img { max-width: 100%; height: auto; display: block; }
             gridContainer.innerHTML = fbFinal.length
               ? fbFinal.map(item => renderTMDBRecCard(item, mediaType)).join('')
               : '<div class="loading-text">No recommendations found</div>';
+            // Cache fallback data too (permanent for ended/released)
+            if (fbFinal.length && window.AniCache) {
+              window.AniCache.set({ cacheKey: _rfyKey, pageSource:'info',
+                section:'show_recs', tmdbId: currentState.id, data: fbFinal, itemCount: fbFinal.length,
+                permanent: currentState.isPermanent,
+              }).catch(()=>{});
+            }
           }
 
         } catch (error) {
@@ -5031,7 +5042,7 @@ async function loadSunkenTreasures(page = 1) {
         pageSource:'info', section:'sunken_treasure',
         data: { pages: mergedPages, total: SUNKEN_GENRE_COMBOS.length },
         itemCount: pageCount * 24,
-        permanent: false, // 8h TTL for sunken (section TTL)
+        permanent: false, // 8h TTL — global list changes as new anime air
       });
       if (result && pageCount >= 1 && !_sunkenCacheLoaded) {
         _sunkenCacheLoaded = true;
@@ -5237,6 +5248,15 @@ function renderSunkenPagination(currentPage, totalPages, container) {
             return;
           }
           
+          // AniCache: capture TMDB cast for DB storage (same as anime branch)
+          window._lastCastData = cast.slice(0, 20).map(c => ({
+            char_name: c.character || '',
+            char_img:  c.profile_path ? `https://image.tmdb.org/t/p/w185${c.profile_path}` : '',
+            role:      'Actor',
+            va_name:   c.name || '',
+            va_img:    c.profile_path ? `https://image.tmdb.org/t/p/w185${c.profile_path}` : '',
+            va_lang:   'Actor',
+          }));
           const castRows = cast.slice(0, 20).map(c => {
             const actorImg = c.profile_path ? `https://image.tmdb.org/t/p/w185${c.profile_path}` : '';
             const actorName = c.name || 'Unknown';
