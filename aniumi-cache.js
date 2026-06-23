@@ -1,5 +1,5 @@
 /**
- * aniumi-cache.js  v3.1
+ * aniumi-cache.js  v3.2
  * Global Supabase media cache — aniumi.vercel.app
  *
  * Tables used:
@@ -9,14 +9,14 @@
  *
  * TTL (global — set by FIRST visitor, all others read from cache):
  *   2h  : main body sections (hero, top_airing, new_releases, etc.)
- *   6h  : show_info (info page main body)
+ *   8h  : show_info (info page main body + full API response)
  *   8h  : sidebar sections (hidden_gem, top_ranking, most_favourite etc.)
  *   24h : schedule
  *
- * v3.1: Replaced broken RPC calls (upsert_media_cache / get_media_cache /
- *   get_sidebar_items) with direct REST API calls to media_cache table.
- *   The RPC functions referenced a non-existent "show_info" column in the
- *   "shows" relation, causing 42703 errors on every page load.
+ * v3.1: Replaced broken RPC calls with direct REST API calls to media_cache table.
+ * v3.2: Increased show_info TTL to 8h, findShow freshness to 8h, req timeout to 15s.
+ *   Awaiting full API data saves instead of fire-and-forget.
+ *   Added background refresh when full data not in media_cache.
  */
 (function () {
   'use strict';
@@ -27,7 +27,7 @@
   const TTL = {
     hero_slider:2, top_airing:2, new_releases:2, new_on_aniumi:2,
     recently_completed:2, trending_now:2,
-    show_info:6,
+    show_info:8,
     top_ranking:8, most_popular:8, popular_anime:8,
     hidden_gem:8, most_favourite:8, recommended_for_you:8,
     water_temple:8, sunken_treasure:8,
@@ -44,7 +44,7 @@
       const r = await fetch(`${URL}/rest/v1/${path}`, {
         ...opts,
         headers: { ...H(), ...(opts.headers || {}) },
-        signal: opts.signal || AbortSignal.timeout(9000),
+        signal: opts.signal || AbortSignal.timeout(15000),
       });
       if (r.status === 409) return null; // duplicate — already exists, OK
       if (!r.ok) {
@@ -189,10 +189,10 @@
     );
     if (!Array.isArray(rows) || !rows[0]) return null;
     const row = rows[0];
-    // Freshness check — 6h
+    // Freshness check — 8h (matches show_info TTL in media_cache)
     if (row.fetched_at) {
       const age = Date.now() - new Date(row.fetched_at).getTime();
-      if (age > 6 * 3600 * 1000) return null;
+      if (age > 8 * 3600 * 1000) return null;
     }
     return row;
   }
@@ -362,5 +362,5 @@
     TTL,
   };
 
-  console.log('[AniCache] v3.1 ready — Supabase cache active (direct REST, no RPC)');
+  console.log('[AniCache] v3.2 ready — Supabase cache active (direct REST, no RPC)');
 })();

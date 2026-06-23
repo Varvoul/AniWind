@@ -2934,10 +2934,24 @@ img { max-width: 100%; height: auto; display: block; }
                 currentState.title = currentState.data.title;
               } else {
                 // Only sparse shows table data — hydrate what we can
+                console.log('[AniCache] info: only sparse DB data, will background-refresh', _mediaId);
+
+                // Parse premiered string (e.g. "Spring 2024") into season + year
+                let parsedSeason = null, parsedYear = null;
+                if (dbShow.premiered) {
+                  const pParts = String(dbShow.premiered).trim().split(/\s+/);
+                  if (pParts.length === 2) {
+                    parsedSeason = pParts[0].toLowerCase();
+                    parsedYear = parseInt(pParts[1]) || null;
+                  }
+                }
+
                 Object.assign(currentState.data, {
-                  title:            dbShow.eng_title || dbShow.default_title || dbShow.title,
-                  title_english:    dbShow.eng_title,
-                  title_japanese:   dbShow.japanese_title,
+                  // title = romaji for anime (Jikan's default title), NOT english
+                  title:            dbShow.default_title || dbShow.title || dbShow.eng_title,
+                  title_english:    dbShow.eng_title || null,
+                  title_japanese:   dbShow.japanese_title || null,
+                  mal_id:           dbShow.mal_id ? parseInt(dbShow.mal_id) : currentState.id,
                   synopsis:         dbShow.synopsis || dbShow.overview,
                   overview:         dbShow.overview || dbShow.synopsis,
                   score:            dbShow.mal_score || dbShow.tmdb_average_score || dbShow.rating_score,
@@ -2964,6 +2978,9 @@ img { max-width: 100%; height: auto; display: block; }
                   members:          dbShow.popularity,
                   rank:             dbShow.rank,
                   premiered:        dbShow.premiered,
+                  season:           parsedSeason,
+                  year:             parsedYear,
+                  // DO NOT set data.type from dbShow.type (which is "Anime") — let renderStats() default to "TV"
                   images:           { jpg: { large_image_url: dbShow.poster, image_url: dbShow.poster } },
                   poster_path:      dbShow.poster_path || null,
                   backdrop_path:    dbShow.backdrop_path || null,
@@ -2974,6 +2991,61 @@ img { max-width: 100%; height: auto; display: block; }
               document.title = `${currentState.title} - Aniocean`;
               renderHero(); renderStats(); renderSynopsis(); renderDetails();
               renderSeasons(); renderTabs();
+
+              // If we only had sparse data, do a background API fetch to get complete data
+              // (relations, broadcast, producers, synonyms, etc.) and re-render when ready
+              if (!fullData) {
+                console.log('[AniCache] info: starting background refresh for complete data', _mediaId);
+                (async () => {
+                  try {
+                    if (_src === 'jikan') await fetchJikanData();
+                    else if (_src === 'tmdb') await fetchTMDBData();
+
+                    // Re-render sections that depend on full API data
+                    renderHero(); renderStats(); renderSynopsis(); renderDetails();
+                    renderSeasons();
+
+                    // Save to shows table with the new complete data
+                    if (window.AniCache && currentState.data) {
+                      const d2 = currentState.data;
+                      const isA2 = _src === 'jikan';
+                      const saveRow2 = {
+                        id: _mediaId, media_id: _mediaId,
+                        type: isA2 ? 'Anime' : (_type === 'movie' ? 'Movie' : 'TV'),
+                        title: currentState.title,
+                        eng_title: d2.title_english || null,
+                        default_title: isA2 ? (d2.title || null) : null,
+                        japanese_title: d2.title_japanese || null,
+                        mal_id: d2.mal_id ? String(d2.mal_id) : null,
+                        tmdb_id: !isA2 ? String(_id) : null,
+                        synopsis: d2.synopsis || null, overview: d2.overview || null,
+                        genres: (d2.genres || []).map(g => g?.name || g),
+                        studios: (d2.studios || []).map(s => s?.name || s),
+                        score: d2.score || d2.vote_average || null,
+                        show_status: d2.status || null,
+                        premiered: isA2 ? (d2.premiered || null) : null,
+                        poster: d2.images?.jpg?.large_image_url
+                                || (d2.poster_path ? `https://image.tmdb.org/t/p/w500${d2.poster_path}` : null),
+                        backdrop: d2.images?.jpg?.large_image_url
+                                || (d2.backdrop_path ? `https://image.tmdb.org/t/p/w1280${d2.backdrop_path}` : null),
+                        episodes: d2.episodes || null,
+                        duration: d2.duration || (d2.episode_run_time?.[0] ? `${d2.episode_run_time[0]}m/ep` : null)
+                                || (d2.runtime ? `${d2.runtime} min` : null),
+                        content_rating: d2.rating || d2.certification || null,
+                        aired_date: d2.aired?.from || d2.release_date || d2.first_air_date || null,
+                        popularity: d2.popularity || d2.members || null,
+                        rank: d2.rank || null,
+                      };
+                      await window.AniCache.save([saveRow2]);
+                    }
+                    await window.AniCache.stampSection(`info_${_mediaId}`, 1);
+                    console.log('[AniCache] info: background refresh complete', _mediaId);
+                  } catch (e) {
+                    console.warn('[AniCache] info: background refresh failed:', e.message);
+                  }
+                })();
+                return; // Don't fall through to live API — background refresh handles it
+              }
 
               // GLOBAL cache: skip live API if this show was recently fetched by any user
               if (await window.AniCache.isSectionFresh(`info_${_mediaId}`)) return;
@@ -2997,6 +3069,9 @@ img { max-width: 100%; height: auto; display: block; }
               media_id:       _mediaId,
               type:           isA ? 'Anime' : (_type === 'movie' ? 'Movie' : 'TV'),
               title:          currentState.title,
+              eng_title:      d.title_english || null,
+              default_title:  isA ? (d.title || null) : null,
+              japanese_title: d.title_japanese || null,
               mal_id:         d.mal_id ? String(d.mal_id) : null,
               tmdb_id:        !isA ? String(_id) : null,
               synopsis:       d.synopsis || null,
@@ -3005,6 +3080,7 @@ img { max-width: 100%; height: auto; display: block; }
               studios:        (d.studios || []).map(s => s?.name || s),
               score:          d.score || d.vote_average || null,
               show_status:    d.status || null,
+              premiered:      isA ? (d.premiered || null) : null,
               poster:         d.images?.jpg?.large_image_url
                               || (d.poster_path ? `https://image.tmdb.org/t/p/w500${d.poster_path}` : null),
               backdrop:       d.images?.jpg?.large_image_url
@@ -3036,10 +3112,11 @@ img { max-width: 100%; height: auto; display: block; }
         // Cache full Jikan response (6h TTL) so DB-loaded visitors get relations, broadcast, themes, etc.
         if (window.AniCache) {
           const sid = `jikan-${currentState.id}`;
-          window.AniCache.set({ cacheKey:`info:show_info:${sid}`, pageSource:'info',
+          const saveResult = await window.AniCache.set({ cacheKey:`info:show_info:${sid}`, pageSource:'info',
             section:'show_info', showId:sid,
             malId:currentState.id, data,
-          }).catch(()=>{});
+          });
+          if (!saveResult) console.warn('[AniCache] Failed to save full Jikan data to media_cache for', sid);
         }
       }
 
@@ -3098,13 +3175,14 @@ img { max-width: 100%; height: auto; display: block; }
 
           currentState.data  = data;
           currentState.title = data.title || data.name || 'Unknown';
-          // Cache the full show info JSON globally (6h TTL)
+          // Cache the full show info JSON globally (6h TTL) — await to ensure it's saved
           if (window.AniCache && data.id) {
             const sid = `tmdb-${endpoint}-${data.id}`;
-            window.AniCache.set({ cacheKey:`info:show_info:${sid}`, pageSource:'info',
+            const saveResult = await window.AniCache.set({ cacheKey:`info:show_info:${sid}`, pageSource:'info',
               section:'show_info', showId:sid,
               tmdbId:data.id, data,
             });
+            if (!saveResult) console.warn('[AniCache] Failed to save full TMDB data to media_cache for', sid);
           }
         } catch (error) {
           console.error('[TMDB] all tiers failed:', error.message);
@@ -3619,10 +3697,11 @@ img { max-width: 100%; height: auto; display: block; }
       function _renderTrailersFromDB(trailerArr) {
         const container = document.getElementById('trailerContainer');
         if (!container || !trailerArr || !trailerArr.length) return;
+        // Use the same .video-wrapper structure as loadTrailerData() for consistent 16:9 responsive layout
         container.innerHTML = trailerArr.map(t => `
-          <div class="trailer-item">
-            <iframe src="https://www.youtube.com/embed/${t.key||t.youtube_id}" frameborder="0" allowfullscreen loading="lazy"></iframe>
-            <div class="trailer-title">${t.name||t.title||''}</div>
+          <div class="video-title">${escapeHtml(t.name||t.title||currentState.title + ' - Trailer')}</div>
+          <div class="video-wrapper">
+            <iframe src="https://www.youtube.com/embed/${t.key||t.youtube_id}" allowfullscreen loading="lazy" title="Trailer"></iframe>
           </div>`).join('');
       }
 
