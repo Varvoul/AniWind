@@ -1,5 +1,5 @@
 /**
- * aniumi-cache.js  v4.0
+ * aniumi-cache.js  v5.0
  * Global Supabase media cache — aniumi.vercel.app
  *
  * Tables used:
@@ -7,20 +7,24 @@
  *   shows        — one row per unique show (main info page data)
  *   show_details — cast/artwork/trailers/themes per show
  *
- * CACHING STRATEGY (v4.0):
+ * CACHING STRATEGY (v5.0):
  *   Finished Airing / Ended / Released  →  PERMANENT cache (year 2099 expiry)
  *   Currently Airing / Returning Series →  8h TTL (refreshes until status changes)
  *   All other (unknown status)         →  8h TTL
  *
  * TTL for non-permanent entries:
  *   2h  : main body sections (hero, top_airing, new_releases, etc.)
- *   8h  : info page sections (show_info, sidebar, water_temple, etc.)
+ *   8h  : info page sections (show_info, water_temple, sunken, etc.)
+ *   72h : sidebar sections (hidden_gem, top_ranking, most_favourite)
  *   24h : schedule
  *
  * v3.1: Replaced broken RPC calls with direct REST API calls.
  * v3.2: Increased show_info TTL to 8h, req timeout to 15s.
  * v4.0: Permanent cache for finished airing anime. 8h for currently airing.
- *   Added permanent flag to set/save/saveDetails. Retry-safe saves.
+ * v5.0: Fixed set() 409 handling (was reported as failure).
+ *        Sidebar TTL changed to 72h (3 days).
+ *        Larger timeout (25s) for cache saves to handle big TMDB payloads.
+ *        Added trimTMDBData() helper for reducing cache payload size.
  */
 (function () {
   'use strict';
@@ -35,9 +39,10 @@
     hero_slider:2, top_airing:2, new_releases:2, new_on_aniumi:2,
     recently_completed:2, trending_now:2,
     show_info:8, info_full_data:8,
-    top_ranking:8, most_popular:8, popular_anime:8,
-    hidden_gem:8, most_favourite:8, recommended_for_you:8,
-    water_temple:8, sunken_treasure:8,
+    water_temple:8, sunken_treasure:8, recommended_for_you:8,
+    // Sidebar sections: 72h (3 days) — these lists change very slowly
+    top_ranking:72, most_popular:72, popular_anime:72,
+    hidden_gem:72, most_favourite:72,
     schedule:24,
   };
 
@@ -80,6 +85,61 @@
     if (!status) return false;
     const s = String(status).trim();
     return s === 'Finished Airing' || s === 'Ended' || s === 'Released';
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // TMDB DATA TRIMMER
+  // ══════════════════════════════════════════════════════════════
+
+  /**
+   * trimTMDBData(data) → trimmed copy
+   * TMDB responses with append_to_response can be 2-5MB.
+   * Trim to essential fields to keep payload under 200KB for DB storage.
+   */
+  function trimTMDBData(data) {
+    if (!data || typeof data !== 'object') return data;
+    const trimmed = { ...data };
+
+    // Trim images: keep first 20 posters, 10 backdrops, 3 logos
+    if (trimmed.images) {
+      const imgs = { ...trimmed.images };
+      if (Array.isArray(imgs.posters))  imgs.posters  = imgs.posters.slice(0, 20);
+      if (Array.isArray(imgs.backdrops)) imgs.backdrops = imgs.backdrops.slice(0, 10);
+      if (Array.isArray(imgs.logos))    imgs.logos    = imgs.logos.slice(0, 3);
+      trimmed.images = imgs;
+    }
+
+    // Trim credits: keep first 50 cast, 20 crew
+    if (trimmed.credits) {
+      const cr = { ...trimmed.credits };
+      if (Array.isArray(cr.cast)) cr.cast = cr.cast.slice(0, 50);
+      if (Array.isArray(cr.crew)) cr.crew = cr.crew.slice(0, 20);
+      trimmed.credits = cr;
+    }
+
+    // Trim videos: keep first 20
+    if (trimmed.videos?.results) {
+      trimmed.videos = { ...trimmed.videos, results: trimmed.videos.results.slice(0, 20) };
+    }
+
+    // Trim seasons: keep all (needed for Watch More), but remove episode-level data
+    if (Array.isArray(trimmed.seasons)) {
+      trimmed.seasons = trimmed.seasons.map(s => {
+        const { episode_count, id, name, overview, poster_path, season_number, air_date, vote_average } = s;
+        return { episode_count, id, name, overview, poster_path, season_number, air_date, vote_average };
+      });
+    }
+
+    // Remove alternative_titles if present (not used in rendering)
+    delete trimmed.alternative_titles;
+    // Remove changes (not needed)
+    delete trimmed.changes;
+    // Remove keywords (not used in rendering)
+    delete trimmed.keywords;
+    // Remove translation data (not used)
+    delete trimmed.translations;
+
+    return trimmed;
   }
 
   // ══════════════════════════════════════════════════════════════
@@ -134,6 +194,9 @@
    * set({ cacheKey, ..., permanent? })
    *   permanent = true  → expires_at set to 2099 (cache forever)
    *   permanent = false → uses section TTL (default)
+   *
+   * Uses a longer timeout (25s) for large payloads (TMDB data with images).
+   * Properly handles HTTP 409 (merge-duplicate) as SUCCESS.
    */
   async function set({ cacheKey, pageSource, section, subKey = null,
     showId = null, malId = null, tmdbId = null, anikotoId = null,
@@ -160,11 +223,25 @@
       updated_at:    now,
     };
 
-    return req('media_cache', {
-      method: 'POST',
-      body: JSON.stringify(row),
-      headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
-    });
+    // Direct fetch with 25s timeout for large payloads, proper 409 handling
+    try {
+      const r = await fetch(`${URL}/rest/v1/media_cache`, {
+        method: 'POST',
+        headers: { ...H(), 'Prefer': 'resolution=merge-duplicates,return=minimal', 'Content-Type': 'application/json' },
+        body: JSON.stringify(row),
+        signal: AbortSignal.timeout(25000),
+      });
+      if (r.status === 409 || r.status === 201) return { ok: true, status: r.status };
+      if (!r.ok) {
+        const errText = await r.text().catch(() => '');
+        console.warn('[AniCache] set() failed:', r.status, cacheKey, errText.slice(0, 200));
+        return null;
+      }
+      return { ok: true, status: r.status };
+    } catch (e) {
+      console.warn('[AniCache] set() error:', cacheKey, e.message);
+      return null;
+    }
   }
 
   /**
@@ -340,9 +417,9 @@
     return new Date(rows[0].expires_at) > new Date();
   }
 
-  async function stampSection(cacheKey, itemCount, { permanent = false } = {}) {
+  async function stampSection(cacheKey, itemCount, { permanent = false, section: explicitSection } = {}) {
     const parts   = cacheKey.split(':');
-    const section = parts[1] || cacheKey.split('_').slice(0,-1).join('_') || 'misc';
+    const section = explicitSection || parts[1] || cacheKey.split('_').slice(0,-1).join('_') || 'misc';
     const page    = parts[0] || 'info';
     return set({
       cacheKey, pageSource: page, section,
@@ -366,9 +443,9 @@
     get, set, getOrFetch,
     findShow, save, saveDetails, getDetails,
     isSectionFresh, stampSection, saveSchedule,
-    isPermanentStatus,
+    isPermanentStatus, trimTMDBData,
     TTL, PERMANENT_EXPIRY,
   };
 
-  console.log('[AniCache] v4.0 ready — permanent cache for finished airing, 8h for airing');
+  console.log('[AniCache] v5.0 ready — permanent cache, 72h sidebar, 409 fix, TMDB trim');
 })();
