@@ -4738,11 +4738,24 @@ img { max-width: 100%; height: auto; display: block; }
       async function loadRecommendForYou() {
         const _rfyKey = `info:recommended_for_you:${currentState.id}`;
         if (window.AniCache) {
-          const cached = await window.AniCache.get(_rfyKey);
-          if (cached && cached.length > 0) {
-            const el = document.getElementById('recommendForYouGrid');
-            if (el) el.innerHTML = cached.map(s => renderTMDBRecCard(s, currentState.type)).join('');
-            return;
+          try {
+            const cached = await window.AniCache.get(_rfyKey);
+            console.log('[AniCache] RecommendForYou cache check:', cached ? `${cached.length} items` : 'null');
+            if (cached && cached.length > 0) {
+              const el = document.getElementById('recommendForYouGrid');
+              const sec = document.getElementById('recommendForYouSection');
+              if (!sec) { console.warn('[AniCache] RecommendForYou: section element missing'); }
+              else { sec.style.display = 'block'; }
+              if (!el) { console.warn('[AniCache] RecommendForYou: grid element missing'); }
+              else {
+                const html = cached.map(s => renderTMDBRecCard(s, currentState.type)).join('');
+                el.innerHTML = html;
+                console.log('[AniCache] RecommendForYou rendered', html.length, 'chars HTML');
+              }
+              return;
+            }
+          } catch (e) {
+            console.warn('[AniCache] RecommendForYou cache error, falling back to live:', e.message);
           }
         }
         const section = document.getElementById('recommendForYouSection');
