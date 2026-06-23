@@ -2618,7 +2618,8 @@ img { max-width: 100%; height: auto; display: block; }
         source: null, id: null, type: null, title: '',
         data: null, currentUser: null,
         selectedStatuses: [], dropdownTimer: null,
-        bookmarkRowId: null, allAnimeData: null
+        bookmarkRowId: null, allAnimeData: null,
+        isPermanent: false  // true = Finished Airing → cache forever
       };
 
       // ─── Skeleton helpers ──────────────────────────────────────────────────
@@ -2850,7 +2851,77 @@ img { max-width: 100%; height: auto; display: block; }
           showError('Invalid show URL format');
         }
         // Page fully loaded — user can now scroll freely
+
+        // ── Background retry: ensure all data is cached ──────
+        // If the first user had slow network, some sections may be missing.
+        // This retries with exponential backoff until all data is cached.
+        if (currentState.source && currentState.id && window.AniCache) {
+          setTimeout(() => ensureCompleteCache(0), 8000);
+        }
       });
+
+      // ═══════════════════════════════════════════════════════════════
+      // BACKGROUND RETRY — ensure ALL data is cached for future visitors
+      // Runs after page load, retries missing sections with exponential backoff
+      // ═══════════════════════════════════════════════════════════════
+      async function ensureCompleteCache(attempt) {
+        if (attempt >= 4) {
+          console.log('[Cache] Retry complete — gave up after 4 attempts');
+          return;
+        }
+        const delays = [0, 10000, 30000, 90000]; // 0s, 10s, 30s, 90s
+        const delay = delays[attempt] || 90000;
+        if (delay > 0) await new Promise(r => setTimeout(r, delay));
+
+        const _src = currentState.source;
+        const _id  = currentState.id;
+        const _type = currentState.type;
+        const _mid = _src === 'jikan' ? `jikan-${_id}` : `tmdb-${_type}-${_id}`;
+        const perm = currentState.isPermanent;
+        let missing = [];
+
+        // 1. Check full API data in media_cache
+        const fullData = await window.AniCache.get(`info:full_data:${_mid}`).catch(()=>null);
+        if (!fullData || !fullData.title) missing.push('full_data');
+
+        // 2. Check show_details (at least cast or trailer)
+        const details = await window.AniCache.getDetails(_mid, { permanent: perm }).catch(()=>null);
+        if (!details || (!details.cast_crew && !details.trailers)) missing.push('show_details');
+
+        // 3. Check water temple
+        const wt = await window.AniCache.get(`info:water_temple:${_id}`).catch(()=>null);
+        if (!wt || !wt.length) missing.push('water_temple');
+
+        if (missing.length === 0) {
+          console.log('[Cache] All data verified cached ✓');
+          return;
+        }
+
+        console.log(`[Cache] Retry ${attempt + 1}: missing [${missing.join(', ')}]`);
+
+        try {
+          // Re-fetch missing full data if needed
+          if (missing.includes('full_data')) {
+            if (_src === 'jikan') await fetchJikanData();
+            else if (_src === 'tmdb') await fetchTMDBData();
+          }
+
+          // Re-render to trigger tab/section loaders which will save to DB
+          if (missing.includes('show_details')) {
+            // Re-render tabs which will fetch and save missing cast/artwork/trailer/themes
+            loadCastData();
+            loadTrailerData();
+          }
+          if (missing.includes('water_temple')) {
+            await loadWaterTemple();
+          }
+        } catch (e) {
+          console.warn('[Cache] Retry error:', e.message);
+        }
+
+        // Schedule next retry
+        setTimeout(() => ensureCompleteCache(attempt + 1), 5000);
+      }
 
       function parseUrl() {
         const path = window.location.pathname;
@@ -2924,6 +2995,9 @@ img { max-width: 100%; height: auto; display: block; }
               const fullData = await window.AniCache.get(fullCacheKey).catch(()=>null);
 
               currentState.data = currentState.data || {};
+
+              // Set isPermanent from DB row status (for all section cache saves)
+              currentState.isPermanent = !!(window.AniCache && window.AniCache.isPermanentStatus(dbShow.show_status));
 
               if (fullData && typeof fullData === 'object' && !Array.isArray(fullData)) {
                 // We have the full API response cached — use it directly for complete rendering
@@ -3038,7 +3112,7 @@ img { max-width: 100%; height: auto; display: block; }
                       };
                       await window.AniCache.save([saveRow2]);
                     }
-                    await window.AniCache.stampSection(`info_${_mediaId}`, 1);
+                    await window.AniCache.stampSection(`info_${_mediaId}`, 1, { permanent: currentState.isPermanent });
                     console.log('[AniCache] info: background refresh complete', _mediaId);
                   } catch (e) {
                     console.warn('[AniCache] info: background refresh failed:', e.message);
@@ -3094,7 +3168,7 @@ img { max-width: 100%; height: auto; display: block; }
               rank:           d.rank || null,
             };
             await window.AniCache.save([saveRow]);
-            await window.AniCache.stampSection(`info_${_mediaId}`, 1);
+            await window.AniCache.stampSection(`info_${_mediaId}`, 1, { permanent: currentState.isPermanent });
           }
 
         } catch (error) {
@@ -3109,14 +3183,17 @@ img { max-width: 100%; height: auto; display: block; }
         const { data } = await res.json();
         currentState.data = data;
         currentState.title = data.title_english || data.title || 'Unknown';
-        // Cache full Jikan response (6h TTL) so DB-loaded visitors get relations, broadcast, themes, etc.
+        // Determine permanent cache based on airing status
+        currentState.isPermanent = !!(window.AniCache && window.AniCache.isPermanentStatus(data.status));
+        // Cache full Jikan response
         if (window.AniCache) {
           const sid = `jikan-${currentState.id}`;
           const saveResult = await window.AniCache.set({ cacheKey:`info:full_data:${sid}`, pageSource:'info',
             section:'info_full_data', showId:sid,
             malId:currentState.id, data,
+            permanent: currentState.isPermanent,
           });
-          if (!saveResult) console.warn('[AniCache] Failed to save full Jikan data to media_cache for', sid);
+          if (!saveResult) console.warn('[AniCache] Failed to save full Jikan data for', sid);
         }
       }
 
@@ -3175,14 +3252,17 @@ img { max-width: 100%; height: auto; display: block; }
 
           currentState.data  = data;
           currentState.title = data.title || data.name || 'Unknown';
-          // Cache the full show info JSON globally (6h TTL) — await to ensure it's saved
+          // Determine permanent cache based on status (Ended/Released = permanent)
+          currentState.isPermanent = !!(window.AniCache && window.AniCache.isPermanentStatus(data.status));
+          // Cache the full show info JSON — await to ensure saved
           if (window.AniCache && data.id) {
             const sid = `tmdb-${endpoint}-${data.id}`;
             const saveResult = await window.AniCache.set({ cacheKey:`info:full_data:${sid}`, pageSource:'info',
               section:'info_full_data', showId:sid,
               tmdbId:data.id, data,
+              permanent: currentState.isPermanent,
             });
-            if (!saveResult) console.warn('[AniCache] Failed to save full TMDB data to media_cache for', sid);
+            if (!saveResult) console.warn('[AniCache] Failed to save full TMDB data for', sid);
           }
         } catch (error) {
           console.error('[TMDB] all tiers failed:', error.message);
@@ -3643,7 +3723,7 @@ img { max-width: 100%; height: auto; display: block; }
           const _id   = currentState.id;
           const _type = currentState.type;
           const _mid  = _src === 'jikan' ? `jikan-${_id}` : `tmdb-${_type}-${_id}`;
-          const dbDet = await window.AniCache.getDetails(_mid).catch(()=>null);
+          const dbDet = await window.AniCache.getDetails(_mid, { permanent: currentState.isPermanent }).catch(()=>null);
           if (dbDet) {
             console.log('[AniCache] show_details loaded from DB for', _mid);
             if (dbDet.cast_crew)        _renderCastFromDB(dbDet.cast_crew);
@@ -4337,8 +4417,8 @@ img { max-width: 100%; height: auto; display: block; }
             window.AniCache.save(rows).catch(()=>{});
             // Also store full array in media_cache so get({section,media_type}) works
             window.AniCache.set({ cacheKey: gemKey, pageSource:'info', section:'hidden_gem',
-              mediaType: mType, data: rows, itemCount: rows.length }).catch(()=>{});
-            window.AniCache.stampSection(`hidden_gem_${mType}`, rows.length).catch(()=>{});
+              mediaType: mType, data: rows, itemCount: rows.length, permanent: currentState.isPermanent }).catch(()=>{});
+            window.AniCache.stampSection(`hidden_gem_${mType}`, rows.length, { permanent: currentState.isPermanent }).catch(()=>{});
           }
         } catch (e) {
           container.innerHTML = '<div class="loading-text">Failed to load</div>';
@@ -4406,8 +4486,8 @@ img { max-width: 100%; height: auto; display: block; }
             const mTypeR = isAnime ? 'anime' : currentState.type;
             window.AniCache.save(rows).catch(()=>{});
             window.AniCache.set({ cacheKey: rankKey, pageSource:'info', section:'top_ranking',
-              mediaType: mTypeR, data: rows, itemCount: rows.length }).catch(()=>{});
-            window.AniCache.stampSection(rankKey, rows.length).catch(()=>{});
+              mediaType: mTypeR, data: rows, itemCount: rows.length, permanent: currentState.isPermanent }).catch(()=>{});
+            window.AniCache.stampSection(rankKey, rows.length, { permanent: currentState.isPermanent }).catch(()=>{});
           }
         } catch (e) {
           container.innerHTML = '<div class="loading-text">Failed to load</div>';
@@ -4475,8 +4555,8 @@ img { max-width: 100%; height: auto; display: block; }
             const mTypeF = isAnime ? 'anime' : currentState.type;
             window.AniCache.save(rows).catch(()=>{});
             window.AniCache.set({ cacheKey: favKey, pageSource:'info', section:'most_favourite',
-              mediaType: mTypeF, data: rows, itemCount: rows.length }).catch(()=>{});
-            window.AniCache.stampSection(favKey, rows.length).catch(()=>{});
+              mediaType: mTypeF, data: rows, itemCount: rows.length, permanent: currentState.isPermanent }).catch(()=>{});
+            window.AniCache.stampSection(favKey, rows.length, { permanent: currentState.isPermanent }).catch(()=>{});
           }
         } catch (e) {
           container.innerHTML = '<div class="loading-text">Failed to load</div>';
@@ -4617,7 +4697,7 @@ img { max-width: 100%; height: auto; display: block; }
           if (filtered.length > 0) {
             gridContainer.innerHTML = filtered.map(anime => renderAnimeRecCard(anime)).join('');
             // Cache the results in Supabase for other visitors
-            if (window.AniCache) window.AniCache.set({ cacheKey: _wtKey, pageSource:'info', section:'water_temple', data: filtered }).catch(()=>{});
+            if (window.AniCache) window.AniCache.set({ cacheKey: _wtKey, pageSource:'info', section:'water_temple', data: filtered, permanent: currentState.isPermanent }).catch(()=>{});
           } else {
             // Fallback: top-scored anime of same type, no genre filter
             const fbParams = new URLSearchParams({ order_by: 'score', sort: 'desc', limit: '24', sfw: 'true', type: (data.type || 'tv').toLowerCase(), min_score: '7.5' });
@@ -4893,18 +4973,23 @@ async function loadSunkenTreasures(page = 1) {
     uniqueResults.slice(0, 24).forEach(a => _sunkenSeenIds.add(Number(a.mal_id)));
     // Store page in memory cache
     _sunkenCachePages[page] = uniqueResults.slice(0, 24);
-    // After page 7 is loaded, push all 7 pages to Supabase (non-blocking)
-    const cachedPageCount = Object.keys(_sunkenCachePages).length;
-    if (cachedPageCount >= 7 && window.AniCache && !_sunkenCacheLoaded) {
-      _sunkenCacheLoaded = true;
-      window.AniCache.set({
+    // Save to Supabase after EACH page load (merge with existing cached pages)
+    if (window.AniCache) {
+      const existing = await window.AniCache.get(`info:sunken_treasure:${currentState.id}`).catch(()=>null);
+      const mergedPages = { ...(existing?.pages || {}), ..._sunkenCachePages };
+      const pageCount = Object.keys(mergedPages).length;
+      const result = await window.AniCache.set({
         cacheKey: `info:sunken_treasure:${currentState.id}`,
         pageSource:'info', section:'sunken_treasure',
         showId: currentState.source === 'jikan' ? `jikan-${currentState.id}` : null,
-        data: { pages: _sunkenCachePages, total: SUNKEN_GENRE_COMBOS.length },
-        itemCount: cachedPageCount * 24,
+        data: { pages: mergedPages, total: SUNKEN_GENRE_COMBOS.length },
+        itemCount: pageCount * 24,
+        permanent: currentState.isPermanent,
       });
-      console.log('[Cache] ✅ Sunken Treasure 7 pages stored to Supabase');
+      if (result && pageCount >= 1 && !_sunkenCacheLoaded) {
+        _sunkenCacheLoaded = true;
+        console.log(`[Cache] Sunken Treasure ${pageCount} page(s) stored to Supabase`);
+      }
     }
 
     // Render
@@ -5168,7 +5253,7 @@ function renderSunkenPagination(currentPage, totalPages, container) {
         const _mid = currentState.source==='jikan'
           ? `jikan-${currentState.id}`
           : `tmdb-${currentState.type}-${currentState.id}`;
-        window.AniCache.saveDetails(_mid, {cast_crew: window._lastCastData}).catch(()=>{});
+        window.AniCache.saveDetails(_mid, {cast_crew: window._lastCastData}, { permanent: currentState.isPermanent }).catch(()=>{});
       }
 
       async function loadArtworkData() {
@@ -5261,7 +5346,7 @@ function renderSunkenPagination(currentPage, totalPages, container) {
         const _mid = currentState.source==='jikan'
           ? `jikan-${currentState.id}`
           : `tmdb-${currentState.type}-${currentState.id}`;
-        window.AniCache.saveDetails(_mid, {artwork: window._lastArtworkData}).catch(()=>{});
+        window.AniCache.saveDetails(_mid, {artwork: window._lastArtworkData}, { permanent: currentState.isPermanent }).catch(()=>{});
       }
       }
 
@@ -5297,7 +5382,7 @@ function renderSunkenPagination(currentPage, totalPages, container) {
           const ytKey = trailerUrl.replace(/.*embed[/]/, '').replace(/[?].*/, '');
           window.AniCache.saveDetails(_mid, {
             trailers: [{ key: ytKey, url: trailerUrl, name: currentState.title + ' - Trailer', site: 'YouTube' }]
-          }).catch(()=>{});
+          }, { permanent: currentState.isPermanent }).catch(()=>{});
         }
       }
 
@@ -5403,7 +5488,7 @@ function renderSunkenPagination(currentPage, totalPages, container) {
       // AniCache: save themes to show_details
       if (window.AniCache && window._lastThemesData && window._lastThemesData.length) {
         const _mid = `jikan-${currentState.id}`;
-        window.AniCache.saveDetails(_mid, {themes: window._lastThemesData}).catch(()=>{});
+        window.AniCache.saveDetails(_mid, {themes: window._lastThemesData}, { permanent: currentState.isPermanent }).catch(()=>{});
       }
 
       async function loadStatisticsData() {

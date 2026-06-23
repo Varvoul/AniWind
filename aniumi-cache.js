@@ -1,5 +1,5 @@
 /**
- * aniumi-cache.js  v3.2
+ * aniumi-cache.js  v4.0
  * Global Supabase media cache — aniumi.vercel.app
  *
  * Tables used:
@@ -7,22 +7,29 @@
  *   shows        — one row per unique show (main info page data)
  *   show_details — cast/artwork/trailers/themes per show
  *
- * TTL (global — set by FIRST visitor, all others read from cache):
+ * CACHING STRATEGY (v4.0):
+ *   Finished Airing / Ended / Released  →  PERMANENT cache (year 2099 expiry)
+ *   Currently Airing / Returning Series →  8h TTL (refreshes until status changes)
+ *   All other (unknown status)         →  8h TTL
+ *
+ * TTL for non-permanent entries:
  *   2h  : main body sections (hero, top_airing, new_releases, etc.)
- *   8h  : show_info (info page main body + full API response)
- *   8h  : sidebar sections (hidden_gem, top_ranking, most_favourite etc.)
+ *   8h  : info page sections (show_info, sidebar, water_temple, etc.)
  *   24h : schedule
  *
- * v3.1: Replaced broken RPC calls with direct REST API calls to media_cache table.
- * v3.2: Increased show_info TTL to 8h, findShow freshness to 8h, req timeout to 15s.
- *   Awaiting full API data saves instead of fire-and-forget.
- *   Added background refresh when full data not in media_cache.
+ * v3.1: Replaced broken RPC calls with direct REST API calls.
+ * v3.2: Increased show_info TTL to 8h, req timeout to 15s.
+ * v4.0: Permanent cache for finished airing anime. 8h for currently airing.
+ *   Added permanent flag to set/save/saveDetails. Retry-safe saves.
  */
 (function () {
   'use strict';
 
   const URL  = 'https://uhjucwqiadymmogmwkxc.supabase.co';
   const KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVoanVjd3FpYWR5bW1vZ213a3hjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1MTY0NDcsImV4cCI6MjA5NzA5MjQ0N30.nJZQftmkbu0Ix-4lgtfzJcm_qIkI32e3SykF49XPrlg';
+
+  // Far-future expiry for permanent cache entries
+  const PERMANENT_EXPIRY = '2099-12-31T23:59:59.000Z';
 
   const TTL = {
     hero_slider:2, top_airing:2, new_releases:2, new_on_aniumi:2,
@@ -60,6 +67,22 @@
   }
 
   // ══════════════════════════════════════════════════════════════
+  // STATUS HELPERS
+  // ══════════════════════════════════════════════════════════════
+
+  /**
+   * isPermanentStatus(status) → boolean
+   * Returns true if the anime/show status means data won't change.
+   * Jikan: "Finished Airing"
+   * TMDB:  "Ended", "Released"
+   */
+  function isPermanentStatus(status) {
+    if (!status) return false;
+    const s = String(status).trim();
+    return s === 'Finished Airing' || s === 'Ended' || s === 'Released';
+  }
+
+  // ══════════════════════════════════════════════════════════════
   // CORE CACHE  (media_cache table — direct REST, no RPC)
   // ══════════════════════════════════════════════════════════════
 
@@ -70,25 +93,20 @@
    */
   async function get(keyOrQuery) {
     if (typeof keyOrQuery === 'string') {
-      // Direct REST query — replaces broken rpc('get_media_cache')
       const rows = await req(
         `media_cache?cache_key=eq.${encodeURIComponent(keyOrQuery)}&select=data,expires_at&limit=1`
       );
       if (!Array.isArray(rows) || !rows[0]) return null;
-      // Check expiry
+      // Check expiry (permanent entries have 2099 expiry — always fresh)
       if (rows[0].expires_at && new Date(rows[0].expires_at) <= new Date()) return null;
       return rows[0].data;
     }
     // Object query — query shows table for sidebar items
-    // NOTE: shows table uses "type" column (values: "Anime","Movie","TV"), NOT "media_type"
     const { section, media_type, limit = 20 } = keyOrQuery;
-    // Map media_type filter to shows.type values
     const typeMap = { anime: 'Anime', movie: 'Movie', tv: 'TV' };
     const typeValue = media_type ? (typeMap[media_type.toLowerCase()] || media_type) : null;
 
     let query = `shows?select=*&limit=${limit}`;
-
-    // Build order/filter based on section
     switch (section) {
       case 'hidden_gem':
         query += '&rating_score=gt.7.4&popularity=gt.0&order=rating_score.desc.nullslast,popularity.asc';
@@ -103,8 +121,6 @@
       default:
         query += '&order=popularity.desc.nullslast';
     }
-
-    // Filter by type if specified
     if (typeValue) {
       query += `&type=eq.${encodeURIComponent(typeValue)}`;
     }
@@ -115,18 +131,16 @@
   }
 
   /**
-   * set({ cacheKey, pageSource, section, subKey?, showId?,
-   *        malId?, tmdbId?, anikotoId?, mediaType?, data, itemCount? })
-   *
-   * Direct REST upsert into media_cache — replaces broken rpc('upsert_media_cache')
-   * which referenced a non-existent "show_info" column in the "shows" table.
+   * set({ cacheKey, ..., permanent? })
+   *   permanent = true  → expires_at set to 2099 (cache forever)
+   *   permanent = false → uses section TTL (default)
    */
   async function set({ cacheKey, pageSource, section, subKey = null,
     showId = null, malId = null, tmdbId = null, anikotoId = null,
-    mediaType = null, data, itemCount = null }) {
-    const ttl = TTL[section] || 2;
+    mediaType = null, data, itemCount = null, permanent = false }) {
+    const ttl = TTL[section] || 8;
     const now = new Date().toISOString();
-    const expiresAt = new Date(Date.now() + ttl * 3600 * 1000).toISOString();
+    const expiresAt = permanent ? PERMANENT_EXPIRY : new Date(Date.now() + ttl * 3600 * 1000).toISOString();
 
     const row = {
       cache_key:     cacheKey,
@@ -139,7 +153,7 @@
       anikoto_id:    anikotoId || null,
       data:          data,
       item_count:    itemCount ?? (Array.isArray(data) ? data.length : null),
-      interval_hours: ttl,
+      interval_hours: permanent ? 876000 : ttl, // ~100 years vs actual TTL
       media_type:    mediaType,
       fetched_at:    now,
       expires_at:    expiresAt,
@@ -157,7 +171,7 @@
    * getOrFetch — cache-aside pattern with partial-failure safety
    */
   async function getOrFetch({ cacheKey, pageSource, section, subKey,
-    showId, malId, tmdbId, anikotoId, mediaType, fetcher }) {
+    showId, malId, tmdbId, anikotoId, mediaType, permanent, fetcher }) {
     const cached = await get(cacheKey);
     if (cached !== null) {
       console.log(`[AniCache] HIT ${cacheKey}`);
@@ -171,7 +185,7 @@
     }
     if (!fresh) return null;
     set({ cacheKey, pageSource, section, subKey, showId, malId,
-          tmdbId, anikotoId, mediaType, data: fresh }).catch(()=>{});
+          tmdbId, anikotoId, mediaType, data: fresh, permanent }).catch(()=>{});
     return fresh;
   }
 
@@ -181,7 +195,8 @@
 
   /**
    * findShow(mediaId) → show row | null
-   * Returns null if not found OR if fetched_at > 6h ago (stale)
+   * Finished Airing → always return (permanent cache, no freshness check)
+   * Currently Airing / unknown → 8h freshness check
    */
   async function findShow(mediaId) {
     const rows = await req(
@@ -189,7 +204,14 @@
     );
     if (!Array.isArray(rows) || !rows[0]) return null;
     const row = rows[0];
-    // Freshness check — 8h (matches show_info TTL in media_cache)
+
+    // Permanent cache: finished airing anime data never changes
+    if (isPermanentStatus(row.show_status)) {
+      console.log(`[AniCache] findShow permanent: ${mediaId} (${row.show_status})`);
+      return row;
+    }
+
+    // Time-based freshness for airing / unknown status
     if (row.fetched_at) {
       const age = Date.now() - new Date(row.fetched_at).getTime();
       if (age > 8 * 3600 * 1000) return null;
@@ -199,8 +221,6 @@
 
   /**
    * save(rows) — upsert array of show objects into `shows` table.
-   * Each row must have: id or show_id (e.g. "jikan-123")
-   * Handles 409 gracefully (already exists with same PK).
    */
   async function save(rows) {
     if (!rows?.length) return;
@@ -218,7 +238,7 @@
         type:                 r.type     || null,
         title:                r.title    || null,
         eng_title:            r.eng_title || r.title_english || r.title || null,
-        default_title:        r.title    || null,
+        default_title:        r.default_title || r.title || null,
         japanese_title:       r.japanese_title || r.title_japanese || null,
         synopsis:             r.synopsis || null,
         overview:             r.overview || r.synopsis || null,
@@ -259,7 +279,6 @@
 
     if (!normalised.length) return;
 
-    // Upsert one row at a time to handle 409 per-row (not all-or-nothing)
     for (const row of normalised) {
       await req('shows', {
         method: 'POST',
@@ -270,14 +289,14 @@
   }
 
   /**
-   * saveDetails(showId, details)
-   * details: { cast_crew?, artwork?, trailers?, themes?, statistics? }
+   * saveDetails(showId, details, { permanent? })
    * Upserts into show_details table.
+   * permanent → sets fetched_at to far future so getDetails() always returns it.
    */
-  async function saveDetails(showId, details) {
+  async function saveDetails(showId, details, { permanent = false } = {}) {
     if (!showId || !details) return;
-    const now = new Date().toISOString();
-    const patch = { show_id: showId, updated_at: now, fetched_at: now };
+    const now = permanent ? PERMANENT_EXPIRY : new Date().toISOString();
+    const patch = { show_id: showId, updated_at: new Date().toISOString(), fetched_at: now };
     if (details.cast_crew  !== undefined) patch.cast_crew  = details.cast_crew;
     if (details.artwork    !== undefined) patch.artwork    = details.artwork;
     if (details.trailers   !== undefined) patch.trailers   = details.trailers;
@@ -291,16 +310,17 @@
   }
 
   /**
-   * getDetails(showId) → show_details row | null
-   * renderTabs() uses this to skip API calls for cast/artwork/trailers/themes.
+   * getDetails(showId, { permanent? }) → show_details row | null
+   * permanent=true → always return if row exists (skip freshness check)
    */
-  async function getDetails(showId) {
+  async function getDetails(showId, { permanent = false } = {}) {
     const rows = await req(
       `show_details?show_id=eq.${encodeURIComponent(showId)}&select=*&limit=1`
     );
     if (!Array.isArray(rows) || !rows[0]) return null;
     const row = rows[0];
-    // Freshness: 8h for details
+    if (permanent) return row; // Finished airing — always fresh
+    // 8h freshness for airing shows
     if (row.fetched_at) {
       const age = Date.now() - new Date(row.fetched_at).getTime();
       if (age > 8 * 3600 * 1000) return null;
@@ -309,13 +329,9 @@
   }
 
   // ══════════════════════════════════════════════════════════════
-  // SECTION STAMPS  (used by sidebar freshness checks)
+  // SECTION STAMPS
   // ══════════════════════════════════════════════════════════════
 
-  /**
-   * isSectionFresh(cacheKey) → boolean
-   * True if media_cache has a non-expired row for this key.
-   */
   async function isSectionFresh(cacheKey) {
     const rows = await req(
       `media_cache?cache_key=eq.${encodeURIComponent(cacheKey)}&select=expires_at&limit=1`
@@ -324,26 +340,17 @@
     return new Date(rows[0].expires_at) > new Date();
   }
 
-  /**
-   * stampSection(cacheKey, itemCount)
-   * Writes a lightweight freshness stamp into media_cache.
-   */
-  async function stampSection(cacheKey, itemCount) {
+  async function stampSection(cacheKey, itemCount, { permanent = false } = {}) {
     const parts   = cacheKey.split(':');
     const section = parts[1] || cacheKey.split('_').slice(0,-1).join('_') || 'misc';
     const page    = parts[0] || 'info';
-    const ttl     = TTL[section] || 8;
     return set({
       cacheKey, pageSource: page, section,
       data: { stamped: true, count: itemCount },
-      itemCount,
+      itemCount, permanent,
     });
   }
 
-  /**
-   * saveSchedule(scheduleData)
-   * { monday:[...], tuesday:[...], ... }
-   */
   async function saveSchedule(scheduleData) {
     return set({
       cacheKey: 'index:schedule', pageSource: 'index',
@@ -359,8 +366,9 @@
     get, set, getOrFetch,
     findShow, save, saveDetails, getDetails,
     isSectionFresh, stampSection, saveSchedule,
-    TTL,
+    isPermanentStatus,
+    TTL, PERMANENT_EXPIRY,
   };
 
-  console.log('[AniCache] v3.2 ready — Supabase cache active (direct REST, no RPC)');
+  console.log('[AniCache] v4.0 ready — permanent cache for finished airing, 8h for airing');
 })();
