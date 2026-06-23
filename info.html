@@ -4632,11 +4632,17 @@ img { max-width: 100%; height: auto; display: block; }
       async function loadWaterTemple() {
         const _wtKey = `info:water_temple:${currentState.id}`;
         if (window.AniCache) {
-          const cached = await window.AniCache.get(_wtKey);
-          if (cached && cached.length > 0) {
-            const el = document.getElementById('waterTempleGrid');
-            if (el) el.innerHTML = cached.map(s => renderAnimeRecCard ? renderAnimeRecCard(s) : '').join('');
-            return;
+          try {
+            const cached = await window.AniCache.get(_wtKey);
+            if (cached && cached.length > 0) {
+              const sec = document.getElementById('waterTempleSection');
+              const el = document.getElementById('waterTempleGrid');
+              if (sec) sec.style.display = 'block';
+              if (el) el.innerHTML = cached.map(s => renderAnimeRecCard ? renderAnimeRecCard(s) : '').join('');
+              return;
+            }
+          } catch (e) {
+            console.warn('[AniCache] WaterTemple cache error, falling back to live:', e.message);
           }
         }
         const section = document.getElementById('waterTempleSection');
