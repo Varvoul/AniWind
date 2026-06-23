@@ -2882,15 +2882,21 @@ img { max-width: 100%; height: auto; display: block; }
 
         // 1. Check full API data in media_cache
         const fullData = await window.AniCache.get(`info:full_data:${_mid}`).catch(()=>null);
-        if (!fullData || !fullData.title) missing.push('full_data');
+        if (!fullData || !(fullData.title || fullData.name)) missing.push('full_data');
 
-        // 2. Check show_details (at least cast or trailer)
-        const details = await window.AniCache.getDetails(_mid, { permanent: perm }).catch(()=>null);
-        if (!details || (!details.cast_crew && !details.trailers)) missing.push('show_details');
+        // 2. Check show_details — skip on attempt 0 because renderTabs()
+        //    fires async tab loaders that may still be saving to DB.
+        //    Attempt 1+ has a 10s+ delay giving saves time to complete.
+        if (attempt > 0) {
+          const details = await window.AniCache.getDetails(_mid, { permanent: perm }).catch(()=>null);
+          if (!details) missing.push('show_details');
+        }
 
-        // 3. Check water temple
-        const wt = await window.AniCache.get(`info:water_temple:${_id}`).catch(()=>null);
-        if (!wt || !wt.length) missing.push('water_temple');
+        // 3. Check water temple (ANIME ONLY — TMDB pages don't have this section)
+        if (_src === 'jikan') {
+          const wt = await window.AniCache.get(`info:water_temple:${_id}`).catch(()=>null);
+          if (!wt || !wt.length) missing.push('water_temple');
+        }
 
         // 4. Check recommended_for_you (TMDB only)
         if (_src === 'tmdb') {
@@ -2914,9 +2920,10 @@ img { max-width: 100%; height: auto; display: block; }
 
           // Re-render to trigger tab/section loaders which will save to DB
           if (missing.includes('show_details')) {
-            // Re-render tabs which will fetch and save missing cast/artwork/trailer/themes
             loadCastData();
+            loadArtworkData();
             loadTrailerData();
+            loadThemesData();
           }
           if (missing.includes('water_temple')) {
             await loadWaterTemple();
@@ -3130,8 +3137,10 @@ img { max-width: 100%; height: auto; display: block; }
                 return; // Don't fall through to live API — background refresh handles it
               }
 
-              // GLOBAL cache: skip live API if this show was recently fetched by any user
-              if (await window.AniCache.isSectionFresh(`info_${_mediaId}`)) return;
+              // Full API data was found in cache and rendered above — done.
+              // No need to re-fetch from live API regardless of stamp freshness.
+              console.log('[AniCache] info: served from full cache', _mediaId);
+              return;
             }
           }
 
@@ -3198,7 +3207,7 @@ img { max-width: 100%; height: auto; display: block; }
         if (window.AniCache) {
           const sid = `jikan-${currentState.id}`;
           const saveResult = await window.AniCache.set({ cacheKey:`info:full_data:${sid}`, pageSource:'info',
-            section:'info_full_data', showId:sid,
+            section:'info_full_data', showId:null,
             malId:currentState.id, data,
             permanent: currentState.isPermanent,
           });
@@ -3268,7 +3277,7 @@ img { max-width: 100%; height: auto; display: block; }
             const sid = `tmdb-${endpoint}-${data.id}`;
             const trimmedData = window.AniCache.trimTMDBData(data);
             const saveResult = await window.AniCache.set({ cacheKey:`info:full_data:${sid}`, pageSource:'info',
-              section:'info_full_data', showId:sid,
+              section:'info_full_data', showId:null,
               tmdbId:data.id, data: trimmedData,
               permanent: currentState.isPermanent,
             });
@@ -3727,7 +3736,7 @@ img { max-width: 100%; height: auto; display: block; }
       }
 
       async function renderTabs() {
-        // Try show_details table first for tabs (1-hour TTL)
+        // Try show_details table first for tabs
         if (window.AniCache) {
           const _src  = currentState.source;
           const _id   = currentState.id;
@@ -3741,7 +3750,7 @@ img { max-width: 100%; height: auto; display: block; }
             if (dbDet.trailers)         _renderTrailersFromDB(dbDet.trailers);
             if (dbDet.themes)           _renderThemesFromDB(dbDet.themes);
             loadStatisticsData();
-            // Still load missing tabs from API if any are null
+            // Load only MISSING tabs from API — these will also save to DB
             if (!dbDet.cast_crew)   loadCastData();
             if (!dbDet.artwork)     loadArtworkData();
             if (!dbDet.trailers)    loadTrailerData();
