@@ -487,21 +487,38 @@ img { max-width: 100%; height: auto; display: block; }
   border-radius: 8px;
   font-size: 0.85rem;
   color: var(--text-secondary);
-  transition: background 0.15s;
+  transition: background 0.18s ease, color 0.18s ease, transform 0.12s ease;
   cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
-.dropdown-item:hover {
-  background: rgba(255,255,255,0.08);
+.dropdown-item:hover,
+.dropdown-item:active {
+  background: rgba(56, 130, 220, 0.15);
   color: var(--text-primary);
+  transform: translateX(2px);
 }
 .dropdown-item.selected {
   background: rgba(43, 108, 176, 0.2);
   color: #68d391;
 }
-.dropdown-item.selected .bk-check-icon {
-  margin-left: auto;
+.dropdown-item.selected:hover {
+  background: rgba(43, 108, 176, 0.28);
+}
+.dropdown-item .bk-check-icon {
   color: #48bb78;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
+  flex-shrink: 0;
+}
+.dropdown-item[data-status="remove"] {
+  border-top: 1px solid var(--border-subtle);
+  margin-top: 4px;
+  border-radius: 8px;
+  color: #fc8181;
+}
+.dropdown-item[data-status="remove"]:hover {
+  background: rgba(229, 62, 62, 0.15);
+  color: #feb2b2;
 }
 .status-icon { flex-shrink: 0; }
 
@@ -2618,7 +2635,8 @@ img { max-width: 100%; height: auto; display: block; }
         source: null, id: null, type: null, title: '',
         data: null, currentUser: null,
         selectedStatuses: [], dropdownTimer: null,
-        bookmarkRowId: null, allAnimeData: null
+        bookmarkRowId: null, allAnimeData: null,
+        isPermanent: false  // true = Finished Airing → cache forever
       };
 
       // ─── Skeleton helpers ──────────────────────────────────────────────────
@@ -2850,7 +2868,93 @@ img { max-width: 100%; height: auto; display: block; }
           showError('Invalid show URL format');
         }
         // Page fully loaded — user can now scroll freely
+
+        // ── Background retry: ensure all data is cached ──────
+        // If the first user had slow network, some sections may be missing.
+        // This retries with exponential backoff until all data is cached.
+        if (currentState.source && currentState.id && window.AniCache) {
+          setTimeout(() => ensureCompleteCache(0), 8000);
+        }
       });
+
+      // ═══════════════════════════════════════════════════════════════
+      // BACKGROUND RETRY — ensure ALL data is cached for future visitors
+      // Runs after page load, retries missing sections with exponential backoff
+      // ═══════════════════════════════════════════════════════════════
+      async function ensureCompleteCache(attempt) {
+        if (attempt >= 4) {
+          console.log('[Cache] Retry complete — gave up after 4 attempts');
+          return;
+        }
+        const delays = [0, 10000, 30000, 90000]; // 0s, 10s, 30s, 90s
+        const delay = delays[attempt] || 90000;
+        if (delay > 0) await new Promise(r => setTimeout(r, delay));
+
+        const _src = currentState.source;
+        const _id  = currentState.id;
+        const _type = currentState.type;
+        const _mid = _src === 'jikan' ? `jikan-${_id}` : `tmdb-${_type}-${_id}`;
+        const perm = currentState.isPermanent;
+        let missing = [];
+
+        // 1. Check full API data in media_cache
+        const fullData = await window.AniCache.get(`info:full_data:${_mid}`).catch(()=>null);
+        if (!fullData || !(fullData.title || fullData.name)) missing.push('full_data');
+
+        // 2. Check show_details — skip on attempt 0 because renderTabs()
+        //    fires async tab loaders that may still be saving to DB.
+        //    Attempt 1+ has a 10s+ delay giving saves time to complete.
+        if (attempt > 0) {
+          const details = await window.AniCache.getDetails(_mid, { permanent: perm }).catch(()=>null);
+          if (!details) missing.push('show_details');
+        }
+
+        // 3. Check water temple (ANIME ONLY — TMDB pages don't have this section)
+        if (_src === 'jikan') {
+          const wt = await window.AniCache.get(`info:water_temple:${_id}`).catch(()=>null);
+          if (!wt || !wt.length) missing.push('water_temple');
+        }
+
+        // 4. Check recommended_for_you (TMDB only)
+        if (_src === 'tmdb') {
+          const rfy = await window.AniCache.get(`info:recommended_for_you:${_id}`).catch(()=>null);
+          if (!rfy || !rfy.length) missing.push('recommended_for_you');
+        }
+
+        if (missing.length === 0) {
+          console.log('[Cache] All data verified cached ✓');
+          return;
+        }
+
+        console.log(`[Cache] Retry ${attempt + 1}: missing [${missing.join(', ')}]`);
+
+        try {
+          // Re-fetch missing full data if needed
+          if (missing.includes('full_data')) {
+            if (_src === 'jikan') await fetchJikanData();
+            else if (_src === 'tmdb') await fetchTMDBData();
+          }
+
+          // Re-render to trigger tab/section loaders which will save to DB
+          if (missing.includes('show_details')) {
+            loadCastData();
+            loadArtworkData();
+            loadTrailerData();
+            loadThemesData();
+          }
+          if (missing.includes('water_temple')) {
+            await loadWaterTemple();
+          }
+          if (missing.includes('recommended_for_you')) {
+            await loadRecommendForYou();
+          }
+        } catch (e) {
+          console.warn('[Cache] Retry error:', e.message);
+        }
+
+        // Schedule next retry
+        setTimeout(() => ensureCompleteCache(attempt + 1), 5000);
+      }
 
       function parseUrl() {
         const path = window.location.pathname;
@@ -2925,13 +3029,16 @@ img { max-width: 100%; height: auto; display: block; }
 
               currentState.data = currentState.data || {};
 
+              // Set isPermanent from DB row status (for all section cache saves)
+              currentState.isPermanent = !!(window.AniCache && window.AniCache.isPermanentStatus(dbShow.show_status));
+
               if (fullData && typeof fullData === 'object' && !Array.isArray(fullData)) {
                 // We have the full API response cached — use it directly for complete rendering
                 console.log('[AniCache] info: full API data found in cache', _mediaId);
                 currentState.data = { ...currentState.data, ...fullData };
-                // Ensure basic fields are set from DB row (in case cache is older)
-                currentState.data.title = currentState.data.title_english || currentState.data.title || dbShow.eng_title || dbShow.default_title;
-                currentState.title = currentState.data.title;
+                // Set page display title to English (for breadcrumb, tab, share, etc.)
+                // Do NOT overwrite data.title — for anime it holds the romaji title needed by renderDetails()
+                currentState.title = currentState.data.title_english || currentState.data.title || dbShow.eng_title || dbShow.default_title;
               } else {
                 // Only sparse shows table data — hydrate what we can
                 console.log('[AniCache] info: only sparse DB data, will background-refresh', _mediaId);
@@ -3038,7 +3145,7 @@ img { max-width: 100%; height: auto; display: block; }
                       };
                       await window.AniCache.save([saveRow2]);
                     }
-                    await window.AniCache.stampSection(`info_${_mediaId}`, 1);
+                    await window.AniCache.stampSection(`info_${_mediaId}`, 1, { permanent: currentState.isPermanent });
                     console.log('[AniCache] info: background refresh complete', _mediaId);
                   } catch (e) {
                     console.warn('[AniCache] info: background refresh failed:', e.message);
@@ -3047,8 +3154,10 @@ img { max-width: 100%; height: auto; display: block; }
                 return; // Don't fall through to live API — background refresh handles it
               }
 
-              // GLOBAL cache: skip live API if this show was recently fetched by any user
-              if (await window.AniCache.isSectionFresh(`info_${_mediaId}`)) return;
+              // Full API data was found in cache and rendered above — done.
+              // No need to re-fetch from live API regardless of stamp freshness.
+              console.log('[AniCache] info: served from full cache', _mediaId);
+              return;
             }
           }
 
@@ -3094,7 +3203,7 @@ img { max-width: 100%; height: auto; display: block; }
               rank:           d.rank || null,
             };
             await window.AniCache.save([saveRow]);
-            await window.AniCache.stampSection(`info_${_mediaId}`, 1);
+            await window.AniCache.stampSection(`info_${_mediaId}`, 1, { permanent: currentState.isPermanent });
           }
 
         } catch (error) {
@@ -3109,14 +3218,17 @@ img { max-width: 100%; height: auto; display: block; }
         const { data } = await res.json();
         currentState.data = data;
         currentState.title = data.title_english || data.title || 'Unknown';
-        // Cache full Jikan response (6h TTL) so DB-loaded visitors get relations, broadcast, themes, etc.
+        // Determine permanent cache based on airing status
+        currentState.isPermanent = !!(window.AniCache && window.AniCache.isPermanentStatus(data.status));
+        // Cache full Jikan response
         if (window.AniCache) {
           const sid = `jikan-${currentState.id}`;
           const saveResult = await window.AniCache.set({ cacheKey:`info:full_data:${sid}`, pageSource:'info',
-            section:'info_full_data', showId:sid,
+            section:'info_full_data', showId:null,
             malId:currentState.id, data,
+            permanent: currentState.isPermanent,
           });
-          if (!saveResult) console.warn('[AniCache] Failed to save full Jikan data to media_cache for', sid);
+          if (!saveResult) console.warn('[AniCache] Failed to save full Jikan data for', sid);
         }
       }
 
@@ -3175,14 +3287,18 @@ img { max-width: 100%; height: auto; display: block; }
 
           currentState.data  = data;
           currentState.title = data.title || data.name || 'Unknown';
-          // Cache the full show info JSON globally (6h TTL) — await to ensure it's saved
+          // Determine permanent cache based on status (Ended/Released = permanent)
+          currentState.isPermanent = !!(window.AniCache && window.AniCache.isPermanentStatus(data.status));
+          // Cache the full show info JSON — trim first to reduce payload size
           if (window.AniCache && data.id) {
             const sid = `tmdb-${endpoint}-${data.id}`;
+            const trimmedData = window.AniCache.trimTMDBData(data);
             const saveResult = await window.AniCache.set({ cacheKey:`info:full_data:${sid}`, pageSource:'info',
-              section:'info_full_data', showId:sid,
-              tmdbId:data.id, data,
+              section:'info_full_data', showId:null,
+              tmdbId:data.id, data: trimmedData,
+              permanent: currentState.isPermanent,
             });
-            if (!saveResult) console.warn('[AniCache] Failed to save full TMDB data to media_cache for', sid);
+            if (!saveResult) console.warn('[AniCache] Failed to save full TMDB data for', sid);
           }
         } catch (error) {
           console.error('[TMDB] all tiers failed:', error.message);
@@ -3637,13 +3753,13 @@ img { max-width: 100%; height: auto; display: block; }
       }
 
       async function renderTabs() {
-        // Try show_details table first for tabs (1-hour TTL)
+        // Try show_details table first for tabs
         if (window.AniCache) {
           const _src  = currentState.source;
           const _id   = currentState.id;
           const _type = currentState.type;
           const _mid  = _src === 'jikan' ? `jikan-${_id}` : `tmdb-${_type}-${_id}`;
-          const dbDet = await window.AniCache.getDetails(_mid).catch(()=>null);
+          const dbDet = await window.AniCache.getDetails(_mid, { permanent: currentState.isPermanent }).catch(()=>null);
           if (dbDet) {
             console.log('[AniCache] show_details loaded from DB for', _mid);
             if (dbDet.cast_crew)        _renderCastFromDB(dbDet.cast_crew);
@@ -3651,7 +3767,7 @@ img { max-width: 100%; height: auto; display: block; }
             if (dbDet.trailers)         _renderTrailersFromDB(dbDet.trailers);
             if (dbDet.themes)           _renderThemesFromDB(dbDet.themes);
             loadStatisticsData();
-            // Still load missing tabs from API if any are null
+            // Load only MISSING tabs from API — these will also save to DB
             if (!dbDet.cast_crew)   loadCastData();
             if (!dbDet.artwork)     loadArtworkData();
             if (!dbDet.trailers)    loadTrailerData();
@@ -3730,13 +3846,18 @@ img { max-width: 100%; height: auto; display: block; }
         
         const dropdownBtn = document.getElementById('addToListBtn');
         const dropdown = document.getElementById('bookmarkDropdown');
+        let _noSelectTimer = null;
 
         function closeDropdown(showNotification) {
           clearTimeout(currentState.dropdownTimer);
+          clearTimeout(_noSelectTimer);
           currentState.dropdownTimer = null;
+          _noSelectTimer = null;
           dropdown.classList.remove('show');
           dropdownBtn.classList.remove('open');
           dropdownBtn.setAttribute('aria-expanded', 'false');
+          // Instant UI update
+          updateBookmarkUI();
           if (showNotification) {
             showBookmarkToast(currentState.selectedStatuses);
           }
@@ -3744,10 +3865,10 @@ img { max-width: 100%; height: auto; display: block; }
 
         function startAutoCloseTimer() {
           clearTimeout(currentState.dropdownTimer);
-          // After selecting the 1st status, give 3s to pick a 2nd before auto-closing
+          // After selecting the 1st status, give 4s to pick a 2nd before auto-closing
           currentState.dropdownTimer = setTimeout(() => {
             closeDropdown(true);
-          }, 3000);
+          }, 4000);
         }
 
         dropdownBtn.addEventListener('click', (e) => {
@@ -3760,6 +3881,11 @@ img { max-width: 100%; height: auto; display: block; }
             dropdownBtn.setAttribute('aria-expanded', 'true');
             // If already has 1 status selected, start the timer right away
             if (currentState.selectedStatuses.length === 1) startAutoCloseTimer();
+            else if (currentState.selectedStatuses.length === 0) {
+              // No status selected — auto-close after 8s if user doesn't pick anything
+              clearTimeout(_noSelectTimer);
+              _noSelectTimer = setTimeout(() => closeDropdown(false), 8000);
+            }
           } else {
             closeDropdown(currentState.selectedStatuses.length > 0);
           }
@@ -3779,12 +3905,17 @@ img { max-width: 100%; height: auto; display: block; }
 
             if (status === 'remove') {
               clearTimeout(currentState.dropdownTimer);
+              clearTimeout(_noSelectTimer);
               await removeBookmark();
               dropdown.classList.remove('show');
               dropdownBtn.classList.remove('open');
               dropdownBtn.setAttribute('aria-expanded', 'false');
               return;
             }
+
+            // Clear the no-selection timer once user interacts
+            clearTimeout(_noSelectTimer);
+            _noSelectTimer = null;
 
             const idx = currentState.selectedStatuses.indexOf(status);
             if (idx > -1) {
@@ -3798,6 +3929,7 @@ img { max-width: 100%; height: auto; display: block; }
               return;
             }
 
+            // Instant UI update
             updateBookmarkUI();
             await saveBookmarks();
 
@@ -3805,10 +3937,10 @@ img { max-width: 100%; height: auto; display: block; }
               // Got both picks — close immediately with toast
               closeDropdown(true);
             } else if (currentState.selectedStatuses.length === 1) {
-              // 1 selected — start 3-second timer
+              // 1 selected — start 4-second timer for 2nd pick
               startAutoCloseTimer();
             } else {
-              // Deselected all — restart timer or keep open
+              // Deselected all — keep open, no timer
               clearTimeout(currentState.dropdownTimer);
               currentState.dropdownTimer = null;
             }
@@ -3939,7 +4071,6 @@ img { max-width: 100%; height: auto; display: block; }
       // BOOKMARK SYSTEM — Supabase user_bookmarks
       // ═══════════════════════════════════════════
 
-      // Status label map (for display)
       const STATUS_LABELS = {
         'planning':   'Planning to Watch',
         'watching':   'Watching',
@@ -3949,91 +4080,93 @@ img { max-width: 100%; height: auto; display: block; }
         'favourite':  'My Favourite'
       };
 
-      // Columns confirmed present from schema upgrade SQL.
-      // If a column doesn't exist yet, Supabase returns PGRST204 "column not found".
-      // We try the full payload first; if it fails we fall back to core-only columns.
-      function buildBookmarkPayloadCore(statuses) {
-        const show_id_int = parseInt(currentState.id) || null;
-        const isAnime     = currentState.source === 'jikan';
-        const d           = currentState.data;
-        const mal_id      = isAnime  ? (parseInt(d.mal_id  || currentState.id) || null) : null;
-        const tmdb_id     = !isAnime ? (parseInt(currentState.id)              || null) : null;
-        const media_id    = `${currentState.source}-${currentState.id}`;
-        const media_type  = currentState.type;
+      // ── Helpers ──────────────────────────────────────────
+      function _formatAiredDate(d, isAnime) {
+        if (isAnime && d.aired) {
+          try {
+            const opts = { month: 'short', day: 'numeric', year: 'numeric' };
+            const from = d.aired.from ? new Date(d.aired.from).toLocaleDateString('en-US', opts) : '';
+            const to   = d.aired.to   ? new Date(d.aired.to).toLocaleDateString('en-US', opts) : 'Ongoing';
+            return from ? `${from} to ${to}` : (d.aired.string || '');
+          } catch(e) { return d.aired?.string || ''; }
+        }
+        return d.release_date || d.first_air_date || '';
+      }
 
-        // Get username from shared.js user profile if available
-        const username = currentState.currentUser?.user_metadata?.username
-          || currentState.currentUser?.email?.split('@')[0]
-          || null;
-
+      // ── Payload builders (exact column names from user_bookmarks DDL) ──
+      function _buildMinimalPayload(statuses) {
         return {
-          user_id:          currentState.currentUser.id,
-          show_id:          show_id_int,
-          media_id,
-          media_type,
-          bookmark_status:  statuses.join(','),
-          mal_id,
-          tmdb_id,
-          username,
-          updated_at:       new Date().toISOString()
+          user_id:         currentState.currentUser.id,
+          show_id:         parseInt(currentState.id) || 0,
+          media_id:        `${currentState.source}-${currentState.id}`,
+          media_type:      currentState.source === 'jikan' ? 'anime' : currentState.type,
+          bookmark_status: statuses.join(','),
+          updated_at:      new Date().toISOString()
         };
       }
 
       function buildBookmarkPayloadFull(statuses) {
-        const core    = buildBookmarkPayloadCore(statuses);
         const d       = currentState.data;
         const isAnime = currentState.source === 'jikan';
-
-        const mal_id  = core.mal_id;
-        const tmdb_id = core.tmdb_id;
+        const mal_id  = isAnime  ? (parseInt(d.mal_id  || currentState.id) || null) : null;
+        const tmdb_id = !isAnime ? (parseInt(currentState.id)              || null) : null;
+        const username = currentState.currentUser?.user_metadata?.username
+          || currentState.currentUser?.email?.split('@')[0] || null;
 
         return {
-          ...core,
-
-          // Titles
-          eng_title:      isAnime ? (d.title_english || d.title || '') : (d.title || d.name || ''),
-          default_title:  d.title || d.name || '',
-          original_title: isAnime ? '' : (d.original_title || d.original_name || ''),
-          romanji_title:  isAnime ? (d.title || '') : '',
-          japanese_title: isAnime ? (d.title_japanese || '') : '',
-          synonyms:       isAnime ? (d.title_synonyms || []).join(', ') : '',
-
-          // Details
-          country_name:        isAnime ? 'Japan' : (d.origin_country?.[0] || d.production_countries?.[0]?.iso_3166_1 || ''),
-          genres:              (d.genres || []).map(g => g.name).join(', '),
-          aired_date:          isAnime ? (d.aired?.string || '') : (d.release_date || d.first_air_date || ''),
-          broadcast_day_time:  isAnime ? (d.broadcast?.string || '') : '',
-          source:              isAnime ? (d.source || '') : '',
-          rank:                isAnime ? (parseInt(d.rank)       || null) : null,
-          popularity:          isAnime ? (parseInt(d.popularity) || null) : (Math.round(d.popularity) || null),
-          studio_name:         isAnime ? (d.studios    || []).map(s => s.name).join(', ') : (d.production_companies || []).map(s => s.name).join(', '),
-          producers_name:      isAnime ? (d.producers  || []).map(p => p.name).join(', ') : '',
-          total_epi_num:       isAnime ? (parseInt(d.episodes) || null) : (parseInt(d.number_of_episodes) || null),
-          dub_epi_num:         parseInt(currentState.allAnimeData?.episodes_dub) || null,
-          sub_epi_num:         parseInt(currentState.allAnimeData?.episodes_sub) || null,
-          format:              isAnime ? (d.type || '') : (currentState.type || ''),
-          synopsis_context:    isAnime ? (d.synopsis || '') : '',
-          overview_context:    !isAnime ? (d.overview || '') : '',
-          mal_score:           isAnime  ? (parseFloat(d.score)        || null) : null,
-          tmdb_average_score:  !isAnime ? (parseFloat(d.vote_average) || null) : null,
-          content_rating:      isAnime  ? (d.rating ? d.rating.split(' - ')[0] : '') : '',
-          anime_duration_time: isAnime  ? (d.duration || '') : '',
-          tmdb_movie_tv_runtime: !isAnime ? (parseInt(d.runtime || d.episode_run_time?.[0]) || null) : null,
-          show_poster_link:    isAnime  ? (d.images?.jpg?.image_url || '') : (d.poster_path ? `https://image.tmdb.org/t/p/w500${d.poster_path}` : ''),
-          show_backdrop_landscape_image_link: isAnime ? (d.images?.jpg?.large_image_url || '') : (d.backdrop_path ? `https://image.tmdb.org/t/p/original${d.backdrop_path}` : ''),
-          external_link_mal:   isAnime  ? `https://myanimelist.net/anime/${mal_id}` : '',
-          external_link_tmdb:  !isAnime ? `https://www.themoviedb.org/${currentState.type}/${tmdb_id}` : ''
+          user_id:                               currentState.currentUser.id,
+          show_id:                               parseInt(currentState.id) || 0,
+          media_id:                              `${currentState.source}-${currentState.id}`,
+          media_type:                            isAnime ? 'anime' : currentState.type,
+          bookmark_status:                       statuses.join(','),
+          username:                              username,
+          mal_id:                                mal_id,
+          tmdb_id:                               tmdb_id,
+          eng_title:                             isAnime ? (d.title_english || d.title || '') : (d.title || d.name || ''),
+          default_title:                         isAnime ? (d.title || '') : (d.title || d.name || ''),
+          original_title:                        isAnime ? '' : (d.original_title || d.original_name || ''),
+          romanji_title:                         isAnime ? (d.title || '') : '',
+          japanese_title:                        isAnime ? (d.title_japanese || '') : '',
+          synonyms:                              isAnime ? (d.title_synonyms || []).join(', ') : '',
+          country_name:                          isAnime ? 'Japan' : (d.origin_country?.[0] || d.production_countries?.[0]?.iso_3166_1 || ''),
+          genres:                                (d.genres || []).map(g => g.name).join(', '),
+          aired_date:                            _formatAiredDate(d, isAnime),
+          broadcast_day_time:                    isAnime ? (d.broadcast?.string || '') : '',
+          source:                                isAnime ? (d.source || '') : '',
+          rank:                                  isAnime ? (parseInt(d.rank) || null) : null,
+          popularity:                            isAnime ? (parseInt(d.popularity) || null) : (Math.round(d.popularity) || null),
+          studio_name:                           isAnime ? (d.studios || []).map(s => s.name).join(', ') : (d.production_companies || []).map(s => s.name).join(', '),
+          producers_name:                        isAnime ? (d.producers || []).map(p => p.name).join(', ') : '',
+          total_epi_num:                         isAnime ? (parseInt(d.episodes) || null) : (parseInt(d.number_of_episodes) || null),
+          dub_epi_num:                           parseInt(currentState.allAnimeData?.episodes_dub) || null,
+          sub_epi_num:                           parseInt(currentState.allAnimeData?.episodes_sub) || null,
+          format:                                isAnime ? (d.type || '') : (currentState.type || ''),
+          synopsis_context:                      isAnime ? (d.synopsis || '') : '',
+          overview_context:                      !isAnime ? (d.overview || '') : '',
+          mal_score:                             isAnime  ? (parseFloat(d.score)        || null) : null,
+          tmdb_average_score:                    !isAnime ? (parseFloat(d.vote_average) || null) : null,
+          content_rating:                        isAnime  ? (d.rating ? d.rating.split(' - ')[0] : '') : '',
+          anime_duration_time:                   isAnime  ? (d.duration || '') : '',
+          tmdb_movie_tv_runtime:                 !isAnime ? (parseInt(d.runtime || d.episode_run_time?.[0]) || null) : null,
+          show_poster_link:                      isAnime  ? (d.images?.jpg?.image_url || '') : (d.poster_path ? `https://image.tmdb.org/t/p/w500${d.poster_path}` : ''),
+          show_backdrop_landscape_image_link:    isAnime ? (d.images?.jpg?.large_image_url || '') : (d.backdrop_path ? `https://image.tmdb.org/t/p/original${d.backdrop_path}` : ''),
+          external_link_mal:                     isAnime  ? `https://myanimelist.net/anime/${mal_id}` : '',
+          external_link_tmdb:                    !isAnime ? `https://www.themoviedb.org/${currentState.type}/${tmdb_id}` : '',
+          updated_at:                            new Date().toISOString()
         };
       }
 
+      // ── Fetch existing bookmark ───────────────────────────
       async function fetchUserBookmarks() {
         if (!currentState.currentUser || !currentState.id) return;
         try {
+          const _mid = `${currentState.source}-${currentState.id}`;
           const { data, error } = await window.supabaseClient
             .from('user_bookmarks')
             .select('bookmark_status, id')
             .eq('user_id', currentState.currentUser.id)
             .eq('show_id', parseInt(currentState.id))
+            .eq('media_id', _mid)
             .maybeSingle();
 
           if (error) { console.error('fetchUserBookmarks error:', error); return; }
@@ -4053,7 +4186,8 @@ img { max-width: 100%; height: auto; display: block; }
         } catch (e) { console.error('fetchUserBookmarks exception:', e); }
       }
 
-      async function upsertPayload(supa, payload) {
+      // ── Upsert helper ────────────────────────────────────
+      async function _upsert(supa, payload) {
         const { data, error } = await supa
           .from('user_bookmarks')
           .upsert(payload, { onConflict: 'user_id,show_id' })
@@ -4062,6 +4196,7 @@ img { max-width: 100%; height: auto; display: block; }
         return { data, error };
       }
 
+      // ── Save bookmarks (3-tier fallback) ─────────────────
       async function saveBookmarks() {
         if (!currentState.currentUser) return;
         const supa = window.supabaseClient;
@@ -4079,28 +4214,32 @@ img { max-width: 100%; height: auto; display: block; }
             return;
           }
 
-          // Try full payload first (all columns from migration SQL)
-          const fullPayload = buildBookmarkPayloadFull(currentState.selectedStatuses);
-          let { data, error } = await upsertPayload(supa, fullPayload);
+          // Tier 1: Full payload (all 35 columns)
+          const full = buildBookmarkPayloadFull(currentState.selectedStatuses);
+          let { data, error } = await _upsert(supa, full);
+
+          if (error && (error.code === 'PGRST204' || (error.message && error.message.includes('column')))) {
+            // Tier 2: Minimal payload (only 6 guaranteed columns)
+            console.warn('[Bookmark] Full payload failed, trying minimal:', error.message);
+            const minimal = _buildMinimalPayload(currentState.selectedStatuses);
+            const fb = await _upsert(supa, minimal);
+            data = fb.data; error = fb.error;
+          }
 
           if (error) {
-            // If full payload fails due to missing columns, fall back to core columns only
-            const isColumnMissing = error.code === 'PGRST204' || 
-              (error.message && error.message.includes('column'));
-            if (isColumnMissing) {
-              console.warn('[Bookmark] Full payload failed (missing columns), trying core-only:', error.message);
-              const corePayload = buildBookmarkPayloadCore(currentState.selectedStatuses);
-              const fallback = await upsertPayload(supa, corePayload);
-              data  = fallback.data;
-              error = fallback.error;
-            }
-            if (error) {
-              console.error('[Bookmark] Upsert failed:', JSON.stringify(error, null, 2));
-              throw error;
-            }
+            console.error('[Bookmark] Upsert failed:', JSON.stringify(error, null, 2));
+            showToast('Failed to save — try reloading the page', 'error');
+            return;
           }
 
           if (data?.id) currentState.bookmarkRowId = data.id;
+
+          // Cross-tab sync via localStorage
+          try {
+            const _mid = `${currentState.source}-${currentState.id}`;
+            localStorage.setItem(`bk_sync_${currentState.currentUser.id}_${_mid}`,
+              JSON.stringify({ statuses: currentState.selectedStatuses, ts: Date.now() }));
+          } catch(e) {}
 
         } catch (e) {
           console.error('[Bookmark] saveBookmarks exception:', e);
@@ -4108,6 +4247,7 @@ img { max-width: 100%; height: auto; display: block; }
         }
       }
 
+      // ── Remove bookmark ──────────────────────────────────
       async function removeBookmark() {
         if (!currentState.currentUser) return;
         try {
@@ -4115,7 +4255,7 @@ img { max-width: 100%; height: auto; display: block; }
             .from('user_bookmarks')
             .delete()
             .eq('user_id', currentState.currentUser.id)
-            .eq('show_id', currentState.id);
+            .eq('show_id', parseInt(currentState.id));
           if (error) throw error;
           currentState.selectedStatuses = [];
           currentState.bookmarkRowId = null;
@@ -4124,14 +4264,15 @@ img { max-width: 100%; height: auto; display: block; }
         } catch (e) { console.error('removeBookmark error:', e); }
       }
 
+      // ── UI update (button text + dropdown highlights) ─────
       function updateBookmarkUI() {
-        const btn    = document.getElementById('addToListBtn');
-        const text   = document.getElementById('dropdownText');
+        const btn  = document.getElementById('addToListBtn');
+        const text = document.getElementById('dropdownText');
         if (!btn || !text) return;
 
         const hasBookmark = currentState.selectedStatuses.length > 0;
 
-        // ── Button text + icon ──────────────────────────────
+        // Button text + icon
         if (hasBookmark) {
           text.textContent = 'Edit List';
           const bkIcon = btn.querySelector('i.fa-bookmark, i.fa-pen-to-square, i.fa-regular, i.fa-solid:not(.dropdown-arrow):not(.bk-check-icon)');
@@ -4146,7 +4287,7 @@ img { max-width: 100%; height: auto; display: block; }
           }
         }
 
-        // ── Dropdown items: selected highlight + FA check ──
+        // Dropdown items: selected highlight + left-side FA check icon
         document.querySelectorAll('.dropdown-item[data-status]').forEach(item => {
           const s = item.dataset.status;
           if (s === 'remove') return;
@@ -4154,18 +4295,19 @@ img { max-width: 100%; height: auto; display: block; }
           const isSelected = currentState.selectedStatuses.includes(s);
           item.classList.toggle('selected', isSelected);
 
-          // Remove all existing check icons first (clean slate each call)
+          // Remove existing check icons (clean slate)
           item.querySelectorAll('.bk-check-icon').forEach(el => el.remove());
 
           if (isSelected) {
+            // Insert check icon at LEFT edge (before SVG icon)
             const ck = document.createElement('i');
-            ck.className     = 'fa-solid fa-check bk-check-icon';
-            ck.style.cssText = 'margin-left:auto;color:#48bb78;font-size:0.85rem;flex-shrink:0;';
-            item.appendChild(ck);
+            ck.className = 'fa-solid fa-circle-check bk-check-icon';
+            item.insertBefore(ck, item.firstChild);
           }
         });
       }
 
+      // ── Login alert ──────────────────────────────────────
       function showLoginAlert() {
         const alert = document.getElementById('loginAlert');
         if (!alert) return;
@@ -4175,51 +4317,93 @@ img { max-width: 100%; height: auto; display: block; }
         if (closeBtn) closeBtn.onclick = () => alert.classList.remove('show');
       }
 
-      // Toast notification — bottom-right corner, 3s auto-remove
+      // ── Toast notification ────────────────────────────────
+      // Bottom-right, rounded, site-matching bg, FA icon, X close, 3s auto-remove
       function showToast(message, type = 'info') {
         const existing = document.getElementById('bk-toast-container');
         const container = existing || (() => {
           const c = document.createElement('div');
           c.id = 'bk-toast-container';
-          c.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none;';
+          c.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:10px;pointer-events:none;';
           document.body.appendChild(c);
           return c;
         })();
 
-        const bg = type === 'error'   ? '#e53e3e'
-                 : type === 'success' ? '#276749'
-                 : '#1a3a5c';
+        // Site-matching colors
+        const bgMap = {
+          success: 'linear-gradient(135deg, #0d2f4f 0%, #1a3a5c 100%)',
+          error:   'linear-gradient(135deg, #4a1515 0%, #742a2a 100%)',
+          info:    'linear-gradient(135deg, #1a2a3a 0%, #0d2137 100%)'
+        };
+        const iconMap = {
+          success: 'fa-solid fa-circle-check',
+          error:   'fa-solid fa-circle-exclamation',
+          info:    'fa-solid fa-circle-info'
+        };
+        const iconColor = type === 'success' ? '#48bb78' : type === 'error' ? '#fc8181' : '#63b3ed';
 
         const toast = document.createElement('div');
         toast.style.cssText = `
-          background:${bg};
-          color:#fff;
-          padding:12px 18px;
-          border-radius:10px;
-          font-size:0.875rem;
+          background:${bgMap[type] || bgMap.info};
+          color:#e2e8f0;
+          padding:14px 16px;
+          border-radius:14px;
+          font-size:0.85rem;
           font-weight:500;
-          box-shadow:0 8px 24px rgba(0,0,0,0.4);
-          border:1px solid rgba(255,255,255,0.12);
+          box-shadow:0 8px 32px rgba(0,0,0,0.5);
+          border:1px solid rgba(255,255,255,0.08);
           opacity:0;
-          transform:translateY(10px);
-          transition:opacity 0.25s ease,transform 0.25s ease;
+          transform:translateY(12px) scale(0.96);
+          transition:opacity 0.3s ease,transform 0.3s ease;
           pointer-events:auto;
-          max-width:280px;
-          line-height:1.4;
+          max-width:320px;
+          line-height:1.45;
+          display:flex;
+          align-items:flex-start;
+          gap:10px;
+          position:relative;
+          backdrop-filter:blur(8px);
         `;
-        toast.textContent = message;
+
+        // FA icon on LEFT side
+        const icon = document.createElement('i');
+        icon.className = iconMap[type] || iconMap.info;
+        icon.style.cssText = `color:${iconColor};font-size:1rem;flex-shrink:0;margin-top:1px;`;
+        toast.appendChild(icon);
+
+        // Text
+        const txt = document.createElement('span');
+        txt.style.cssText = 'flex:1;';
+        txt.textContent = message;
+        toast.appendChild(txt);
+
+        // X close button on TOP RIGHT
+        const closeBtn = document.createElement('i');
+        closeBtn.className = 'fa-solid fa-xmark';
+        closeBtn.style.cssText = 'color:rgba(255,255,255,0.4);cursor:pointer;font-size:0.75rem;flex-shrink:0;margin-top:2px;transition:color 0.15s;';
+        closeBtn.addEventListener('mouseenter', () => closeBtn.style.color = 'rgba(255,255,255,0.8)');
+        closeBtn.addEventListener('mouseleave', () => closeBtn.style.color = 'rgba(255,255,255,0.4)');
+        closeBtn.addEventListener('click', () => dismissToast(toast, container));
+        toast.appendChild(closeBtn);
+
         container.appendChild(toast);
 
+        // Animate in
         requestAnimationFrame(() => {
           toast.style.opacity = '1';
-          toast.style.transform = 'translateY(0)';
+          toast.style.transform = 'translateY(0) scale(1)';
         });
 
-        setTimeout(() => {
-          toast.style.opacity  = '0';
-          toast.style.transform = 'translateY(10px)';
-          setTimeout(() => { toast.remove(); if (!container.children.length) container.remove(); }, 300);
-        }, 3000);
+        // Auto-remove after 3s
+        const autoTimer = setTimeout(() => dismissToast(toast, container), 3000);
+        toast._autoTimer = autoTimer;
+      }
+
+      function dismissToast(toast, container) {
+        clearTimeout(toast._autoTimer);
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(12px) scale(0.96)';
+        setTimeout(() => { toast.remove(); if (!container.children.length) container.remove(); }, 300);
       }
 
       // Show toast with selected status names after dropdown closes
@@ -4229,8 +4413,23 @@ img { max-width: 100%; height: auto; display: block; }
           return;
         }
         const labels = statuses.map(s => STATUS_LABELS[s] || s).join(' & ');
-        showToast(`Saved: ${labels}`, 'success');
+        showToast(`Bookmark Successfully saved: ${labels}`, 'success');
       }
+
+      // ── Cross-tab sync (listen for bookmark changes in other tabs) ──
+      window.addEventListener('storage', (e) => {
+        if (!e.key || !e.key.startsWith('bk_sync_')) return;
+        if (!currentState.currentUser) return;
+        const expectedPrefix = `bk_sync_${currentState.currentUser.id}_${currentState.source}-${currentState.id}`;
+        if (e.key !== expectedPrefix) return;
+        try {
+          const { statuses } = JSON.parse(e.newValue || '{}');
+          if (Array.isArray(statuses)) {
+            currentState.selectedStatuses = statuses;
+            updateBookmarkUI();
+          }
+        } catch(err) {}
+      });
 
       async function loadSidebarContent() {
         const isAnime = currentState.source === 'jikan';
@@ -4271,43 +4470,42 @@ img { max-width: 100%; height: auto; display: block; }
       }
 
       async function loadHiddenGems(isAnime) {
-        const _hgKey = `info:hidden_gem:${currentState.id}`;
+        // Global 72h cache — same list for ALL info pages of this type
+        const mType = isAnime ? 'anime' : currentState.type;
+        const _hgKey = `sidebar_html:hidden_gem:${mType}`;
         if (window.AniCache) {
           const cached = await window.AniCache.get(_hgKey);
-          if (cached) {
+          if (cached && cached._html) {
             const el = document.getElementById('hiddenGemList');
-            if (el) el.innerHTML = cached._html || '';
+            if (el) el.innerHTML = cached._html;
             return;
           }
         }
         const container = document.getElementById('hiddenGemList');
-        const cacheKey = `sidebar_gems_${isAnime ? 'anime' : currentState.type}`;
+        const cacheKey = `sidebar_gems_${mType}`;
         try {
-          // sessionStorage (15 min TTL)
+          // sessionStorage (15 min TTL) for fast same-session reloads
           const cached = sessionStorage.getItem(cacheKey);
           if (cached) {
             const { html: ch, ts } = JSON.parse(cached);
             if (Date.now() - ts < 15 * 60 * 1000) { container.innerHTML = ch; return; }
           }
-          // Supabase shows table
-          const gemKey = `hidden_gems_${isAnime?'anime':currentState.type}`;
-          if (window.AniCache && await window.AniCache.isSectionFresh(gemKey)) {
-            const dbItems = await window.AniCache.get({
-              section: 'hidden_gem',
-              media_type: isAnime ? 'anime' : currentState.type,
-              limit: 17
-            }).catch(() => []);
-            if (Array.isArray(dbItems) && dbItems.length) {
-              const htmlOut = dbItems.map((s, i) => renderSidebarItem(
-                isAnime
-                  ? { mal_id: s.mal_id, title: s.title, images: { jpg: { image_url: s.poster } }, score: s.score }
-                  : { id: s.tmdb_id, title: s.title, name: s.title, _supaImg: s.poster, poster: s.poster, vote_average: Number(s.score||0), score: Number(s.score||0) },
-                i + 1, isAnime
-              )).join('');
-              container.innerHTML = htmlOut;
-              try { sessionStorage.setItem(cacheKey, JSON.stringify({ html: htmlOut, ts: Date.now() })); } catch(e) {}
-              return;
-            }
+          // Supabase shows table fallback (always available, no expiry)
+          const dbItems = await window.AniCache.get({
+            section: 'hidden_gem',
+            media_type: mType,
+            limit: 17
+          }).catch(() => []);
+          if (Array.isArray(dbItems) && dbItems.length) {
+            const htmlOut = dbItems.map((s, i) => renderSidebarItem(
+              isAnime
+                ? { mal_id: s.mal_id, title: s.title, images: { jpg: { image_url: s.poster } }, score: s.score }
+                : { id: s.tmdb_id, title: s.title, name: s.title, _supaImg: s.poster, poster: s.poster, vote_average: Number(s.score||0), score: Number(s.score||0) },
+              i + 1, isAnime
+            )).join('');
+            container.innerHTML = htmlOut;
+            try { sessionStorage.setItem(cacheKey, JSON.stringify({ html: htmlOut, ts: Date.now() })); } catch(e) {}
+            return;
           }
           // Live API
           let items = [];
@@ -4326,19 +4524,17 @@ img { max-width: 100%; height: auto; display: block; }
           const htmlOut = items.map((item, i) => renderSidebarItem(item, i + 1, isAnime)).join('');
           container.innerHTML = htmlOut;
           try { sessionStorage.setItem(cacheKey, JSON.stringify({ html: htmlOut, ts: Date.now() })); } catch(e) {}
-          // Save to Supabase
+          // Save to DB — global 72h cache (NOT permanent, always 72h regardless of show status)
           if (window.AniCache && items.length) {
             const rows = items.map(item => isAnime
               ? { id:`jikan-${item.mal_id}`, type:'Anime', title:item.title_english||item.title, poster:item.images?.jpg?.large_image_url||'', score:item.score, members:item.members, genres:(item.genres||[]).map(g=>g.name), show_status:item.status||'Currently Airing', mal_id:item.mal_id }
               : { id:`tmdb-${currentState.type}-${item.id}`, type:currentState.type==='movie'?'Movie':'TV', title:item.title||item.name, poster:item.poster_path?`https://image.tmdb.org/t/p/w185${item.poster_path}`:'', score:item.vote_average, members:item.vote_count, show_status:currentState.type==='movie'?'Released':'Returning Series' }
             );
-            const mType = isAnime ? 'anime' : currentState.type;
-            // Save to shows table for row-level storage
             window.AniCache.save(rows).catch(()=>{});
-            // Also store full array in media_cache so get({section,media_type}) works
-            window.AniCache.set({ cacheKey: gemKey, pageSource:'info', section:'hidden_gem',
-              mediaType: mType, data: rows, itemCount: rows.length }).catch(()=>{});
-            window.AniCache.stampSection(`hidden_gem_${mType}`, rows.length).catch(()=>{});
+            // Store HTML in media_cache with 72h TTL (section 'hidden_gem' → TTL=72)
+            window.AniCache.set({ cacheKey: _hgKey, pageSource:'info', section:'hidden_gem',
+              mediaType: mType, data: { _html: htmlOut, items: rows }, itemCount: rows.length,
+              permanent: false }).catch(()=>{});
           }
         } catch (e) {
           container.innerHTML = '<div class="loading-text">Failed to load</div>';
@@ -4347,42 +4543,41 @@ img { max-width: 100%; height: auto; display: block; }
       }
 
       async function loadTopRanking(isAnime) {
-        const _trKey = `info:top_ranking:${currentState.type || currentState.source}`;
+        // Global 72h cache — same list for ALL info pages of this type
+        const mType = isAnime ? 'anime' : currentState.type;
+        const _trKey = `sidebar_html:top_ranking:${mType}`;
         if (window.AniCache) {
           const cached = await window.AniCache.get(_trKey);
-          if (cached) {
+          if (cached && cached._html) {
             const el = document.getElementById('topRankingList');
-            if (el) el.innerHTML = cached._html || '';
+            if (el) el.innerHTML = cached._html;
             return;
           }
         }
         const container = document.getElementById('topRankingList');
-        const cacheKey = `sidebar_top_${isAnime ? 'anime' : currentState.type}`;
+        const cacheKey = `sidebar_top_${mType}`;
         try {
           const cached = sessionStorage.getItem(cacheKey);
           if (cached) {
             const { html: ch, ts } = JSON.parse(cached);
             if (Date.now() - ts < 15 * 60 * 1000) { container.innerHTML = ch; return; }
           }
-          // Supabase shows table
-          const rankKey = `top_ranking_${isAnime?'anime':currentState.type}`;
-          if (window.AniCache && await window.AniCache.isSectionFresh(rankKey)) {
-            const dbItems = await window.AniCache.get({
-              section: 'top_ranking',
-              media_type: isAnime ? 'anime' : currentState.type,
-              limit: 19
-            }).catch(() => []);
-            if (Array.isArray(dbItems) && dbItems.length) {
-              const htmlOut = dbItems.map((s, i) => renderSidebarItem(
-                isAnime
-                  ? { mal_id: s.mal_id, title: s.title, images: { jpg: { image_url: s.poster } }, score: s.score, rank: i+1 }
-                  : { id: s.tmdb_id, title: s.title, name: s.title, _supaImg: s.poster, poster: s.poster, vote_average: Number(s.score||0), score: Number(s.score||0) },
-                i + 1, isAnime, true
-              )).join('');
-              container.innerHTML = htmlOut;
-              try { sessionStorage.setItem(cacheKey, JSON.stringify({ html: htmlOut, ts: Date.now() })); } catch(e) {}
-              return;
-            }
+          // Supabase shows table fallback (always available, no expiry)
+          const dbItems = await window.AniCache.get({
+            section: 'top_ranking',
+            media_type: mType,
+            limit: 19
+          }).catch(() => []);
+          if (Array.isArray(dbItems) && dbItems.length) {
+            const htmlOut = dbItems.map((s, i) => renderSidebarItem(
+              isAnime
+                ? { mal_id: s.mal_id, title: s.title, images: { jpg: { image_url: s.poster } }, score: s.score, rank: i+1 }
+                : { id: s.tmdb_id, title: s.title, name: s.title, _supaImg: s.poster, poster: s.poster, vote_average: Number(s.score||0), score: Number(s.score||0) },
+              i + 1, isAnime, true
+            )).join('');
+            container.innerHTML = htmlOut;
+            try { sessionStorage.setItem(cacheKey, JSON.stringify({ html: htmlOut, ts: Date.now() })); } catch(e) {}
+            return;
           }
           // Live API
           let items = [];
@@ -4398,16 +4593,16 @@ img { max-width: 100%; height: auto; display: block; }
           const htmlOut = items.map((item, i) => renderSidebarItem(item, i + 1, isAnime, true)).join('');
           container.innerHTML = htmlOut;
           try { sessionStorage.setItem(cacheKey, JSON.stringify({ html: htmlOut, ts: Date.now() })); } catch(e) {}
+          // Save to DB — global 72h cache
           if (window.AniCache && items.length) {
             const rows = items.map(item => isAnime
               ? { id:`jikan-${item.mal_id}`, type:'Anime', title:item.title_english||item.title, poster:item.images?.jpg?.large_image_url||'', score:item.score, members:item.members, genres:(item.genres||[]).map(g=>g.name), show_status:item.status||'Currently Airing', mal_id:item.mal_id }
               : { id:`tmdb-${currentState.type}-${item.id}`, type:currentState.type==='movie'?'Movie':'TV', title:item.title||item.name, poster:item.poster_path?`https://image.tmdb.org/t/p/w185${item.poster_path}`:'', score:item.vote_average, show_status:currentState.type==='movie'?'Released':'Returning Series' }
             );
-            const mTypeR = isAnime ? 'anime' : currentState.type;
             window.AniCache.save(rows).catch(()=>{});
-            window.AniCache.set({ cacheKey: rankKey, pageSource:'info', section:'top_ranking',
-              mediaType: mTypeR, data: rows, itemCount: rows.length }).catch(()=>{});
-            window.AniCache.stampSection(rankKey, rows.length).catch(()=>{});
+            window.AniCache.set({ cacheKey: _trKey, pageSource:'info', section:'top_ranking',
+              mediaType: mType, data: { _html: htmlOut, items: rows }, itemCount: rows.length,
+              permanent: false }).catch(()=>{});
           }
         } catch (e) {
           container.innerHTML = '<div class="loading-text">Failed to load</div>';
@@ -4416,42 +4611,41 @@ img { max-width: 100%; height: auto; display: block; }
       }
 
       async function loadMostFavourite(isAnime) {
-        const _mfKey = `info:most_favourite:${currentState.type || currentState.source}`;
+        // Global 72h cache — same list for ALL info pages of this type
+        const mType = isAnime ? 'anime' : currentState.type;
+        const _mfKey = `sidebar_html:most_favourite:${mType}`;
         if (window.AniCache) {
           const cached = await window.AniCache.get(_mfKey);
-          if (cached) {
+          if (cached && cached._html) {
             const el = document.getElementById('mostFavouriteList');
-            if (el) el.innerHTML = cached._html || '';
+            if (el) el.innerHTML = cached._html;
             return;
           }
         }
         const container = document.getElementById('mostFavouriteList');
-        const cacheKey = `sidebar_fav_${isAnime ? 'anime' : currentState.type}`;
+        const cacheKey = `sidebar_fav_${mType}`;
         try {
           const cached = sessionStorage.getItem(cacheKey);
           if (cached) {
             const { html: ch, ts } = JSON.parse(cached);
             if (Date.now() - ts < 15 * 60 * 1000) { container.innerHTML = ch; return; }
           }
-          // Supabase shows table
-          const favKey = `most_fav_${isAnime?'anime':currentState.type}`;
-          if (window.AniCache && await window.AniCache.isSectionFresh(favKey)) {
-            const dbItems = await window.AniCache.get({
-              section: 'most_favourite',
-              media_type: isAnime ? 'anime' : currentState.type,
-              limit: 21
-            }).catch(() => []);
-            if (Array.isArray(dbItems) && dbItems.length) {
-              const htmlOut = dbItems.map((s, i) => renderSidebarItem(
-                isAnime
-                  ? { mal_id: s.mal_id, title: s.title, images: { jpg: { image_url: s.poster } }, score: s.score, favorites: s.popularity }
-                  : { id: s.tmdb_id, title: s.title, name: s.title, _supaImg: s.poster, poster: s.poster, vote_average: Number(s.score||0), score: Number(s.score||0) },
-                i + 1, isAnime
-              )).join('');
-              container.innerHTML = htmlOut;
-              try { sessionStorage.setItem(cacheKey, JSON.stringify({ html: htmlOut, ts: Date.now() })); } catch(e) {}
-              return;
-            }
+          // Supabase shows table fallback (always available, no expiry)
+          const dbItems = await window.AniCache.get({
+            section: 'most_favourite',
+            media_type: mType,
+            limit: 21
+          }).catch(() => []);
+          if (Array.isArray(dbItems) && dbItems.length) {
+            const htmlOut = dbItems.map((s, i) => renderSidebarItem(
+              isAnime
+                ? { mal_id: s.mal_id, title: s.title, images: { jpg: { image_url: s.poster } }, score: s.score, favorites: s.popularity }
+                : { id: s.tmdb_id, title: s.title, name: s.title, _supaImg: s.poster, poster: s.poster, vote_average: Number(s.score||0), score: Number(s.score||0) },
+              i + 1, isAnime
+            )).join('');
+            container.innerHTML = htmlOut;
+            try { sessionStorage.setItem(cacheKey, JSON.stringify({ html: htmlOut, ts: Date.now() })); } catch(e) {}
+            return;
           }
           // Live API
           let items = [];
@@ -4472,11 +4666,11 @@ img { max-width: 100%; height: auto; display: block; }
               ? { id:`jikan-${item.mal_id}`, type:'Anime', title:item.title_english||item.title, poster:item.images?.jpg?.large_image_url||'', score:item.score, members:item.members||item.favorites, genres:(item.genres||[]).map(g=>g.name), show_status:item.status||'Currently Airing', mal_id:item.mal_id }
               : { id:`tmdb-${currentState.type}-${item.id}`, type:currentState.type==='movie'?'Movie':'TV', title:item.title||item.name, poster:item.poster_path?`https://image.tmdb.org/t/p/w185${item.poster_path}`:'', score:item.vote_average, members:item.vote_count, show_status:currentState.type==='movie'?'Released':'Returning Series' }
             );
-            const mTypeF = isAnime ? 'anime' : currentState.type;
             window.AniCache.save(rows).catch(()=>{});
-            window.AniCache.set({ cacheKey: favKey, pageSource:'info', section:'most_favourite',
-              mediaType: mTypeF, data: rows, itemCount: rows.length }).catch(()=>{});
-            window.AniCache.stampSection(favKey, rows.length).catch(()=>{});
+            // Global 72h cache (NOT permanent, always 72h regardless of show status)
+            window.AniCache.set({ cacheKey: _mfKey, pageSource:'info', section:'most_favourite',
+              mediaType: mType, data: { _html: htmlOut, items: rows }, itemCount: rows.length,
+              permanent: false }).catch(()=>{});
           }
         } catch (e) {
           container.innerHTML = '<div class="loading-text">Failed to load</div>';
@@ -4538,11 +4732,24 @@ img { max-width: 100%; height: auto; display: block; }
       async function loadWaterTemple() {
         const _wtKey = `info:water_temple:${currentState.id}`;
         if (window.AniCache) {
-          const cached = await window.AniCache.get(_wtKey);
-          if (cached && cached.length > 0) {
-            const el = document.getElementById('waterTempleGrid');
-            if (el) el.innerHTML = cached.map(s => renderAnimeRecCard ? renderAnimeRecCard(s) : '').join('');
-            return;
+          try {
+            const cached = await window.AniCache.get(_wtKey);
+            console.log('[AniCache] WaterTemple cache check:', cached ? `${cached.length} items` : 'null');
+            if (cached && cached.length > 0) {
+              const sec = document.getElementById('waterTempleSection');
+              const el = document.getElementById('waterTempleGrid');
+              if (!sec) { console.warn('[AniCache] WaterTemple: section element missing'); }
+              else { sec.style.display = 'block'; }
+              if (!el) { console.warn('[AniCache] WaterTemple: grid element missing'); }
+              else {
+                const html = cached.map(s => renderAnimeRecCard ? renderAnimeRecCard(s) : '').join('');
+                el.innerHTML = html;
+                console.log('[AniCache] WaterTemple rendered', html.length, 'chars HTML');
+              }
+              return;
+            }
+          } catch (e) {
+            console.warn('[AniCache] WaterTemple cache error, falling back to live:', e.message);
           }
         }
         const section = document.getElementById('waterTempleSection');
@@ -4617,7 +4824,7 @@ img { max-width: 100%; height: auto; display: block; }
           if (filtered.length > 0) {
             gridContainer.innerHTML = filtered.map(anime => renderAnimeRecCard(anime)).join('');
             // Cache the results in Supabase for other visitors
-            if (window.AniCache) window.AniCache.set({ cacheKey: _wtKey, pageSource:'info', section:'water_temple', data: filtered }).catch(()=>{});
+            if (window.AniCache) window.AniCache.set({ cacheKey: _wtKey, pageSource:'info', section:'water_temple', data: filtered, permanent: currentState.isPermanent }).catch(()=>{});
           } else {
             // Fallback: top-scored anime of same type, no genre filter
             const fbParams = new URLSearchParams({ order_by: 'score', sort: 'desc', limit: '24', sfw: 'true', type: (data.type || 'tv').toLowerCase(), min_score: '7.5' });
@@ -4632,6 +4839,10 @@ img { max-width: 100%; height: auto; display: block; }
             gridContainer.innerHTML = fbFiltered.length
               ? fbFiltered.map(anime => renderAnimeRecCard(anime)).join('')
               : '<div class="loading-text">No recommendations found</div>';
+            // Cache fallback data too
+            if (fbFiltered.length && window.AniCache) {
+              window.AniCache.set({ cacheKey: _wtKey, pageSource:'info', section:'water_temple', data: fbFiltered, permanent: currentState.isPermanent }).catch(()=>{});
+            }
           }
 
         } catch (error) {
@@ -4644,11 +4855,24 @@ img { max-width: 100%; height: auto; display: block; }
       async function loadRecommendForYou() {
         const _rfyKey = `info:recommended_for_you:${currentState.id}`;
         if (window.AniCache) {
-          const cached = await window.AniCache.get(_rfyKey);
-          if (cached && cached.length > 0) {
-            const el = document.getElementById('recommendForYouGrid');
-            if (el) el.innerHTML = cached.map(s => renderShowCard ? renderShowCard(s) : '').join('');
-            return;
+          try {
+            const cached = await window.AniCache.get(_rfyKey);
+            console.log('[AniCache] RecommendForYou cache check:', cached ? `${cached.length} items` : 'null');
+            if (cached && cached.length > 0) {
+              const el = document.getElementById('recommendForYouGrid');
+              const sec = document.getElementById('recommendForYouSection');
+              if (!sec) { console.warn('[AniCache] RecommendForYou: section element missing'); }
+              else { sec.style.display = 'block'; }
+              if (!el) { console.warn('[AniCache] RecommendForYou: grid element missing'); }
+              else {
+                const html = cached.map(s => renderTMDBRecCard(s, currentState.type)).join('');
+                el.innerHTML = html;
+                console.log('[AniCache] RecommendForYou rendered', html.length, 'chars HTML');
+              }
+              return;
+            }
+          } catch (e) {
+            console.warn('[AniCache] RecommendForYou cache error, falling back to live:', e.message);
           }
         }
         const section = document.getElementById('recommendForYouSection');
@@ -4709,6 +4933,14 @@ img { max-width: 100%; height: auto; display: block; }
 
           if (final.length > 0) {
             gridContainer.innerHTML = final.map(item => renderTMDBRecCard(item, mediaType)).join('');
+            // Cache recommendations to DB (permanent for ended, 8h for returning)
+            if (window.AniCache) {
+              window.AniCache.set({ cacheKey: _rfyKey, pageSource:'info',
+                section:'show_recs',
+                tmdbId: currentState.id, data: final, itemCount: final.length,
+                permanent: currentState.isPermanent,
+              }).catch(()=>{});
+            }
           } else {
             // Fallback: popular content of same type
             const fbRes  = await fetch(`${CONFIG.TMDB_WORKER}/3/${mediaType}/popular?page=1`);
@@ -4717,6 +4949,13 @@ img { max-width: 100%; height: auto; display: block; }
             gridContainer.innerHTML = fbFinal.length
               ? fbFinal.map(item => renderTMDBRecCard(item, mediaType)).join('')
               : '<div class="loading-text">No recommendations found</div>';
+            // Cache fallback data too (permanent for ended/released)
+            if (fbFinal.length && window.AniCache) {
+              window.AniCache.set({ cacheKey: _rfyKey, pageSource:'info',
+                section:'show_recs', tmdbId: currentState.id, data: fbFinal, itemCount: fbFinal.length,
+                permanent: currentState.isPermanent,
+              }).catch(()=>{});
+            }
           }
 
         } catch (error) {
@@ -4772,9 +5011,9 @@ async function loadSunkenTreasures(page = 1) {
   const gridContainer = document.getElementById('sunkenTreasuresGrid');
   const paginationContainer = document.getElementById('sunkenPagination');
 
-  // ── Supabase cache read (all 7 pages bundled) ─────────────────
+  // ── Supabase cache read (GLOBAL — same data for ALL info pages) ──
   if (window.AniCache && !_sunkenCacheLoaded) {
-    const cached = await window.AniCache.get(`info:sunken_treasure:${currentState.id}`);
+    const cached = await window.AniCache.get(`sunken_treasure:global`);
     if (cached?.pages) {
       _sunkenCachePages  = cached.pages;
       _sunkenCacheLoaded = true;
@@ -4893,18 +5132,22 @@ async function loadSunkenTreasures(page = 1) {
     uniqueResults.slice(0, 24).forEach(a => _sunkenSeenIds.add(Number(a.mal_id)));
     // Store page in memory cache
     _sunkenCachePages[page] = uniqueResults.slice(0, 24);
-    // After page 7 is loaded, push all 7 pages to Supabase (non-blocking)
-    const cachedPageCount = Object.keys(_sunkenCachePages).length;
-    if (cachedPageCount >= 7 && window.AniCache && !_sunkenCacheLoaded) {
-      _sunkenCacheLoaded = true;
-      window.AniCache.set({
-        cacheKey: `info:sunken_treasure:${currentState.id}`,
+    // Save to Supabase — GLOBAL cache (same data for all info pages)
+    if (window.AniCache) {
+      const existing = await window.AniCache.get(`sunken_treasure:global`).catch(()=>null);
+      const mergedPages = { ...(existing?.pages || {}), ..._sunkenCachePages };
+      const pageCount = Object.keys(mergedPages).length;
+      const result = await window.AniCache.set({
+        cacheKey: `sunken_treasure:global`,
         pageSource:'info', section:'sunken_treasure',
-        showId: currentState.source === 'jikan' ? `jikan-${currentState.id}` : null,
-        data: { pages: _sunkenCachePages, total: SUNKEN_GENRE_COMBOS.length },
-        itemCount: cachedPageCount * 24,
+        data: { pages: mergedPages, total: SUNKEN_GENRE_COMBOS.length },
+        itemCount: pageCount * 24,
+        permanent: false, // 8h TTL — global list changes as new anime air
       });
-      console.log('[Cache] ✅ Sunken Treasure 7 pages stored to Supabase');
+      if (result && pageCount >= 1 && !_sunkenCacheLoaded) {
+        _sunkenCacheLoaded = true;
+        console.log(`[Cache] Sunken Treasure ${pageCount} page(s) stored to Supabase`);
+      }
     }
 
     // Render
@@ -5105,6 +5348,15 @@ function renderSunkenPagination(currentPage, totalPages, container) {
             return;
           }
           
+          // AniCache: capture TMDB cast for DB storage (same as anime branch)
+          window._lastCastData = cast.slice(0, 20).map(c => ({
+            char_name: c.character || '',
+            char_img:  c.profile_path ? `https://image.tmdb.org/t/p/w185${c.profile_path}` : '',
+            role:      'Actor',
+            va_name:   c.name || '',
+            va_img:    c.profile_path ? `https://image.tmdb.org/t/p/w185${c.profile_path}` : '',
+            va_lang:   'Actor',
+          }));
           const castRows = cast.slice(0, 20).map(c => {
             const actorImg = c.profile_path ? `https://image.tmdb.org/t/p/w185${c.profile_path}` : '';
             const actorName = c.name || 'Unknown';
@@ -5168,7 +5420,7 @@ function renderSunkenPagination(currentPage, totalPages, container) {
         const _mid = currentState.source==='jikan'
           ? `jikan-${currentState.id}`
           : `tmdb-${currentState.type}-${currentState.id}`;
-        window.AniCache.saveDetails(_mid, {cast_crew: window._lastCastData}).catch(()=>{});
+        window.AniCache.saveDetails(_mid, {cast_crew: window._lastCastData}, { permanent: currentState.isPermanent }).catch(()=>{});
       }
 
       async function loadArtworkData() {
@@ -5261,7 +5513,7 @@ function renderSunkenPagination(currentPage, totalPages, container) {
         const _mid = currentState.source==='jikan'
           ? `jikan-${currentState.id}`
           : `tmdb-${currentState.type}-${currentState.id}`;
-        window.AniCache.saveDetails(_mid, {artwork: window._lastArtworkData}).catch(()=>{});
+        window.AniCache.saveDetails(_mid, {artwork: window._lastArtworkData}, { permanent: currentState.isPermanent }).catch(()=>{});
       }
       }
 
@@ -5297,7 +5549,7 @@ function renderSunkenPagination(currentPage, totalPages, container) {
           const ytKey = trailerUrl.replace(/.*embed[/]/, '').replace(/[?].*/, '');
           window.AniCache.saveDetails(_mid, {
             trailers: [{ key: ytKey, url: trailerUrl, name: currentState.title + ' - Trailer', site: 'YouTube' }]
-          }).catch(()=>{});
+          }, { permanent: currentState.isPermanent }).catch(()=>{});
         }
       }
 
@@ -5403,7 +5655,7 @@ function renderSunkenPagination(currentPage, totalPages, container) {
       // AniCache: save themes to show_details
       if (window.AniCache && window._lastThemesData && window._lastThemesData.length) {
         const _mid = `jikan-${currentState.id}`;
-        window.AniCache.saveDetails(_mid, {themes: window._lastThemesData}).catch(()=>{});
+        window.AniCache.saveDetails(_mid, {themes: window._lastThemesData}, { permanent: currentState.isPermanent }).catch(()=>{});
       }
 
       async function loadStatisticsData() {
