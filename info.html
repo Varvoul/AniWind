@@ -487,21 +487,38 @@ img { max-width: 100%; height: auto; display: block; }
   border-radius: 8px;
   font-size: 0.85rem;
   color: var(--text-secondary);
-  transition: background 0.15s;
+  transition: background 0.18s ease, color 0.18s ease, transform 0.12s ease;
   cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
-.dropdown-item:hover {
-  background: rgba(255,255,255,0.08);
+.dropdown-item:hover,
+.dropdown-item:active {
+  background: rgba(56, 130, 220, 0.15);
   color: var(--text-primary);
+  transform: translateX(2px);
 }
 .dropdown-item.selected {
   background: rgba(43, 108, 176, 0.2);
   color: #68d391;
 }
-.dropdown-item.selected .bk-check-icon {
-  margin-left: auto;
+.dropdown-item.selected:hover {
+  background: rgba(43, 108, 176, 0.28);
+}
+.dropdown-item .bk-check-icon {
   color: #48bb78;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
+  flex-shrink: 0;
+}
+.dropdown-item[data-status="remove"] {
+  border-top: 1px solid var(--border-subtle);
+  margin-top: 4px;
+  border-radius: 8px;
+  color: #fc8181;
+}
+.dropdown-item[data-status="remove"]:hover {
+  background: rgba(229, 62, 62, 0.15);
+  color: #feb2b2;
 }
 .status-icon { flex-shrink: 0; }
 
@@ -3829,13 +3846,18 @@ img { max-width: 100%; height: auto; display: block; }
         
         const dropdownBtn = document.getElementById('addToListBtn');
         const dropdown = document.getElementById('bookmarkDropdown');
+        let _noSelectTimer = null;
 
         function closeDropdown(showNotification) {
           clearTimeout(currentState.dropdownTimer);
+          clearTimeout(_noSelectTimer);
           currentState.dropdownTimer = null;
+          _noSelectTimer = null;
           dropdown.classList.remove('show');
           dropdownBtn.classList.remove('open');
           dropdownBtn.setAttribute('aria-expanded', 'false');
+          // Instant UI update
+          updateBookmarkUI();
           if (showNotification) {
             showBookmarkToast(currentState.selectedStatuses);
           }
@@ -3843,10 +3865,10 @@ img { max-width: 100%; height: auto; display: block; }
 
         function startAutoCloseTimer() {
           clearTimeout(currentState.dropdownTimer);
-          // After selecting the 1st status, give 3s to pick a 2nd before auto-closing
+          // After selecting the 1st status, give 4s to pick a 2nd before auto-closing
           currentState.dropdownTimer = setTimeout(() => {
             closeDropdown(true);
-          }, 3000);
+          }, 4000);
         }
 
         dropdownBtn.addEventListener('click', (e) => {
@@ -3859,6 +3881,11 @@ img { max-width: 100%; height: auto; display: block; }
             dropdownBtn.setAttribute('aria-expanded', 'true');
             // If already has 1 status selected, start the timer right away
             if (currentState.selectedStatuses.length === 1) startAutoCloseTimer();
+            else if (currentState.selectedStatuses.length === 0) {
+              // No status selected — auto-close after 8s if user doesn't pick anything
+              clearTimeout(_noSelectTimer);
+              _noSelectTimer = setTimeout(() => closeDropdown(false), 8000);
+            }
           } else {
             closeDropdown(currentState.selectedStatuses.length > 0);
           }
@@ -3878,12 +3905,17 @@ img { max-width: 100%; height: auto; display: block; }
 
             if (status === 'remove') {
               clearTimeout(currentState.dropdownTimer);
+              clearTimeout(_noSelectTimer);
               await removeBookmark();
               dropdown.classList.remove('show');
               dropdownBtn.classList.remove('open');
               dropdownBtn.setAttribute('aria-expanded', 'false');
               return;
             }
+
+            // Clear the no-selection timer once user interacts
+            clearTimeout(_noSelectTimer);
+            _noSelectTimer = null;
 
             const idx = currentState.selectedStatuses.indexOf(status);
             if (idx > -1) {
@@ -3897,6 +3929,7 @@ img { max-width: 100%; height: auto; display: block; }
               return;
             }
 
+            // Instant UI update
             updateBookmarkUI();
             await saveBookmarks();
 
@@ -3904,10 +3937,10 @@ img { max-width: 100%; height: auto; display: block; }
               // Got both picks — close immediately with toast
               closeDropdown(true);
             } else if (currentState.selectedStatuses.length === 1) {
-              // 1 selected — start 3-second timer
+              // 1 selected — start 4-second timer for 2nd pick
               startAutoCloseTimer();
             } else {
-              // Deselected all — restart timer or keep open
+              // Deselected all — keep open, no timer
               clearTimeout(currentState.dropdownTimer);
               currentState.dropdownTimer = null;
             }
@@ -4038,7 +4071,6 @@ img { max-width: 100%; height: auto; display: block; }
       // BOOKMARK SYSTEM — Supabase user_bookmarks
       // ═══════════════════════════════════════════
 
-      // Status label map (for display)
       const STATUS_LABELS = {
         'planning':   'Planning to Watch',
         'watching':   'Watching',
@@ -4048,91 +4080,93 @@ img { max-width: 100%; height: auto; display: block; }
         'favourite':  'My Favourite'
       };
 
-      // Columns confirmed present from schema upgrade SQL.
-      // If a column doesn't exist yet, Supabase returns PGRST204 "column not found".
-      // We try the full payload first; if it fails we fall back to core-only columns.
-      function buildBookmarkPayloadCore(statuses) {
-        const show_id_int = parseInt(currentState.id) || null;
-        const isAnime     = currentState.source === 'jikan';
-        const d           = currentState.data;
-        const mal_id      = isAnime  ? (parseInt(d.mal_id  || currentState.id) || null) : null;
-        const tmdb_id     = !isAnime ? (parseInt(currentState.id)              || null) : null;
-        const media_id    = `${currentState.source}-${currentState.id}`;
-        const media_type  = currentState.type;
+      // ── Helpers ──────────────────────────────────────────
+      function _formatAiredDate(d, isAnime) {
+        if (isAnime && d.aired) {
+          try {
+            const opts = { month: 'short', day: 'numeric', year: 'numeric' };
+            const from = d.aired.from ? new Date(d.aired.from).toLocaleDateString('en-US', opts) : '';
+            const to   = d.aired.to   ? new Date(d.aired.to).toLocaleDateString('en-US', opts) : 'Ongoing';
+            return from ? `${from} to ${to}` : (d.aired.string || '');
+          } catch(e) { return d.aired?.string || ''; }
+        }
+        return d.release_date || d.first_air_date || '';
+      }
 
-        // Get username from shared.js user profile if available
-        const username = currentState.currentUser?.user_metadata?.username
-          || currentState.currentUser?.email?.split('@')[0]
-          || null;
-
+      // ── Payload builders (exact column names from user_bookmarks DDL) ──
+      function _buildMinimalPayload(statuses) {
         return {
-          user_id:          currentState.currentUser.id,
-          show_id:          show_id_int,
-          media_id,
-          media_type,
-          bookmark_status:  statuses.join(','),
-          mal_id,
-          tmdb_id,
-          username,
-          updated_at:       new Date().toISOString()
+          user_id:         currentState.currentUser.id,
+          show_id:         parseInt(currentState.id) || 0,
+          media_id:        `${currentState.source}-${currentState.id}`,
+          media_type:      currentState.source === 'jikan' ? 'anime' : currentState.type,
+          bookmark_status: statuses.join(','),
+          updated_at:      new Date().toISOString()
         };
       }
 
       function buildBookmarkPayloadFull(statuses) {
-        const core    = buildBookmarkPayloadCore(statuses);
         const d       = currentState.data;
         const isAnime = currentState.source === 'jikan';
-
-        const mal_id  = core.mal_id;
-        const tmdb_id = core.tmdb_id;
+        const mal_id  = isAnime  ? (parseInt(d.mal_id  || currentState.id) || null) : null;
+        const tmdb_id = !isAnime ? (parseInt(currentState.id)              || null) : null;
+        const username = currentState.currentUser?.user_metadata?.username
+          || currentState.currentUser?.email?.split('@')[0] || null;
 
         return {
-          ...core,
-
-          // Titles
-          eng_title:      isAnime ? (d.title_english || d.title || '') : (d.title || d.name || ''),
-          default_title:  d.title || d.name || '',
-          original_title: isAnime ? '' : (d.original_title || d.original_name || ''),
-          romanji_title:  isAnime ? (d.title || '') : '',
-          japanese_title: isAnime ? (d.title_japanese || '') : '',
-          synonyms:       isAnime ? (d.title_synonyms || []).join(', ') : '',
-
-          // Details
-          country_name:        isAnime ? 'Japan' : (d.origin_country?.[0] || d.production_countries?.[0]?.iso_3166_1 || ''),
-          genres:              (d.genres || []).map(g => g.name).join(', '),
-          aired_date:          isAnime ? (d.aired?.string || '') : (d.release_date || d.first_air_date || ''),
-          broadcast_day_time:  isAnime ? (d.broadcast?.string || '') : '',
-          source:              isAnime ? (d.source || '') : '',
-          rank:                isAnime ? (parseInt(d.rank)       || null) : null,
-          popularity:          isAnime ? (parseInt(d.popularity) || null) : (Math.round(d.popularity) || null),
-          studio_name:         isAnime ? (d.studios    || []).map(s => s.name).join(', ') : (d.production_companies || []).map(s => s.name).join(', '),
-          producers_name:      isAnime ? (d.producers  || []).map(p => p.name).join(', ') : '',
-          total_epi_num:       isAnime ? (parseInt(d.episodes) || null) : (parseInt(d.number_of_episodes) || null),
-          dub_epi_num:         parseInt(currentState.allAnimeData?.episodes_dub) || null,
-          sub_epi_num:         parseInt(currentState.allAnimeData?.episodes_sub) || null,
-          format:              isAnime ? (d.type || '') : (currentState.type || ''),
-          synopsis_context:    isAnime ? (d.synopsis || '') : '',
-          overview_context:    !isAnime ? (d.overview || '') : '',
-          mal_score:           isAnime  ? (parseFloat(d.score)        || null) : null,
-          tmdb_average_score:  !isAnime ? (parseFloat(d.vote_average) || null) : null,
-          content_rating:      isAnime  ? (d.rating ? d.rating.split(' - ')[0] : '') : '',
-          anime_duration_time: isAnime  ? (d.duration || '') : '',
-          tmdb_movie_tv_runtime: !isAnime ? (parseInt(d.runtime || d.episode_run_time?.[0]) || null) : null,
-          show_poster_link:    isAnime  ? (d.images?.jpg?.image_url || '') : (d.poster_path ? `https://image.tmdb.org/t/p/w500${d.poster_path}` : ''),
-          show_backdrop_landscape_image_link: isAnime ? (d.images?.jpg?.large_image_url || '') : (d.backdrop_path ? `https://image.tmdb.org/t/p/original${d.backdrop_path}` : ''),
-          external_link_mal:   isAnime  ? `https://myanimelist.net/anime/${mal_id}` : '',
-          external_link_tmdb:  !isAnime ? `https://www.themoviedb.org/${currentState.type}/${tmdb_id}` : ''
+          user_id:                               currentState.currentUser.id,
+          show_id:                               parseInt(currentState.id) || 0,
+          media_id:                              `${currentState.source}-${currentState.id}`,
+          media_type:                            isAnime ? 'anime' : currentState.type,
+          bookmark_status:                       statuses.join(','),
+          username:                              username,
+          mal_id:                                mal_id,
+          tmdb_id:                               tmdb_id,
+          eng_title:                             isAnime ? (d.title_english || d.title || '') : (d.title || d.name || ''),
+          default_title:                         isAnime ? (d.title || '') : (d.title || d.name || ''),
+          original_title:                        isAnime ? '' : (d.original_title || d.original_name || ''),
+          romanji_title:                         isAnime ? (d.title || '') : '',
+          japanese_title:                        isAnime ? (d.title_japanese || '') : '',
+          synonyms:                              isAnime ? (d.title_synonyms || []).join(', ') : '',
+          country_name:                          isAnime ? 'Japan' : (d.origin_country?.[0] || d.production_countries?.[0]?.iso_3166_1 || ''),
+          genres:                                (d.genres || []).map(g => g.name).join(', '),
+          aired_date:                            _formatAiredDate(d, isAnime),
+          broadcast_day_time:                    isAnime ? (d.broadcast?.string || '') : '',
+          source:                                isAnime ? (d.source || '') : '',
+          rank:                                  isAnime ? (parseInt(d.rank) || null) : null,
+          popularity:                            isAnime ? (parseInt(d.popularity) || null) : (Math.round(d.popularity) || null),
+          studio_name:                           isAnime ? (d.studios || []).map(s => s.name).join(', ') : (d.production_companies || []).map(s => s.name).join(', '),
+          producers_name:                        isAnime ? (d.producers || []).map(p => p.name).join(', ') : '',
+          total_epi_num:                         isAnime ? (parseInt(d.episodes) || null) : (parseInt(d.number_of_episodes) || null),
+          dub_epi_num:                           parseInt(currentState.allAnimeData?.episodes_dub) || null,
+          sub_epi_num:                           parseInt(currentState.allAnimeData?.episodes_sub) || null,
+          format:                                isAnime ? (d.type || '') : (currentState.type || ''),
+          synopsis_context:                      isAnime ? (d.synopsis || '') : '',
+          overview_context:                      !isAnime ? (d.overview || '') : '',
+          mal_score:                             isAnime  ? (parseFloat(d.score)        || null) : null,
+          tmdb_average_score:                    !isAnime ? (parseFloat(d.vote_average) || null) : null,
+          content_rating:                        isAnime  ? (d.rating ? d.rating.split(' - ')[0] : '') : '',
+          anime_duration_time:                   isAnime  ? (d.duration || '') : '',
+          tmdb_movie_tv_runtime:                 !isAnime ? (parseInt(d.runtime || d.episode_run_time?.[0]) || null) : null,
+          show_poster_link:                      isAnime  ? (d.images?.jpg?.image_url || '') : (d.poster_path ? `https://image.tmdb.org/t/p/w500${d.poster_path}` : ''),
+          show_backdrop_landscape_image_link:    isAnime ? (d.images?.jpg?.large_image_url || '') : (d.backdrop_path ? `https://image.tmdb.org/t/p/original${d.backdrop_path}` : ''),
+          external_link_mal:                     isAnime  ? `https://myanimelist.net/anime/${mal_id}` : '',
+          external_link_tmdb:                    !isAnime ? `https://www.themoviedb.org/${currentState.type}/${tmdb_id}` : '',
+          updated_at:                            new Date().toISOString()
         };
       }
 
+      // ── Fetch existing bookmark ───────────────────────────
       async function fetchUserBookmarks() {
         if (!currentState.currentUser || !currentState.id) return;
         try {
+          const _mid = `${currentState.source}-${currentState.id}`;
           const { data, error } = await window.supabaseClient
             .from('user_bookmarks')
             .select('bookmark_status, id')
             .eq('user_id', currentState.currentUser.id)
             .eq('show_id', parseInt(currentState.id))
+            .eq('media_id', _mid)
             .maybeSingle();
 
           if (error) { console.error('fetchUserBookmarks error:', error); return; }
@@ -4152,7 +4186,8 @@ img { max-width: 100%; height: auto; display: block; }
         } catch (e) { console.error('fetchUserBookmarks exception:', e); }
       }
 
-      async function upsertPayload(supa, payload) {
+      // ── Upsert helper ────────────────────────────────────
+      async function _upsert(supa, payload) {
         const { data, error } = await supa
           .from('user_bookmarks')
           .upsert(payload, { onConflict: 'user_id,show_id' })
@@ -4161,6 +4196,7 @@ img { max-width: 100%; height: auto; display: block; }
         return { data, error };
       }
 
+      // ── Save bookmarks (3-tier fallback) ─────────────────
       async function saveBookmarks() {
         if (!currentState.currentUser) return;
         const supa = window.supabaseClient;
@@ -4178,28 +4214,32 @@ img { max-width: 100%; height: auto; display: block; }
             return;
           }
 
-          // Try full payload first (all columns from migration SQL)
-          const fullPayload = buildBookmarkPayloadFull(currentState.selectedStatuses);
-          let { data, error } = await upsertPayload(supa, fullPayload);
+          // Tier 1: Full payload (all 35 columns)
+          const full = buildBookmarkPayloadFull(currentState.selectedStatuses);
+          let { data, error } = await _upsert(supa, full);
+
+          if (error && (error.code === 'PGRST204' || (error.message && error.message.includes('column')))) {
+            // Tier 2: Minimal payload (only 6 guaranteed columns)
+            console.warn('[Bookmark] Full payload failed, trying minimal:', error.message);
+            const minimal = _buildMinimalPayload(currentState.selectedStatuses);
+            const fb = await _upsert(supa, minimal);
+            data = fb.data; error = fb.error;
+          }
 
           if (error) {
-            // If full payload fails due to missing columns, fall back to core columns only
-            const isColumnMissing = error.code === 'PGRST204' || 
-              (error.message && error.message.includes('column'));
-            if (isColumnMissing) {
-              console.warn('[Bookmark] Full payload failed (missing columns), trying core-only:', error.message);
-              const corePayload = buildBookmarkPayloadCore(currentState.selectedStatuses);
-              const fallback = await upsertPayload(supa, corePayload);
-              data  = fallback.data;
-              error = fallback.error;
-            }
-            if (error) {
-              console.error('[Bookmark] Upsert failed:', JSON.stringify(error, null, 2));
-              throw error;
-            }
+            console.error('[Bookmark] Upsert failed:', JSON.stringify(error, null, 2));
+            showToast('Failed to save — try reloading the page', 'error');
+            return;
           }
 
           if (data?.id) currentState.bookmarkRowId = data.id;
+
+          // Cross-tab sync via localStorage
+          try {
+            const _mid = `${currentState.source}-${currentState.id}`;
+            localStorage.setItem(`bk_sync_${currentState.currentUser.id}_${_mid}`,
+              JSON.stringify({ statuses: currentState.selectedStatuses, ts: Date.now() }));
+          } catch(e) {}
 
         } catch (e) {
           console.error('[Bookmark] saveBookmarks exception:', e);
@@ -4207,6 +4247,7 @@ img { max-width: 100%; height: auto; display: block; }
         }
       }
 
+      // ── Remove bookmark ──────────────────────────────────
       async function removeBookmark() {
         if (!currentState.currentUser) return;
         try {
@@ -4214,7 +4255,7 @@ img { max-width: 100%; height: auto; display: block; }
             .from('user_bookmarks')
             .delete()
             .eq('user_id', currentState.currentUser.id)
-            .eq('show_id', currentState.id);
+            .eq('show_id', parseInt(currentState.id));
           if (error) throw error;
           currentState.selectedStatuses = [];
           currentState.bookmarkRowId = null;
@@ -4223,14 +4264,15 @@ img { max-width: 100%; height: auto; display: block; }
         } catch (e) { console.error('removeBookmark error:', e); }
       }
 
+      // ── UI update (button text + dropdown highlights) ─────
       function updateBookmarkUI() {
-        const btn    = document.getElementById('addToListBtn');
-        const text   = document.getElementById('dropdownText');
+        const btn  = document.getElementById('addToListBtn');
+        const text = document.getElementById('dropdownText');
         if (!btn || !text) return;
 
         const hasBookmark = currentState.selectedStatuses.length > 0;
 
-        // ── Button text + icon ──────────────────────────────
+        // Button text + icon
         if (hasBookmark) {
           text.textContent = 'Edit List';
           const bkIcon = btn.querySelector('i.fa-bookmark, i.fa-pen-to-square, i.fa-regular, i.fa-solid:not(.dropdown-arrow):not(.bk-check-icon)');
@@ -4245,7 +4287,7 @@ img { max-width: 100%; height: auto; display: block; }
           }
         }
 
-        // ── Dropdown items: selected highlight + FA check ──
+        // Dropdown items: selected highlight + left-side FA check icon
         document.querySelectorAll('.dropdown-item[data-status]').forEach(item => {
           const s = item.dataset.status;
           if (s === 'remove') return;
@@ -4253,18 +4295,19 @@ img { max-width: 100%; height: auto; display: block; }
           const isSelected = currentState.selectedStatuses.includes(s);
           item.classList.toggle('selected', isSelected);
 
-          // Remove all existing check icons first (clean slate each call)
+          // Remove existing check icons (clean slate)
           item.querySelectorAll('.bk-check-icon').forEach(el => el.remove());
 
           if (isSelected) {
+            // Insert check icon at LEFT edge (before SVG icon)
             const ck = document.createElement('i');
-            ck.className     = 'fa-solid fa-check bk-check-icon';
-            ck.style.cssText = 'margin-left:auto;color:#48bb78;font-size:0.85rem;flex-shrink:0;';
-            item.appendChild(ck);
+            ck.className = 'fa-solid fa-circle-check bk-check-icon';
+            item.insertBefore(ck, item.firstChild);
           }
         });
       }
 
+      // ── Login alert ──────────────────────────────────────
       function showLoginAlert() {
         const alert = document.getElementById('loginAlert');
         if (!alert) return;
@@ -4274,51 +4317,93 @@ img { max-width: 100%; height: auto; display: block; }
         if (closeBtn) closeBtn.onclick = () => alert.classList.remove('show');
       }
 
-      // Toast notification — bottom-right corner, 3s auto-remove
+      // ── Toast notification ────────────────────────────────
+      // Bottom-right, rounded, site-matching bg, FA icon, X close, 3s auto-remove
       function showToast(message, type = 'info') {
         const existing = document.getElementById('bk-toast-container');
         const container = existing || (() => {
           const c = document.createElement('div');
           c.id = 'bk-toast-container';
-          c.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none;';
+          c.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:10px;pointer-events:none;';
           document.body.appendChild(c);
           return c;
         })();
 
-        const bg = type === 'error'   ? '#e53e3e'
-                 : type === 'success' ? '#276749'
-                 : '#1a3a5c';
+        // Site-matching colors
+        const bgMap = {
+          success: 'linear-gradient(135deg, #0d2f4f 0%, #1a3a5c 100%)',
+          error:   'linear-gradient(135deg, #4a1515 0%, #742a2a 100%)',
+          info:    'linear-gradient(135deg, #1a2a3a 0%, #0d2137 100%)'
+        };
+        const iconMap = {
+          success: 'fa-solid fa-circle-check',
+          error:   'fa-solid fa-circle-exclamation',
+          info:    'fa-solid fa-circle-info'
+        };
+        const iconColor = type === 'success' ? '#48bb78' : type === 'error' ? '#fc8181' : '#63b3ed';
 
         const toast = document.createElement('div');
         toast.style.cssText = `
-          background:${bg};
-          color:#fff;
-          padding:12px 18px;
-          border-radius:10px;
-          font-size:0.875rem;
+          background:${bgMap[type] || bgMap.info};
+          color:#e2e8f0;
+          padding:14px 16px;
+          border-radius:14px;
+          font-size:0.85rem;
           font-weight:500;
-          box-shadow:0 8px 24px rgba(0,0,0,0.4);
-          border:1px solid rgba(255,255,255,0.12);
+          box-shadow:0 8px 32px rgba(0,0,0,0.5);
+          border:1px solid rgba(255,255,255,0.08);
           opacity:0;
-          transform:translateY(10px);
-          transition:opacity 0.25s ease,transform 0.25s ease;
+          transform:translateY(12px) scale(0.96);
+          transition:opacity 0.3s ease,transform 0.3s ease;
           pointer-events:auto;
-          max-width:280px;
-          line-height:1.4;
+          max-width:320px;
+          line-height:1.45;
+          display:flex;
+          align-items:flex-start;
+          gap:10px;
+          position:relative;
+          backdrop-filter:blur(8px);
         `;
-        toast.textContent = message;
+
+        // FA icon on LEFT side
+        const icon = document.createElement('i');
+        icon.className = iconMap[type] || iconMap.info;
+        icon.style.cssText = `color:${iconColor};font-size:1rem;flex-shrink:0;margin-top:1px;`;
+        toast.appendChild(icon);
+
+        // Text
+        const txt = document.createElement('span');
+        txt.style.cssText = 'flex:1;';
+        txt.textContent = message;
+        toast.appendChild(txt);
+
+        // X close button on TOP RIGHT
+        const closeBtn = document.createElement('i');
+        closeBtn.className = 'fa-solid fa-xmark';
+        closeBtn.style.cssText = 'color:rgba(255,255,255,0.4);cursor:pointer;font-size:0.75rem;flex-shrink:0;margin-top:2px;transition:color 0.15s;';
+        closeBtn.addEventListener('mouseenter', () => closeBtn.style.color = 'rgba(255,255,255,0.8)');
+        closeBtn.addEventListener('mouseleave', () => closeBtn.style.color = 'rgba(255,255,255,0.4)');
+        closeBtn.addEventListener('click', () => dismissToast(toast, container));
+        toast.appendChild(closeBtn);
+
         container.appendChild(toast);
 
+        // Animate in
         requestAnimationFrame(() => {
           toast.style.opacity = '1';
-          toast.style.transform = 'translateY(0)';
+          toast.style.transform = 'translateY(0) scale(1)';
         });
 
-        setTimeout(() => {
-          toast.style.opacity  = '0';
-          toast.style.transform = 'translateY(10px)';
-          setTimeout(() => { toast.remove(); if (!container.children.length) container.remove(); }, 300);
-        }, 3000);
+        // Auto-remove after 3s
+        const autoTimer = setTimeout(() => dismissToast(toast, container), 3000);
+        toast._autoTimer = autoTimer;
+      }
+
+      function dismissToast(toast, container) {
+        clearTimeout(toast._autoTimer);
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(12px) scale(0.96)';
+        setTimeout(() => { toast.remove(); if (!container.children.length) container.remove(); }, 300);
       }
 
       // Show toast with selected status names after dropdown closes
@@ -4328,8 +4413,23 @@ img { max-width: 100%; height: auto; display: block; }
           return;
         }
         const labels = statuses.map(s => STATUS_LABELS[s] || s).join(' & ');
-        showToast(`Saved: ${labels}`, 'success');
+        showToast(`Bookmark Successfully saved: ${labels}`, 'success');
       }
+
+      // ── Cross-tab sync (listen for bookmark changes in other tabs) ──
+      window.addEventListener('storage', (e) => {
+        if (!e.key || !e.key.startsWith('bk_sync_')) return;
+        if (!currentState.currentUser) return;
+        const expectedPrefix = `bk_sync_${currentState.currentUser.id}_${currentState.source}-${currentState.id}`;
+        if (e.key !== expectedPrefix) return;
+        try {
+          const { statuses } = JSON.parse(e.newValue || '{}');
+          if (Array.isArray(statuses)) {
+            currentState.selectedStatuses = statuses;
+            updateBookmarkUI();
+          }
+        } catch(err) {}
+      });
 
       async function loadSidebarContent() {
         const isAnime = currentState.source === 'jikan';
