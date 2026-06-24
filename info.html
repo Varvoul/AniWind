@@ -316,6 +316,26 @@ img { max-width: 100%; height: auto; display: block; }
   margin-top: 2px;
 }
 
+/* Sidebar tag pills — colorful semi-transparent with round borders */
+.side-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-top: 4px;
+}
+.side-tag {
+  font-size: 0.58rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 50px;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+  line-height: 1.6;
+}
+.side-tag.genre  { background: rgba(66,153,225,0.13); border: 1px solid rgba(66,153,225,0.45); color: #7ec8f8; }
+.side-tag.studio { background: rgba(128,90,213,0.13); border: 1px solid rgba(128,90,213,0.45); color: #c4b0f8; }
+.side-tag.rating { background: rgba(237,100,166,0.13); border: 1px solid rgba(237,100,166,0.45); color: #f9aed5; }
+
 /* Hero Section */
 .hero-section {
   display: grid;
@@ -4499,8 +4519,8 @@ img { max-width: 100%; height: auto; display: block; }
           if (Array.isArray(dbItems) && dbItems.length) {
             const htmlOut = dbItems.map((s, i) => renderSidebarItem(
               isAnime
-                ? { mal_id: s.mal_id, title: s.title, images: { jpg: { image_url: s.poster } }, score: s.score }
-                : { id: s.tmdb_id, title: s.title, name: s.title, _supaImg: s.poster, poster: s.poster, vote_average: Number(s.score||0), score: Number(s.score||0) },
+                ? { mal_id: s.mal_id, title: s.title, images: { jpg: { image_url: s.poster } }, score: s.score, type: s.type || 'Anime', year: (s.aired_date || s.year || '').slice(0,4), _genres: Array.isArray(s.genres) ? s.genres.slice(0,3) : (s.genres ? String(s.genres).split(',').map(x=>x.trim()).slice(0,3) : []), _studio: s.studio_name || s.studio || '', _rating: s.content_rating || '' }
+                : { id: s.tmdb_id, title: s.title, name: s.title, _supaImg: s.poster, poster: s.poster, vote_average: Number(s.score||0), score: Number(s.score||0), type: s.type || currentState.type, year: (s.aired_date || s.year || '').slice(0,4), _genres: Array.isArray(s.genres) ? s.genres.slice(0,3) : (s.genres ? String(s.genres).split(',').map(x=>x.trim()).slice(0,3) : []), _studio: s.studio_name || s.studio || '', _rating: s.content_rating || '' },
               i + 1, isAnime
             )).join('');
             container.innerHTML = htmlOut;
@@ -4527,8 +4547,8 @@ img { max-width: 100%; height: auto; display: block; }
           // Save to DB — global 72h cache (NOT permanent, always 72h regardless of show status)
           if (window.AniCache && items.length) {
             const rows = items.map(item => isAnime
-              ? { id:`jikan-${item.mal_id}`, type:'Anime', title:item.title_english||item.title, poster:item.images?.jpg?.large_image_url||'', score:item.score, members:item.members, genres:(item.genres||[]).map(g=>g.name), show_status:item.status||'Currently Airing', mal_id:item.mal_id }
-              : { id:`tmdb-${currentState.type}-${item.id}`, type:currentState.type==='movie'?'Movie':'TV', title:item.title||item.name, poster:item.poster_path?`https://image.tmdb.org/t/p/w185${item.poster_path}`:'', score:item.vote_average, members:item.vote_count, show_status:currentState.type==='movie'?'Released':'Returning Series' }
+              ? { id:`jikan-${item.mal_id}`, type:'Anime', title:item.title_english||item.title, poster:item.images?.jpg?.large_image_url||'', score:item.score, members:item.members, genres:(item.genres||[]).map(g=>g.name), show_status:item.status||'Currently Airing', mal_id:item.mal_id, studio:(item.studios&&item.studios[0]&&item.studios[0].name)||'', content_rating:item.rating||'', year:item.aired?.from?.slice(0,4)||'' }
+              : { id:`tmdb-${currentState.type}-${item.id}`, type:currentState.type==='movie'?'Movie':'TV', title:item.title||item.name, poster:item.poster_path?`https://image.tmdb.org/t/p/w185${item.poster_path}`:'', score:item.vote_average, members:item.vote_count, show_status:currentState.type==='movie'?'Released':'Returning Series', genres:(item.genres||[]).map(g=>g.name), studio:(item.production_companies&&item.production_companies[0]&&item.production_companies[0].name)||(item.networks&&item.networks[0]&&item.networks[0].name)||'', content_rating:'', year:(item.release_date||item.first_air_date||'').slice(0,4) }
             );
             window.AniCache.save(rows).catch(()=>{});
             // Store HTML in media_cache with 72h TTL (section 'hidden_gem' → TTL=72)
@@ -4571,8 +4591,8 @@ img { max-width: 100%; height: auto; display: block; }
           if (Array.isArray(dbItems) && dbItems.length) {
             const htmlOut = dbItems.map((s, i) => renderSidebarItem(
               isAnime
-                ? { mal_id: s.mal_id, title: s.title, images: { jpg: { image_url: s.poster } }, score: s.score, rank: i+1 }
-                : { id: s.tmdb_id, title: s.title, name: s.title, _supaImg: s.poster, poster: s.poster, vote_average: Number(s.score||0), score: Number(s.score||0) },
+                ? { mal_id: s.mal_id, title: s.title, images: { jpg: { image_url: s.poster } }, score: s.score, rank: i+1, type: s.type || 'Anime', year: (s.aired_date || s.year || '').slice(0,4), _genres: Array.isArray(s.genres) ? s.genres.slice(0,3) : (s.genres ? String(s.genres).split(',').map(x=>x.trim()).slice(0,3) : []), _studio: s.studio_name || s.studio || '', _rating: s.content_rating || '' }
+                : { id: s.tmdb_id, title: s.title, name: s.title, _supaImg: s.poster, poster: s.poster, vote_average: Number(s.score||0), score: Number(s.score||0), type: s.type || currentState.type, year: (s.aired_date || s.year || '').slice(0,4), _genres: Array.isArray(s.genres) ? s.genres.slice(0,3) : (s.genres ? String(s.genres).split(',').map(x=>x.trim()).slice(0,3) : []), _studio: s.studio_name || s.studio || '', _rating: s.content_rating || '' },
               i + 1, isAnime, true
             )).join('');
             container.innerHTML = htmlOut;
@@ -4596,8 +4616,8 @@ img { max-width: 100%; height: auto; display: block; }
           // Save to DB — global 72h cache
           if (window.AniCache && items.length) {
             const rows = items.map(item => isAnime
-              ? { id:`jikan-${item.mal_id}`, type:'Anime', title:item.title_english||item.title, poster:item.images?.jpg?.large_image_url||'', score:item.score, members:item.members, genres:(item.genres||[]).map(g=>g.name), show_status:item.status||'Currently Airing', mal_id:item.mal_id }
-              : { id:`tmdb-${currentState.type}-${item.id}`, type:currentState.type==='movie'?'Movie':'TV', title:item.title||item.name, poster:item.poster_path?`https://image.tmdb.org/t/p/w185${item.poster_path}`:'', score:item.vote_average, show_status:currentState.type==='movie'?'Released':'Returning Series' }
+              ? { id:`jikan-${item.mal_id}`, type:'Anime', title:item.title_english||item.title, poster:item.images?.jpg?.large_image_url||'', score:item.score, members:item.members, genres:(item.genres||[]).map(g=>g.name), show_status:item.status||'Currently Airing', mal_id:item.mal_id, studio:(item.studios&&item.studios[0]&&item.studios[0].name)||'', content_rating:item.rating||'', year:item.aired?.from?.slice(0,4)||'' }
+              : { id:`tmdb-${currentState.type}-${item.id}`, type:currentState.type==='movie'?'Movie':'TV', title:item.title||item.name, poster:item.poster_path?`https://image.tmdb.org/t/p/w185${item.poster_path}`:'', score:item.vote_average, show_status:currentState.type==='movie'?'Released':'Returning Series', genres:(item.genres||[]).map(g=>g.name), studio:(item.production_companies&&item.production_companies[0]&&item.production_companies[0].name)||(item.networks&&item.networks[0]&&item.networks[0].name)||'', content_rating:'', year:(item.release_date||item.first_air_date||'').slice(0,4) }
             );
             window.AniCache.save(rows).catch(()=>{});
             window.AniCache.set({ cacheKey: _trKey, pageSource:'info', section:'top_ranking',
@@ -4639,8 +4659,8 @@ img { max-width: 100%; height: auto; display: block; }
           if (Array.isArray(dbItems) && dbItems.length) {
             const htmlOut = dbItems.map((s, i) => renderSidebarItem(
               isAnime
-                ? { mal_id: s.mal_id, title: s.title, images: { jpg: { image_url: s.poster } }, score: s.score, favorites: s.popularity }
-                : { id: s.tmdb_id, title: s.title, name: s.title, _supaImg: s.poster, poster: s.poster, vote_average: Number(s.score||0), score: Number(s.score||0) },
+                ? { mal_id: s.mal_id, title: s.title, images: { jpg: { image_url: s.poster } }, score: s.score, favorites: s.popularity, type: s.type || 'Anime', year: (s.aired_date || s.year || '').slice(0,4), _genres: Array.isArray(s.genres) ? s.genres.slice(0,3) : (s.genres ? String(s.genres).split(',').map(x=>x.trim()).slice(0,3) : []), _studio: s.studio_name || s.studio || '', _rating: s.content_rating || '' }
+                : { id: s.tmdb_id, title: s.title, name: s.title, _supaImg: s.poster, poster: s.poster, vote_average: Number(s.score||0), score: Number(s.score||0), type: s.type || currentState.type, year: (s.aired_date || s.year || '').slice(0,4), _genres: Array.isArray(s.genres) ? s.genres.slice(0,3) : (s.genres ? String(s.genres).split(',').map(x=>x.trim()).slice(0,3) : []), _studio: s.studio_name || s.studio || '', _rating: s.content_rating || '' },
               i + 1, isAnime
             )).join('');
             container.innerHTML = htmlOut;
@@ -4663,8 +4683,8 @@ img { max-width: 100%; height: auto; display: block; }
           try { sessionStorage.setItem(cacheKey, JSON.stringify({ html: htmlOut, ts: Date.now() })); } catch(e) {}
           if (window.AniCache && items.length) {
             const rows = items.map(item => isAnime
-              ? { id:`jikan-${item.mal_id}`, type:'Anime', title:item.title_english||item.title, poster:item.images?.jpg?.large_image_url||'', score:item.score, members:item.members||item.favorites, genres:(item.genres||[]).map(g=>g.name), show_status:item.status||'Currently Airing', mal_id:item.mal_id }
-              : { id:`tmdb-${currentState.type}-${item.id}`, type:currentState.type==='movie'?'Movie':'TV', title:item.title||item.name, poster:item.poster_path?`https://image.tmdb.org/t/p/w185${item.poster_path}`:'', score:item.vote_average, members:item.vote_count, show_status:currentState.type==='movie'?'Released':'Returning Series' }
+              ? { id:`jikan-${item.mal_id}`, type:'Anime', title:item.title_english||item.title, poster:item.images?.jpg?.large_image_url||'', score:item.score, members:item.members||item.favorites, genres:(item.genres||[]).map(g=>g.name), show_status:item.status||'Currently Airing', mal_id:item.mal_id, studio:(item.studios&&item.studios[0]&&item.studios[0].name)||'', content_rating:item.rating||'', year:item.aired?.from?.slice(0,4)||'' }
+              : { id:`tmdb-${currentState.type}-${item.id}`, type:currentState.type==='movie'?'Movie':'TV', title:item.title||item.name, poster:item.poster_path?`https://image.tmdb.org/t/p/w185${item.poster_path}`:'', score:item.vote_average, members:item.vote_count, show_status:currentState.type==='movie'?'Released':'Returning Series', genres:(item.genres||[]).map(g=>g.name), studio:(item.production_companies&&item.production_companies[0]&&item.production_companies[0].name)||(item.networks&&item.networks[0]&&item.networks[0].name)||'', content_rating:'', year:(item.release_date||item.first_air_date||'').slice(0,4) }
             );
             window.AniCache.save(rows).catch(()=>{});
             // Global 72h cache (NOT permanent, always 72h regardless of show status)
@@ -4688,28 +4708,50 @@ img { max-width: 100%; height: auto; display: block; }
           ? (item.score || item.rating_score || 0)
           : (item.vote_average || item.score || item.rating_score || 0);
         const score = scoreRaw;
-        const type = isAnime ? item.type : currentState.type;
-        const year = isAnime ? item.aired?.from?.slice(0,4) : (item.release_date || item.first_air_date)?.slice(0,4);
-        const genres = (item.genres || []).slice(0, 2).map(g => g.name || g).join(', ');
-        const studio = isAnime ? item.studios?.[0]?.name : item.production_companies?.[0]?.name || item.networks?.[0]?.name;
-        const langBadges = isAnime ? `<span class="lang-badge sub"><i class="fa-solid fa-closed-captioning"></i></span><span class="lang-badge dub"><i class="fa-solid fa-microphone"></i></span>` : '';
-        const popularity = item.popularity || item.vote_count || '';
-        const itemRank = item.rank ? `#${item.rank}` : (item.popularity ? `#${Math.round(item.popularity)}` : '');
-        
+        // Fix: fallback so type never shows 'undefined'
+        const typeRaw = isAnime ? (item.type || 'Anime') : (item.type || currentState.type || '');
+        const type = typeRaw ? typeRaw.charAt(0).toUpperCase() + typeRaw.slice(1) : '';
+        const year = isAnime
+          ? (item.year || item.aired?.from?.slice(0,4) || '')
+          : (item.year || (item.release_date || item.first_air_date)?.slice(0,4) || '');
+        // Genres: support array-of-objects, array-of-strings, or comma-string (from DB)
+        const genreList = (() => {
+          if (item._genres) return item._genres;
+          const g = item.genres;
+          if (!g) return [];
+          if (typeof g === 'string') return g.split(',').map(s => s.trim()).filter(Boolean);
+          if (Array.isArray(g)) return g.slice(0, 3).map(x => (typeof x === 'string' ? x : x && x.name)).filter(Boolean);
+          return [];
+        })().slice(0, 3);
+        // Studio: support pre-processed string or raw API data
+        const studio = item._studio
+          || (isAnime ? item.studios && item.studios[0] && item.studios[0].name : (item.production_companies && item.production_companies[0] && item.production_companies[0].name) || (item.networks && item.networks[0] && item.networks[0].name))
+          || '';
+        // Content rating
+        const ratingRaw = item._rating || item.rating || item.content_rating || item.certification || '';
+        const ratingClean = ratingRaw ? ratingRaw.split(' - ')[0].trim() : '';
+
         const urlType = isAnime ? 'anime' : currentState.type;
         const source = isAnime ? 'jikan' : (currentState.type === 'movie' ? 'tmdb-movie' : 'tmdb-tv');
         const id = isAnime ? item.mal_id : item.id;
         const slug = slugify(title);
         const detailsUrl = `/info/${urlType}/${source}-${id}/${slug}`;
-        
-        return `<a href="${detailsUrl}" class="sidebar-list-item">
-          ${showRank ? `<span class="sidebar-rank">${rank}</span>` : ''}
-          <img class="sidebar-poster" src="${poster}" alt="${title}" loading="lazy" onerror="this.style.display='none'">
-          <div class="sidebar-info">
-            <h4>${escapeHtml(title)}</h4>
-            <div class="side-meta">⭐ ${(typeof score==="string" ? score : Number(score||0).toFixed(1)) || 'N/A'} · ${type}${year ? ` · ${year}` : ''}</div>
-          </div>
-        </a>`;
+
+        const tagPills = [
+          ...genreList.map(function(g) { return '<span class="side-tag genre">' + escapeHtml(g) + '</span>'; }),
+          studio ? '<span class="side-tag studio">' + escapeHtml(studio) + '</span>' : '',
+          ratingClean ? '<span class="side-tag rating">' + escapeHtml(ratingClean) + '</span>' : '',
+        ].filter(Boolean).join('');
+
+        return '<a href="' + detailsUrl + '" class="sidebar-list-item">'
+          + (showRank ? '<span class="sidebar-rank">' + rank + '</span>' : '')
+          + '<img class="sidebar-poster" src="' + escapeHtml(poster) + '" alt="' + escapeHtml(title) + '" loading="lazy" onerror="this.style.display=\'none\'">'
+          + '<div class="sidebar-info">'
+          + '<h4>' + escapeHtml(title) + '</h4>'
+          + '<div class="side-meta">\u2B50 ' + ((typeof score === 'string' ? score : Number(score || 0).toFixed(1)) || 'N/A') + (type ? ' \u00B7 ' + type : '') + (year ? ' \u00B7 ' + year : '') + '</div>'
+          + (tagPills ? '<div class="side-tags">' + tagPills + '</div>' : '')
+          + '</div>'
+          + '</a>';
       }
 
       async function loadRecommendations() {
@@ -5726,3 +5768,4 @@ function renderSunkenPagination(currentPage, totalPages, container) {
   </script>
 </body>
 </html>
+
