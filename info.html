@@ -4519,8 +4519,8 @@ img { max-width: 100%; height: auto; display: block; }
           if (Array.isArray(dbItems) && dbItems.length) {
             const htmlOut = dbItems.map((s, i) => renderSidebarItem(
               isAnime
-                ? { mal_id: s.mal_id, title: s.title, images: { jpg: { image_url: s.poster } }, score: s.score, type: s.type || 'Anime', year: (s.aired_date || s.year || '').slice(0,4), _genres: Array.isArray(s.genres) ? s.genres.slice(0,3) : (s.genres ? String(s.genres).split(',').map(x=>x.trim()).slice(0,3) : []), _studio: s.studio_name || s.studio || '', _rating: s.content_rating || '' }
-                : { id: s.tmdb_id, title: s.title, name: s.title, _supaImg: s.poster, poster: s.poster, vote_average: Number(s.score||0), score: Number(s.score||0), type: s.type || currentState.type, year: (s.aired_date || s.year || '').slice(0,4), _genres: Array.isArray(s.genres) ? s.genres.slice(0,3) : (s.genres ? String(s.genres).split(',').map(x=>x.trim()).slice(0,3) : []), _studio: s.studio_name || s.studio || '', _rating: s.content_rating || '' },
+                ? { mal_id: s.mal_id, title: s.title, images: { jpg: { image_url: s.poster } }, score: s.score, type: s.type || 'Anime', year: (s.aired_date || s.year || '').slice(0,4), _genres: s.genres || [], _studio: s.studio_name || s.studio || '', _rating: s.content_rating || '' }
+                : { id: s.tmdb_id, title: s.title, name: s.title, _supaImg: s.poster, poster: s.poster, vote_average: Number(s.score||0), score: Number(s.score||0), type: s.type || currentState.type, year: (s.aired_date || s.year || '').slice(0,4), _genres: s.genres || [], _studio: s.studio_name || s.studio || '', _rating: s.content_rating || '' },
               i + 1, isAnime
             )).join('');
             container.innerHTML = htmlOut;
@@ -4547,8 +4547,8 @@ img { max-width: 100%; height: auto; display: block; }
           // Save to DB — global 72h cache (NOT permanent, always 72h regardless of show status)
           if (window.AniCache && items.length) {
             const rows = items.map(item => isAnime
-              ? { id:`jikan-${item.mal_id}`, type:'Anime', title:item.title_english||item.title, poster:item.images?.jpg?.large_image_url||'', score:item.score, members:item.members, genres:(item.genres||[]).map(g=>g.name), show_status:item.status||'Currently Airing', mal_id:item.mal_id, studio:(item.studios&&item.studios[0]&&item.studios[0].name)||'', content_rating:item.rating||'', year:item.aired?.from?.slice(0,4)||'' }
-              : { id:`tmdb-${currentState.type}-${item.id}`, type:currentState.type==='movie'?'Movie':'TV', title:item.title||item.name, poster:item.poster_path?`https://image.tmdb.org/t/p/w185${item.poster_path}`:'', score:item.vote_average, members:item.vote_count, show_status:currentState.type==='movie'?'Released':'Returning Series', genres:(item.genres||[]).map(g=>g.name), studio:(item.production_companies&&item.production_companies[0]&&item.production_companies[0].name)||(item.networks&&item.networks[0]&&item.networks[0].name)||'', content_rating:'', year:(item.release_date||item.first_air_date||'').slice(0,4) }
+              ? { id:`jikan-${item.mal_id}`, type:'Anime', title:item.title_english||item.title, poster:item.images?.jpg?.large_image_url||'', score:item.score, members:item.members, genres:(item.genres||[]).map(g=>g.name), show_status:item.status||'Currently Airing', mal_id:item.mal_id, studio_name:(item.studios&&item.studios[0]&&item.studios[0].name)||'', content_rating:item.rating||'', year:item.aired?.from?.slice(0,4)||'' }
+              : { id:`tmdb-${currentState.type}-${item.id}`, type:currentState.type==='movie'?'Movie':'TV', title:item.title||item.name, poster:item.poster_path?`https://image.tmdb.org/t/p/w185${item.poster_path}`:'', score:item.vote_average, members:item.vote_count, show_status:currentState.type==='movie'?'Released':'Returning Series', genres:(item.genres||[]).map(g=>g.name), studio_name:(item.production_companies&&item.production_companies[0]&&item.production_companies[0].name)||(item.networks&&item.networks[0]&&item.networks[0].name)||'', content_rating:'', year:(item.release_date||item.first_air_date||'').slice(0,4) }
             );
             window.AniCache.save(rows).catch(()=>{});
             // Store HTML in media_cache with 72h TTL (section 'hidden_gem' → TTL=72)
@@ -4591,8 +4591,8 @@ img { max-width: 100%; height: auto; display: block; }
           if (Array.isArray(dbItems) && dbItems.length) {
             const htmlOut = dbItems.map((s, i) => renderSidebarItem(
               isAnime
-                ? { mal_id: s.mal_id, title: s.title, images: { jpg: { image_url: s.poster } }, score: s.score, rank: i+1, type: s.type || 'Anime', year: (s.aired_date || s.year || '').slice(0,4), _genres: Array.isArray(s.genres) ? s.genres.slice(0,3) : (s.genres ? String(s.genres).split(',').map(x=>x.trim()).slice(0,3) : []), _studio: s.studio_name || s.studio || '', _rating: s.content_rating || '' }
-                : { id: s.tmdb_id, title: s.title, name: s.title, _supaImg: s.poster, poster: s.poster, vote_average: Number(s.score||0), score: Number(s.score||0), type: s.type || currentState.type, year: (s.aired_date || s.year || '').slice(0,4), _genres: Array.isArray(s.genres) ? s.genres.slice(0,3) : (s.genres ? String(s.genres).split(',').map(x=>x.trim()).slice(0,3) : []), _studio: s.studio_name || s.studio || '', _rating: s.content_rating || '' },
+                ? { mal_id: s.mal_id, title: s.title, images: { jpg: { image_url: s.poster } }, score: s.score, rank: i+1, type: s.type || 'Anime', year: (s.aired_date || s.year || '').slice(0,4), _genres: s.genres || [], _studio: s.studio_name || s.studio || '', _rating: s.content_rating || '' }
+                : { id: s.tmdb_id, title: s.title, name: s.title, _supaImg: s.poster, poster: s.poster, vote_average: Number(s.score||0), score: Number(s.score||0), type: s.type || currentState.type, year: (s.aired_date || s.year || '').slice(0,4), _genres: s.genres || [], _studio: s.studio_name || s.studio || '', _rating: s.content_rating || '' },
               i + 1, isAnime, true
             )).join('');
             container.innerHTML = htmlOut;
@@ -4616,8 +4616,8 @@ img { max-width: 100%; height: auto; display: block; }
           // Save to DB — global 72h cache
           if (window.AniCache && items.length) {
             const rows = items.map(item => isAnime
-              ? { id:`jikan-${item.mal_id}`, type:'Anime', title:item.title_english||item.title, poster:item.images?.jpg?.large_image_url||'', score:item.score, members:item.members, genres:(item.genres||[]).map(g=>g.name), show_status:item.status||'Currently Airing', mal_id:item.mal_id, studio:(item.studios&&item.studios[0]&&item.studios[0].name)||'', content_rating:item.rating||'', year:item.aired?.from?.slice(0,4)||'' }
-              : { id:`tmdb-${currentState.type}-${item.id}`, type:currentState.type==='movie'?'Movie':'TV', title:item.title||item.name, poster:item.poster_path?`https://image.tmdb.org/t/p/w185${item.poster_path}`:'', score:item.vote_average, show_status:currentState.type==='movie'?'Released':'Returning Series', genres:(item.genres||[]).map(g=>g.name), studio:(item.production_companies&&item.production_companies[0]&&item.production_companies[0].name)||(item.networks&&item.networks[0]&&item.networks[0].name)||'', content_rating:'', year:(item.release_date||item.first_air_date||'').slice(0,4) }
+              ? { id:`jikan-${item.mal_id}`, type:'Anime', title:item.title_english||item.title, poster:item.images?.jpg?.large_image_url||'', score:item.score, members:item.members, genres:(item.genres||[]).map(g=>g.name), show_status:item.status||'Currently Airing', mal_id:item.mal_id, studio_name:(item.studios&&item.studios[0]&&item.studios[0].name)||'', content_rating:item.rating||'', year:item.aired?.from?.slice(0,4)||'' }
+              : { id:`tmdb-${currentState.type}-${item.id}`, type:currentState.type==='movie'?'Movie':'TV', title:item.title||item.name, poster:item.poster_path?`https://image.tmdb.org/t/p/w185${item.poster_path}`:'', score:item.vote_average, show_status:currentState.type==='movie'?'Released':'Returning Series', genres:(item.genres||[]).map(g=>g.name), studio_name:(item.production_companies&&item.production_companies[0]&&item.production_companies[0].name)||(item.networks&&item.networks[0]&&item.networks[0].name)||'', content_rating:'', year:(item.release_date||item.first_air_date||'').slice(0,4) }
             );
             window.AniCache.save(rows).catch(()=>{});
             window.AniCache.set({ cacheKey: _trKey, pageSource:'info', section:'top_ranking',
@@ -4659,8 +4659,8 @@ img { max-width: 100%; height: auto; display: block; }
           if (Array.isArray(dbItems) && dbItems.length) {
             const htmlOut = dbItems.map((s, i) => renderSidebarItem(
               isAnime
-                ? { mal_id: s.mal_id, title: s.title, images: { jpg: { image_url: s.poster } }, score: s.score, favorites: s.popularity, type: s.type || 'Anime', year: (s.aired_date || s.year || '').slice(0,4), _genres: Array.isArray(s.genres) ? s.genres.slice(0,3) : (s.genres ? String(s.genres).split(',').map(x=>x.trim()).slice(0,3) : []), _studio: s.studio_name || s.studio || '', _rating: s.content_rating || '' }
-                : { id: s.tmdb_id, title: s.title, name: s.title, _supaImg: s.poster, poster: s.poster, vote_average: Number(s.score||0), score: Number(s.score||0), type: s.type || currentState.type, year: (s.aired_date || s.year || '').slice(0,4), _genres: Array.isArray(s.genres) ? s.genres.slice(0,3) : (s.genres ? String(s.genres).split(',').map(x=>x.trim()).slice(0,3) : []), _studio: s.studio_name || s.studio || '', _rating: s.content_rating || '' },
+                ? { mal_id: s.mal_id, title: s.title, images: { jpg: { image_url: s.poster } }, score: s.score, favorites: s.popularity, type: s.type || 'Anime', year: (s.aired_date || s.year || '').slice(0,4), _genres: s.genres || [], _studio: s.studio_name || s.studio || '', _rating: s.content_rating || '' }
+                : { id: s.tmdb_id, title: s.title, name: s.title, _supaImg: s.poster, poster: s.poster, vote_average: Number(s.score||0), score: Number(s.score||0), type: s.type || currentState.type, year: (s.aired_date || s.year || '').slice(0,4), _genres: s.genres || [], _studio: s.studio_name || s.studio || '', _rating: s.content_rating || '' },
               i + 1, isAnime
             )).join('');
             container.innerHTML = htmlOut;
@@ -4683,8 +4683,8 @@ img { max-width: 100%; height: auto; display: block; }
           try { sessionStorage.setItem(cacheKey, JSON.stringify({ html: htmlOut, ts: Date.now() })); } catch(e) {}
           if (window.AniCache && items.length) {
             const rows = items.map(item => isAnime
-              ? { id:`jikan-${item.mal_id}`, type:'Anime', title:item.title_english||item.title, poster:item.images?.jpg?.large_image_url||'', score:item.score, members:item.members||item.favorites, genres:(item.genres||[]).map(g=>g.name), show_status:item.status||'Currently Airing', mal_id:item.mal_id, studio:(item.studios&&item.studios[0]&&item.studios[0].name)||'', content_rating:item.rating||'', year:item.aired?.from?.slice(0,4)||'' }
-              : { id:`tmdb-${currentState.type}-${item.id}`, type:currentState.type==='movie'?'Movie':'TV', title:item.title||item.name, poster:item.poster_path?`https://image.tmdb.org/t/p/w185${item.poster_path}`:'', score:item.vote_average, members:item.vote_count, show_status:currentState.type==='movie'?'Released':'Returning Series', genres:(item.genres||[]).map(g=>g.name), studio:(item.production_companies&&item.production_companies[0]&&item.production_companies[0].name)||(item.networks&&item.networks[0]&&item.networks[0].name)||'', content_rating:'', year:(item.release_date||item.first_air_date||'').slice(0,4) }
+              ? { id:`jikan-${item.mal_id}`, type:'Anime', title:item.title_english||item.title, poster:item.images?.jpg?.large_image_url||'', score:item.score, members:item.members||item.favorites, genres:(item.genres||[]).map(g=>g.name), show_status:item.status||'Currently Airing', mal_id:item.mal_id, studio_name:(item.studios&&item.studios[0]&&item.studios[0].name)||'', content_rating:item.rating||'', year:item.aired?.from?.slice(0,4)||'' }
+              : { id:`tmdb-${currentState.type}-${item.id}`, type:currentState.type==='movie'?'Movie':'TV', title:item.title||item.name, poster:item.poster_path?`https://image.tmdb.org/t/p/w185${item.poster_path}`:'', score:item.vote_average, members:item.vote_count, show_status:currentState.type==='movie'?'Released':'Returning Series', genres:(item.genres||[]).map(g=>g.name), studio_name:(item.production_companies&&item.production_companies[0]&&item.production_companies[0].name)||(item.networks&&item.networks[0]&&item.networks[0].name)||'', content_rating:'', year:(item.release_date||item.first_air_date||'').slice(0,4) }
             );
             window.AniCache.save(rows).catch(()=>{});
             // Global 72h cache (NOT permanent, always 72h regardless of show status)
@@ -4714,18 +4714,26 @@ img { max-width: 100%; height: auto; display: block; }
         const year = isAnime
           ? (item.year || item.aired?.from?.slice(0,4) || '')
           : (item.year || (item.release_date || item.first_air_date)?.slice(0,4) || '');
-        // Genres: support array-of-objects, array-of-strings, or comma-string (from DB)
+        // Genres: support JSON string from DB, array-of-objects, array-of-strings
         const genreList = (() => {
-          if (item._genres) return item._genres;
-          const g = item.genres;
-          if (!g) return [];
-          if (typeof g === 'string') return g.split(',').map(s => s.trim()).filter(Boolean);
-          if (Array.isArray(g)) return g.slice(0, 3).map(x => (typeof x === 'string' ? x : x && x.name)).filter(Boolean);
-          return [];
+          // Helper: parse a genre value into a clean string array
+          function parseGenreVal(g) {
+            if (!g) return [];
+            // JSON array string from DB e.g. '["Action","Drama"]'
+            if (typeof g === 'string' && g.trim().startsWith('[')) {
+              try { g = JSON.parse(g); } catch(e) {}
+            }
+            if (Array.isArray(g)) return g.map(x => (typeof x === 'string' ? x : (x && x.name) || '')).filter(Boolean);
+            // Plain comma string
+            if (typeof g === 'string') return g.split(',').map(s => s.trim()).filter(Boolean);
+            return [];
+          }
+          if (item._genres) return parseGenreVal(item._genres);
+          return parseGenreVal(item.genres);
         })().slice(0, 3);
-        // Studio: support pre-processed string or raw API data
-        const studio = item._studio
-          || (isAnime ? item.studios && item.studios[0] && item.studios[0].name : (item.production_companies && item.production_companies[0] && item.production_companies[0].name) || (item.networks && item.networks[0] && item.networks[0].name))
+        // Studio: _studio (pre-set from DB), studio_name (shows table col), or raw API data
+        const studio = item._studio || item.studio_name
+          || (isAnime ? (item.studios && item.studios[0] && item.studios[0].name) : ((item.production_companies && item.production_companies[0] && item.production_companies[0].name) || (item.networks && item.networks[0] && item.networks[0].name)))
           || '';
         // Content rating
         const ratingRaw = item._rating || item.rating || item.content_rating || item.certification || '';
@@ -5768,4 +5776,5 @@ function renderSunkenPagination(currentPage, totalPages, container) {
   </script>
 </body>
 </html>
+
 
