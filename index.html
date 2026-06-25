@@ -1985,21 +1985,42 @@ window.showAnikotoPopupById = function(mal_id) {
         // Fetch 2 Jikan pages to have enough unique anime after dedup
         const [tv, anime, anime2] = await Promise.all([
           fetchTMDB('/discover/tv', `with_status=3&air_date.lte=${today}&sort_by=first_air_date.desc&page=${page}`),
-          fetchJikan('anime', `status=complete&order_by=start_date&sort=desc&page=${page}&limit=25`),
-          fetchJikan('anime', `status=complete&order_by=start_date&sort=desc&page=${page+1}&limit=25`)
+          fetchJikan('anime', `status=complete&order_by=start_date&sort=desc&page=${page}&limit=25&sfw=true`),
+          fetchJikan('anime', `status=complete&order_by=start_date&sort=desc&page=${page+1}&limit=25&sfw=true`)
         ]);
-        // Deduplicate Jikan results by mal_id
-        const allAnime = [...(anime.data||[]), ...(anime2.data||[])];
-        const uniqueAnime = [];
+        // Clean, dedup and sort Jikan by type priority
+        const TYPE_PRIORITY = {TV:0,Movie:1,OVA:2,ONA:3,Special:4};
+        const allRawAnime = cleanJikan([...(anime.data||[]),...(anime2.data||[])]);
         const seenThisPage = new Set();
-        for (const a of allAnime) {
+        const uniqueAnime = [];
+        for (const a of allRawAnime) {
           const key = String(a.mal_id);
           if (!seenThisPage.has(key)) { seenThisPage.add(key); uniqueAnime.push(a); }
         }
-        const list = [
-          ...(tv.results||[]).slice(0,10).map(i => ({id:`tmdb-comp-${i.id}`,title:i.name,poster:tmdbImg(i.poster_path),type:'TV',year:(i.first_air_date||'').slice(0,4),score:(i.vote_average||0).toFixed(1),quality:'HD'})),
-          ...uniqueAnime.slice(0,10).map(a => ({id:`jikan-comp-${a.mal_id}`,title:a.title,poster:a.images?.jpg?.large_image_url||'',type:'Anime',year:(a.aired?.from||'').slice(0,4),score:(a.score||0).toFixed(1),quality:'HD'}))
-        ].slice(0,20);
+        uniqueAnime.sort((a,b)=>(TYPE_PRIORITY[a.type]??5)-(TYPE_PRIORITY[b.type]??5));
+        // Grid col count for full-row trimming
+        function calcCols() {
+          const w = window.innerWidth;
+          if (w<=480) return 2; if (w<=640) return 3; if (w<=900) return 4; return 5;
+        }
+        // 15 TMDB + 15 anime interleaved = up to 30, trimmed to full rows
+        const tmdbItems = [
+          ...(tv.results||[]).map(i=>({id:`tmdb-comp-${i.id}`,title:i.name,poster:tmdbImg(i.poster_path),type:'TV',year:(i.first_air_date||'').slice(0,4),score:(i.vote_average||0).toFixed(1),quality:'HD'})),
+        ].slice(0,15);
+        const animeItems = uniqueAnime.slice(0,15).map(a=>({
+          id:`jikan-comp-${a.mal_id}`,title:a.title_english||a.title,
+          poster:a.images?.jpg?.large_image_url||'',
+          type:a.type||'Anime',year:(a.aired?.from||'').slice(0,4),
+          score:(a.score||0).toFixed(1),quality:'HD'
+        }));
+        const interleaved = [];
+        for (let i=0; i<Math.max(animeItems.length,tmdbItems.length); i++) {
+          if (i<animeItems.length) interleaved.push(animeItems[i]);
+          if (i<tmdbItems.length)  interleaved.push(tmdbItems[i]);
+        }
+        const cols = calcCols();
+        const trimTo = Math.floor(interleaved.length/cols)*cols;
+        const list = interleaved.slice(0, trimTo||interleaved.length);
         document.getElementById('completedGrid').innerHTML = list.map(s => renderCompletedCard(s)).join('');
         _completedPagesCache[page] = list;
         // Save pages 1 & 2 globally — 5h TTL
@@ -2847,6 +2868,7 @@ window.showAnikotoPopupById = function(mal_id) {
   </script>
 </body>
 </html>
+
 
 
 
