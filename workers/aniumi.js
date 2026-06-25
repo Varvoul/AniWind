@@ -7,6 +7,7 @@
  *   GET /tmdb/<path>?<params>    → https://api.themoviedb.org/3/<path>?<params>
  *   GET /3/<path>?<params>       → https://api.themoviedb.org/3/<path>?<params>  (legacy compat)
  *   GET /anikoto/<path>?<params> → https://anikoto.bionmovies47.workers.dev/<path>?<params>
+ *   GET /animeschedule/<path>?<params> → https://animeschedule.net/api/v3/<path>?<params>
  *   GET /health                  → { ok: true }
  *
  * Features:
@@ -20,7 +21,8 @@
 const JIKAN_BASE   = 'https://api.jikan.moe/v4';
 const TMDB_BASE    = 'https://api.themoviedb.org/3';
 const ANIKOTO_BASE = 'https://anikoto.bionmovies47.workers.dev';
-const TTL          = { jikan: 300, tmdb: 600, anikoto: 120 };
+const ANIMESCHEDULE_BASE = 'https://animeschedule.net/api/v3';
+const TTL          = { jikan: 300, tmdb: 600, anikoto: 120, animeschedule: 600 };
 const CORS = {
   'Access-Control-Allow-Origin':  '*',
   'Access-Control-Allow-Methods': 'GET, OPTIONS',
@@ -88,7 +90,7 @@ export default {
 
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
     if (path === '/health' || path === '/') {
-      return jsonResp({ ok: true, ts: Date.now(), routes: ['/jikan/*','/tmdb/*','/3/*','/anikoto/*'] });
+      return jsonResp({ ok: true, ts: Date.now(), routes: ['/jikan/*','/tmdb/*','/3/*','/anikoto/*','/animeschedule/*'] });
     }
 
     // ── Jikan ──────────────────────────────────────────────────────────────
@@ -113,6 +115,11 @@ export default {
     // ── Anikoto ────────────────────────────────────────────────────────────
     if (path.startsWith('/anikoto/')) {
       return proxyFetch(`${ANIKOTO_BASE}/${path.slice(9)}${search}`, {}, TTL.anikoto);
+    }
+
+    // ── AnimeSchedule ─────────────────────────────────────────────────────
+    if (path.startsWith('/animeschedule/')) {
+      return proxyFetch(`${ANIMESCHEDULE_BASE}/${path.slice(15)}${search}`, {}, TTL.animeschedule);
     }
 
     return jsonResp({ error: 'Not found', path }, 404);

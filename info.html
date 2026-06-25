@@ -704,6 +704,7 @@ img { max-width: 100%; height: auto; display: block; }
   gap: 12px;
   justify-content: flex-end;
   margin-top: 8px;
+  flex-wrap: wrap;
 }
 .ext-link-btn {
   display: flex;
@@ -723,7 +724,34 @@ img { max-width: 100%; height: auto; display: block; }
   transform: translateY(-1px);
 }
 .ext-link-btn.mal { color: #2e51a2; }
+.ext-link-btn.mal:hover { color: #fff; }
 .ext-link-btn.tmdb { color: #01b4e4; }
+.ext-link-btn.tmdb:hover { color: #fff; }
+.ext-link-btn.anilist {
+  color: #4488ff;
+}
+.ext-link-btn.anilist:hover {
+  color: #fff;
+  background: #4488ff;
+  border-color: #4488ff;
+}
+.ext-link-btn.anilist svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* Episode Status Badges */
+.episode-status-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 50px;
+  border: 1.5px solid;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.6;
+  white-space: nowrap;
+}
 
 /* Seasons Section */
 .seasons-section { margin-bottom: 32px; }
@@ -2587,7 +2615,7 @@ img { max-width: 100%; height: auto; display: block; }
 
       const CONFIG = {
         TMDB_WORKER: 'https://aniocen.bionmovies47.workers.dev',
-        ALLANIME_API: 'https://allanime-api.shashankbhake.codes',
+        ANIMESCHEDULE_WORKER: 'https://aniocen.bionmovies47.workers.dev',
         ANIMETHEMES_API: 'https://api.animethemes.moe/graphql',
         ANIMETHEMES_VIDEO: 'https://v.animethemes.moe',
         DEBOUNCE_MS: 300,
@@ -2655,7 +2683,7 @@ img { max-width: 100%; height: auto; display: block; }
         source: null, id: null, type: null, title: '',
         data: null, currentUser: null,
         selectedStatuses: [], dropdownTimer: null,
-        bookmarkRowId: null, allAnimeData: null,
+        bookmarkRowId: null, animeScheduleData: null,
         isPermanent: false  // true = Finished Airing → cache forever
       };
 
@@ -2873,7 +2901,7 @@ img { max-width: 100%; height: auto; display: block; }
             await Promise.all([
               loadSidebarContent(),
               loadRecommendations(),
-              fetchAllAnimeData(currentState.data?.title)
+              fetchAnimeScheduleData(currentState.data)
             ]);
           } else {
             await Promise.all([
@@ -3119,6 +3147,15 @@ img { max-width: 100%; height: auto; display: block; }
               renderHero(); renderStats(); renderSynopsis(); renderDetails();
               renderSeasons(); renderTabs();
 
+              // Pre-load AniList from shows table if available (permanent cache)
+              if (isAnime && dbShow.anilist_url && !currentState.animeScheduleData) {
+                currentState.animeScheduleData = currentState.animeScheduleData || {};
+                currentState.animeScheduleData.anilist = {
+                  url: dbShow.anilist_url,
+                  id: dbShow.anilist_id || null
+                };
+              }
+
               // If we only had sparse data, do a background API fetch to get complete data
               // (relations, broadcast, producers, synonyms, etc.) and re-render when ready
               if (!fullData) {
@@ -3327,50 +3364,465 @@ img { max-width: 100%; height: auto; display: block; }
         }
       }
 
-      async function fetchAllAnimeData(query) {
-        if (currentState.source !== 'jikan' || !query) return;
-        try {
-          // Use the English title or romaji title as search query
-          const searchTitle = currentState.data?.title_english || query;
-          const encoded = encodeURIComponent(searchTitle);
-          const res = await fetch(`${CONFIG.ALLANIME_API}/search?query=${encoded}`, {
-            signal: AbortSignal.timeout(6000) // 6s timeout — API is often unreachable
-          });
-          if (!res.ok) return;
-          const results = await res.json();
-          if (!Array.isArray(results)) return;
-          
-          const malId = currentState.id;
-          // Priority 1: exact MAL id match
-          let match = results.find(r => r.id === malId);
-          // Priority 2: title similarity
-          if (!match) {
-            const qLower = (searchTitle || '').toLowerCase();
-            match = results.find(r => r.title?.toLowerCase() === qLower)
-              || results.find(r => r.title?.toLowerCase().includes(qLower) || qLower.includes(r.title?.toLowerCase()));
-          }
-          
-          if (match) {
-            currentState.allAnimeData = match;
-            renderLanguageBadges(match.episodes_sub, match.episodes_dub);
-            // Update episode display in details grid if already rendered
-            updateEpisodeDetail(match.episodes_sub, match.episodes_dub);
-          }
-        } catch (e) { /* AllAnime often unreachable — silent */ }
+      // ═══════════════════════════════════════════════════════════════
+      // ANIMESCHEDULE.NET API — Episode Data with Supabase Caching
+      // ═══════════════════════════════════════════════════════════════
+
+      const ANIME_SCHEDULE_CACHE_TABLE = 'anime_episode_cache';
+      const ANIME_SCHEDULE_INTERVAL_MS = 8 * 60 * 60 * 1000; // 8 hours
+
+      function isNullDate(d) {
+        return !d || d === '0001-01-01T00:00:00Z' || d.startsWith('0001-01-01');
       }
 
-      function updateEpisodeDetail(subCount, dubCount) {
+      function calculateEpisodesAired(premier, time, override, delayedFrom, delayedUntil, totalEpisodes) {
+        // 1. No sub/dub exists
+        if (!premier || isNullDate(premier)) {
+          return 0;
+        }
+        // 2. API explicitly tells us how many aired (highest priority)
+        if (override && override.episodesAired > 0) {
+          return override.episodesAired;
+        }
+        const now = new Date();
+        const startDate = new Date(premier);
+        // 3. Hasn't started yet
+        if (now < startDate) return 0;
+        // 4. Calculate weekly schedule from the time field
+        const airTime = new Date(time);
+        const airDay = airTime.getUTCDay();
+        const airHour = airTime.getUTCHours();
+        const airMinute = airTime.getUTCMinutes();
+
+        // Find the most recent episode air date
+        let currentDate = new Date(now);
+        currentDate.setUTCHours(airHour, airMinute, 0, 0);
+
+        let daysToSubtract = (currentDate.getUTCDay() - airDay + 7) % 7;
+        if (daysToSubtract === 0 && now.getTime() < currentDate.getTime()) {
+          daysToSubtract = 7;
+        }
+        currentDate.setUTCDate(currentDate.getUTCDate() - daysToSubtract);
+        if (currentDate < startDate) return 0;
+
+        // 5. Check if currently on a delay/break
+        let isDelayed = false;
+        if (delayedFrom && !isNullDate(delayedFrom) &&
+            delayedUntil && !isNullDate(delayedUntil)) {
+          const delayStart = new Date(delayedFrom);
+          const delayEnd = new Date(delayedUntil);
+          if (currentDate >= delayStart && currentDate <= delayEnd) {
+            isDelayed = true;
+          }
+        }
+
+        // 6. Calculate weeks passed since premiere
+        const weeksDiff = Math.floor((currentDate - startDate) / (7 * 24 * 60 * 60 * 1000));
+        let aired = Math.min(weeksDiff + 1, totalEpisodes);
+        // 7. Apply delay subtraction if necessary
+        if (isDelayed) {
+          aired = aired - 1;
+        }
+        return Math.max(aired, 0);
+      }
+
+      function getSubDubLanguageStatus(premier, aired, totalEpisodes, delayedFrom, delayedUntil) {
+        if (!premier || isNullDate(premier)) return 'N/A';
+        if (aired <= 0 && totalEpisodes > 0) return 'Upcoming';
+        if (aired >= totalEpisodes && totalEpisodes > 0) return 'Finished';
+        // Check delay
+        if (delayedFrom && !isNullDate(delayedFrom) && delayedUntil && !isNullDate(delayedUntil)) {
+          const now = new Date();
+          const delayStart = new Date(delayedFrom);
+          const delayEnd = new Date(delayedUntil);
+          if (now >= delayStart && now <= delayEnd) return 'Delayed';
+        }
+        if (aired > 0) return 'Ongoing';
+        return 'Upcoming';
+      }
+
+      function getDisplayStatus(apiStatus, totalEpisodes, dubPremier, dubTime, dubOverride, dubDelayedFrom, dubDelayedUntil) {
+        // 1. Upcoming check
+        if (totalEpisodes === 0 || apiStatus === 'Upcoming') {
+          return 'Upcoming';
+        }
+        // 2. Check if dub exists
+        const hasDub = dubPremier && !isNullDate(dubPremier);
+        if (hasDub) {
+          const dubAired = calculateEpisodesAired(
+            dubPremier, dubTime, dubOverride, dubDelayedFrom, dubDelayedUntil, totalEpisodes
+          );
+          if (dubAired > 0 && dubAired < totalEpisodes) {
+            return 'Currently Airing';
+          }
+          if (dubAired >= totalEpisodes) {
+            return 'Finished Airing';
+          }
+        }
+        // 3. Fallback to API status for sub-only or no dub
+        if (apiStatus === 'Ongoing') return 'Currently Airing';
+        if (apiStatus === 'Finished') return 'Finished Airing';
+        if (apiStatus === 'Delayed') return 'Currently Airing';
+        return 'Upcoming';
+      }
+
+      function mapApiStatus(apiStatus, totalEpisodes, dubPremier, dubTime, dubOverride, dubDelayedFrom, dubDelayedUntil) {
+        return getDisplayStatus(apiStatus, totalEpisodes, dubPremier, dubTime, dubOverride, dubDelayedFrom, dubDelayedUntil);
+      }
+
+      function isAnimeSchedulePermanent(siteStatus, subStatus, dubStatus) {
+        // Permanent if both sub and dub are finished (or N/A)
+        const subDone = subStatus === 'Finished';
+        const dubDone = dubStatus === 'Finished' || dubStatus === 'N/A';
+        return subDone && dubDone;
+      }
+
+      async function fetchAnimeScheduleDataFromDB(malId) {
+        if (!window.supabaseClient || !malId) return null;
+        try {
+          const { data, error } = await window.supabaseClient
+            .from(ANIME_SCHEDULE_CACHE_TABLE)
+            .select('*')
+            .eq('mal_id', String(malId))
+            .maybeSingle();
+          if (error) { console.warn('[AnimeSchedule DB] read error:', error.message); return null; }
+          if (!data) return null;
+          // Check if this is a permanent entry (both sub & dub finished)
+          if (data.permanent) {
+            console.log('[AnimeSchedule DB] permanent cache hit', malId);
+            return data;
+          }
+          // Check 8h interval freshness
+          if (data.fetched_at) {
+            const age = Date.now() - new Date(data.fetched_at).getTime();
+            if (age < ANIME_SCHEDULE_INTERVAL_MS) {
+              console.log('[AnimeSchedule DB] fresh cache hit', malId, `${Math.round(age/3600000)}h old`);
+              return data;
+            }
+          }
+          // Stale — return null so we re-fetch
+          console.log('[AnimeSchedule DB] stale cache', malId);
+          return null;
+        } catch (e) { console.warn('[AnimeSchedule DB] read exception:', e.message); return null; }
+      }
+
+      async function saveAnimeScheduleToDB(malId, episodeData, permanent) {
+        if (!window.supabaseClient || !malId) return;
+        try {
+          const now = new Date().toISOString();
+          const row = {
+            mal_id: String(malId),
+            total_episodes: episodeData.totalEpisodes,
+            sub_aired: episodeData.sub?.aired ?? null,
+            dub_aired: episodeData.dub?.aired ?? null,
+            sub_status: episodeData.subStatus || null,
+            dub_status: episodeData.dubStatus || null,
+            display_status: episodeData.status || null,
+            anilist_url: episodeData.anilist?.url || null,
+            anilist_id: episodeData.anilist?.id || null,
+            raw_api_status: episodeData.rawApiStatus || null,
+            premier: episodeData.premier || null,
+            sub_premier: episodeData.subPremier || null,
+            dub_premier: episodeData.dubPremier || null,
+            permanent: permanent ? true : false,
+            fetched_at: now,
+            updated_at: now,
+          };
+          const { error } = await window.supabaseClient
+            .from(ANIME_SCHEDULE_CACHE_TABLE)
+            .upsert(row, { onConflict: 'mal_id' });
+          if (error) console.warn('[AnimeSchedule DB] save error:', error.message);
+          else console.log('[AnimeSchedule DB] saved', malId, permanent ? 'PERMANENT' : '8h interval');
+        } catch (e) { console.warn('[AnimeSchedule DB] save exception:', e.message); }
+      }
+
+      async function searchAnimeSchedule(query) {
+        const encoded = encodeURIComponent(query);
+        const url = `${CONFIG.ANIMESCHEDULE_WORKER}/animeschedule/anime?q=${encoded}`;
+        const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+        if (!res.ok) throw new Error(`Search API ${res.status}`);
+        const json = await res.json();
+        return json.anime || [];
+      }
+
+      async function fetchAnimeScheduleDetails(route) {
+        const url = `${CONFIG.ANIMESCHEDULE_WORKER}/animeschedule/anime/${encodeURIComponent(route)}`;
+        const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+        if (!res.ok) throw new Error(`Details API ${res.status}`);
+        return res.json();
+      }
+
+      function findBestMatch(results, titles, malLink) {
+        // Priority 1: MAL link match
+        if (malLink) {
+          const malIdFromLink = malLink.match(/(\d+)/);
+          if (malIdFromLink) {
+            const malMatch = results.find(r => {
+              const rMal = r.websites?.mal;
+              if (!rMal) return false;
+              const rMalId = rMal.match(/(\d+)/);
+              return rMalId && rMalId[1] === malIdFromLink[1];
+            });
+            if (malMatch) return malMatch;
+          }
+        }
+        // Priority 2: Title match (English, Romaji, Japanese)
+        const searchTerms = titles.filter(Boolean).map(t => t.toLowerCase());
+        for (const term of searchTerms) {
+          const exactMatch = results.find(r =>
+            (r.title && r.title.toLowerCase() === term) ||
+            (r.names?.english && r.names.english.toLowerCase() === term) ||
+            (r.names?.romaji && r.names.romaji.toLowerCase() === term) ||
+            (r.names?.native && r.names.native === term)
+          );
+          if (exactMatch) return exactMatch;
+        }
+        // Priority 3: Partial title match
+        for (const term of searchTerms) {
+          const partialMatch = results.find(r =>
+            (r.title && (r.title.toLowerCase().includes(term) || term.includes(r.title.toLowerCase()))) ||
+            (r.names?.english && (r.names.english.toLowerCase().includes(term) || term.includes(r.names.english.toLowerCase()))) ||
+            (r.names?.romaji && (r.names.romaji.toLowerCase().includes(term) || term.includes(r.names.romaji.toLowerCase())))
+          );
+          if (partialMatch) return partialMatch;
+        }
+        return results[0] || null;
+      }
+
+      function processAnimeScheduleResponse(apiData) {
+        const totalEpisodes = apiData.episodes || 0;
+        const subAired = calculateEpisodesAired(
+          apiData.subPremier || apiData.premier,
+          apiData.subTime || apiData.jpnTime,
+          apiData.subEpisodeOverride,
+          apiData.subDelayedFrom, apiData.subDelayedUntil,
+          totalEpisodes
+        );
+        const dubAired = calculateEpisodesAired(
+          apiData.dubPremier,
+          apiData.dubTime,
+          apiData.dubEpisodeOverride,
+          apiData.dubDelayedFrom, apiData.dubDelayedUntil,
+          totalEpisodes
+        );
+
+        const subStatus = getSubDubLanguageStatus(
+          apiData.subPremier || apiData.premier, subAired, totalEpisodes,
+          apiData.subDelayedFrom, apiData.subDelayedUntil
+        );
+        const dubStatus = getSubDubLanguageStatus(
+          apiData.dubPremier, dubAired, totalEpisodes,
+          apiData.dubDelayedFrom, apiData.dubDelayedUntil
+        );
+
+        const displayStatus = mapApiStatus(
+          apiData.status, totalEpisodes,
+          apiData.dubPremier, apiData.dubTime,
+          apiData.dubEpisodeOverride,
+          apiData.dubDelayedFrom, apiData.dubDelayedUntil
+        );
+
+        // Extract AniList info
+        let anilist = null;
+        if (apiData.websites?.aniList) {
+          const alUrl = apiData.websites.aniList.startsWith('http')
+            ? apiData.websites.aniList
+            : `https://${apiData.websites.aniList}`;
+          const idMatch = alUrl.match(/\/anime\/(\d+)/);
+          anilist = { url: alUrl, id: idMatch ? idMatch[1] : null };
+        }
+
+        return {
+          totalEpisodes,
+          status: displayStatus,
+          rawApiStatus: apiData.status,
+          sub: {
+            aired: subAired,
+            premiere: apiData.subPremier || apiData.premier,
+            weeklyTime: apiData.subTime || apiData.jpnTime,
+            delayed: !!(apiData.subDelayedFrom && !isNullDate(apiData.subDelayedFrom))
+          },
+          dub: {
+            aired: dubAired,
+            premiere: apiData.dubPremier,
+            weeklyTime: apiData.dubTime,
+            delayed: !!(apiData.dubDelayedFrom && !isNullDate(apiData.dubDelayedFrom))
+          },
+          anilist,
+          subStatus,
+          dubStatus,
+          premier: apiData.premier,
+          subPremier: apiData.subPremier,
+          dubPremier: apiData.dubPremier,
+          permanent: isAnimeSchedulePermanent(displayStatus, subStatus, dubStatus)
+        };
+      }
+
+      async function fetchAnimeScheduleData(jikanData) {
+        if (!jikanData || currentState.source !== 'jikan') return;
+        const malId = jikanData.mal_id || currentState.id;
+        if (!malId) return;
+
+        const siteStatus = jikanData.status || '';
+
+        // Step 1: Try to get from DB cache first
+        const cached = await fetchAnimeScheduleDataFromDB(malId);
+        if (cached) {
+          const episodeData = {
+            totalEpisodes: cached.total_episodes || 0,
+            status: cached.display_status || siteStatus,
+            rawApiStatus: cached.raw_api_status,
+            sub: { aired: cached.sub_aired || 0, premiere: cached.sub_premier, weeklyTime: null, delayed: false },
+            dub: { aired: cached.dub_aired || 0, premiere: cached.dub_premier, weeklyTime: null, delayed: false },
+            anilist: cached.anilist_url ? { url: cached.anilist_url, id: cached.anilist_id } : null,
+            subStatus: cached.sub_status,
+            dubStatus: cached.dub_status,
+            premier: cached.premier,
+            subPremier: cached.sub_premier,
+            dubPremier: cached.dub_premier,
+            permanent: !!cached.permanent
+          };
+          currentState.animeScheduleData = episodeData;
+          applyEpisodeDataToUI(episodeData);
+          return;
+        }
+
+        // Step 2: For "Finished Airing" anime where we already know both sub and dub are done,
+        // we only need to fetch once and cache permanently.
+        // For "Currently Airing" / "Not yet aired", fetch live and cache with 8h interval.
+
+        // Determine if we should even call the API
+        // If site status is "Finished Airing" and we have no cache — still fetch once
+        try {
+          const titles = [
+            jikanData.title_english || jikanData.title || '',
+            jikanData.title || '',
+            jikanData.title_japanese || ''
+          ].filter(Boolean);
+
+          const malLink = jikanData.mal_id ? `myanimelist.net/anime/${jikanData.mal_id}` : '';
+
+          // Try English first, then romaji, then Japanese
+          let results = [];
+          let match = null;
+
+          for (const title of titles) {
+            if (match) break;
+            try {
+              results = await searchAnimeSchedule(title);
+              if (results.length > 0) {
+                match = findBestMatch(results, titles, malLink);
+              }
+            } catch (e) {
+              console.warn('[AnimeSchedule] search failed for:', title, e.message);
+            }
+          }
+
+          if (!match) {
+            console.log('[AnimeSchedule] no match found for mal_id:', malId);
+            return;
+          }
+
+          // Fetch details using the route
+          const details = await fetchAnimeScheduleDetails(match.route);
+          const episodeData = processAnimeScheduleResponse(details);
+
+          currentState.animeScheduleData = episodeData;
+          applyEpisodeDataToUI(episodeData);
+
+          // Save to DB
+          await saveAnimeScheduleToDB(malId, episodeData, episodeData.permanent);
+
+          // Update AniList in shows table (permanent)
+          if (episodeData.anilist?.id && window.supabaseClient) {
+            try {
+              await window.supabaseClient.from('shows')
+                .update({ anilist_id: episodeData.anilist.id, anilist_url: episodeData.anilist.url, updated_at: new Date().toISOString() })
+                .eq('mal_id', String(malId));
+            } catch(e) { console.warn('[AnimeSchedule] failed to update shows table anilist:', e); }
+          }
+        } catch (e) {
+          console.warn('[AnimeSchedule] fetch failed:', e.message);
+        }
+      }
+
+      function applyEpisodeDataToUI(episodeData) {
+        if (!episodeData) return;
+        // Update episode detail in details grid
+        updateEpisodeDisplay(episodeData);
+        // Update language badges
+        renderLanguageBadges(episodeData);
+        // Update status display
+        updateStatusDisplay(episodeData);
+        // Re-render details to show Episode Status field and AniList button
+        // Only if the details grid already exists (page is rendered)
+        if (document.getElementById('detailsGrid')?.children.length) {
+          renderDetails();
+        }
+      }
+
+      function updateEpisodeDisplay(episodeData) {
         const epEl = document.getElementById('episodeDetailValue');
         if (!epEl) return;
-        const data = currentState.data;
-        const total = data.episodes || '?';
+
+        // Upcoming anime
+        if (episodeData.status === 'Upcoming' || episodeData.totalEpisodes === 0) {
+          epEl.innerHTML = `<span>TBA</span>`;
+          return;
+        }
+
+        const total = episodeData.totalEpisodes;
+        const subAired = episodeData.sub?.aired || 0;
+        const dubAired = episodeData.dub?.aired || 0;
+        const hasSub = !isNullDate(episodeData.sub?.premiere);
+        const hasDub = !isNullDate(episodeData.dub?.premiere);
+
         let html = `<span>${total}</span>`;
-        if (subCount > 0 || dubCount > 0) {
-          html = `<span>${total}</span>`;
-          if (subCount > 0) html += ` <span style="color:var(--text-muted);font-size:0.8em;">|</span> <i class="fa-solid fa-closed-captioning" style="color:#7ec8f7;" title="Subtitled"></i> ${subCount}`;
-          if (dubCount > 0) html += ` <span style="color:var(--text-muted);font-size:0.8em;">|</span> <i class="fa-solid fa-microphone" style="color:#7ec8f7;" title="Dubbed"></i> ${dubCount}`;
+        if (hasSub && subAired > 0) {
+          html += ` <span style="color:var(--text-muted);font-size:0.8em;">|</span> <i class="fa-solid fa-closed-captioning" style="color:#7ec8f7;" title="Subtitled"></i> ${subAired}`;
+        }
+        if (hasDub && dubAired > 0) {
+          html += ` <span style="color:var(--text-muted);font-size:0.8em;">|</span> <i class="fa-solid fa-microphone-lines" style="color:#7ec8f7;" title="Dubbed"></i> ${dubAired}`;
         }
         epEl.innerHTML = html;
+      }
+
+      function updateStatusDisplay(episodeData) {
+        const statusEl = document.querySelector('.detail-item .detail-value');
+        // Find the status detail-item
+        const detailItems = document.querySelectorAll('.detail-item');
+        for (const item of detailItems) {
+          const label = item.querySelector('.detail-label');
+          if (label && label.textContent.trim().startsWith('Status')) {
+            const valueEl = item.querySelector('.detail-value');
+            if (valueEl) {
+              let statusText = episodeData.status || valueEl.textContent;
+              // Color code the status
+              let statusColor = 'var(--text-secondary)';
+              if (statusText === 'Currently Airing') statusColor = '#4ade80';
+              else if (statusText === 'Finished Airing') statusColor = 'var(--text-muted)';
+              else if (statusText === 'Upcoming' || statusText === 'Not yet aired') statusColor = '#60a5fa';
+              valueEl.innerHTML = `<span style="color:${statusColor};font-weight:600;">${statusText}</span>`;
+            }
+            break;
+          }
+        }
+      }
+
+      function renderLanguageBadges(episodeData) {
+        const container = document.getElementById('languageBadges');
+        if (!container) return;
+        container.innerHTML = '';
+
+        if (episodeData.status === 'Upcoming' || episodeData.totalEpisodes === 0) return;
+
+        const subAired = episodeData.sub?.aired || 0;
+        const dubAired = episodeData.dub?.aired || 0;
+        const hasSub = !isNullDate(episodeData.sub?.premiere);
+        const hasDub = !isNullDate(episodeData.dub?.premiere);
+
+        if (hasSub && subAired > 0) container.innerHTML += `<span class="lang-badge sub"><i class="fa-solid fa-closed-captioning"></i> Sub ${subAired}ep</span>`;
+        if (hasDub && dubAired > 0) container.innerHTML += `<span class="lang-badge dub"><i class="fa-solid fa-microphone-lines"></i> Dub ${dubAired}ep</span>`;
       }
 
       function renderHero() {
@@ -3442,13 +3894,6 @@ img { max-width: 100%; height: auto; display: block; }
         } else {
           return data.production_companies?.[0]?.name || data.networks?.[0]?.name || null;
         }
-      }
-
-      function renderLanguageBadges(subCount, dubCount) {
-        const container = document.getElementById('languageBadges');
-        container.innerHTML = '';
-        if (subCount > 0) container.innerHTML += `<span class="lang-badge sub"><i class="fa-solid fa-closed-captioning"></i> Sub ${subCount}ep</span>`;
-        if (dubCount > 0) container.innerHTML += `<span class="lang-badge dub"><i class="fa-solid fa-microphone"></i> Dub ${dubCount}ep</span>`;
       }
 
       function renderStats() {
@@ -3582,22 +4027,48 @@ img { max-width: 100%; height: auto; display: block; }
           });
         }
         
-        if ((isAnime || currentState.type === 'tv') && data.broadcast?.string) {
+        if (isAnime && data.broadcast?.string) {
           details.push({ label: 'Broadcast', value: data.broadcast.string });
+        }
+
+        // Episode Status field (anime only, before Episodes)
+        if (isAnime && currentState.animeScheduleData) {
+          const asd = currentState.animeScheduleData;
+          if (asd.subStatus || asd.dubStatus) {
+            const subSt = asd.subStatus || 'N/A';
+            const dubSt = asd.dubStatus || 'N/A';
+            const subColor = subSt === 'Ongoing' ? '#4ade80' : subSt === 'Finished' ? 'var(--text-muted)' : subSt === 'Delayed' ? '#fbbf24' : subSt === 'Upcoming' ? '#60a5fa' : 'var(--text-muted)';
+            const dubColor = dubSt === 'Ongoing' ? '#4ade80' : dubSt === 'Finished' ? 'var(--text-muted)' : dubSt === 'Delayed' ? '#fbbf24' : dubSt === 'Upcoming' ? '#60a5fa' : 'var(--text-muted)';
+            const episodeStatusHtml = `
+              <span class="episode-status-badge" style="border-color:${subColor};color:${subColor};">${subSt}</span>
+              <span style="color:var(--text-muted);margin:0 4px;">|</span>
+              <span class="episode-status-badge" style="border-color:${dubColor};color:${dubColor};">${dubSt}</span>
+            `;
+            details.push({ label: 'Episode Status', value: episodeStatusHtml, isHtml: true });
+          }
         }
         
         if (currentState.type !== 'movie') {
           const episodes = isAnime ? data.episodes : data.number_of_episodes || data.number_of_seasons;
           if (episodes) {
-            // Build episode HTML with sub/dub counts if available
-            const allAnime = currentState.allAnimeData;
+            // Check if we have AnimeSchedule data for detailed episode counts
+            const asd = currentState.animeScheduleData;
             let episodeHtml = `<span>${episodes}</span>`;
-            if (isAnime && allAnime) {
-              const { episodes_sub, episodes_dub } = allAnime;
-              if (episodes_sub > 0 || episodes_dub > 0) {
+            if (isAnime && asd) {
+              if (asd.status === 'Upcoming' || asd.totalEpisodes === 0) {
+                episodeHtml = `<span>TBA</span>`;
+              } else {
+                const subAired = asd.sub?.aired || 0;
+                const dubAired = asd.dub?.aired || 0;
+                const hasSub = !isNullDate(asd.sub?.premiere);
+                const hasDub = !isNullDate(asd.dub?.premiere);
                 episodeHtml = `<span>${episodes}</span>`;
-                if (episodes_sub > 0) episodeHtml += ` <span style="color:var(--text-muted);font-size:0.8em;">|</span> <i class="fa-solid fa-closed-captioning" style="color:#7ec8f7;" title="Subtitled"></i> ${episodes_sub}`;
-                if (episodes_dub > 0) episodeHtml += ` <span style="color:var(--text-muted);font-size:0.8em;">|</span> <i class="fa-solid fa-microphone" style="color:#7ec8f7;" title="Dubbed"></i> ${episodes_dub}`;
+                if (hasSub && subAired > 0) {
+                  episodeHtml += ` <span style="color:var(--text-muted);font-size:0.8em;">|</span> <i class="fa-solid fa-closed-captioning" style="color:#7ec8f7;" title="Subtitled"></i> ${subAired}`;
+                }
+                if (hasDub && dubAired > 0) {
+                  episodeHtml += ` <span style="color:var(--text-muted);font-size:0.8em;">|</span> <i class="fa-solid fa-microphone-lines" style="color:#7ec8f7;" title="Dubbed"></i> ${dubAired}`;
+                }
               }
             }
             details.push({ 
@@ -3638,7 +4109,12 @@ img { max-width: 100%; height: auto; display: block; }
         
         const extLinks = [];
         if (isAnime && data.mal_id) {
-          extLinks.push(`<a href="https://myanimelist.net/anime/${data.mal_id}" target="_blank" class="ext-link-btn mal"><svg width="16" height="16" viewBox="-890.88 -890.88 2805.76 2805.76"><circle cx="512" cy="512" r="512" style="fill:#2e51a2"/><path d="M432.49 410.61V590.3l-44.86-.06V479l-43.31 51.29-42.43-52.44-.43 112.75H256V410.65h47l39.79 54.29 43-54.31zm184.06 44.14.53 135.15h-50.45l-.17-61.25h-59.73c1.49 10.65 4.48 27 8.9 38 3.31 8.13 6.36 16 12.44 24.06l-36.37 24c-7.45-13.57-13.27-28.52-18.73-44.42a198.31 198.31 0 0 1-10.82-46.49c-1.81-16-2.07-31.38 2.28-47.19a83.37 83.37 0 0 1 24.77-39.81c6.68-6.25 16-10.67 23.47-14.66s15.85-5.63 23.62-7.66a158 158 0 0 1 25.41-3.9c8.49-.73 23.62-1.41 51-.6l11.63 37.31h-58.78c-12.65.17-18.73 0-28.61 4.46a47.7 47.7 0 0 0-27.26 41l56.81.7.81-38.61h49.26zM701.72 410v141.35L768 552l-9.17 37.87H656.28V409.33z" style="fill:#fff"/></svg> MyAnimeList</a>`);
+          extLinks.push(`<a href="https://myanimelist.net/anime/${data.mal_id}" target="_blank" rel="noopener" class="ext-link-btn mal"><svg width="16" height="16" viewBox="-890.88 -890.88 2805.76 2805.76"><circle cx="512" cy="512" r="512" style="fill:#2e51a2"/><path d="M432.49 410.61V590.3l-44.86-.06V479l-43.31 51.29-42.43-52.44-.43 112.75H256V410.65h47l39.79 54.29 43-54.31zm184.06 44.14.53 135.15h-50.45l-.17-61.25h-59.73c1.49 10.65 4.48 27 8.9 38 3.31 8.13 6.36 16 12.44 24.06l-36.37 24c-7.45-13.57-13.27-28.52-18.73-44.42a198.31 198.31 0 0 1-10.82-46.49c-1.81-16-2.07-31.38 2.28-47.19a83.37 83.37 0 0 1 24.77-39.81c6.68-6.25 16-10.67 23.47-14.66s15.85-5.63 23.62-7.66a158 158 0 0 1 25.41-3.9c8.49-.73 23.62-1.41 51-.6l11.63 37.31h-58.78c-12.65.17-18.73 0-28.61 4.46a47.7 47.7 0 0 0-27.26 41l56.81.7.81-38.61h49.26zM701.72 410v141.35L768 552l-9.17 37.87H656.28V409.33z" style="fill:#fff"/></svg> MyAnimeList</a>`);
+          // AniList button
+          const anilistUrl = currentState.animeScheduleData?.anilist?.url;
+          if (anilistUrl) {
+            extLinks.push(`<a href="${anilistUrl}" target="_blank" rel="noopener" class="ext-link-btn anilist"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6.361 2.943 0 21.056h4.942l1.077-3.133H11.4l1.052 3.133H22.9c.71 0 1.1-.392 1.1-1.101V17.53c0-.71-.39-1.101-1.1-1.101h-6.483V4.045c0-.71-.392-1.102-1.101-1.102h-2.422c-.71 0-1.101.392-1.101 1.102v1.064l-.758-2.166zm2.324 5.948 1.688 5.018H7.144z"/></svg> AniList</a>`);
+          }
         }
         if (!isAnime && currentState.id) {
           const tmdbType = currentState.type;
@@ -4158,8 +4634,8 @@ img { max-width: 100%; height: auto; display: block; }
           studio_name:                           isAnime ? (d.studios || []).map(s => s.name).join(', ') : (d.production_companies || []).map(s => s.name).join(', '),
           producers_name:                        isAnime ? (d.producers || []).map(p => p.name).join(', ') : '',
           total_epi_num:                         isAnime ? (parseInt(d.episodes) || null) : (parseInt(d.number_of_episodes) || null),
-          dub_epi_num:                           parseInt(currentState.allAnimeData?.episodes_dub) || null,
-          sub_epi_num:                           parseInt(currentState.allAnimeData?.episodes_sub) || null,
+          dub_epi_num:                           currentState.animeScheduleData?.dub?.aired || null,
+          sub_epi_num:                           currentState.animeScheduleData?.sub?.aired || null,
           format:                                isAnime ? (d.type || '') : (currentState.type || ''),
           synopsis_context:                      isAnime ? (d.synopsis || '') : '',
           overview_context:                      !isAnime ? (d.overview || '') : '',
