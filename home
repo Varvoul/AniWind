@@ -1226,6 +1226,21 @@
       }
 
       /* Deduplicate anime by mal_id across all sources */
+      // ── Global hentai filter for all Jikan data ─────────────────────
+      const _HENTAI_GENRE_IDS = new Set([12, 49]); // 12=Hentai, 49=Erotica
+      function isHentai(a) {
+        if (!a) return false;
+        const r = (a.rating || '').toLowerCase();
+        if (r.includes('rx') || r.includes('hentai') || r === 'r18') return true;
+        const genres = [...(a.genres || []), ...(a.explicit_genres || [])];
+        return genres.some(g =>
+          _HENTAI_GENRE_IDS.has(Number(g.mal_id)) ||
+          (g.name || '').toLowerCase().includes('hentai') ||
+          (g.name || '').toLowerCase().includes('erotica')
+        );
+      }
+      function cleanJikan(arr) { return (arr || []).filter(a => !isHentai(a)); }
+
       function dedupById(items, idKey='id') {
         const seen = new Set();
         return items.filter(item => {
@@ -1337,7 +1352,7 @@ async function loadNewAniocean() {
         is_dub: anime.is_dub || 0
       }));
       // Deduplicate by mal_id
-      const unique = dedupById(formatted, 'mal_id');
+      const unique = dedupById(cleanJikan(formatted), 'mal_id');
       if (renderAnimeList(unique.slice(0,20))) {
         console.log(`✓ Loaded ${unique.length} anime from Anikoto proxy for "New on Aniocean"`);
         if (window.AniCache) window.AniCache.set({ cacheKey:'index:new_on_aniumi', pageSource:'index',
@@ -1513,6 +1528,7 @@ window.showAnikotoPopupById = function(mal_id) {
           if (!id || seenAnime.has(id)) continue;
           if (a.type && a.type !== 'TV') continue;
           if (a.status && !a.status.toLowerCase().includes('airing')) continue;
+          if (isHentai(a)) continue;
           seenAnime.add(id);
           uniqueAnime.push(a);
         }
@@ -1785,7 +1801,7 @@ window.showAnikotoPopupById = function(mal_id) {
           status: a.status||'Airing', episodes: a.episodes||'?',
         }));
         // Deduplicate combined list by id
-        const combined = dedupById([...tv, ...anime], 'id').slice(0,60);
+        const combined = dedupById([...tv, ...cleanJikan(anime)], 'id').slice(0,60);
         renderTopAiring(combined);
         if (window.AniCache && combined.length) window.AniCache.set({ cacheKey:'index:top_airing',
           pageSource:'index', section:'top_airing', data:combined, itemCount:combined.length }).catch(()=>{});
@@ -1838,7 +1854,7 @@ window.showAnikotoPopupById = function(mal_id) {
         }));
         // Merge pages and deduplicate
         const allJikanNow = [...(jikanNow1.data||[]), ...(jikanNow2.data||[])];
-        const jikanNowUnique = dedupById(allJikanNow, 'mal_id');
+        const jikanNowUnique = dedupById(cleanJikan(allJikanNow), 'mal_id');
         const anime = jikanNowUnique.slice(0,20).map(a => ({
           id:`jikan-${a.mal_id}`, title:a.title, poster:a.images?.jpg?.large_image_url||'', type:'Anime',
           score:(a.score||0).toFixed(1), duration: a.duration||'?', status: a.status||'Airing',
@@ -2080,8 +2096,8 @@ window.showAnikotoPopupById = function(mal_id) {
           }
         }
         if (_trendingCache[periodKey] && _trendingCache[periodKey].length) {
-          // render from cache — also repopulate trendingData for popup lookups
           trendingData = _trendingCache[periodKey];
+          trendingData.forEach((item, i) => item.rank = i + 1);
           const el = document.getElementById('trendingList');
           if (el) el.innerHTML = trendingData.map(s => renderShowCard(s)).join('');
           return;
@@ -2656,9 +2672,6 @@ window.showAnikotoPopupById = function(mal_id) {
             }
           } catch(e) {}
         }
-        const STORAGE_KEY = 'aniocean_schedule_cache';
-        const CACHE_TTL = 6 * 60 * 60 * 1000; // 6h localStorage TTL (matches DB)
-        const cached = localStorage.getItem(STORAGE_KEY);
         let needFetch = true;
 
         // Show a loading indicator immediately so the user never sees
@@ -2672,23 +2685,20 @@ window.showAnikotoPopupById = function(mal_id) {
         const body0 = document.getElementById('eswBody');
         if (body0) body0.innerHTML = loadingHtml;
 
-        if (cached) {
+        // ── Try DB cache first (global 6h, all users, no localStorage) ──
+        if (window.AniCache) {
           try {
-            const { data, timestamp } = JSON.parse(cached);
-            // BUGFIX (v2): the previous code cached ANY result, including
-            // empty arrays produced by Jikan rate-limit failures.  That
-            // meant one bad fetch could leave the schedule blank for
-            // 24 hours.  Now we ONLY trust a cache entry that has at
-            // least one day with data — otherwise we refetch.
-            const hasAnyData = data && Object.values(data).some(arr => Array.isArray(arr) && arr.length > 0);
-            if (Date.now() - timestamp < CACHE_TTL && hasAnyData) {
-              scheduleData = data;
-              needFetch = false;
-              console.log('Schedule loaded from localStorage');
-            } else if (!hasAnyData) {
-              console.warn('Cached schedule was empty — refetching (ignoring stale cache).');
+            const dbCached = await window.AniCache.get('index:schedule');
+            if (dbCached && typeof dbCached === 'object') {
+              const hasData = Object.values(dbCached).some(arr => Array.isArray(arr) && arr.length > 0);
+              if (hasData) {
+                scheduleData = dbCached;
+                window.scheduleData = dbCached;
+                needFetch = false;
+                console.log('[Schedule] Served from DB cache');
+              }
             }
-          } catch(e) { console.warn('Cache parse error', e); }
+          } catch(e) {}
         }
 
         if (needFetch) {
@@ -2705,15 +2715,17 @@ window.showAnikotoPopupById = function(mal_id) {
           // for 24 hours and the user would see "No episodes scheduled"
           // even after Jikan recovers.
           if (fetchedAny) {
-            try {
-              localStorage.setItem(STORAGE_KEY, JSON.stringify({
-                data: scheduleData,
-                timestamp: Date.now()
-              }));
-              console.log('Schedule cached for 24 hours');
-            } catch(e) { console.warn('Could not write schedule cache:', e); }
+            if (window.AniCache) {
+              const total = Object.values(scheduleData).reduce((n, a) => n + (a?.length || 0), 0);
+              window.AniCache.set({
+                cacheKey: 'index:schedule', pageSource: 'index',
+                section: 'schedule', data: scheduleData, itemCount: total
+              }).catch(() => {});
+              window.scheduleData = scheduleData;
+              console.log('[Schedule] Fetched and saved to DB');
+            }
           } else {
-            console.warn('Schedule fetch returned no data — NOT caching (will retry next page load).');
+            console.warn('[Schedule] No data fetched — not caching');
           }
         }
 
@@ -2865,6 +2877,7 @@ window.showAnikotoPopupById = function(mal_id) {
   </script>
 </body>
 </html>
+
 
 
 
