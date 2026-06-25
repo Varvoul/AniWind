@@ -1241,23 +1241,15 @@
 window.anioceanData = {};
 
 async function loadNewAniocean() {
-  if (window.AniCache) {
-    const cached = await window.AniCache.get('index:new_on_aniumi');
-    if (cached && Array.isArray(cached) && cached.length) {
-      // Rebuild popup data from cached items
-      cached.forEach(anime => { if (anime.mal_id) window.anioceanData[anime.mal_id] = anime; });
-      renderAnimeList(cached);
-      return;
-    }
-  }
-  const grid = document.getElementById('newAnioceanGrid');
-
   // Helper to render the grid from an array of anime objects (Anikoto or Jikan format)
+  // grid resolved at call time — no TDZ issue
   function renderAnimeList(animeList) {
+    const grid = document.getElementById('newAnioceanGrid');
     if (!animeList || animeList.length === 0) {
-      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-muted)">No recent anime available</div>';
+      if (grid) grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-muted)">No recent anime available</div>';
       return false;
     }
+    if (!grid) return false;
 
     grid.innerHTML = animeList.map(anime => {
       const studio = anime.studio || '?';
@@ -1309,6 +1301,18 @@ async function loadNewAniocean() {
       `;
     }).join('');
     return true;
+  }
+
+  // ── Serve from DB cache if available ──
+  if (window.AniCache) {
+    try {
+      const cached = await window.AniCache.get('index:new_on_aniumi');
+      if (cached && Array.isArray(cached) && cached.length) {
+        cached.forEach(anime => { if (anime.mal_id) window.anioceanData[anime.mal_id] = anime; });
+        renderAnimeList(cached);
+        return;
+      }
+    } catch(e) {}
   }
 
   // ----- PRIMARY: Anikoto proxy -----
@@ -1645,8 +1649,22 @@ window.showAnikotoPopupById = function(mal_id) {
         console.log(`[Hero] ${animeSlides.length} anime + ${tmdbSlides.length} TMDB TV = ${heroData.length} slides`);
         renderHero();
         if (window.AniCache && heroData.length > 0) {
+          // Trim to essential fields only — keep payload small for DB storage
+          const heroForDB = heroData.map(s => ({
+            id: s.id, title: s.title, original_title: s.original_title || '',
+            source: s.source, type: s.type,
+            genres: s.genres || [], themes: s.themes || [],
+            score: s.score, year: s.year, duration: s.duration,
+            episodes: s.episodes, synopsis: s.synopsis,
+            backdrop: s.backdrop, backdrop_orig: s.backdrop_orig || s.backdrop,
+            backdrop_mobile: s.backdrop_mobile || s.backdrop,
+            poster: s.poster, certification: s.certification,
+            studio: s.studio || '', mal_id: s.mal_id || null,
+            tmdb_id: s.tmdb_id || null, infoHref: s.infoHref || null,
+            status_color: s.status_color, status_label: s.status_label,
+          }));
           window.AniCache.set({ cacheKey:'index:hero_slider', pageSource:'index',
-            section:'hero_slider', data: heroData, itemCount: heroData.length }).catch(()=>{});
+            section:'hero_slider', data: heroForDB, itemCount: heroForDB.length }).catch(()=>{});
         }
       }
       function renderHero() {
@@ -1683,7 +1701,6 @@ window.showAnikotoPopupById = function(mal_id) {
               <p class="slide-synopsis">${(s.synopsis||'').slice(0,280)}</p>
               <div class="slide-actions">
                 <a href="${watchHref}" class="btn-watch"><i class="fas fa-play"></i> Watch Now</a>
-                <a href="${infoHref}" class="btn-info-slide"><i class="fas fa-info-circle"></i> More Info</a>
                 <a href="${infoHref}" class="btn-heart-slide"><i class="far fa-heart"></i></a>
               </div>
             </div>
@@ -1783,6 +1800,7 @@ window.showAnikotoPopupById = function(mal_id) {
       /* ── NEW RELEASES ── */
       let allReleases = {all:[], anime:[], movie:[], tv:[]};
       let _newReleasesCache = null; // in-memory for filter toggles
+      let currentNewReleasesFilter = 'all'; // tracks active tab (all/anime/movie/tv)
 
       async function loadNewReleases() {
         if (window.AniCache && !_newReleasesCache) {
@@ -2081,8 +2099,8 @@ window.showAnikotoPopupById = function(mal_id) {
       let popularData = [];
       async function loadPopular() {
         if (window.AniCache) {
-          const cached = await window.AniCache.get('index:most_popular');
-          if (cached) {
+          const cached = await window.AniCache.get('index:most_popular').catch(()=>null);
+          if (cached && Array.isArray(cached) && cached.length) {
             popularData = cached;
             document.getElementById('popularList').innerHTML = cached.map(s => `
               <a href="${infoUrl(s)}" class="sidebar-list-item" onmouseenter="showPopup(event,'${s.id}')" onmouseleave="window.popupTimer=setTimeout(hidePopup,500)">
@@ -2161,7 +2179,7 @@ window.showAnikotoPopupById = function(mal_id) {
           </a>`).join('');
         if (window.AniCache && data.length > 0) {
           window.AniCache.set({ cacheKey:'index:most_popular', pageSource:'index',
-            section:'most_popular', data, itemCount:data.length });
+            section:'most_popular', data, itemCount:data.length }).catch(()=>{});
         }
       }
 
@@ -2594,13 +2612,19 @@ window.showAnikotoPopupById = function(mal_id) {
       // ---------- Main loader (sequential fetch, localStorage) ----------
       async function loadSchedule() {
         if (window.AniCache) {
-          const cached = await window.AniCache.get('index:schedule');
-          if (cached) {
-            window._scheduleData = cached;
-            const activeDay = document.querySelector('.schedule-tab.active')?.dataset.day || 'monday';
-            renderScheduleForDay(activeDay);
-            return;
-          }
+          try {
+            const cached = await window.AniCache.get('index:schedule');
+            if (cached && typeof cached === 'object' && Object.keys(cached).length > 0) {
+              scheduleData = cached;
+              window.scheduleData = cached;
+              const now2 = new Date();
+              let di = now2.getDay(); if (di===0) di=7;
+              const DAYS2=['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
+              setCurrentDay(DAYS2[di-1]);
+              updateClock(); setInterval(updateClock,1000);
+              return;
+            }
+          } catch(e) {}
         }
         const STORAGE_KEY = 'aniocean_schedule_cache';
         const CACHE_TTL = 6 * 60 * 60 * 1000; // 6h localStorage TTL (matches DB)
@@ -2669,6 +2693,11 @@ window.showAnikotoPopupById = function(mal_id) {
           for (const [, list] of Object.entries(scheduleData)) {
             if (list?.length) await window.AniCache.saveSchedule(list);
           }
+          // Save scheduleData to media_cache so ensureHomepageComplete can verify it
+          window.AniCache.set({ cacheKey:'index:schedule', pageSource:'index',
+            section:'schedule', data: scheduleData,
+            itemCount: Object.values(scheduleData).reduce((n,a)=>n+(a?.length||0),0)
+          }).catch(()=>{});
           await window.AniCache.stampSection('schedule');
         }
 
@@ -2747,9 +2776,16 @@ window.showAnikotoPopupById = function(mal_id) {
         if (!window.AniCache) return false;
         try {
           const v = await window.AniCache.get(key);
-          if (!v) return false;
+          if (v === null || v === undefined) return false;
           if (Array.isArray(v)) return v.length > 0;
-          if (typeof v === 'object') return Object.keys(v).length > 0;
+          if (typeof v === 'object') {
+            // recently_completed stores {pages:{1:[...],2:[...]}}
+            if (v.pages) return Object.values(v.pages).some(p => Array.isArray(p) && p.length > 0);
+            // new_releases stores {all:[],anime:[],movie:[],tv:[]}
+            if (v.all) return v.all.length > 0;
+            // trending stores {today:[],week:[],month:[]}
+            return Object.values(v).some(arr => Array.isArray(arr) && arr.length > 0);
+          }
           return !!v;
         } catch(e) { return false; }
       }
@@ -2799,5 +2835,7 @@ window.showAnikotoPopupById = function(mal_id) {
   </script>
 </body>
 </html>
+
+
 
 
