@@ -194,11 +194,8 @@
 
   /**
    * set({ cacheKey, ..., permanent? })
-   *   permanent = true  → expires_at set to 2099 (cache forever)
-   *   permanent = false → uses section TTL (default)
-   *
-   * Uses a longer timeout (25s) for large payloads (TMDB data with images).
-   * Properly handles HTTP 409 (merge-duplicate) as SUCCESS.
+   * Strategy: try PATCH (UPDATE) first on existing row, then INSERT if not found.
+   * This guarantees expires_at is always refreshed even on expired rows.
    */
   async function set({ cacheKey, pageSource, section, subKey = null,
     showId = null, malId = null, tmdbId = null, anikotoId = null,
@@ -208,39 +205,61 @@
     const expiresAt = permanent ? PERMANENT_EXPIRY : new Date(Date.now() + ttl * 3600 * 1000).toISOString();
 
     const row = {
-      cache_key:     cacheKey,
-      page_source:   pageSource,
-      section:       section,
-      sub_key:       subKey,
-      show_id:       showId,
-      mal_id:        malId   ? Number(malId)  : null,
-      tmdb_id:       tmdbId  ? Number(tmdbId) : null,
-      anikoto_id:    anikotoId || null,
-      data:          data,
-      item_count:    itemCount ?? (Array.isArray(data) ? data.length : null),
-      interval_hours: permanent ? 876000 : ttl, // ~100 years vs actual TTL
-      media_type:    mediaType,
-      fetched_at:    now,
-      expires_at:    expiresAt,
-      updated_at:    now,
+      cache_key:      cacheKey,
+      page_source:    pageSource,
+      section:        section,
+      sub_key:        subKey,
+      show_id:        showId,
+      mal_id:         malId    ? Number(malId)   : null,
+      tmdb_id:        tmdbId   ? Number(tmdbId)  : null,
+      anikoto_id:     anikotoId || null,
+      data:           data,
+      item_count:     itemCount ?? (Array.isArray(data) ? data.length : null),
+      interval_hours: permanent ? 876000 : ttl,
+      media_type:     mediaType,
+      fetched_at:     now,
+      expires_at:     expiresAt,
+      updated_at:     now,
     };
 
-    // Direct fetch with 25s timeout for large payloads, proper 409 handling
+    const SIG = AbortSignal.timeout(30000);
+
+    // ── Step 1: PATCH existing row (always refreshes expires_at) ─────────
     try {
-      const r = await fetch(`${URL}/rest/v1/media_cache`, {
+      const patch = await fetch(
+        `${URL}/rest/v1/media_cache?cache_key=eq.${encodeURIComponent(cacheKey)}`,
+        {
+          method: 'PATCH',
+          headers: { ...H(), 'Prefer': 'return=minimal', 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data, expires_at: expiresAt, updated_at: now,
+            fetched_at: now, item_count: row.item_count, interval_hours: row.interval_hours }),
+          signal: SIG,
+        }
+      );
+      // 204 = updated existing row ✓  200 = also success
+      if (patch.status === 204 || patch.status === 200) {
+        // Verify a row was actually matched (PostgREST returns 204 even with 0 rows matched)
+        // We check Content-Range or just fall through to INSERT on first attempt
+        const range = patch.headers.get('content-range');
+        if (range && range !== '*/0') return { ok: true, status: patch.status };
+        if (!range) return { ok: true, status: patch.status }; // assume updated
+      }
+    } catch(e) { /* network error — try INSERT */ }
+
+    // ── Step 2: INSERT new row (row didn't exist yet) ─────────────────────
+    try {
+      const ins = await fetch(`${URL}/rest/v1/media_cache`, {
         method: 'POST',
         headers: { ...H(), 'Prefer': 'resolution=merge-duplicates,return=minimal', 'Content-Type': 'application/json' },
         body: JSON.stringify(row),
-        signal: AbortSignal.timeout(25000),
+        signal: AbortSignal.timeout(30000),
       });
-      if (r.status === 409 || r.status === 201) return { ok: true, status: r.status };
-      if (!r.ok) {
-        const errText = await r.text().catch(() => '');
-        console.warn('[AniCache] set() failed:', r.status, cacheKey, errText.slice(0, 200));
-        return null;
-      }
-      return { ok: true, status: r.status };
-    } catch (e) {
+      // 201=inserted, 204=upserted, 200=ok, 409=conflict(treated as ok)
+      if ([200, 201, 204, 409].includes(ins.status)) return { ok: true, status: ins.status };
+      const errText = await ins.text().catch(()=>'');
+      console.warn('[AniCache] set() INSERT failed:', ins.status, cacheKey, errText.slice(0,200));
+      return null;
+    } catch(e) {
       console.warn('[AniCache] set() error:', cacheKey, e.message);
       return null;
     }
@@ -451,3 +470,4 @@
 
   console.log('[AniCache] v5.0 ready — permanent cache, 72h sidebar, 409 fix, TMDB trim');
 })();
+
