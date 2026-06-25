@@ -1470,29 +1470,20 @@ window.showAnikotoPopupById = function(mal_id) {
           }
         } catch(e) { /* corrupt cache — fetch fresh */ }
 
-        // ── 2) Fetch airing anime (Jikan) + ongoing TMDB TV shows in parallel ──
-        const jikanPages = [1, 2, 3, 4, 5];
-        const jikanParams = jikanPages.map(p =>
-          `filter=airing&type=tv&order_by=popularity&sort=asc&limit=25&page=${p}&sfw=true`
-        );
-
-        // TMDB: fetch 2 pages of currently airing / returning series
-        const TMDB_BASE = 'https://api.themoviedb.org/3';
-        async function fetchTmdbHero(path) {
-          try {
-            const r = await fetch(`${TMDB_BASE}/${path}`);
-            if (!r.ok) return null;
-            return r.json();
-          } catch(e) { return null; }
-        }
+        // ── 2) Fetch 7 pages of airing anime (target: 90 slides) ─────────
+        // Also fetch TMDB ongoing TV shows for interleaving (1 per 4 anime)
+        const jikanPages = [1,2,3,4,5,6,7];
 
         let rawAnime = [];
         let rawTmdbShows = [];
 
-        const [jikanResults, tmdbP1, tmdbP2] = await Promise.allSettled([
-          Promise.allSettled(jikanParams.map(p => fetchJikan('top/anime', p))),
-          fetchTmdbHero('tv/on_the_air?language=en-US&page=1&with_original_language=en'),
-          fetchTmdbHero('tv/on_the_air?language=en-US&page=2&with_original_language=en'),
+        const [jikanResults, tmdbAiring1, tmdbAiring2, tmdbAiring3] = await Promise.allSettled([
+          Promise.allSettled(jikanPages.map(p =>
+            fetchJikan('top/anime', `filter=airing&type=tv&order_by=popularity&sort=asc&limit=25&page=${p}&sfw=true`)
+          )),
+          fetchTMDB('/tv/on_the_air', 'language=en-US&page=1'),
+          fetchTMDB('/tv/on_the_air', 'language=en-US&page=2'),
+          fetchTMDB('/tv/on_the_air', 'language=en-US&page=3'),
         ]);
 
         // Collect Jikan anime
@@ -1504,87 +1495,137 @@ window.showAnikotoPopupById = function(mal_id) {
           }
         }
         // Collect TMDB TV shows
-        for (const t of [tmdbP1, tmdbP2]) {
+        for (const t of [tmdbAiring1, tmdbAiring2, tmdbAiring3]) {
           if (t.status === 'fulfilled' && t.value?.results) {
             rawTmdbShows.push(...t.value.results);
           }
         }
 
-        // ── 3a) Deduplicate & filter anime ────────────────────────────────
-        const seenIds = new Set();
+        // ── 3a) Deduplicate & filter anime ─────────────────────────────
+        const seenAnime = new Set();
         const uniqueAnime = [];
         for (const a of rawAnime) {
           const id = Number(a.mal_id);
-          if (!id || seenIds.has(id)) continue;
+          if (!id || seenAnime.has(id)) continue;
           if (a.type && a.type !== 'TV') continue;
           if (a.status && !a.status.toLowerCase().includes('airing')) continue;
-          seenIds.add(id);
+          seenAnime.add(id);
           uniqueAnime.push(a);
         }
+        // Cap at 90
+        const top90Anime = uniqueAnime.slice(0, 90);
 
-        // ── 3b) Deduplicate & filter TMDB TV — pick top 10 by vote_average ─
+        // ── 3b) For each anime, fetch TMDB backdrop via mal_id lookup ──
+        // TMDB's /find/{mal_id}?external_source=mal_id returns the TMDB entry
+        // with real widescreen backdrop_path (1280×720 or 1920×1080).
+        // We batch these in groups of 5 with a small delay to avoid rate limits.
+        async function getTmdbBackdrop(malId) {
+          try {
+            const res = await fetchTMDB(`/find/${malId}`, 'external_source=mal_id');
+            const tv = res?.tv_results?.[0];
+            if (tv?.backdrop_path) return {
+              backdrop_lg:  `https://image.tmdb.org/t/p/w1280${tv.backdrop_path}`,
+              backdrop_orig:`https://image.tmdb.org/t/p/original${tv.backdrop_path}`,
+              poster_tmdb:  tv.poster_path ? `https://image.tmdb.org/t/p/w500${tv.poster_path}` : null,
+            };
+          } catch(e) {}
+          return null;
+        }
+
+        // Fetch backdrops in batches of 5
+        const backdropMap = {};
+        for (let i = 0; i < top90Anime.length; i += 5) {
+          const batch = top90Anime.slice(i, i + 5);
+          const results = await Promise.allSettled(
+            batch.map(a => getTmdbBackdrop(a.mal_id))
+          );
+          results.forEach((r, idx) => {
+            if (r.status === 'fulfilled' && r.value) {
+              backdropMap[batch[idx].mal_id] = r.value;
+            }
+          });
+          if (i + 5 < top90Anime.length) await new Promise(r => setTimeout(r, 300));
+        }
+
+        // ── 3c) Deduplicate & filter TMDB TV — pick best 23 (90/4 ≈ 22.5) ─
         const seenTmdb = new Set();
         const uniqueTmdb = [];
         for (const t of rawTmdbShows) {
           if (!t.id || seenTmdb.has(t.id)) continue;
-          if (!t.backdrop_path) continue; // must have backdrop
-          if ((t.vote_count || 0) < 50) continue; // skip obscure
+          if (!t.backdrop_path) continue;
+          if ((t.vote_count || 0) < 30) continue;
           seenTmdb.add(t.id);
           uniqueTmdb.push(t);
         }
         uniqueTmdb.sort((a, b) => (b.vote_average||0) - (a.vote_average||0));
-        const top10Tmdb = uniqueTmdb.slice(0, 10);
+        const top23Tmdb = uniqueTmdb.slice(0, 23);
 
-        // ── 4a) Map anime slides ──────────────────────────────────────────
-        const animeSlides = uniqueAnime.map(a => ({
-          id:            `jikan-${a.mal_id}`,
-          title:         a.title_english || a.title || 'Unknown',
-          original_title: a.title || '',
-          source:        'jikan',
-          type:          'Anime',
-          genres:        (a.genres||[]).map(g => g.name),
-          themes:        (a.themes||[]).map(g => g.name),
-          score:         a.score ? Number(a.score).toFixed(1) : 'N/A',
-          year:          (a.aired?.from||'').slice(0, 4) || new Date().getFullYear(),
-          duration:      a.duration && a.duration !== 'Unknown' ? a.duration : '24 min/ep',
-          episodes:      a.episodes || '?',
-          synopsis:      (a.synopsis||'').replace(/\[Written by.*?\]/gi,'').trim(),
-          backdrop:      a.images?.jpg?.large_image_url || a.images?.webp?.large_image_url || '',
-          poster:        a.images?.jpg?.large_image_url || a.images?.webp?.large_image_url || '',
-          certification: a.rating || 'PG-13',
-          studio:        a.studios?.length ? a.studios[0].name : '',
-          mal_id:        a.mal_id,
-          status:        'Airing',
-          status_color:  'var(--accent-gold)',
-          status_label:  '● Airing',
-        })).filter(s => s.backdrop.length > 0);
+        // ── 4a) Map anime slides with proper TMDB backdrops ───────────
+        const animeSlides = top90Anime.map(a => {
+          const tmdb = backdropMap[a.mal_id];
+          // Responsive: use TMDB 1280px backdrop for desktop, jikan large for mobile fallback
+          const backdropDesktop = tmdb?.backdrop_lg || '';
+          const backdropOrig    = tmdb?.backdrop_orig || backdropDesktop;
+          // Poster: prefer TMDB w500, fallback Jikan webp (better quality than jpg large)
+          const poster = tmdb?.poster_tmdb
+            || a.images?.webp?.large_image_url
+            || a.images?.jpg?.large_image_url || '';
+          // For mobile (no backdrop): use Jikan webp large as the slide bg
+          const mobileBg = a.images?.webp?.large_image_url || a.images?.jpg?.large_image_url || poster;
+          return {
+            id:             `jikan-${a.mal_id}`,
+            title:          a.title_english || a.title || 'Unknown',
+            original_title: a.title !== (a.title_english||a.title) ? a.title : '',
+            source:         'jikan',
+            type:           'Anime',
+            genres:         (a.genres||[]).map(g => g.name),
+            themes:         (a.themes||[]).map(g => g.name),
+            score:          a.score ? Number(a.score).toFixed(1) : 'N/A',
+            year:           (a.aired?.from||'').slice(0,4) || '',
+            duration:       a.duration && a.duration !== 'Unknown' ? a.duration : '24 min/ep',
+            episodes:       a.episodes || '?',
+            synopsis:       (a.synopsis||'').replace(/\[Written by[^\]]*\]/g,'').trim().slice(0,320),
+            // Responsive backdrops
+            backdrop:       backdropDesktop || mobileBg,
+            backdrop_orig:  backdropOrig || mobileBg,
+            backdrop_mobile:mobileBg,
+            poster:         poster,
+            certification:  a.rating || 'PG-13',
+            studio:         a.studios?.length ? a.studios[0].name : '',
+            mal_id:         a.mal_id,
+            status_color:   'var(--accent-gold)',
+            status_label:   '● Airing',
+          };
+        }).filter(s => s.backdrop || s.backdrop_mobile);
 
-        // ── 4b) Map TMDB TV slides ────────────────────────────────────────
-        const tmdbSlides = top10Tmdb.map(t => ({
-          id:            `tmdb-tv-${t.id}`,
-          title:         t.name || t.original_name || 'Unknown',
-          original_title: t.original_name || '',
-          source:        'tmdb',
-          type:          'TV Show',
-          genres:        [],  // genre names not in list endpoint; genres array is IDs
-          themes:        [],
-          score:         t.vote_average ? Number(t.vote_average).toFixed(1) : 'N/A',
-          year:          (t.first_air_date||'').slice(0, 4) || '',
-          duration:      '',
-          episodes:      '?',
-          synopsis:      t.overview || '',
-          backdrop:      t.backdrop_path ? `https://image.tmdb.org/t/p/original${t.backdrop_path}` : '',
-          poster:        t.poster_path  ? `https://image.tmdb.org/t/p/w500${t.poster_path}` : '',
-          certification: 'TV-14',
-          studio:        '',
-          tmdb_id:       t.id,
-          status:        'Ongoing',
-          status_color:  '#34d399',
-          status_label:  '● Ongoing',
-          infoHref:      `/info/tv/tmdb-tv-${t.id}/${(t.name||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')}`,
-        })).filter(s => s.backdrop.length > 0);
+        // ── 4b) Map TMDB TV slides ────────────────────────────────────
+        const tmdbSlides = top23Tmdb.map(t => ({
+          id:             `tmdb-tv-${t.id}`,
+          title:          t.name || t.original_name || 'Unknown',
+          original_title: t.original_name !== t.name ? (t.original_name||'') : '',
+          source:         'tmdb',
+          type:           'TV Show',
+          genres:         [],
+          themes:         [],
+          score:          t.vote_average ? Number(t.vote_average).toFixed(1) : 'N/A',
+          year:           (t.first_air_date||'').slice(0,4) || '',
+          duration:       '',
+          episodes:       '?',
+          synopsis:       (t.overview||'').slice(0,320),
+          backdrop:       `https://image.tmdb.org/t/p/w1280${t.backdrop_path}`,
+          backdrop_orig:  `https://image.tmdb.org/t/p/original${t.backdrop_path}`,
+          backdrop_mobile:`https://image.tmdb.org/t/p/w780${t.backdrop_path}`,
+          poster:         t.poster_path ? `https://image.tmdb.org/t/p/w500${t.poster_path}` : '',
+          certification:  'TV-14',
+          studio:         '',
+          tmdb_id:        t.id,
+          status_color:   '#34d399',
+          status_label:   '● Ongoing',
+          infoHref:       `/info/tv/tmdb-tv-${t.id}/${(t.name||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')}`,
+        }));
 
-        // ── 5) Interleave: every ~4 anime, insert 1 TMDB show ────────────
+        // ── 5) Interleave: every 4 anime → 1 TMDB TV show ─────────────
+        // Result: 90 anime + ~22 TMDB = ~112 total slides
         const merged = [];
         let tmdbIdx = 0;
         for (let i = 0; i < animeSlides.length; i++) {
@@ -1593,26 +1634,19 @@ window.showAnikotoPopupById = function(mal_id) {
             merged.push(tmdbSlides[tmdbIdx++]);
           }
         }
-        // Append any remaining TMDB slides
         while (tmdbIdx < tmdbSlides.length) merged.push(tmdbSlides[tmdbIdx++]);
         heroData = merged;
 
-        // ── 6) Cache in sessionStorage for 5 hours ───────────────────────
+        // ── 6) Cache in sessionStorage for 5 hours ────────────────────
         try {
-          sessionStorage.setItem(HERO_CACHE_KEY, JSON.stringify({
-            data: heroData, ts: Date.now()
-          }));
-        } catch(e) { /* storage full */ }
+          sessionStorage.setItem(HERO_CACHE_KEY, JSON.stringify({ data: heroData, ts: Date.now() }));
+        } catch(e) {}
 
-        console.log(`[Hero] ${animeSlides.length} anime + ${tmdbSlides.length} TMDB TV = ${heroData.length} total slides`);
+        console.log(`[Hero] ${animeSlides.length} anime + ${tmdbSlides.length} TMDB TV = ${heroData.length} slides`);
         renderHero();
-        // Push to Supabase — 5h global cache
         if (window.AniCache && heroData.length > 0) {
-          window.AniCache.set({
-            cacheKey: 'index:hero_slider',
-            pageSource: 'index', section: 'hero_slider',
-            data: heroData, itemCount: heroData.length,
-          }).catch(()=>{});
+          window.AniCache.set({ cacheKey:'index:hero_slider', pageSource:'index',
+            section:'hero_slider', data: heroData, itemCount: heroData.length }).catch(()=>{});
         }
       }
       function renderHero() {
@@ -1628,7 +1662,11 @@ window.showAnikotoPopupById = function(mal_id) {
           const statusColor = s.status_color || 'var(--accent-gold)';
           const statusLabel = s.status_label || '● Airing';
           return `
-          <div class="slide" data-index="${i}" style="background-image:url('${s.backdrop||s.poster}');">
+          <div class="slide" data-index="${i}"
+            style="background-image:url('${s.backdrop||s.poster}');"
+            data-bg-mobile="${s.backdrop_mobile||s.poster}"
+            data-bg-desktop="${s.backdrop||s.poster}"
+            data-bg-orig="${s.backdrop_orig||s.backdrop||s.poster}">
             <div class="slide-content">
               <h1 class="slide-title">${s.title}</h1>
               ${s.original_title && s.original_title !== s.title ? `<div class="slide-orig-title">${s.original_title}</div>` : ''}
@@ -1659,7 +1697,24 @@ window.showAnikotoPopupById = function(mal_id) {
         ).join('');
         currentSlide=0; updateSlidePos();
         document.getElementById('slideCounter').textContent = `1 / ${totalSlides}`;
+        // Apply correct resolution backdrops for current device
+        requestAnimationFrame(applyResponsiveBackdrops);
       }
+      // Apply correct backdrop resolution based on screen width
+      function applyResponsiveBackdrops() {
+        const isDesktop = window.innerWidth >= 768;
+        const isLargeDesktop = window.innerWidth >= 1440;
+        document.querySelectorAll('#slidesContainer .slide').forEach(el => {
+          const url = isLargeDesktop
+            ? (el.dataset.bgOrig || el.dataset.bgDesktop)
+            : isDesktop
+              ? el.dataset.bgDesktop
+              : el.dataset.bgMobile;
+          if (url) el.style.backgroundImage = `url('${url}')`;
+        });
+      }
+      window.addEventListener('resize', applyResponsiveBackdrops);
+
       function goToSlide(i) { currentSlide = ((i%heroData.length)+heroData.length)%heroData.length; updateSlidePos(); }
       function updateSlidePos() {
         document.getElementById('slidesContainer').style.transform = `translateX(-${currentSlide*100}%)`;
@@ -2744,4 +2799,5 @@ window.showAnikotoPopupById = function(mal_id) {
   </script>
 </body>
 </html>
+
 
