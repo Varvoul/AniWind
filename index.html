@@ -1579,7 +1579,6 @@ window.showAnikotoPopupById = function(mal_id) {
           return {
             id:             `jikan-${a.mal_id}`,
             title:          a.title_english || a.title || 'Unknown',
-            original_title: a.title !== (a.title_english||a.title) ? a.title : '',
             source:         'jikan',
             type:           'Anime',
             genres:         (a.genres||[]).map(g => g.name),
@@ -1606,7 +1605,6 @@ window.showAnikotoPopupById = function(mal_id) {
         const tmdbSlides = top23Tmdb.map(t => ({
           id:             `tmdb-tv-${t.id}`,
           title:          t.name || t.original_name || 'Unknown',
-          original_title: t.original_name !== t.name ? (t.original_name||'') : '',
           source:         'tmdb',
           type:           'TV Show',
           genres:         [],
@@ -1651,7 +1649,7 @@ window.showAnikotoPopupById = function(mal_id) {
         if (window.AniCache && heroData.length > 0) {
           // Trim to essential fields only — keep payload small for DB storage
           const heroForDB = heroData.map(s => ({
-            id: s.id, title: s.title, original_title: s.original_title || '',
+            id: s.id, title: s.title,
             source: s.source, type: s.type,
             genres: s.genres || [], themes: s.themes || [],
             score: s.score, year: s.year, duration: s.duration,
@@ -1687,7 +1685,6 @@ window.showAnikotoPopupById = function(mal_id) {
             data-bg-orig="${s.backdrop_orig||s.backdrop||s.poster}">
             <div class="slide-content">
               <h1 class="slide-title">${s.title}</h1>
-              ${s.original_title && s.original_title !== s.title ? `<div class="slide-orig-title">${s.original_title}</div>` : ''}
               <div class="slide-meta">
                 <span class="meta-badge">${s.type||'TV'}</span>
                 <span class="meta-badge" style="color:${statusColor};border-color:${statusColor};">${statusLabel}</span>
@@ -2868,6 +2865,7 @@ window.showAnikotoPopupById = function(mal_id) {
   </script>
 </body>
 </html>
+
 
 
 
