@@ -1446,7 +1446,7 @@ window.showAnikotoPopupById = function(mal_id) {
       // Results are cached in sessionStorage for this browser session so
       // navigating back/forward is instant. Cache expires after 6 hours
       // so new airing anime appear automatically without a page reload.
-      let heroData=[], currentSlide=0;
+      let heroData=[], currentSlide=0, _heroRendered=false, _heroInterval=null;
       const HERO_CACHE_KEY   = 'aniumi_hero_airing_tv';
       const HERO_CACHE_TTL   = 6 * 60 * 60 * 1000; // 6 hours
 
@@ -1712,10 +1712,22 @@ window.showAnikotoPopupById = function(mal_id) {
         document.getElementById('sliderDots').innerHTML = Array.from({length:showDots},(_,i) =>
           `<span class="dot${i===0?' active':''}" data-index="${i}"></span>`
         ).join('');
-        currentSlide=0; updateSlidePos();
-        document.getElementById('slideCounter').textContent = `1 / ${totalSlides}`;
+        // Only reset to slide 0 on first render — don't interrupt user mid-scroll
+        if (!_heroRendered) {
+          currentSlide = 0;
+          updateSlidePos();
+        } else {
+          // Keep current position but clamp to new length
+          currentSlide = Math.min(currentSlide, heroData.length - 1);
+          updateSlidePos();
+        }
+        _heroRendered = true;
+        document.getElementById('slideCounter').textContent = `${currentSlide+1} / ${totalSlides}`;
         // Apply correct resolution backdrops for current device
         requestAnimationFrame(applyResponsiveBackdrops);
+        // Restart auto-advance with a single interval (clear old one first)
+        if (_heroInterval) clearInterval(_heroInterval);
+        _heroInterval = setInterval(() => goToSlide(currentSlide + 1), 6000);
       }
       // Apply correct backdrop resolution based on screen width
       function applyResponsiveBackdrops() {
@@ -1748,7 +1760,7 @@ window.showAnikotoPopupById = function(mal_id) {
       }
       document.getElementById('prevSlide').addEventListener('click', ()=>goToSlide(currentSlide-1));
       document.getElementById('nextSlide').addEventListener('click', ()=>goToSlide(currentSlide+1));
-      setInterval(()=>goToSlide(currentSlide+1),6000);
+      // Auto-advance is started inside renderHero() to avoid stacking intervals
 
       /* ── TOP AIRING ── */
       async function loadTopAiring() {
@@ -2835,6 +2847,7 @@ window.showAnikotoPopupById = function(mal_id) {
   </script>
 </body>
 </html>
+
 
 
 
