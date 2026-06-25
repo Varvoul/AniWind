@@ -36,14 +36,16 @@
   const PERMANENT_EXPIRY = '2099-12-31T23:59:59.000Z';
 
   const TTL = {
-    hero_slider:2, top_airing:2, new_releases:2, new_on_aniumi:2,
-    recently_completed:2, trending_now:2,
+    // Home page sections — 5h global cache
+    hero_slider:5, top_airing:5, new_releases:5, new_on_aniumi:5,
+    recently_completed:5, trending_now:5, upcoming:5, popular_anime:5,
     show_info:8, info_full_data:8,
     water_temple:8, sunken_treasure:8, show_recs:8,
     // Sidebar sections: 72h (3 days) — these lists change very slowly
-    top_ranking:72, most_popular:72, popular_anime:72,
+    top_ranking:72, most_popular:72,
     hidden_gem:72, most_favourite:72,
-    schedule:24,
+    // Schedule: 6h
+    schedule:6,
   };
 
   const H = () => ({
