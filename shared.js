@@ -1842,9 +1842,15 @@
       finally { btn.disabled = false; btn.textContent = 'Sign In'; resetHCaptcha(); }
     });
 
-    ['btnGoogleLogin','btnGoogleSignUp'].forEach(id => {
-      document.getElementById(id)?.addEventListener('click', async () => {
-        // Stash geo in localStorage so the OAuth redirect target can pick it up.
+    document.getElementById('btnGoogleLogin')?.addEventListener('click', async () => {
+        // Login — no geo needed
+        await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: { redirectTo: window.location.origin }
+        });
+      });
+    document.getElementById('btnGoogleSignUp')?.addEventListener('click', async () => {
+        // Sign-up — collect geo for new user profile
         const geo = await getUserGeo();
         try { localStorage.setItem('aniumi_pending_geo', JSON.stringify(geo)); } catch(e){}
         await supabase.auth.signInWithOAuth({
@@ -1852,7 +1858,6 @@
           options: { redirectTo: window.location.origin }
         });
       });
-    });
 
     document.getElementById('btnSignUp')?.addEventListener('click', async () => {
       const username = document.getElementById('regUsername').value.trim();
@@ -2155,19 +2160,18 @@
     // Uses an atomic Postgres RPC so login_count is never double-counted
     // even if the function is called twice (tab restore, strict-mode etc.).
     try {
-      const geo = await getUserGeo();
       const now = new Date().toISOString();
-      // Atomic increment + geo update in one round-trip — no SELECT race.
+      // Atomic increment in one round-trip — no SELECT race.
       const { error } = await supabase.rpc('increment_login', {
         p_user_id:       userId,
         p_now:           now,
-        p_ip:            geo.ip             || null,
-        p_country:       geo.country        || null,
-        p_country_code:  geo.country_code   || null,
-        p_state:         geo.state          || null,
-        p_city:          geo.city           || null,
-        p_local_tz:      geo.local_timezone || geo.timezone || null,
-        p_utc_offset:    geo.utc_offset     || null
+        p_ip:            null,
+        p_country:       null,
+        p_country_code:  null,
+        p_state:         null,
+        p_city:          null,
+        p_local_tz:      null,
+        p_utc_offset:    null
       });
       if (error) {
         // RPC not deployed yet — fall back to safe client-side increment
@@ -2179,13 +2183,6 @@
           // COALESCE(login_count,0)+1 — never set to 1 if already > 0
           login_count:      (cur?.login_count != null ? cur.login_count + 1 : 1),
           first_login_date: cur?.first_login_date || now,
-          ip_address_text:  geo.ip             || null,
-          country:          geo.country        || null,
-          country_code:     geo.country_code   || null,
-          state:            geo.state          || null,
-          city:             geo.city           || null,
-          local_timezone:   geo.local_timezone || geo.timezone || null,
-          utc_offset:       geo.utc_offset     || null,
           updated_at:       now
         };
         await supabase.from('profiles').update(patch).eq('user_id', userId);
@@ -2248,10 +2245,13 @@
     let geo = null;
     try { geo = JSON.parse(localStorage.getItem('aniumi_pending_geo') || 'null'); } catch(e){}
     try { localStorage.removeItem('aniumi_pending_geo'); } catch(e){}
-    // Fallback: if no stashed geo (e.g. user landed directly), fetch fresh
-    // from the browser. ipapi.co + ipify fallback gives us country/state/city.
-    if (!geo) {
+    // Only fetch geo on sign-up (first login). If no stashed geo, skip it.
+    // Login sessions don't need to re-collect geo data.
+    const isFirstLogin = isGenuineLogin && (!profile?.login_count || profile.login_count === 0);
+    if (!geo && isFirstLogin) {
       try { geo = await getUserGeo(); } catch(e) { geo = null; }
+    } else if (!geo) {
+      geo = null; // existing user login — skip geo fetch
     }
 
     const meta = user.user_metadata || {};
