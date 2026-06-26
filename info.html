@@ -2883,7 +2883,12 @@ img { max-width: 100%; height: auto; display: block; }
         if (typeof window.supabaseClient !== 'undefined') await initAuth();
 
         if (currentState.id && currentState.source) {
-          await fetchShowData();
+          const dataLoaded = await fetchShowData();
+          if (!dataLoaded) {
+            // fetchShowData already called showError() — stop here, don't call initUI
+            removeInfoSkeletons();
+            return;
+          }
           removeInfoSkeletons(); // Remove overlays — real elements now populated
           initUI();
           await fetchUserBookmarks();
@@ -3246,9 +3251,11 @@ img { max-width: 100%; height: auto; display: block; }
             await window.AniCache.stampSection(`info_${_mediaId}`, 1, { permanent: currentState.isPermanent });
           }
 
+          return true; // success
         } catch (error) {
           console.error('Failed to fetch show data:', error);
           showError('Could not load show information. Please try again.');
+          return false; // failure
         }
       }
 
@@ -4989,7 +4996,7 @@ img { max-width: 100%; height: auto; display: block; }
           if (filtered.length > 0) {
             gridContainer.innerHTML = filtered.map(anime => renderAnimeRecCard(anime)).join('');
             // Cache the results in Supabase for other visitors
-            if (window.AniCache) window.AniCache.set({ cacheKey: _wtKey, pageSource:'info', section:'water_temple', data: filtered, permanent: currentState.isPermanent }).catch(()=>{});
+            if (window.AniCache) window.AniCache.set({ cacheKey: _wtKey, pageSource:'info', section:'water_temple', data: filtered, permanent: true }).catch(()=>{});
           } else {
             // Fallback: top-scored anime of same type, no genre filter
             const fbParams = new URLSearchParams({ order_by: 'score', sort: 'desc', limit: '24', sfw: 'true', type: (data.type || 'tv').toLowerCase(), min_score: '7.5' });
@@ -5006,7 +5013,7 @@ img { max-width: 100%; height: auto; display: block; }
               : '<div class="loading-text">No recommendations found</div>';
             // Cache fallback data too
             if (fbFiltered.length && window.AniCache) {
-              window.AniCache.set({ cacheKey: _wtKey, pageSource:'info', section:'water_temple', data: fbFiltered, permanent: currentState.isPermanent }).catch(()=>{});
+              window.AniCache.set({ cacheKey: _wtKey, pageSource:'info', section:'water_temple', data: fbFiltered, permanent: true }).catch(()=>{});
             }
           }
 
