@@ -57,15 +57,14 @@
       local_timezone: localTz, utc_offset: utcOffset, timezone: localTz
     };
     try {
-      // ipapi.co blocks cross-origin requests from some deployments.
-      // Use ipwho.is as CORS-friendly alternative (same data shape, free, no key).
-      const res = await fetch('https://ipwho.is/', { cache: 'no-store' });
+      // ipapi.co via Cloudflare Worker proxy — no CORS issues
+      const res = await fetch('https://ipapi-proxy.bionmovies47.workers.dev/json/', { cache: 'no-store' });
       if (res.ok) {
         const j = await res.json();
-        if (j.success !== false) {
+        if (j.success !== false && !j.error) {
           cachedGeo = {
             ip:             j.ip || null,
-            country:        j.country || null,
+            country:        j.country_name || null,
             country_code:   j.country_code || null,
             state:          j.region || null,
             city:           j.city || null,
@@ -76,7 +75,7 @@
           return cachedGeo;
         }
       }
-    } catch (e) { /* network/CORS — fall through */ }
+    } catch (e) { /* network error — fall through */ }
     try {
       const r2 = await fetch('https://api.ipify.org?format=json', { cache: 'no-store' });
       if (r2.ok) {
