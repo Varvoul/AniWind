@@ -722,7 +722,26 @@ img { max-width: 100%; height: auto; display: block; }
   border-color: var(--btn-primary);
   transform: translateY(-1px);
 }
-.ext-link-btn.mal { color: #2e51a2; }
+.ext-link-btn.mal {
+  color: #4a90d9;
+  border-color: rgba(74, 144, 217, 0.4);
+  background: rgba(46, 81, 162, 0.15);
+}
+.ext-link-btn.mal:hover {
+  color: #fff;
+  background: #2e51a2;
+  border-color: #2e51a2;
+}
+.ext-link-btn.anilist {
+  color: #60b5f0;
+  border-color: rgba(96, 181, 240, 0.4);
+  background: rgba(20, 132, 204, 0.15);
+}
+.ext-link-btn.anilist:hover {
+  color: #fff;
+  background: #1484cc;
+  border-color: #1484cc;
+}
 .ext-link-btn.tmdb { color: #01b4e4; }
 
 /* Seasons Section */
@@ -2873,7 +2892,8 @@ img { max-width: 100%; height: auto; display: block; }
             await Promise.all([
               loadSidebarContent(),
               loadRecommendations(),
-              fetchAllAnimeData(currentState.data?.title)
+              fetchAllAnimeData(currentState.data?.title),
+              fetchAnimeScheduleData()
             ]);
           } else {
             await Promise.all([
@@ -3359,6 +3379,66 @@ img { max-width: 100%; height: auto; display: block; }
         } catch (e) { /* AllAnime often unreachable — silent */ }
       }
 
+      // Fetch sub/dub episode counts + anilist info from AnimeSchedule proxy
+      async function fetchAnimeScheduleData() {
+        if (currentState.source !== 'jikan') return;
+        try {
+          // Use romaji title (data.title) or english title as query
+          const searchTitle = currentState.data?.title || currentState.data?.title_english || currentState.title;
+          if (!searchTitle) return;
+          const encoded = encodeURIComponent(searchTitle);
+          const url = `https://animeschedule-proxy.bionmovies47.workers.dev/anime?q=${encoded}`;
+          console.log('[AnimeSchedule] fetching:', url);
+          const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+          if (!res.ok) { console.warn('[AnimeSchedule] HTTP', res.status); return; }
+          const json = await res.json();
+          if (!json || !json.title) { console.warn('[AnimeSchedule] no match found'); return; }
+          console.log('[AnimeSchedule] got data:', json.title, 'sub:', json.sub?.aired, 'dub:', json.dub?.aired, 'anilist:', json.anilist?.url);
+
+          // Store for later use
+          currentState.animeScheduleData = json;
+
+          // Update episode detail with sub/dub counts
+          const subCount = json.sub?.aired || 0;
+          const dubCount = json.dub?.aired || 0;
+          if (subCount > 0 || dubCount > 0) {
+            updateEpisodeDetail(subCount, dubCount);
+            // Also update language badges
+            renderLanguageBadges(subCount, dubCount);
+          }
+
+          // Add/update Anilist link in external links
+          if (json.anilist?.url) {
+            updateAnilistLink(json.anilist.url);
+          }
+        } catch (e) { console.warn('[AnimeSchedule] fetch failed:', e.message); }
+      }
+
+      function updateAnilistLink(anilistUrl) {
+        // Find existing anilist button and update it, or add new one if not present
+        const existingBtn = document.querySelector('.ext-link-btn.anilist');
+        if (existingBtn) {
+          existingBtn.href = anilistUrl;
+          existingBtn.style.display = 'flex';
+          return;
+        }
+        // Find the external links container and add Anilist button
+        const extContainer = document.querySelector('.external-links');
+        if (!extContainer) return;
+        const anilistBtn = document.createElement('a');
+        anilistBtn.href = anilistUrl;
+        anilistBtn.target = '_blank';
+        anilistBtn.className = 'ext-link-btn anilist';
+        anilistBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M6.361 2.943 0 21.056h4.942l1.077-3.133H11.4l1.052 3.133H22.9c.71 0 1.1-.392 1.1-1.101V17.53c0-.71-.39-1.101-1.1-1.101h-6.483V4.045c0-.71-.392-1.102-1.101-1.102h-2.422c-.71 0-1.101.392-1.101 1.102v1.064l-.758-2.166zm2.324 5.948 1.688 5.018H7.144z"/></svg> AniList`;
+        // Insert after MAL button if exists, otherwise at the end
+        const malBtn = extContainer.querySelector('.ext-link-btn.mal');
+        if (malBtn && malBtn.nextSibling) {
+          extContainer.insertBefore(anilistBtn, malBtn.nextSibling);
+        } else {
+          extContainer.appendChild(anilistBtn);
+        }
+      }
+
       function updateEpisodeDetail(subCount, dubCount) {
         const epEl = document.getElementById('episodeDetailValue');
         if (!epEl) return;
@@ -3639,6 +3719,11 @@ img { max-width: 100%; height: auto; display: block; }
         const extLinks = [];
         if (isAnime && data.mal_id) {
           extLinks.push(`<a href="https://myanimelist.net/anime/${data.mal_id}" target="_blank" class="ext-link-btn mal"><svg width="16" height="16" viewBox="-890.88 -890.88 2805.76 2805.76"><circle cx="512" cy="512" r="512" style="fill:#2e51a2"/><path d="M432.49 410.61V590.3l-44.86-.06V479l-43.31 51.29-42.43-52.44-.43 112.75H256V410.65h47l39.79 54.29 43-54.31zm184.06 44.14.53 135.15h-50.45l-.17-61.25h-59.73c1.49 10.65 4.48 27 8.9 38 3.31 8.13 6.36 16 12.44 24.06l-36.37 24c-7.45-13.57-13.27-28.52-18.73-44.42a198.31 198.31 0 0 1-10.82-46.49c-1.81-16-2.07-31.38 2.28-47.19a83.37 83.37 0 0 1 24.77-39.81c6.68-6.25 16-10.67 23.47-14.66s15.85-5.63 23.62-7.66a158 158 0 0 1 25.41-3.9c8.49-.73 23.62-1.41 51-.6l11.63 37.31h-58.78c-12.65.17-18.73 0-28.61 4.46a47.7 47.7 0 0 0-27.26 41l56.81.7.81-38.61h49.26zM701.72 410v141.35L768 552l-9.17 37.87H656.28V409.33z" style="fill:#fff"/></svg> MyAnimeList</a>`);
+        }
+        // Add Anilist button — use cached data if available, or placeholder that gets updated by fetchAnimeScheduleData
+        const anilistUrl = currentState.animeScheduleData?.anilist?.url || '';
+        if (isAnime) {
+          extLinks.push(`<a href="${anilistUrl || '#'}" target="_blank" class="ext-link-btn anilist" ${!anilistUrl ? 'style="display:none;"' : ''}><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M6.361 2.943 0 21.056h4.942l1.077-3.133H11.4l1.052 3.133H22.9c.71 0 1.1-.392 1.1-1.101V17.53c0-.71-.39-1.101-1.1-1.101h-6.483V4.045c0-.71-.392-1.102-1.101-1.102h-2.422c-.71 0-1.101.392-1.101 1.102v1.064l-.758-2.166zm2.324 5.948 1.688 5.018H7.144z"/></svg> AniList</a>`);
         }
         if (!isAnime && currentState.id) {
           const tmdbType = currentState.type;
