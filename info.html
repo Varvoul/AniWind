@@ -983,6 +983,13 @@ img { max-width: 100%; height: auto; display: block; }
 }
 .cast-va-empty { border-left: 1px solid var(--border-subtle); }
 
+/* English VA row — subtle separator when stacked under Japanese VA */
+.cast-va-side[style*="border-top"] {
+  border-left: none !important;
+  padding-top: 6px !important;
+  margin-top: 4px;
+}
+
 .cast-portrait {
   width: 46px;
   height: 66px;
@@ -3260,22 +3267,27 @@ img { max-width: 100%; height: auto; display: block; }
       }
 
       async function fetchJikanData() {
-        const res = await fetch(`https://api.jikan.moe/v4/anime/${currentState.id}/full`);
-        if (!res.ok) throw new Error(`Jikan API error: ${res.status}`);
-        const { data } = await res.json();
-        currentState.data = data;
-        currentState.title = data.title_english || data.title || 'Unknown';
-        // Determine permanent cache based on airing status
-        currentState.isPermanent = !!(window.AniCache && window.AniCache.isPermanentStatus(data.status));
-        // Cache full Jikan response
-        if (window.AniCache) {
-          const sid = `jikan-${currentState.id}`;
-          const saveResult = await window.AniCache.set({ cacheKey:`info:full_data:${sid}`, pageSource:'info',
-            section:'info_full_data', showId:null,
-            malId:currentState.id, data,
-            permanent: currentState.isPermanent,
-          });
-          if (!saveResult) console.warn('[AniCache] Failed to save full Jikan data for', sid);
+        try {
+          const res = await fetch(`https://api.jikan.moe/v4/anime/${currentState.id}/full`);
+          if (!res.ok) throw new Error(`Jikan API error: ${res.status}`);
+          const { data } = await res.json();
+          currentState.data = data;
+          currentState.title = data.title_english || data.title || 'Unknown';
+          // Determine permanent cache based on airing status
+          currentState.isPermanent = !!(window.AniCache && window.AniCache.isPermanentStatus(data.status));
+          // Cache full Jikan response
+          if (window.AniCache) {
+            const sid = `jikan-${currentState.id}`;
+            const saveResult = await window.AniCache.set({ cacheKey:`info:full_data:${sid}`, pageSource:'info',
+              section:'info_full_data', showId:null,
+              malId:currentState.id, data,
+              permanent: currentState.isPermanent,
+            });
+            if (!saveResult) console.warn('[AniCache] Failed to save full Jikan data for', sid);
+          }
+        } catch (jikanError) {
+          console.warn('[Jikan] Failed, falling back to AniList GraphQL:', jikanError.message);
+          await fetchAnilistData(currentState.id);
         }
       }
 
@@ -3352,6 +3364,189 @@ img { max-width: 100%; height: auto; display: block; }
           currentState.data = { title: currentState.title || 'Unknown', overview: '' };
           throw error;
         }
+      }
+
+      // ═══════════════════════════════════════════════════════════════
+      // ANILIST GRAPHQL FALLBACK — fetches every field Jikan provides
+      // Uses MAL ID from URL, returns Jikan-compatible data object
+      // ═══════════════════════════════════════════════════════════════
+      const ANILIST_URL = 'https://graphql.anilist.co';
+      const AL_STATUS_MAP = { FINISHED:'Finished Airing', RELEASING:'Currently Airing', NOT_YET_RELEASED:'Not yet aired', CANCELLED:'Cancelled', HIATUS:'On Hiatus' };
+      const AL_FORMAT_MAP = { TV:'TV', TV_SHORT:'TV', MOVIE:'Movie', SPECIAL:'Special', OVA:'OVA', ONA:'ONA', MUSIC:'Music' };
+      const AL_RELATION_MAP = { SEQUEL:'sequel', PREQUEL:'prequel', SIDE_STORY:'side story', ALTERNATIVE:'alternative version', ALTERNATIVE_SETTING:'alternative setting', SPIN_OFF:'spin-off', ADAPTATION:'adaptation', CHARACTER:'character', SUMMARY:'summary', COMPILATION:'compilation', CONTAINS:'contains', OTHER:'other' };
+      const AL_SEASON_MAP = { WINTER:'Winter', SPRING:'Spring', SUMMER:'Summer', FALL:'Fall' };
+      const AL_GENRE_TO_MAL = { Action:1, Adventure:2, Comedy:4, Drama:8, Fantasy:10, Horror:14, Mystery:7, Romance:22, 'Sci-Fi':24, Sports:30, Supernatural:37, Suspense:41, 'Award Winning':46, 'Slice of Life':36, Ecchi:9, Mecha:18, Music:19, Military:38, School:23, Shounen:27, Seinen:42, Josei:43, Isekai:62, 'Boys Love':28, 'Girls Love':26, Gourmet:47, 'Idols & Celebrities':76, Medical:104, Mythology:81, 'Reverse Harem':91 };
+
+      async function fetchAnilistData(malId) {
+        console.log('[AniList] Fetching via GraphQL for MAL ID:', malId);
+
+        const mainQuery = `query($malId:Int){Media(idMal:$malId,type:ANIME){id idMal title{romaji english native}type format status(version:2)description(asHtml:false)startDate{year month day}endDate{year month day}season seasonYear episodes duration coverImage{extraLarge large medium color}bannerImage genres synonyms averageScore meanScore popularity trending favourites tags{name rank isMediaSpoiler}studios(isMain:true){nodes{name}}producers:studios(isMain:false){nodes{name}}countryOfOrigin isAdult nextAiringEpisode{airingAt episode}siteUrl trailer{id site thumbnail}externalLinks{url site}rankings{rank type season year allTime format}stats{scoreDistribution{score amount}statusDistribution{status amount}}relations{edges{relationType node{id idMal title{romaji english native}type format status coverImage{large medium}episodes bannerImage}}}characters(sort:ROLE,page:1,perPage:25){edges{role node{id name{full}image{large medium}}voiceActors(language:JAPANESE){id name{full}languageV2 image{large medium}}}}recommendations(sort:RATING_DESC,page:1,perPage:15){nodes{mediaRecommendation{media{id idMal title{romaji english}coverImage{large}averageScore episodes format status genres popularity}}}}}}`;
+
+        const engVaQuery = `query($malId:Int){Media(idMal:$malId,type:ANIME){characters(sort:ROLE,page:1,perPage:25){edges{role node{id name{full}}voiceActors(language:ENGLISH){id name{full}languageV2 image{large medium}}}}}`;
+
+        // Fetch main data + Japanese VAs
+        const mainRes = await fetch(ANILIST_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify({ query: mainQuery, variables: { malId } }),
+          signal: AbortSignal.timeout(15000)
+        });
+        if (!mainRes.ok) throw new Error(`AniList HTTP ${mainRes.status}`);
+        const mainJson = await mainRes.json();
+        const media = mainJson?.data?.Media;
+        if (!media) throw new Error('AniList: no media found for MAL ID ' + malId);
+
+        // Fetch English VAs in parallel
+        let engVaEdges = null;
+        try {
+          const engRes = await fetch(ANILIST_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify({ query: engVaQuery, variables: { malId } }),
+            signal: AbortSignal.timeout(10000)
+          });
+          if (engRes.ok) { const ej = await engRes.json(); engVaEdges = ej?.data?.Media?.characters?.edges || []; }
+        } catch (e) { console.warn('[AniList] English VA fetch failed:', e.message); }
+
+        // Transform to Jikan format
+        const data = mapAnilistToJikan(media, engVaEdges);
+
+        currentState.data = data;
+        currentState.title = data.title_english || data.title || 'Unknown';
+        currentState.isPermanent = !!(window.AniCache && window.AniCache.isPermanentStatus(data.status));
+        console.log('[AniList] Successfully loaded anime data for:', currentState.title);
+
+        // Cache permanently
+        if (window.AniCache) {
+          const sid = `jikan-${malId}`;
+          await window.AniCache.set({ cacheKey:`info:full_data:${sid}`, pageSource:'info',
+            section:'info_full_data', showId:null, malId:malId, data,
+            permanent: currentState.isPermanent,
+          });
+        }
+      }
+
+      function _alfmtDate(p) {
+        if (!p) return null;
+        return `${String(p.year||'????').padStart(4,'0')}-${String(p.month||'??').padStart(2,'0')}-${String(p.day||'??').padStart(2,'0')}T00:00:00+00:00`;
+      }
+      function _alPrettyDate(ds) {
+        if (!ds) return null;
+        const d = new Date(ds); if (isNaN(d.getTime())) return ds.replace('T00:00:00+00:00','');
+        return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+      }
+
+      function mapAnilistToJikan(m, engVaEdges) {
+        const airedFrom = _alfmtDate(m.startDate);
+        const airedTo = _alfmtDate(m.endDate);
+        const seasonStr = m.season && m.seasonYear ? `${AL_SEASON_MAP[m.season]||m.season} ${m.seasonYear}` : null;
+        let broadcastStr = null;
+        if (m.nextAiringEpisode) {
+          const ad = new Date(m.nextAiringEpisode.airingAt*1000);
+          const days = ['Sundays','Mondays','Tuesdays','Wednesdays','Thursdays','Fridays','Saturdays'];
+          broadcastStr = days[ad.getUTCDay()] + ' at ??:?? (JST)';
+        }
+        let rating = 'PG-13';
+        if (m.isAdult) rating = 'R+';
+        else if (m.tags?.some(t=>t.name==='Gore'||t.name==='Psychological')) rating = 'R-17';
+
+        const GENRE_SET = new Set(m.genres||[]);
+        const genres = (m.genres||[]).map(name=>({ mal_id:AL_GENRE_TO_MAL[name]||0, name }));
+        const themes = (m.tags||[]).filter(t=>!GENRE_SET.has(t.name)&&!t.isMediaSpoiler&&t.rank>=50).sort((a,b)=>b.rank-a.rank).slice(0,10).map(t=>({mal_id:0,name:t.name}));
+        const DEMO_SET = new Set(['Shounen','Shoujo','Seinen','Josei','Kodomo','Kids']);
+        const demographics = genres.filter(g=>DEMO_SET.has(g.name));
+
+        const studios = (m.studios?.nodes||[]).map(s=>({name:s.name}));
+        const producers = (m.producers?.nodes||[]).filter(p=>!studios.some(s=>s.name===p.name)).map(p=>({name:p.name}));
+
+        // Relations
+        const relGroups = {};
+        for (const edge of (m.relations?.edges||[])) {
+          const rt = AL_RELATION_MAP[edge.relationType]||edge.relationType.toLowerCase();
+          if (!relGroups[rt]) relGroups[rt]=[];
+          const n = edge.node;
+          if (n?.idMal) relGroups[rt].push({
+            type:'anime', mal_id:n.idMal,
+            name: n.title?.english||n.title?.romaji||'Unknown',
+            url:`https://myanimelist.net/anime/${n.idMal}`,
+            images: n.coverImage?{jpg:{large_image_url:n.coverImage.large||n.coverImage.medium,image_url:n.coverImage.medium||n.coverImage.large}}:{},
+            bannerImage: n.bannerImage||null
+          });
+        }
+        const relations = Object.entries(relGroups).map(([relation,entry])=>({relation,entry}));
+
+        // Characters + JP VAs
+        const jpEdges = m.characters?.edges||[];
+        const characters = jpEdges.map(edge=>{
+          const ch = edge.node; const jpVa = edge.voiceActors?.[0];
+          return {
+            character:{ mal_id:ch.id, name:ch.name?.full||'Unknown',
+              images:ch.image?{jpg:{image_url:ch.image.large||ch.image.medium,large_image_url:ch.image.large||ch.image.medium}}:{} },
+            role: edge.role==='MAIN'?'Main':'Supporting', favorites:0,
+            voice_actors: jpVa?[{person:{mal_id:jpVa.id,name:jpVa.name?.full||'Unknown',
+              images:jpVa.image?{jpg:{image_url:jpVa.image.large||jpVa.image.medium}}:{}},language:'Japanese'}]:[]
+          };
+        });
+        // Merge English VAs
+        if (engVaEdges?.length) {
+          for (const ee of engVaEdges) {
+            const cn = ee.node?.name?.full; if (!cn) continue;
+            const eva = ee.voiceActors?.[0]; if (!eva) continue;
+            const cm = characters.find(c=>c.character.name===cn);
+            if (cm) cm.voice_actors.push({person:{mal_id:eva.id,name:eva.name?.full||'Unknown',
+              images:eva.image?{jpg:{image_url:eva.image.large||eva.image.medium}}:{}},language:'English'});
+          }
+        }
+
+        // Trailer
+        let trailer=null, trailers=null;
+        if (m.trailer?.id && (m.trailer.site||'')==='youtube') {
+          trailer = { embed_url:`https://www.youtube.com/embed/${m.trailer.id}`, url:`https://www.youtube.com/watch?v=${m.trailer.id}`, youtube_id:m.trailer.id, images:{image_url:m.trailer.thumbnail||null} };
+          trailers = { youtube:[{url:`https://www.youtube.com/embed/${m.trailer.id}`,youtube_id:m.trailer.id,name:m.title?.english||m.title?.romaji||'Trailer',images:{image_url:m.trailer.thumbnail||null}}] };
+        }
+
+        // Rank
+        let rank = null;
+        if (m.rankings?.length) { const at = m.rankings.find(r=>r.allTime); rank = at?at.rank:m.rankings[0].rank; }
+
+        // Recommendations for water temple
+        const recommendations = (m.recommendations?.nodes||[]).map(n=>{
+          const rec = n.mediaRecommendation?.media; if (!rec) return null;
+          return { mal_id:rec.idMal, title:rec.title?.romaji||rec.title?.english||'Unknown', title_english:rec.title?.english||null,
+            images:rec.coverImage?{jpg:{image_url:rec.coverImage.large,large_image_url:rec.coverImage.large},webp:{image_url:rec.coverImage.large,large_image_url:rec.coverImage.large}}:{},
+            score:rec.averageScore?rec.averageScore/10:null, episodes:rec.episodes, type:AL_FORMAT_MAP[rec.format]||rec.format||'TV',
+            status:AL_STATUS_MAP[rec.status]||rec.status, genres:(rec.genres||[]).map(g=>({name:g})),
+            aired:{from:null,to:null}, popularity:rec.popularity||0 };
+        }).filter(Boolean);
+
+        return {
+          title: m.title?.romaji||m.title?.english||'Unknown',
+          title_english: m.title?.english||null,
+          title_japanese: m.title?.native||null,
+          title_synonyms: m.synonyms||[],
+          mal_id: m.idMal||parseInt(malId),
+          type: AL_FORMAT_MAP[m.format]||m.format||'TV',
+          source: null,
+          episodes: m.episodes,
+          status: AL_STATUS_MAP[m.status]||m.status,
+          rating, duration: m.duration?`${m.duration} min per ep.`:null,
+          aired: { from:airedFrom, to:airedTo, prop:{from:m.startDate,to:m.endDate},
+            string: airedFrom&&airedTo?`${_alPrettyDate(airedFrom)} to ${airedTo==='????-??-??T00:00:00+00:00'?'?':_alPrettyDate(airedTo)}`:(airedFrom?`${_alPrettyDate(airedFrom)} to ?`:null) },
+          premiered: seasonStr, season:(m.season||'').toLowerCase(), year: m.seasonYear,
+          broadcast: broadcastStr?{string:broadcastStr,day:null,time:null,timezone:null,stringRaw:broadcastStr}:null,
+          images: { jpg:{ image_url:m.coverImage?.large||m.coverImage?.medium||'', large_image_url:m.coverImage?.extraLarge||m.coverImage?.large||m.coverImage?.medium||'' },
+            webp:{ image_url:m.coverImage?.large||m.coverImage?.medium||'', large_image_url:m.coverImage?.extraLarge||m.coverImage?.large||m.coverImage?.medium||'' } },
+          score: m.averageScore?m.averageScore/10:null, scored_by:null, popularity:m.popularity, members:m.popularity, favourites:m.favourites, rank,
+          genres, themes, demographics, studios, producers, relations,
+          trailer, trailers,
+          url: `https://myanimelist.net/anime/${m.idMal||malId}`,
+          _anilistExtras: {
+            characters, scoreDistribution:(m.stats?.scoreDistribution||[]).map(s=>({score:s.score,amount:s.amount})),
+            statusDistribution:(m.stats?.statusDistribution||[]).map(s=>({status:({CURRENT:'watching',PLANNING:'planning',COMPLETED:'completed',DROPPED:'dropped',PAUSED:'on_hold'})[s.status]||s.status.toLowerCase(),amount:s.amount})),
+            recommendations, bannerImage:m.bannerImage||null, anilistUrl:m.siteUrl||null,
+            meanScore:m.meanScore, trending:m.trending
+          }
+        };
       }
 
       async function fetchAllAnimeData(query) {
@@ -3500,7 +3695,7 @@ img { max-width: 100%; height: auto; display: block; }
         document.getElementById('breadcrumbTitle').textContent = currentState.title;
         
         const backdrop = isAnime 
-          ? data.images?.jpg?.large_image_url 
+          ? (data._anilistExtras?.bannerImage || data.images?.jpg?.large_image_url) 
           : data.backdrop_path 
             ? `https://image.tmdb.org/t/p/original${data.backdrop_path}` 
             : '';
@@ -3758,7 +3953,8 @@ img { max-width: 100%; height: auto; display: block; }
           extLinks.push(`<a href="https://myanimelist.net/anime/${data.mal_id}" target="_blank" class="ext-link-btn mal"><svg width="16" height="16" viewBox="-890.88 -890.88 2805.76 2805.76"><circle cx="512" cy="512" r="512" style="fill:#2e51a2"/><path d="M432.49 410.61V590.3l-44.86-.06V479l-43.31 51.29-42.43-52.44-.43 112.75H256V410.65h47l39.79 54.29 43-54.31zm184.06 44.14.53 135.15h-50.45l-.17-61.25h-59.73c1.49 10.65 4.48 27 8.9 38 3.31 8.13 6.36 16 12.44 24.06l-36.37 24c-7.45-13.57-13.27-28.52-18.73-44.42a198.31 198.31 0 0 1-10.82-46.49c-1.81-16-2.07-31.38 2.28-47.19a83.37 83.37 0 0 1 24.77-39.81c6.68-6.25 16-10.67 23.47-14.66s15.85-5.63 23.62-7.66a158 158 0 0 1 25.41-3.9c8.49-.73 23.62-1.41 51-.6l11.63 37.31h-58.78c-12.65.17-18.73 0-28.61 4.46a47.7 47.7 0 0 0-27.26 41l56.81.7.81-38.61h49.26zM701.72 410v141.35L768 552l-9.17 37.87H656.28V409.33z" style="fill:#fff"/></svg> MyAnimeList</a>`);
         }
         // Add Anilist button — use cached data if available, or placeholder that gets updated by fetchAnimeScheduleData
-        const anilistUrl = currentState.animeScheduleData?.anilist?.url || '';
+        const anilistUrl = currentState.animeScheduleData?.anilist?.url
+          || currentState.data?._anilistExtras?.anilistUrl || '';
         if (isAnime) {
           extLinks.push(`<a href="${anilistUrl || '#'}" target="_blank" class="ext-link-btn anilist" ${!anilistUrl ? 'style="display:none;"' : ''}><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M6.361 2.943 0 21.056h4.942l1.077-3.133H11.4l1.052 3.133H22.9c.71 0 1.1-.392 1.1-1.101V17.53c0-.71-.39-1.101-1.1-1.101h-6.483V4.045c0-.71-.392-1.102-1.101-1.102h-2.422c-.71 0-1.101.392-1.101 1.102v1.064l-.758-2.166zm2.324 5.948 1.688 5.018H7.144z"/></svg> AniList</a>`);
         }
@@ -4935,6 +5131,17 @@ img { max-width: 100%; height: auto; display: block; }
         try {
           const data = currentState.data;
 
+          // ── AniList fallback: use pre-fetched recommendations ──
+          if (data._anilistExtras?.recommendations?.length) {
+            const filtered = data._anilistExtras.recommendations
+              .filter(a => a.mal_id !== currentState.id).slice(0, 24);
+            if (filtered.length) {
+              gridContainer.innerHTML = filtered.map(anime => renderAnimeRecCard(anime)).join('');
+              if (window.AniCache) window.AniCache.set({ cacheKey: _wtKey, pageSource:'info', section:'water_temple', data: filtered, permanent: true }).catch(()=>{});
+              return;
+            }
+          }
+
           // Collect all genre/theme/demographic MAL IDs from the current show
           const genreIds  = (data.genres       || []).map(g => g.mal_id).filter(Boolean);
           const themeIds  = (data.themes        || []).map(t => t.mal_id).filter(Boolean);
@@ -5443,6 +5650,79 @@ function renderSunkenPagination(currentPage, totalPages, container) {
         const isAnime = currentState.source === 'jikan';
         
         if (isAnime) {
+          // ── AniList fallback: use pre-fetched character data with JP + EN VAs ──
+          if (data._anilistExtras?.characters) {
+            const chars = data._anilistExtras.characters;
+            if (!chars.length) {
+              container.innerHTML = '<p class="loading-text">No cast data available</p>';
+              return;
+            }
+            window._lastCastData = chars.slice(0, 20).map(c => {
+              const jpVa = (c.voice_actors||[]).find(v=>v.language==='Japanese');
+              const enVa = (c.voice_actors||[]).find(v=>v.language==='English');
+              return {
+                char_name: c.character?.name || '',
+                char_img:  c.character?.images?.jpg?.image_url || '',
+                role:      c.role || 'Supporting',
+                va_name:   jpVa?.person?.name || '',
+                va_img:    jpVa?.person?.images?.jpg?.image_url || '',
+                va_lang:   'Japanese',
+                en_va_name: enVa?.person?.name || '',
+                en_va_img:  enVa?.person?.images?.jpg?.image_url || '',
+              };
+            });
+            const castRows = chars.slice(0, 20).map(c => {
+              const character = c.character;
+              const charImg = character.images?.jpg?.image_url || '';
+              const charName = character.name || 'Unknown';
+              const role = c.role || 'Supporting';
+              const jpVa = (c.voice_actors||[]).find(v=>v.language==='Japanese');
+              const enVa = (c.voice_actors||[]).find(v=>v.language==='English');
+              const jpName = jpVa ? jpVa.person.name.replace(/,\s*/,' ').split(' ').reverse().join(' ') : '';
+              const jpImg = jpVa?.person?.images?.jpg?.image_url || '';
+              const enName = enVa ? enVa.person.name.replace(/,\s*/,' ').split(' ').reverse().join(' ') : '';
+              const enImg = enVa?.person?.images?.jpg?.image_url || '';
+              const enBlock = enName ? `
+                  <a href="#" class="cast-va-side" style="border-left:none;border-top:1px solid var(--border-subtle);">
+                    <div class="cast-va-info">
+                      <span class="cast-va-name" style="font-size:0.8rem;">${escapeHtml(enName)}</span>
+                      <span class="cast-va-lang">English</span>
+                    </div>
+                    <img class="cast-portrait cast-va-portrait" src="${escapeHtml(enImg)}" alt="${escapeHtml(enName)}"
+                      loading="lazy"
+                      onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 60 90%22><rect fill=%22%231e2633%22 width=%2260%22 height=%2290%22/></svg>'">
+                  </a>` : '';
+              return `
+                <div class="cast-row">
+                  <div class="cast-char-side" style="cursor:default;">
+                    <img class="cast-portrait cast-char-portrait" src="${escapeHtml(charImg)}" alt="${escapeHtml(charName)}"
+                      loading="lazy"
+                      onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 60 90%22><rect fill=%22%231e2633%22 width=%2260%22 height=%2290%22/></svg>'">
+                    <div class="cast-char-info">
+                      <span class="cast-char-name">${escapeHtml(charName)}</span>
+                      <span class="cast-role-badge ${role === 'Main' ? 'role-main' : 'role-supporting'}">${role.toUpperCase()}</span>
+                    </div>
+                  </div>
+                  ${jpVa ? `
+                  <div class="cast-va-side">
+                    <div class="cast-va-info">
+                      <span class="cast-va-name">${escapeHtml(jpName)}</span>
+                      <span class="cast-va-lang">Japanese</span>
+                    </div>
+                    <img class="cast-portrait cast-va-portrait" src="${escapeHtml(jpImg)}" alt="${escapeHtml(jpName)}"
+                      loading="lazy"
+                      onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 60 90%22><rect fill=%22%231e2633%22 width=%2260%22 height=%2290%22/></svg>'">
+                  </div>${enBlock}` : (enBlock || '<div class="cast-va-side cast-va-empty"></div>')}
+                </div>`;
+            }).join('');
+            container.innerHTML = `<div class="cast-warp-container"><div class="cast-list-grid">${castRows}</div>`;
+            // Save cast to DB
+            if (window.AniCache && window._lastCastData?.length) {
+              const _mid = `jikan-${currentState.id}`;
+              window.AniCache.saveDetails(_mid, {cast_crew: window._lastCastData}, { permanent: currentState.isPermanent }).catch(()=>{});
+            }
+            return;
+          }
           container.innerHTML = '<p class="loading-text" style="padding:20px 0;">Loading cast...</p>';
           try {
             const res = await fetch(`https://api.jikan.moe/v4/anime/${currentState.id}/characters`);
@@ -5611,6 +5891,11 @@ function renderSunkenPagination(currentPage, totalPages, container) {
           if (jpg?.large_image_url) images.push({ type: 'poster', url: jpg.large_image_url, thumb: jpg.large_image_url });
           if (webp?.large_image_url && webp.large_image_url !== jpg?.large_image_url)
             images.push({ type: 'poster', url: webp.large_image_url, thumb: webp.large_image_url });
+
+          // Add AniList banner as backdrop if available (not present in Jikan)
+          if (data._anilistExtras?.bannerImage) {
+            images.push({ type: 'backdrop', url: data._anilistExtras.bannerImage, thumb: data._anilistExtras.bannerImage });
+          }
 
           // Fetch /pictures for all extra images
           try {
@@ -5840,6 +6125,16 @@ function renderSunkenPagination(currentPage, totalPages, container) {
         const container = document.getElementById('scoreHistogram');
         const data = currentState.data;
         const isAnime = currentState.source === 'jikan';
+        // AniList fallback: use REAL score distribution
+        if (isAnime && data._anilistExtras?.scoreDistribution?.length) {
+          const dist = data._anilistExtras.scoreDistribution;
+          const maxAmt = Math.max(...dist.map(d=>d.amount),1);
+          container.innerHTML = dist.map(d => {
+            const h = Math.max(5, (d.amount/maxAmt)*100);
+            return `<div class="hist-bar" style="height:${h}%" data-value="${d.score} (${d.amount.toLocaleString()})"></div>`;
+          }).join('');
+          return;
+        }
         const avg = isAnime ? data.score : data.vote_average;
         const bars = [];
         for (let i = 1; i <= 10; i++) { 
@@ -5852,6 +6147,18 @@ function renderSunkenPagination(currentPage, totalPages, container) {
 
       function renderSegmentedBar() {
         const container = document.getElementById('statusBar');
+        const data = currentState.data;
+        const isAnime = currentState.source === 'jikan';
+        // AniList fallback: use REAL status distribution
+        if (isAnime && data._anilistExtras?.statusDistribution?.length) {
+          const dist = data._anilistExtras.statusDistribution;
+          const total = dist.reduce((a,d)=>a+d.amount,0) || 1;
+          container.innerHTML = dist.map(d => {
+            const w = (d.amount/total)*100;
+            return `<div class="status-segment status-${d.status}" style="width:${w}%" title="${d.status}: ${d.amount.toLocaleString()} (${w.toFixed(1)}%)">${w>15?`${w.toFixed(0)}%`:''}</div>`;
+          }).join('');
+          return;
+        }
         const distribution = { watching: 25, completed: 45, planning: 20, dropped: 10 };
         const total = Object.values(distribution).reduce((a, b) => a + b, 0);
         container.innerHTML = Object.entries(distribution).map(([status, count]) => { 
@@ -5864,13 +6171,17 @@ function renderSunkenPagination(currentPage, totalPages, container) {
         const container = document.getElementById('metricCards');
         const data = currentState.data;
         const isAnime = currentState.source === 'jikan';
+        // AniList fallback: use real stats
         const rank       = isAnime ? (data.rank       || null) : (data.popularity  || null);
         const popularity = isAnime ? (data.popularity || null) : (data.vote_count   || null);
         const members    = isAnime ? (data.members    || null) : (data.popularity   || null);
+        const favourites = isAnime ? (data.favourites || null) : null;
+        const meanScore  = isAnime ? (data._anilistExtras?.meanScore || null) : null;
         container.innerHTML = `
-          <div class="metric-card"><div class="metric-value">${rank ? `#${rank}` : '—'}</div><div class="metric-label">Rank</div><div class="metric-trend up">↑ 2 this week</div></div>
-          <div class="metric-card"><div class="metric-value">${formatNumber(popularity)}</div><div class="metric-label">Popularity</div><div class="metric-trend up">↑ 5%</div></div>
-          <div class="metric-card"><div class="metric-value">${formatNumber(members)}</div><div class="metric-label">Members</div><div class="metric-trend">+1.2k today</div></div>
+          <div class="metric-card"><div class="metric-value">${rank ? `#${rank}` : '—'}</div><div class="metric-label">Rank</div></div>
+          <div class="metric-card"><div class="metric-value">${formatNumber(popularity)}</div><div class="metric-label">Popularity</div></div>
+          <div class="metric-card"><div class="metric-value">${formatNumber(members)}</div><div class="metric-label">Members</div></div>
+          <div class="metric-card"><div class="metric-value">${favourites ? formatNumber(favourites) : (meanScore ? (meanScore/10).toFixed(1)+'★' : '—')}</div><div class="metric-label">Favourites</div></div>
         `;
       }
 
