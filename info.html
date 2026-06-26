@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%234299e1'/%3E%3Cstop offset='100%25' style='stop-color:%23805ad5'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' rx='20' fill='url(%23g)'/%3E%3Ctext x='50' y='68' font-family='Arial,sans-serif' font-size='55' font-weight='bold' fill='white' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Aniumi - Show Details</title>
+  <title>Aniocean - Show Details</title>
   <meta name="description" content="Stream anime, movies, and TV shows on Aniocean">
   
   <!-- Fonts -->
@@ -21,7 +21,7 @@
   <!-- Page-specific CSS -->
   <style>
  /* ========================================
-   ANIUMI - SHOW INFO PAGE STYLES
+   ANIOCEAN - SHOW INFO PAGE STYLES
    Uses CSS Variables from shared.js theme
    Layout matched to index.html
    ======================================== */
@@ -722,10 +722,7 @@ img { max-width: 100%; height: auto; display: block; }
   border-color: var(--btn-primary);
   transform: translateY(-1px);
 }
-.ext-link-btn.mal { color: #fff; background: #2e51a2; border-color: #2e51a2; }
-.ext-link-btn.mal:hover { background: #3d68c7; border-color: #3d68c7; transform: translateY(-1px); }
-.ext-link-btn.anilist { color: #fff; background: #02a9ff; border-color: #02a9ff; }
-.ext-link-btn.anilist:hover { background: #0088d4; border-color: #0088d4; transform: translateY(-1px); }
+.ext-link-btn.mal { color: #2e51a2; }
 .ext-link-btn.tmdb { color: #01b4e4; }
 
 /* Seasons Section */
@@ -3333,110 +3330,33 @@ img { max-width: 100%; height: auto; display: block; }
       async function fetchAllAnimeData(query) {
         if (currentState.source !== 'jikan' || !query) return;
         try {
-          const data = currentState.data;
-          const englishTitle = data?.title_english || '';
-          const romajiTitle  = data?.title || query;
-          const searchTitle  = englishTitle || romajiTitle;
-          const malUrl       = data?.mal_id ? `myanimelist.net/anime/${data.mal_id}` : null;
-
-          // ── Step 1: search AnimeSchedule ──────────────────────────────
-          const encoded = encodeURIComponent(searchTitle).replace(/%20/g, '+');
-          const res = await fetch(`https://animeschedule.net/api/v3/anime?q=${encoded}`, {
-            signal: AbortSignal.timeout(8000)
+          // Use the English title or romaji title as search query
+          const searchTitle = currentState.data?.title_english || query;
+          const encoded = encodeURIComponent(searchTitle);
+          const res = await fetch(`${CONFIG.ALLANIME_API}/search?query=${encoded}`, {
+            signal: AbortSignal.timeout(6000) // 6s timeout — API is often unreachable
           });
           if (!res.ok) return;
           const results = await res.json();
-          if (!Array.isArray(results?.anime)) return;
-          const list = results.anime;
-
-          // ── Step 2: match by MAL URL → English title → Romaji title ──
-          let match = null;
-          if (malUrl) {
-            match = list.find(r => r.websites?.mal && r.websites.mal.toLowerCase().replace(/^https?:\/\//, '') === malUrl.toLowerCase());
+          if (!Array.isArray(results)) return;
+          
+          const malId = currentState.id;
+          // Priority 1: exact MAL id match
+          let match = results.find(r => r.id === malId);
+          // Priority 2: title similarity
+          if (!match) {
+            const qLower = (searchTitle || '').toLowerCase();
+            match = results.find(r => r.title?.toLowerCase() === qLower)
+              || results.find(r => r.title?.toLowerCase().includes(qLower) || qLower.includes(r.title?.toLowerCase()));
           }
-          if (!match && englishTitle) {
-            const el = englishTitle.toLowerCase();
-            match = list.find(r => r.names?.english?.toLowerCase() === el)
-                 || list.find(r => r.names?.romaji?.toLowerCase()  === el);
+          
+          if (match) {
+            currentState.allAnimeData = match;
+            renderLanguageBadges(match.episodes_sub, match.episodes_dub);
+            // Update episode display in details grid if already rendered
+            updateEpisodeDetail(match.episodes_sub, match.episodes_dub);
           }
-          if (!match && romajiTitle) {
-            const rl = romajiTitle.toLowerCase();
-            match = list.find(r => r.names?.romaji?.toLowerCase()  === rl)
-                 || list.find(r => r.names?.english?.toLowerCase() === rl);
-          }
-          if (!match) return;
-
-          const route = match.route;
-          if (!route) return;
-
-          // ── Step 3: fetch detailed data by route ──────────────────────
-          const res2 = await fetch(`https://animeschedule.net/api/v3/anime/${route}`, {
-            signal: AbortSignal.timeout(8000)
-          });
-          if (!res2.ok) return;
-          const detail = await res2.json();
-
-          // ── Step 4: calculate sub & dub episode counts ────────────────
-          // AnimeSchedule does not expose sub/dub counts directly; we derive them
-          // from premiere timestamps and episode-override objects, using the same
-          // cadence model the site uses internally.
-          const totalEpisodes = detail.episodes || 0;
-          const now = Date.now();
-
-          function calcAiredCount(premierStr, overrideObj, lengthMin) {
-            // If override explicitly sets episodesAired use it
-            const ov = overrideObj;
-            if (ov && ov.episodesAired > 0) return ov.episodesAired;
-            if (ov && ov.overrideEpisode > 0) return ov.overrideEpisode;
-
-            const premiere = premierStr ? new Date(premierStr).getTime() : 0;
-            const isNullDate = !premierStr || premierStr.startsWith('0001-');
-            if (isNullDate || premiere <= 0) return 0;
-
-            if (premiere > now) return 0; // hasn't aired yet
-
-            // Weekly cadence: 1 episode per 7 days since premiere
-            const weeksSince = Math.floor((now - premiere) / (7 * 24 * 60 * 60 * 1000));
-            const computed   = weeksSince + 1; // premiere week = ep 1
-            return Math.min(computed, totalEpisodes || computed);
-          }
-
-          const lengthMin   = detail.lengthMin || 24;
-          const subCount    = calcAiredCount(detail.subPremier, detail.subEpisodeOverride, lengthMin);
-          const dubCount    = calcAiredCount(detail.dubPremier, detail.dubEpisodeOverride, lengthMin);
-
-          // Store AniList link from AnimeSchedule detail
-          const aniListUrl  = detail.websites?.aniList ? `https://${detail.websites.aniList}` : null;
-
-          const normalized = {
-            episodes_sub: subCount,
-            episodes_dub: dubCount,
-            anilist_url:  aniListUrl,
-            route
-          };
-
-          currentState.allAnimeData = normalized;
-          renderLanguageBadges(subCount, dubCount);
-          updateEpisodeDetail(subCount, dubCount);
-          // Inject AniList button if we got a URL
-          if (aniListUrl) updateExternalLinks();
-        } catch (e) { console.warn('[AnimeSchedule] fetch failed:', e); }
-      }
-
-      function updateExternalLinks() {
-        // Find the External row's value container and inject AniList button
-        const anilistUrl = currentState.allAnimeData?.anilist_url;
-        if (!anilistUrl) return;
-        // Avoid double-injection
-        if (document.querySelector('.ext-link-btn.anilist')) return;
-        const extDiv = document.querySelector('.external-links');
-        if (!extDiv) return;
-        const btn = document.createElement('a');
-        btn.href = anilistUrl;
-        btn.target = '_blank';
-        btn.className = 'ext-link-btn anilist';
-        btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M6.361 2.943 0 21.056h4.942l1.077-3.133H11.4l1.052 3.133H22.9c.71 0 1.1-.392 1.1-1.101V17.53c0-.71-.39-1.101-1.1-1.101h-6.483V4.045c0-.71-.392-1.102-1.101-1.102h-2.422c-.71 0-1.101.392-1.101 1.102v1.064l-.758-2.166zm2.324 5.948 1.688 5.018H7.144z"/></svg> AniList`;
-        extDiv.appendChild(btn);
+        } catch (e) { /* AllAnime often unreachable — silent */ }
       }
 
       function updateEpisodeDetail(subCount, dubCount) {
@@ -3720,7 +3640,6 @@ img { max-width: 100%; height: auto; display: block; }
         if (isAnime && data.mal_id) {
           extLinks.push(`<a href="https://myanimelist.net/anime/${data.mal_id}" target="_blank" class="ext-link-btn mal"><svg width="16" height="16" viewBox="-890.88 -890.88 2805.76 2805.76"><circle cx="512" cy="512" r="512" style="fill:#2e51a2"/><path d="M432.49 410.61V590.3l-44.86-.06V479l-43.31 51.29-42.43-52.44-.43 112.75H256V410.65h47l39.79 54.29 43-54.31zm184.06 44.14.53 135.15h-50.45l-.17-61.25h-59.73c1.49 10.65 4.48 27 8.9 38 3.31 8.13 6.36 16 12.44 24.06l-36.37 24c-7.45-13.57-13.27-28.52-18.73-44.42a198.31 198.31 0 0 1-10.82-46.49c-1.81-16-2.07-31.38 2.28-47.19a83.37 83.37 0 0 1 24.77-39.81c6.68-6.25 16-10.67 23.47-14.66s15.85-5.63 23.62-7.66a158 158 0 0 1 25.41-3.9c8.49-.73 23.62-1.41 51-.6l11.63 37.31h-58.78c-12.65.17-18.73 0-28.61 4.46a47.7 47.7 0 0 0-27.26 41l56.81.7.81-38.61h49.26zM701.72 410v141.35L768 552l-9.17 37.87H656.28V409.33z" style="fill:#fff"/></svg> MyAnimeList</a>`);
         }
-        // AniList button — injected later by updateExternalLinks() once AnimeSchedule data loads
         if (!isAnime && currentState.id) {
           const tmdbType = currentState.type;
           extLinks.push(`<a href="https://www.themoviedb.org/${tmdbType}/${currentState.id}" target="_blank" class="ext-link-btn tmdb"><i class="fa-brands fa-mdb"></i> TMDB</a>`);
@@ -5857,4 +5776,3 @@ function renderSunkenPagination(currentPage, totalPages, container) {
   </script>
 </body>
 </html>
-
