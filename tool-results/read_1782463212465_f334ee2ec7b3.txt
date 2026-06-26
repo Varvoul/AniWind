@@ -1,0 +1,2002 @@
+     1→     1→<!DOCTYPE html>
+     2→     2→<html lang="en">
+     3→     3→<head>
+     4→     4→  <meta charset="UTF-8">
+     5→     5→  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%234299e1'/%3E%3Cstop offset='100%25' style='stop-color:%23805ad5'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' rx='20' fill='url(%23g)'/%3E%3Ctext x='50' y='68' font-family='Arial,sans-serif' font-size='55' font-weight='bold' fill='white' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E">
+     6→     6→  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+     7→     7→  <title>Aniocean - Show Details</title>
+     8→     8→  <meta name="description" content="Stream anime, movies, and TV shows on Aniocean">
+     9→     9→  
+    10→    10→  <!-- Fonts -->
+    11→    11→  <link rel="preconnect" href="https://fonts.googleapis.com">
+    12→    12→  <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    13→    13→  
+    14→    14→  <!-- Font Awesome -->
+    15→    15→  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    16→    16→  
+    17→    17→  <!-- Shared CSS/JS -->
+    18→    18→  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    19→    19→  <script src="/shared.js"></script>
+    20→    20→  
+    21→    21→  <!-- Page-specific CSS -->
+    22→    22→  <style>
+    23→    23→ /* ========================================
+    24→    24→   ANIOCEAN - SHOW INFO PAGE STYLES
+    25→    25→   Uses CSS Variables from shared.js theme
+    26→    26→   Layout matched to index.html
+    27→    27→   ======================================== */
+    28→    28→
+    29→    29→:root {
+    30→    30→  /* Layout - MATCHED TO index.html (68% main, 32% sidebar) */
+    31→    31→  --max-width: 100%;
+    32→    32→  --main-width: 68%;
+    33→    33→  --sidebar-width: 32%;
+    34→    34→  --gutter: 16px;
+    35→    35→  --content-padding: 16px;
+    36→    36→  
+    37→    37→  --bg-body: #0a1929;
+    38→    38→  --bg-header: #0f2440;
+    39→    39→  --bg-card: #132f4c;
+    40→    40→  --bg-surface: #1a3a5c;
+    41→    41→  --bg-popup: #102a44;
+    42→    42→  --text-primary: #ffffff;
+    43→    43→  --text-secondary: #b0c7e3;
+    44→    44→  --text-muted: #94a3b8;
+    45→    45→  --text-widget-title: #a2c4de;
+    46→    46→  --btn-primary: #2b6cb0;
+    47→    47→  --btn-primary-hover: #1d4e89;
+    48→    48→  --btn-primary-text: #ffffff;
+    49→    49→  --btn-secondary: #334e68;
+    50→    50→  --btn-secondary-hover: #243b53;
+    51→    51→  --popup-btn: #5c6ac4;
+    52→    52→  --popup-btn-text: #ffffff;
+    53→    53→  --popup-btn-hover: #4955b5;
+    54→    54→  --genre-tag-bg: #4c51bf;
+    55→    55→  --link-accent: #ed64a6;
+    56→    56→  --accent-gold: #ecc94b;
+    57→    57→  --accent-blue: #4299e1;
+    58→    58→  --border-subtle: rgba(255, 255, 255, 0.08);
+    59→    59→  --border-medium: rgba(255, 255, 255, 0.16);
+    60→    60→  --font-title: 'Archivo Black', sans-serif;
+    61→    61→  --font-body: 'Inter', sans-serif;
+    62→    62→  --font-meta: 'Poppins', sans-serif;
+    63→    63→  --radius-sm: 6px;
+    64→    64→  --radius-md: 12px;
+    65→    65→  --radius-lg: 18px;
+    66→    66→  --radius-pill: 50px;
+    67→    67→  --radius-circle: 50%;
+    68→    68→  --shadow-lg: 0 20px 60px rgba(0,0,0,0.5);
+    69→    69→  --transition-fast: 0.18s ease;
+    70→    70→}
+    71→    71→
+    72→    72→/* Prevent browser smooth-scroll from causing perceived auto-scroll on load */
+    73→    73→html { scroll-behavior: auto; }
+    74→    74→
+    75→    75→/* Prevent tab radio inputs from pulling the page when they receive focus/checked state */
+    76→    76→.tabs-radio input[type="radio"] {
+    77→    77→  position: absolute !important;
+    78→    78→  opacity: 0 !important;
+    79→    79→  pointer-events: none !important;
+    80→    80→  scroll-margin: 0 !important;
+    81→    81→  scroll-margin-top: 0 !important;
+    82→    82→  top: 0 !important;
+    83→    83→  left: 0 !important;
+    84→    84→  width: 0 !important;
+    85→    85→  height: 0 !important;
+    86→    86→  overflow: hidden !important;
+    87→    87→}
+    88→    88→
+    89→    89→/* Reset & Base */
+    90→    90→*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    91→    91→body { 
+    92→    92→  font-family: 'Inter', system-ui, sans-serif; 
+    93→    93→  background: var(--bg-body); 
+    94→    94→  color: var(--text-primary);
+    95→    95→  line-height: 1.5;
+    96→    96→}
+    97→    97→a { color: inherit; text-decoration: none; }
+    98→    98→button { font: inherit; cursor: pointer; background: none; border: none; color: inherit; }
+    99→    99→img { max-width: 100%; height: auto; display: block; }
+   100→   100→
+   101→   101→/* Breadcrumbs */
+   102→   102→.breadcrumbs {
+   103→   103→  padding: 16px var(--gutter);
+   104→   104→  max-width: var(--max-width);
+   105→   105→  margin: 0 auto;
+   106→   106→}
+   107→   107→.breadcrumbs ol {
+   108→   108→  display: flex;
+   109→   109→  align-items: center;
+   110→   110→  flex-wrap: wrap;
+   111→   111→  gap: 4px;
+   112→   112→  font-size: 0.85rem;
+   113→   113→  list-style: none;
+   114→   114→}
+   115→   115→.breadcrumbs li {
+   116→   116→  display: flex;
+   117→   117→  align-items: center;
+   118→   118→  gap: 6px;
+   119→   119→}
+   120→   120→.breadcrumbs a {
+   121→   121→  color: var(--text-secondary);
+   122→   122→  transition: color 0.15s;
+   123→   123→  display: flex;
+   124→   124→  align-items: center;
+   125→   125→  gap: 4px;
+   126→   126→}
+   127→   127→.breadcrumbs a:hover { color: var(--text-primary); }
+   128→   128→.breadcrumbs .current { color: var(--text-muted); font-weight: 500; }
+   129→   129→.breadcrumbs-separator {
+   130→   130→  color: var(--text-muted);
+   131→   131→  font-size: 0.7rem;
+   132→   132→  opacity: 0.7;
+   133→   133→}
+   134→   134→.breadcrumb-current {
+   135→   135→  white-space: nowrap;
+   136→   136→  overflow: hidden;
+   137→   137→  text-overflow: ellipsis;
+   138→   138→  max-width: 280px;
+   139→   139→  display: block;
+   140→   140→}
+   141→   141→
+   142→   142→/* Backdrop */
+   143→   143→.backdrop-container {
+   144→   144→  position: relative;
+   145→   145→  width: 100%;
+   146→   146→  height: auto;
+   147→   147→  aspect-ratio: 16 / 5.5;
+   148→   148→  min-height: 300px;
+   149→   149→  max-height: 450px;
+   150→   150→  overflow: hidden;
+   151→   151→}
+   152→   152→.backdrop-img {
+   153→   153→  width: 100%;
+   154→   154→  height: 100%;
+   155→   155→  object-fit: cover;
+   156→   156→  object-position: center 30%;
+   157→   157→  image-rendering: -webkit-optimize-contrast;
+   158→   158→  image-rendering: crisp-edges;
+   159→   159→}
+   160→   160→.backdrop-overlay {
+   161→   161→  position: absolute;
+   162→   162→  inset: 0;
+   163→   163→  background: linear-gradient(
+   164→   164→    180deg,
+   165→   165→    transparent 0%,
+   166→   166→    rgba(10, 25, 41, 0.4) 40%,
+   167→   167→    var(--bg-body) 100%
+   168→   168→  );
+   169→   169→  pointer-events: none;
+   170→   170→}
+   171→   171→
+   172→   172→/* Main grid layout - MATCHED TO INDEX.HTML */
+   173→   173→.info-grid {
+   174→   174→  display: flex;
+   175→   175→  gap: 0;
+   176→   176→  max-width: 100%;
+   177→   177→  margin: 0 auto;
+   178→   178→  padding: 0 var(--gutter) var(--gutter);
+   179→   179→  width: 100%;
+   180→   180→}
+   181→   181→
+   182→   182→/* Main content wrapper - 68% like index.html */
+   183→   183→.main-content {
+   184→   184→  flex: 0 0 var(--main-width);
+   185→   185→  max-width: var(--main-width);
+   186→   186→  padding: 0 var(--content-padding);
+   187→   187→  min-width: 0;
+   188→   188→}
+   189→   189→
+   190→   190→/* Sidebar - 32% like index.html */
+   191→   191→.sidebar {
+   192→   192→  flex: 0 0 var(--sidebar-width);
+   193→   193→  max-width: var(--sidebar-width);
+   194→   194→  padding: 0 var(--content-padding) 0 8px;
+   195→   195→  position: sticky;
+   196→   196→  top: 80px;
+   197→   197→  align-self: start;
+   198→   198→  max-height: calc(100vh - 100px);
+   199→   199→  overflow-y: auto;
+   200→   200→}
+   201→   201→
+   202→   202→/* Combined sidebar container - ALL SECTIONS IN ONE */
+   203→   203→.sidebar-combined {
+   204→   204→  background: var(--bg-card);
+   205→   205→  border: 1px solid var(--border-subtle);
+   206→   206→  border-radius: var(--radius-md);
+   207→   207→  overflow: hidden;
+   208→   208→  height: 100%;
+   209→   209→  display: flex;
+   210→   210→  flex-direction: column;
+   211→   211→}
+   212→   212→
+   213→   213→.sidebar-section {
+   214→   214→  margin: 0;
+   215→   215→  border-bottom: 1px solid var(--border-subtle);
+   216→   216→}
+   217→   217→
+   218→   218→.sidebar-section:last-child {
+   219→   219→  border-bottom: none;
+   220→   220→}
+   221→   221→
+   222→   222→.sidebar-section h4 {
+   223→   223→  display: flex;
+   224→   224→  align-items: center;
+   225→   225→  gap: 8px;
+   226→   226→  padding: 10px 12px;
+   227→   227→  background: var(--bg-surface);
+   228→   228→  font-size: 0.78rem;
+   229→   229→  font-weight: 700;
+   230→   230→  color: #fff;
+   231→   231→  margin: 0;
+   232→   232→  border-bottom: 1px solid var(--border-subtle);
+   233→   233→}
+   234→   234→
+   235→   235→.sidebar-list {
+   236→   236→  padding: 8px;
+   237→   237→  max-height: 280px;
+   238→   238→  overflow-y: auto;
+   239→   239→  overflow-x: hidden;
+   240→   240→}
+   241→   241→
+   242→   242→/* Custom scrollbar for sidebar lists */
+   243→   243→.sidebar-list::-webkit-scrollbar {
+   244→   244→  width: 4px;
+   245→   245→}
+   246→   246→
+   247→   247→.sidebar-list::-webkit-scrollbar-track {
+   248→   248→  background: rgba(255,255,255,0.05);
+   249→   249→}
+   250→   250→
+   251→   251→.sidebar-list::-webkit-scrollbar-thumb {
+   252→   252→  background: var(--border-medium);
+   253→   253→  border-radius: 2px;
+   254→   254→}
+   255→   255→
+   256→   256→.sidebar-list::-webkit-scrollbar-thumb:hover {
+   257→   257→  background: var(--btn-primary);
+   258→   258→}
+   259→   259→
+   260→   260→.sidebar-list-item {
+   261→   261→  display: flex;
+   262→   262→  gap: 10px;
+   263→   263→  align-items: center;
+   264→   264→  padding: 8px;
+   265→   265→  border-radius: var(--radius-sm);
+   266→   266→  cursor: pointer;
+   267→   267→  transition: background var(--transition-fast);
+   268→   268→  margin-bottom: 4px;
+   269→   269→  text-decoration: none;
+   270→   270→  color: inherit;
+   271→   271→}
+   272→   272→
+   273→   273→.sidebar-list-item:hover {
+   274→   274→  background: var(--bg-surface);
+   275→   275→}
+   276→   276→
+   277→   277→.sidebar-list-item:last-child {
+   278→   278→  margin-bottom: 0;
+   279→   279→}
+   280→   280→
+   281→   281→.sidebar-rank {
+   282→   282→  font-size: 1.4rem;
+   283→   283→  font-weight: 700;
+   284→   284→  color: rgba(255,255,255,0.12);
+   285→   285→  width: 30px;
+   286→   286→  text-align: center;
+   287→   287→  flex-shrink: 0;
+   288→   288→  font-family: var(--font-title);
+   289→   289→}
+   290→   290→
+   291→   291→.sidebar-poster {
+   292→   292→  width: 50px;
+   293→   293→  height: 70px;
+   294→   294→  object-fit: cover;
+   295→   295→  border-radius: var(--radius-sm);
+   296→   296→  flex-shrink: 0;
+   297→   297→  background: var(--bg-card);
+   298→   298→}
+   299→   299→
+   300→   300→.sidebar-info h4 {
+   301→   301→  font-size: 0.8rem;
+   302→   302→  font-weight: 600;
+   303→   303→  color: #fff;
+   304→   304→  display: -webkit-box;
+   305→   305→  -webkit-line-clamp: 2;
+   306→   306→  -webkit-box-orient: vertical;
+   307→   307→  overflow: hidden;
+   308→   308→  white-space: normal;
+   309→   309→  line-height: 1.3;
+   310→   310→  margin: 0;
+   311→   311→}
+   312→   312→
+   313→   313→.side-meta {
+   314→   314→  font-size: 0.6875rem;
+   315→   315→  color: var(--text-muted);
+   316→   316→  margin-top: 2px;
+   317→   317→}
+   318→   318→
+   319→   319→/* Sidebar tag pills — colorful semi-transparent with round borders */
+   320→   320→.side-tags {
+   321→   321→  display: flex;
+   322→   322→  flex-wrap: wrap;
+   323→   323→  gap: 3px;
+   324→   324→  margin-top: 4px;
+   325→   325→}
+   326→   326→.side-tag {
+   327→   327→  font-size: 0.58rem;
+   328→   328→  font-weight: 600;
+   329→   329→  padding: 1px 6px;
+   330→   330→  border-radius: 50px;
+   331→   331→  white-space: nowrap;
+   332→   332→  letter-spacing: 0.02em;
+   333→   333→  line-height: 1.6;
+   334→   334→}
+   335→   335→.side-tag.genre  { background: rgba(66,153,225,0.13); border: 1px solid rgba(66,153,225,0.45); color: #7ec8f8; }
+   336→   336→.side-tag.studio { background: rgba(128,90,213,0.13); border: 1px solid rgba(128,90,213,0.45); color: #c4b0f8; }
+   337→   337→.side-tag.rating { background: rgba(237,100,166,0.13); border: 1px solid rgba(237,100,166,0.45); color: #f9aed5; }
+   338→   338→
+   339→   339→/* Hero Section */
+   340→   340→.hero-section {
+   341→   341→  display: grid;
+   342→   342→  grid-template-columns: auto 1fr;
+   343→   343→  gap: 24px;
+   344→   344→  align-items: start;
+   345→   345→  margin-top: -60px;
+   346→   346→  position: relative;
+   347→   347→  z-index: 10;
+   348→   348→  padding-bottom: 24px;
+   349→   349→}
+   350→   350→
+   351→   351→.poster-wrapper {
+   352→   352→  position: relative;
+   353→   353→  width: 220px;
+   354→   354→  flex-shrink: 0;
+   355→   355→}
+   356→   356→.poster-img {
+   357→   357→  width: 100%;
+   358→   358→  border-radius: 12px;
+   359→   359→  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.75);
+   360→   360→  aspect-ratio: 2/3;
+   361→   361→  object-fit: cover;
+   362→   362→  background: var(--bg-surface);
+   363→   363→}
+   364→   364→
+   365→   365→.language-badges {
+   366→   366→  position: absolute;
+   367→   367→  bottom: 12px;
+   368→   368→  left: 12px;
+   369→   369→  display: flex;
+   370→   370→  flex-direction: column;
+   371→   371→  gap: 6px;
+   372→   372→  z-index: 2;
+   373→   373→}
+   374→   374→.lang-badge {
+   375→   375→  display: flex;
+   376→   376→  align-items: center;
+   377→   377→  gap: 4px;
+   378→   378→  padding: 4px 10px;
+   379→   379→  border-radius: 20px;
+   380→   380→  font-size: 0.7rem;
+   381→   381→  font-weight: 600;
+   382→   382→  color: #fff;
+   383→   383→  backdrop-filter: blur(4px);
+   384→   384→}
+   385→   385→.lang-badge.sub {
+   386→   386→  background: rgba(49, 132, 192, 0.2);
+   387→   387→  border: 1px solid #3184c4;
+   388→   388→}
+   389→   389→.lang-badge.dub {
+   390→   390→  background: rgba(239, 68, 68, 0.2);
+   391→   391→  border: 1px solid #ef4444;
+   392→   392→}
+   393→   393→
+   394→   394→.episode-badge {
+   395→   395→  position: absolute;
+   396→   396→  bottom: 12px;
+   397→   397→  right: 12px;
+   398→   398→  padding: 6px 12px;
+   399→   399→  background: rgba(0,0,0,0.7);
+   400→   400→  border: 1px solid var(--border-medium);
+   401→   401→  border-radius: 20px;
+   402→   402→  font-size: 0.75rem;
+   403→   403→  font-weight: 700;
+   404→   404→  color: var(--accent-gold);
+   405→   405→}
+   406→   406→
+   407→   407→.title-meta-container {
+   408→   408→  padding-top: 8px;
+   409→   409→}
+   410→   410→.show-title {
+   411→   411→  font-family: 'Archivo Black', sans-serif;
+   412→   412→  font-size: 2rem;
+   413→   413→  line-height: 1.2;
+   414→   414→  margin-bottom: 12px;
+   415→   415→  display: -webkit-box;
+   416→   416→  -webkit-line-clamp: 2;
+   417→   417→  -webkit-box-orient: vertical;
+   418→   418→  overflow: hidden;
+   419→   419→}
+   420→   420→
+   421→   421→/* Metadata Row */
+   422→   422→.metadata-row {
+   423→   423→  display: flex;
+   424→   424→  flex-wrap: wrap;
+   425→   425→  gap: 8px;
+   426→   426→  font-size: 0.85rem;
+   427→   427→  color: var(--text-secondary);
+   428→   428→  margin-bottom: 20px;
+   429→   429→}
+   430→   430→.metadata-row::before { content: ''; }
+   431→   431→.metadata-row span:not(:last-child)::after {
+   432→   432→  content: '•';
+   433→   433→  margin-left: 8px;
+   434→   434→  color: var(--text-muted);
+   435→   435→}
+   436→   436→
+   437→   437→/* Action Buttons */
+   438→   438→.action-buttons {
+   439→   439→  flex-direction: row;
+   440→   440→  justify-content: center;
+   441→   441→  flex-wrap: wrap;
+   442→   442→}
+   443→   443→.btn { width: auto; }
+   444→   444→.btn-icon-only {
+   445→   445→  width: 40px;
+   446→   446→  height: 40px;
+   447→   447→}
+   448→   448→.btn-primary {
+   449→   449→  background: var(--btn-primary);
+   450→   450→  color: #fff;
+   451→   451→}
+   452→   452→.btn-primary:hover {
+   453→   453→  background: var(--btn-primary-hover);
+   454→   454→  transform: translateY(-1px);
+   455→   455→}
+   456→   456→.btn-secondary {
+   457→   457→  background: var(--bg-surface);
+   458→   458→  color: var(--text-secondary);
+   459→   459→  border: none;
+   460→   460→}
+   461→   461→.btn-secondary:hover {
+   462→   462→  background: rgba(255,255,255,0.1);
+   463→   463→  color: var(--text-primary);
+   464→   464→}
+   465→   465→.btn-icon-only {
+   466→   466→  width: 40px;
+   467→   467→  height: 40px;
+   468→   468→  border-radius: 50%;
+   469→   469→  display: flex;
+   470→   470→  align-items: center;
+   471→   471→  justify-content: center;
+   472→   472→  background: var(--bg-surface);
+   473→   473→  color: var(--text-secondary);
+   474→   474→  transition: all 0.18s;
+   475→   475→}
+   476→   476→.btn-icon-only:hover {
+   477→   477→  background: var(--btn-primary);
+   478→   478→  color: #fff;
+   479→   479→}
+   480→   480→
+   481→   481→/* Dropdown Menu */
+   482→   482→.dropdown-container { position: relative; }
+   483→   483→.dropdown-arrow { transition: transform 0.2s; font-size: 0.7rem; }
+   484→   484→.dropdown-container.open .dropdown-arrow { transform: rotate(180deg); }
+   485→   485→
+   486→   486→.dropdown-menu {
+   487→   487→  position: absolute;
+   488→   488→  top: calc(100% + 8px);
+   489→   489→  left: 0;
+   490→   490→  background: var(--bg-card);
+   491→   491→  border: 1px solid var(--border-medium);
+   492→   492→  border-radius: 12px;
+   493→   493→  padding: 8px;
+   494→   494→  min-width: 220px;
+   495→   495→  z-index: 100;
+   496→   496→  display: none;
+   497→   497→  flex-direction: column;
+   498→   498→  gap: 4px;
+   499→   499→  box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+   500→   500→}
+   501→   501→.dropdown-menu.show { display: flex; }
+   502→   502→.dropdown-item {
+   503→   503→  display: flex;
+   504→   504→  align-items: center;
+   505→   505→  gap: 10px;
+   506→   506→  padding: 10px 12px;
+   507→   507→  border-radius: 8px;
+   508→   508→  font-size: 0.85rem;
+   509→   509→  color: var(--text-secondary);
+   510→   510→  transition: background 0.18s ease, color 0.18s ease, transform 0.12s ease;
+   511→   511→  cursor: pointer;
+   512→   512→  user-select: none;
+   513→   513→  -webkit-tap-highlight-color: transparent;
+   514→   514→}
+   515→   515→.dropdown-item:hover,
+   516→   516→.dropdown-item:active {
+   517→   517→  background: rgba(56, 130, 220, 0.15);
+   518→   518→  color: var(--text-primary);
+   519→   519→  transform: translateX(2px);
+   520→   520→}
+   521→   521→.dropdown-item.selected {
+   522→   522→  background: rgba(43, 108, 176, 0.2);
+   523→   523→  color: #68d391;
+   524→   524→}
+   525→   525→.dropdown-item.selected:hover {
+   526→   526→  background: rgba(43, 108, 176, 0.28);
+   527→   527→}
+   528→   528→.dropdown-item .bk-check-icon {
+   529→   529→  color: #48bb78;
+   530→   530→  font-size: 0.8rem;
+   531→   531→  flex-shrink: 0;
+   532→   532→}
+   533→   533→.dropdown-item[data-status="remove"] {
+   534→   534→  border-top: 1px solid var(--border-subtle);
+   535→   535→  margin-top: 4px;
+   536→   536→  border-radius: 8px;
+   537→   537→  color: #fc8181;
+   538→   538→}
+   539→   539→.dropdown-item[data-status="remove"]:hover {
+   540→   540→  background: rgba(229, 62, 62, 0.15);
+   541→   541→  color: #feb2b2;
+   542→   542→}
+   543→   543→.status-icon { flex-shrink: 0; }
+   544→   544→
+   545→   545→/* Stats Container */
+   546→   546→.stats-container {
+   547→   547→  display: grid;
+   548→   548→  grid-template-columns: repeat(4, 1fr);
+   549→   549→  gap: 16px;
+   550→   550→  background: var(--bg-card);
+   551→   551→  border: 1px solid var(--border-subtle);
+   552→   552→  border-radius: 16px;
+   553→   553→  padding: 16px 20px;
+   554→   554→  margin-bottom: 24px;
+   555→   555→}
+   556→   556→.stat-column {
+   557→   557→  display: flex;
+   558→   558→  flex-direction: column;
+   559→   559→  align-items: center;
+   560→   560→  text-align: center;
+   561→   561→  padding: 8px;
+   562→   562→}
+   563→   563→.stat-label {
+   564→   564→  font-size: 0.75rem;
+   565→   565→  color: var(--text-muted);
+   566→   566→  text-transform: uppercase;
+   567→   567→  letter-spacing: 0.05em;
+   568→   568→  margin-bottom: 4px;
+   569→   569→}
+   570→   570→.stat-value {
+   571→   571→  font-size: 1.25rem;
+   572→   572→  font-weight: 700;
+   573→   573→  display: flex;
+   574→   574→  align-items: center;
+   575→   575→  gap: 4px;
+   576→   576→}
+   577→   577→.stat-value-rating {
+   578→   578→  font-size: 0.9rem;
+   579→   579→  font-weight: 700;
+   580→   580→  color: var(--text-secondary);
+   581→   581→}
+   582→   582→.star-icon { color: var(--accent-gold); }
+   583→   583→
+   584→   584→/* Synopsis */
+   585→   585→.synopsis-container {
+   586→   586→  background: var(--bg-card);
+   587→   587→  border: 1px solid var(--border-subtle);
+   588→   588→  border-radius: 16px;
+   589→   589→  margin-bottom: 24px;
+   590→   590→  overflow: hidden;
+   591→   591→}
+   592→   592→.synopsis-header {
+   593→   593→  display: flex;
+   594→   594→  justify-content: space-between;
+   595→   595→  align-items: center;
+   596→   596→  padding: 14px 20px;
+   597→   597→  border-bottom: 1px solid var(--border-subtle);
+   598→   598→}
+   599→   599→.synopsis-header h3 {
+   600→   600→  font-size: 1.1rem;
+   601→   601→  font-weight: 700;
+   602→   602→}
+   603→   603→.expand-btn {
+   604→   604→  display: flex;
+   605→   605→  align-items: center;
+   606→   606→  gap: 4px;
+   607→   607→  font-size: 0.8rem;
+   608→   608→  color: var(--accent-cyan);
+   609→   609→  font-weight: 600;
+   610→   610→}
+   611→   611→.expand-icon { transition: transform 0.2s; }
+   612→   612→.expand-btn.expanded .expand-icon { transform: rotate(180deg); }
+   613→   613→
+   614→   614→.synopsis-content {
+   615→   615→  max-height: 120px;
+   616→   616→  overflow: hidden;
+   617→   617→  transition: max-height 0.3s ease;
+   618→   618→  padding: 0 20px;
+   619→   619→}
+   620→   620→.synopsis-content.expanded { max-height: 2000px; }
+   621→   621→.synopsis-content p {
+   622→   622→  padding: 16px 0;
+   623→   623→  font-size: 0.95rem;
+   624→   624→  color: var(--text-secondary);
+   625→   625→  line-height: 1.7;
+   626→   626→}
+   627→   627→
+   628→   628→/* Details Section */
+   629→   629→.details-section {
+   630→   630→  margin-bottom: 32px;
+   631→   631→}
+   632→   632→.details-section h3 {
+   633→   633→  font-size: 1.2rem;
+   634→   634→  margin-bottom: 16px;
+   635→   635→  padding-bottom: 12px;
+   636→   636→  border-bottom: 1px solid var(--border-subtle);
+   637→   637→}
+   638→   638→.details-grid {
+   639→   639→  display: grid;
+   640→   640→  grid-template-columns: repeat(2, 1fr);
+   641→   641→  gap: 12px 24px;
+   642→   642→}
+   643→   643→.detail-item {
+   644→   644→  display: flex;
+   645→   645→  justify-content: space-between;
+   646→   646→  align-items: flex-start;
+   647→   647→  gap: 12px;
+   648→   648→  padding: 4px 0;
+   649→   649→}
+   650→   650→.detail-label {
+   651→   651→  font-size: 0.8rem;
+   652→   652→  color: var(--text-muted);
+   653→   653→  text-transform: uppercase;
+   654→   654→  letter-spacing: 0.03em;
+   655→   655→  min-width: 100px;
+   656→   656→  flex-shrink: 0;
+   657→   657→}
+   658→   658→.detail-value {
+   659→   659→  font-size: 0.95rem;
+   660→   660→  color: var(--text-secondary);
+   661→   661→  text-align: right;
+   662→   662→  flex: 1;
+   663→   663→  word-break: break-word;
+   664→   664→}
+   665→   665→.detail-value a {
+   666→   666→  color: var(--accent-cyan);
+   667→   667→  transition: color 0.15s;
+   668→   668→}
+   669→   669→.detail-value a:hover { color: var(--btn-primary-hover); }
+   670→   670→
+   671→   671→/* Genre Tags */
+   672→   672→.genre-tags {
+   673→   673→  display: flex;
+   674→   674→  flex-wrap: wrap;
+   675→   675→  gap: 8px;
+   676→   676→  justify-content: flex-end;
+   677→   677→}
+   678→   678→.genre-tag {
+   679→   679→  padding: 4px 12px;
+   680→   680→  border-radius: 20px;
+   681→   681→  font-size: 0.8rem;
+   682→   682→  font-weight: 500;
+   683→   683→  background: var(--bg-surface);
+   684→   684→  border: 1px solid var(--border-medium);
+   685→   685→  transition: background 0.15s;
+   686→   686→}
+   687→   687→.genre-tag:hover {
+   688→   688→  background: rgba(43, 108, 176, 0.2);
+   689→   689→  border-color: var(--btn-primary);
+   690→   690→}
+   691→   691→.genre-tag[data-start="a"] { background: rgba(49, 132, 192, 0.15); border-color: rgba(49, 132, 192, 0.4); }
+   692→   692→.genre-tag[data-start="b"] { background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.4); }
+   693→   693→.genre-tag[data-start="c"] { background: rgba(236, 201, 75, 0.15); border-color: rgba(236, 201, 75, 0.4); }
+   694→   694→.genre-tag[data-start="d"] { background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.4); }
+   695→   695→.genre-tag[data-start="f"] { background: rgba(139, 92, 246, 0.15); border-color: rgba(139, 92, 246, 0.4); }
+   696→   696→.genre-tag[data-start="h"] { background: rgba(249, 115, 22, 0.15); border-color: rgba(249, 115, 22, 0.4); }
+   697→   697→.genre-tag[data-start="m"] { background: rgba(59, 130, 246, 0.15); border-color: rgba(59, 130, 246, 0.4); }
+   698→   698→.genre-tag[data-start="r"] { background: rgba(236, 72, 153, 0.15); border-color: rgba(236, 72, 153, 0.4); }
+   699→   699→.genre-tag[data-start="s"] { background: rgba(34, 197, 94, 0.15); border-color: rgba(34, 197, 94, 0.4); }
+   700→   700→
+   701→   701→/* External Links */
+   702→   702→.external-links {
+   703→   703→  display: flex;
+   704→   704→  gap: 12px;
+   705→   705→  justify-content: flex-end;
+   706→   706→  margin-top: 8px;
+   707→   707→}
+   708→   708→.ext-link-btn {
+   709→   709→  display: flex;
+   710→   710→  align-items: center;
+   711→   711→  gap: 6px;
+   712→   712→  padding: 8px 14px;
+   713→   713→  border-radius: 10px;
+   714→   714→  font-size: 0.85rem;
+   715→   715→  font-weight: 600;
+   716→   716→  background: var(--bg-surface);
+   717→   717→  border: 1px solid var(--border-medium);
+   718→   718→  transition: all 0.18s;
+   719→   719→}
+   720→   720→.ext-link-btn:hover {
+   721→   721→  background: var(--btn-primary);
+   722→   722→  border-color: var(--btn-primary);
+   723→   723→  transform: translateY(-1px);
+   724→   724→}
+   725→   725→.ext-link-btn.mal { color: #2e51a2; }
+   726→   726→.ext-link-btn.tmdb { color: #01b4e4; }
+   727→   727→
+   728→   728→/* Seasons Section */
+   729→   729→.seasons-section { margin-bottom: 32px; }
+   730→   730→.seasons-section h3 { margin-bottom: 16px; }
+   731→   731→.seasons-grid {
+   732→   732→  display: grid;
+   733→   733→  grid-template-columns: repeat(2, 1fr);
+   734→   734→  gap: 16px;
+   735→   735→}
+   736→   736→.season-card {
+   737→   737→  position: relative;
+   738→   738→  aspect-ratio: 16/7;
+   739→   739→  border-radius: 12px;
+   740→   740→  overflow: hidden;
+   741→   741→  cursor: pointer;
+   742→   742→  transition: transform 0.2s, box-shadow 0.2s;
+   743→   743→}
+   744→   744→.season-card:hover {
+   745→   745→  transform: translateY(-4px);
+   746→   746→  box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+   747→   747→}
+   748→   748→.season-card::before {
+   749→   749→  content: '';
+   750→   750→  position: absolute;
+   751→   751→  inset: 0;
+   752→   752→  background: linear-gradient(180deg, transparent 30%, rgba(0,0,0,0.85) 100%);
+   753→   753→  z-index: 1;
+   754→   754→}
+   755→   755→.season-card img {
+   756→   756→  width: 100%;
+   757→   757→  height: 100%;
+   758→   758→  object-fit: cover;
+   759→   759→  filter: brightness(0.85);
+   760→   760→}
+   761→   761→.season-number {
+   762→   762→  font-weight: 700;
+   763→   763→  font-size: 0.9rem;
+   764→   764→  color: #fff;
+   765→   765→  text-align: center;
+   766→   766→  padding: 6px 20px;
+   767→   767→  background: rgba(43, 108, 176, 0.95);
+   768→   768→  border-radius: 20px;
+   769→   769→  backdrop-filter: blur(4px);
+   770→   770→  max-width: 90%;
+   771→   771→  white-space: nowrap;
+   772→   772→  overflow: hidden;
+   773→   773→  text-overflow: ellipsis;
+   774→   774→}
+   775→   775→
+   776→   776→/* ── Tabs Section ─────────────────────────────────── */
+   777→   777→.tabs-section { margin-bottom: 32px; }
+   778→   778→
+   779→   779→/* ── Desktop: radio + glider sliding tabs ── */
+   780→   780→.tabs-radio-wrap {
+   781→   781→  display: none; /* hidden on mobile */
+   782→   782→  justify-content: center;
+   783→   783→  margin-bottom: 20px;
+   784→   784→}
+   785→   785→@media (min-width: 769px) {
+   786→   786→  .tabs-radio-wrap { display: flex; }
+   787→   787→  .tabs-mobile-only { display: none !important; }
+   788→   788→}
+   789→   789→
+   790→   790→.tabs-radio {
+   791→   791→  display: flex;
+   792→   792→  align-items: center;
+   793→   793→  position: relative;
+   794→   794→  background: var(--bg-surface);
+   795→   795→  border-radius: 99px;
+   796→   796→  padding: 4px;
+   797→   797→  gap: 0;
+   798→   798→  box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+   799→   799→}
+   800→   800→
+   801→   801→/* Hide native radio buttons */
+   802→   802→.tabs-radio input[type="radio"] {
+   803→   803→  display: none;
+   804→   804→}
+   805→   805→
+   806→   806→.tab-radio-label {
+   807→   807→  display: flex;
+   808→   808→  align-items: center;
+   809→   809→  padding: 9px 20px;
+   810→   810→  border-radius: 99px;
+   811→   811→  cursor: pointer;
+   812→   812→  font-size: 0.875rem;
+   813→   813→  font-weight: 600;
+   814→   814→  color: var(--text-muted);
+   815→   815→  white-space: nowrap;
+   816→   816→  position: relative;
+   817→   817→  z-index: 2;
+   818→   818→  transition: color 0.25s ease;
+   819→   819→  user-select: none;
+   820→   820→}
+   821→   821→
+   822→   822→/* Active label text turns white */
+   823→   823→.tabs-radio input[type="radio"]:checked + .tab-radio-label {
+   824→   824→  color: #fff;
+   825→   825→}
+   826→   826→
+   827→   827→/* Glider — the sliding pill */
+   828→   828→.tab-glider {
+   829→   829→  position: absolute;
+   830→   830→  height: calc(100% - 8px);
+   831→   831→  top: 4px;
+   832→   832→  left: 4px;
+   833→   833→  border-radius: 99px;
+   834→   834→  background: var(--btn-primary);
+   835→   835→  z-index: 1;
+   836→   836→  pointer-events: none;
+   837→   837→  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+   838→   838→  box-shadow: 0 2px 8px rgba(43,108,176,0.4);
+   839→   839→}
+   840→   840→
+   841→   841→/* ── Mobile: original pill button tabs ── */
+   842→   842→.tabs-mobile-only {
+   843→   843→  position: relative;
+   844→   844→  display: flex;
+   845→   845→  justify-content: center;
+   846→   846→  gap: 4px;
+   847→   847→  padding: 4px;
+   848→   848→  background: var(--bg-surface);
+   849→   849→  border-radius: 50px;
+   850→   850→  margin-bottom: 20px;
+   851→   851→  overflow-x: auto;
+   852→   852→  scrollbar-width: none;
+   853→   853→}
+   854→   854→.tabs-mobile-only::-webkit-scrollbar { display: none; }
+   855→   855→.tab-btn {
+   856→   856→  padding: 10px 18px;
+   857→   857→  border-radius: 50px;
+   858→   858→  font-size: 0.85rem;
+   859→   859→  font-weight: 600;
+   860→   860→  color: var(--text-secondary);
+   861→   861→  position: relative;
+   862→   862→  z-index: 2;
+   863→   863→  transition: color 0.15s;
+   864→   864→  white-space: nowrap;
+   865→   865→  flex-shrink: 0;
+   866→   866→}
+   867→   867→.tab-btn.active, .tab-btn:hover { color: var(--text-primary); }
+   868→   868→.tab-indicator {
+   869→   869→  position: absolute;
+   870→   870→  top: 4px;
+   871→   871→  bottom: 4px;
+   872→   872→  border-radius: 50px;
+   873→   873→  background: var(--btn-primary);
+   874→   874→  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s;
+   875→   875→  z-index: 1;
+   876→   876→  pointer-events: none;
+   877→   877→}
+   878→   878→.tab-content { display: none; }
+   879→   879→.tab-content.active { display: block; }
+   880→   880→
+   881→   881→/* ── Cast List Grid (image-3 style) ─────────────────── */
+   882→   882→.cast-list-grid {
+   883→   883→  display: flex;
+   884→   884→  flex-direction: column;
+   885→   885→  gap: 0;
+   886→   886→  border-radius: var(--radius-md);
+   887→   887→  overflow: hidden;
+   888→   888→  border: 1px solid var(--border-subtle);
+   889→   889→}
+   890→   890→
+   891→   891→    /* Vertically scrolling warp container for Cast/Crew tab */
+   892→   892→    /* Vertically scrolling warp container for Cast/Crew tab – no borders */
+   893→   893→.cast-warp-container {
+   894→   894→  max-height: 500px;
+   895→   895→  overflow-y: auto;
+   896→   896→  overflow-x: hidden;
+   897→   897→  border-radius: var(--radius-md, 12px);
+   898→   898→  border: none;                    /* removes outer border */
+   899→   899→  scrollbar-width: thin;
+   900→   900→  scrollbar-color: var(--btn-primary, #2b6cb0) rgba(255,255,255,0.05);
+   901→   901→}
+   902→   902→
+   903→   903→.cast-warp-container::-webkit-scrollbar {
+   904→   904→  width: 5px;
+   905→   905→}
+   906→   906→.cast-warp-container::-webkit-scrollbar-track {
+   907→   907→  background: rgba(255,255,255,0.04);
+   908→   908→  border-radius: 3px;
+   909→   909→}
+   910→   910→.cast-warp-container::-webkit-scrollbar-thumb {
+   911→   911→  background: var(--btn-primary, #2b6cb0);
+   912→   912→  border-radius: 3px;
+   913→   913→}
+   914→   914→
+   915→   915→/* Remove all inner borders (row separators and vertical divider) */
+   916→   916→.cast-warp-container .cast-list-grid {
+   917→   917→  border: none;
+   918→   918→}
+   919→   919→
+   920→   920→.cast-warp-container .cast-row {
+   921→   921→  border-bottom: none;
+   922→   922→}
+   923→   923→
+   924→   924→.cast-warp-container .cast-va-side,
+   925→   925→.cast-warp-container .cast-va-empty {
+   926→   926→  border-left: none;
+   927→   927→}
+   928→   928→
+   929→   929→.cast-row {
+   930→   930→  display: flex;
+   931→   931→  align-items: stretch;
+   932→   932→  background: var(--bg-card);
+   933→   933→  border-bottom: 1px solid var(--border-subtle);
+   934→   934→  min-height: 72px;
+   935→   935→  transition: background var(--transition-fast);
+   936→   936→}
+   937→   937→.cast-row:last-child { border-bottom: none; }
+   938→   938→.cast-row:hover { background: var(--bg-surface); }
+   939→   939→
+   940→   940→/* Left side: character */
+   941→   941→.cast-char-side {
+   942→   942→  display: flex;
+   943→   943→  align-items: center;
+   944→   944→  gap: 12px;
+   945→   945→  flex: 1;
+   946→   946→  padding: 10px 12px;
+   947→   947→  text-decoration: none;
+   948→   948→  color: inherit;
+   949→   949→  min-width: 0;
+   950→   950→}
+   951→   951→
+   952→   952→/* Right side: voice actor */
+   953→   953→.cast-va-side {
+   954→   954→  display: flex;
+   955→   955→  align-items: center;
+   956→   956→  gap: 12px;
+   957→   957→  flex: 1;
+   958→   958→  padding: 10px 12px;
+   959→   959→  text-decoration: none;
+   960→   960→  color: inherit;
+   961→   961→  justify-content: flex-end;
+   962→   962→  min-width: 0;
+   963→   963→  border-left: 1px solid var(--border-subtle);
+   964→   964→}
+   965→   965→.cast-va-empty { border-left: 1px solid var(--border-subtle); }
+   966→   966→
+   967→   967→.cast-portrait {
+   968→   968→  width: 46px;
+   969→   969→  height: 66px;
+   970→   970→  object-fit: cover;
+   971→   971→  border-radius: var(--radius-sm);
+   972→   972→  flex-shrink: 0;
+   973→   973→  background: var(--bg-surface);
+   974→   974→}
+   975→   975→
+   976→   976→/* Character info (left-aligned) */
+   977→   977→.cast-char-info {
+   978→   978→  display: flex;
+   979→   979→  flex-direction: column;
+   980→   980→  gap: 4px;
+   981→   981→  min-width: 0;
+   982→   982→}
+   983→   983→.cast-char-name {
+   984→   984→  font-size: 0.9rem;
+   985→   985→  font-weight: 700;
+   986→   986→  color: var(--text-primary);
+   987→   987→  white-space: nowrap;
+   988→   988→  overflow: hidden;
+   989→   989→  text-overflow: ellipsis;
+   990→   990→}
+   991→   991→.cast-role-badge {
+   992→   992→  font-size: 0.65rem;
+   993→   993→  font-weight: 700;
+   994→   994→  letter-spacing: 0.06em;
+   995→   995→  padding: 2px 7px;
+   996→   996→  border-radius: 4px;
+   997→   997→  display: inline-block;
+   998→   998→  width: fit-content;
+   999→   999→}
+  1000→  1000→.role-main {
+  1001→  1001→  background: rgba(43, 108, 176, 0.25);
+  1002→  1002→  color: #7ec8f7;
+  1003→  1003→  border: 1px solid rgba(43, 108, 176, 0.45);
+  1004→  1004→}
+  1005→  1005→.role-supporting {
+  1006→  1006→  background: rgba(148, 163, 184, 0.12);
+  1007→  1007→  color: var(--text-muted);
+  1008→  1008→  border: 1px solid rgba(148, 163, 184, 0.2);
+  1009→  1009→}
+  1010→  1010→
+  1011→  1011→/* VA info (right-aligned) */
+  1012→  1012→.cast-va-info {
+  1013→  1013→  display: flex;
+  1014→  1014→  flex-direction: column;
+  1015→  1015→  gap: 3px;
+  1016→  1016→  text-align: right;
+  1017→  1017→  min-width: 0;
+  1018→  1018→}
+  1019→  1019→.cast-va-name {
+  1020→  1020→  font-size: 0.85rem;
+  1021→  1021→  font-weight: 600;
+  1022→  1022→  color: var(--text-primary);
+  1023→  1023→  white-space: nowrap;
+  1024→  1024→  overflow: hidden;
+  1025→  1025→  text-overflow: ellipsis;
+  1026→  1026→}
+  1027→  1027→.cast-va-lang {
+  1028→  1028→  font-size: 0.72rem;
+  1029→  1029→  color: var(--text-muted);
+  1030→  1030→}
+  1031→  1031→
+  1032→  1032→/* Season placeholder */
+  1033→  1033→.season-img-placeholder {
+  1034→  1034→  position: absolute;
+  1035→  1035→  inset: 0;
+  1036→  1036→  display: flex;
+  1037→  1037→  align-items: center;
+  1038→  1038→  justify-content: center;
+  1039→  1039→  background: var(--bg-surface);
+  1040→  1040→  z-index: 0;
+  1041→  1041→}
+  1042→  1042→
+  1043→  1043→/* Season relation tag */
+  1044→  1044→.season-info-overlay {
+  1045→  1045→  position: absolute;
+  1046→  1046→  bottom: 0;
+  1047→  1047→  left: 0;
+  1048→  1048→  right: 0;
+  1049→  1049→  padding: 8px 12px 12px;
+  1050→  1050→  display: flex;
+  1051→  1051→  flex-direction: column;
+  1052→  1052→  align-items: center;
+  1053→  1053→  gap: 4px;
+  1054→  1054→  z-index: 2;
+  1055→  1055→}
+  1056→  1056→.season-relation-tag {
+  1057→  1057→  font-size: 0.65rem;
+  1058→  1058→  font-weight: 700;
+  1059→  1059→  letter-spacing: 0.06em;
+  1060→  1060→  padding: 2px 8px;
+  1061→  1061→  border-radius: 20px;
+  1062→  1062→  background: rgba(236, 201, 75, 0.2);
+  1063→  1063→  border: 1px solid rgba(236, 201, 75, 0.5);
+  1064→  1064→  color: var(--accent-gold);
+  1065→  1065→  text-transform: uppercase;
+  1066→  1066→}
+  1067→  1067→
+  1068→  1068→@media (max-width: 480px) {
+  1069→  1069→  .cast-portrait { width: 38px; height: 56px; }
+  1070→  1070→  .cast-char-side, .cast-va-side { padding: 8px 10px; gap: 8px; }
+  1071→  1071→  .cast-char-name, .cast-va-name { font-size: 0.8rem; }
+  1072→  1072→}
+  1073→  1073→
+  1074→  1074→/* ── Legacy cast card styles (kept for any remaining references) ── */
+  1075→  1075→.cast-scroll-container {
+  1076→  1076→  overflow-x: auto;
+  1077→  1077→  scroll-behavior: smooth;
+  1078→  1078→  -webkit-overflow-scrolling: touch;
+  1079→  1079→  scrollbar-width: thin;
+  1080→  1080→  scrollbar-color: var(--btn-primary) rgba(255,255,255,0.1);
+  1081→  1081→  padding: 5px 5px 15px 5px;
+  1082→  1082→  margin: 0 -5px;
+  1083→  1083→  position: relative;
+  1084→  1084→}
+  1085→  1085→.cast-scroll-container::-webkit-scrollbar { height: 6px; }
+  1086→  1086→.cast-scroll-container::-webkit-scrollbar-track {
+  1087→  1087→  background: rgba(255,255,255,0.05);
+  1088→  1088→  border-radius: 3px;
+  1089→  1089→}
+  1090→  1090→.cast-scroll-container::-webkit-scrollbar-thumb {
+  1091→  1091→  background: var(--btn-primary);
+  1092→  1092→  border-radius: 3px;
+  1093→  1093→}
+  1094→  1094→.cast-scroll-inner {
+  1095→  1095→  display: flex;
+  1096→  1096→  flex-direction: row;
+  1097→  1097→  gap: 20px;
+  1098→  1098→  min-width: min-content;
+  1099→  1099→  padding: 0 5px;
+  1100→  1100→}
+  1101→  1101→.cast-card {
+  1102→  1102→  text-decoration: none;
+  1103→  1103→  display: flex;
+  1104→  1104→  flex-direction: column;
+  1105→  1105→  align-items: center;
+  1106→  1106→  width: 140px;
+  1107→  1107→  padding: 15px 12px;
+  1108→  1108→  border-radius: 16px;
+  1109→  1109→  background: rgba(255,255,255,0.05);
+  1110→  1110→  backdrop-filter: blur(10px);
+  1111→  1111→  -webkit-backdrop-filter: blur(10px);
+  1112→  1112→  border: none;
+  1113→  1113→  transition: none;
+  1114→  1114→  flex-shrink: 0;
+  1115→  1115→  cursor: pointer;
+  1116→  1116→}
+  1117→  1117→.cast-card-img {
+  1118→  1118→  width: 90px;
+  1119→  1119→  height: 90px;
+  1120→  1120→  border-radius: 50%;
+  1121→  1121→  overflow: hidden;
+  1122→  1122→  flex-shrink: 0;
+  1123→  1123→  border: 3px solid var(--btn-primary);
+  1124→  1124→  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  1125→  1125→  margin-bottom: 12px;
+  1126→  1126→}
+  1127→  1127→.cast-card-img img {
+  1128→  1128→  width: 100%;
+  1129→  1129→  height: 100%;
+  1130→  1130→  object-fit: cover;
+  1131→  1131→  display: block;
+  1132→  1132→}
+  1133→  1133→.cast-card-name {
+  1134→  1134→  color: white;
+  1135→  1135→  font-weight: 600;
+  1136→  1136→  font-size: 0.95rem;
+  1137→  1137→  margin-bottom: 4px;
+  1138→  1138→  text-align: center;
+  1139→  1139→  white-space: nowrap;
+  1140→  1140→  overflow: hidden;
+  1141→  1141→  text-overflow: ellipsis;
+  1142→  1142→  width: 100%;
+  1143→  1143→}
+  1144→  1144→.cast-card-role {
+  1145→  1145→  color: var(--text-muted);
+  1146→  1146→  font-size: 0.75rem;
+  1147→  1147→  text-align: center;
+  1148→  1148→  white-space: nowrap;
+  1149→  1149→  overflow: hidden;
+  1150→  1150→  text-overflow: ellipsis;
+  1151→  1151→  width: 100%;
+  1152→  1152→}
+  1153→  1153→.cast-nav-arrow {
+  1154→  1154→  position: absolute;
+  1155→  1155→  top: 55%;
+  1156→  1156→  transform: translateY(-50%);
+  1157→  1157→  z-index: 10;
+  1158→  1158→  display: none;
+  1159→  1159→  cursor: pointer;
+  1160→  1160→  background: rgba(0,0,0,0.3);
+  1161→  1161→  backdrop-filter: blur(8px);
+  1162→  1162→  -webkit-backdrop-filter: blur(8px);
+  1163→  1163→  width: 40px;
+  1164→  1164→  height: 40px;
+  1165→  1165→  border-radius: 50%;
+  1166→  1166→  align-items: center;
+  1167→  1167→  justify-content: center;
+  1168→  1168→  border: 1px solid rgba(255,255,255,0.2);
+  1169→  1169→  transition: all 0.3s ease;
+  1170→  1170→  box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+  1171→  1171→}
+  1172→  1172→.cast-nav-arrow.left-arrow { left: -15px; }
+  1173→  1173→.cast-nav-arrow.right-arrow { right: -15px; }
+  1174→  1174→.cast-nav-arrow:hover {
+  1175→  1175→  background: rgba(43, 108, 176, 0.4);
+  1176→  1176→  border-color: var(--btn-primary);
+  1177→  1177→}
+  1178→  1178→.cast-nav-arrow svg {
+  1179→  1179→  stroke: white;
+  1180→  1180→  stroke-width: 2;
+  1181→  1181→  stroke-linecap: round;
+  1182→  1182→  stroke-linejoin: round;
+  1183→  1183→}
+  1184→  1184→
+  1185→  1185→/* Artwork Grid */
+  1186→  1186→.artwork-grid {
+  1187→  1187→  display: grid;
+  1188→  1188→  grid-template-columns: repeat(3, 1fr);
+  1189→  1189→  gap: 10px;
+  1190→  1190→}
+  1191→  1191→.artwork-item {
+  1192→  1192→  border-radius: 10px;
+  1193→  1193→  overflow: hidden;
+  1194→  1194→  cursor: pointer;
+  1195→  1195→  position: relative;
+  1196→  1196→  aspect-ratio: 2/3; /* default: poster */
+  1197→  1197→  background: var(--bg-surface);
+  1198→  1198→}
+  1199→  1199→.artwork-item--backdrop {
+  1200→  1200→  aspect-ratio: 16/9;
+  1201→  1201→  grid-column: span 2;
+  1202→  1202→}
+  1203→  1203→.artwork-item--logo {
+  1204→  1204→  aspect-ratio: 2/1;
+  1205→  1205→  grid-column: span 2;
+  1206→  1206→}
+  1207→  1207→.artwork-item img {
+  1208→  1208→  width: 100%;
+  1209→  1209→  height: 100%;
+  1210→  1210→  object-fit: cover;
+  1211→  1211→  transition: transform 0.2s;
+  1212→  1212→  display: block;
+  1213→  1213→}
+  1214→  1214→.artwork-item:hover img { transform: scale(1.04); }
+  1215→  1215→.artwork-type-badge {
+  1216→  1216→  position: absolute;
+  1217→  1217→  bottom: 6px;
+  1218→  1218→  left: 6px;
+  1219→  1219→  font-size: 0.65rem;
+  1220→  1220→  font-weight: 700;
+  1221→  1221→  letter-spacing: 0.05em;
+  1222→  1222→  padding: 2px 7px;
+  1223→  1223→  border-radius: 4px;
+  1224→  1224→  background: rgba(0,0,0,0.65);
+  1225→  1225→  color: var(--text-muted);
+  1226→  1226→  text-transform: uppercase;
+  1227→  1227→  pointer-events: none;
+  1228→  1228→}
+  1229→  1229→
+  1230→  1230→/* Theme tab — vertically scrollable so long OP/ED lists are easy to browse */
+  1231→  1231→#themesTab {
+  1232→  1232→  max-height: 700px;
+  1233→  1233→  overflow-y: auto;
+  1234→  1234→  overflow-x: hidden;
+  1235→  1235→  scrollbar-width: thin;
+  1236→  1236→  scrollbar-color: var(--btn-primary) rgba(255,255,255,0.06);
+  1237→  1237→  padding-right: 4px;
+  1238→  1238→}
+  1239→  1239→#themesTab::-webkit-scrollbar { width: 5px; }
+  1240→  1240→#themesTab::-webkit-scrollbar-track { background: rgba(255,255,255,0.04); border-radius: 3px; }
+  1241→  1241→#themesTab::-webkit-scrollbar-thumb { background: var(--btn-primary); border-radius: 3px; }
+  1242→  1242→
+  1243→  1243→/* themes-container fills the scrollable area */
+  1244→  1244→.themes-container { padding: 4px 0; }
+  1245→  1245→
+  1246→  1246→/* Section heading (Opening / Ending) */
+  1247→  1247→.themes-section-heading {
+  1248→  1248→  display: flex;
+  1249→  1249→  align-items: center;
+  1250→  1250→  gap: 8px;
+  1251→  1251→  font-size: 0.9rem;
+  1252→  1252→  font-weight: 700;
+  1253→  1253→  color: var(--text-primary);
+  1254→  1254→  padding: 8px 0 10px;
+  1255→  1255→  border-bottom: 1px solid var(--border-subtle);
+  1256→  1256→  margin-bottom: 12px;
+  1257→  1257→}
+  1258→  1258→.themes-count {
+  1259→  1259→  margin-left: auto;
+  1260→  1260→  font-size: 0.72rem;
+  1261→  1261→  font-weight: 600;
+  1262→  1262→  padding: 2px 8px;
+  1263→  1263→  border-radius: 20px;
+  1264→  1264→  background: var(--bg-surface);
+  1265→  1265→  color: var(--text-muted);
+  1266→  1266→}
+  1267→  1267→
+  1268→  1268→/* Individual theme card */
+  1269→  1269→.theme-card {
+  1270→  1270→  background: var(--bg-card);
+  1271→  1271→  border: 1px solid var(--border-subtle);
+  1272→  1272→  border-radius: var(--radius-md);
+  1273→  1273→  overflow: hidden;
+  1274→  1274→  margin-bottom: 12px;
+  1275→  1275→}
+  1276→  1276→.theme-card:last-child { margin-bottom: 0; }
+  1277→  1277→
+  1278→  1278→.theme-card-header {
+  1279→  1279→  display: flex;
+  1280→  1280→  align-items: center;
+  1281→  1281→  gap: 12px;
+  1282→  1282→  padding: 10px 14px;
+  1283→  1283→  background: var(--bg-surface);
+  1284→  1284→  border-bottom: 1px solid var(--border-subtle);
+  1285→  1285→}
+  1286→  1286→.theme-card-label {
+  1287→  1287→  font-size: 0.72rem;
+  1288→  1288→  font-weight: 800;
+  1289→  1289→  letter-spacing: 0.07em;
+  1290→  1290→  color: #7ec8f7;
+  1291→  1291→  background: rgba(126, 200, 247, 0.12);
+  1292→  1292→  border: 1px solid rgba(126, 200, 247, 0.3);
+  1293→  1293→  padding: 3px 9px;
+  1294→  1294→  border-radius: 20px;
+  1295→  1295→  white-space: nowrap;
+  1296→  1296→  flex-shrink: 0;
+  1297→  1297→}
+  1298→  1298→.theme-card-titles {
+  1299→  1299→  display: flex;
+  1300→  1300→  flex-direction: column;
+  1301→  1301→  gap: 2px;
+  1302→  1302→  min-width: 0;
+  1303→  1303→}
+  1304→  1304→.theme-song-title {
+  1305→  1305→  font-size: 0.9rem;
+  1306→  1306→  font-weight: 700;
+  1307→  1307→  color: var(--text-primary);
+  1308→  1308→  white-space: nowrap;
+  1309→  1309→  overflow: hidden;
+  1310→  1310→  text-overflow: ellipsis;
+  1311→  1311→}
+  1312→  1312→.theme-artist {
+  1313→  1313→  font-size: 0.75rem;
+  1314→  1314→  color: var(--text-muted);
+  1315→  1315→  display: flex;
+  1316→  1316→  align-items: center;
+  1317→  1317→  gap: 5px;
+  1318→  1318→  white-space: nowrap;
+  1319→  1319→  overflow: hidden;
+  1320→  1320→  text-overflow: ellipsis;
+  1321→  1321→}
+  1322→  1322→
+  1323→  1323→/* Video entry inside a theme card */
+  1324→  1324→.theme-video-entry { padding: 12px 14px; border-top: 1px solid var(--border-subtle); }
+  1325→  1325→.theme-video-entry:first-of-type { border-top: none; }
+  1326→  1326→.theme-video-meta {
+  1327→  1327→  display: flex;
+  1328→  1328→  align-items: center;
+  1329→  1329→  gap: 6px;
+  1330→  1330→  margin-bottom: 8px;
+  1331→  1331→  min-height: 18px;
+  1332→  1332→}
+  1333→  1333→.theme-ver-tag {
+  1334→  1334→  font-size: 0.65rem;
+  1335→  1335→  font-weight: 700;
+  1336→  1336→  padding: 1px 7px;
+  1337→  1337→  border-radius: 20px;
+  1338→  1338→  background: rgba(236, 201, 75, 0.15);
+  1339→  1339→  border: 1px solid rgba(236, 201, 75, 0.4);
+  1340→  1340→  color: var(--accent-gold);
+  1341→  1341→}
+  1342→  1342→.theme-ep-range {
+  1343→  1343→  font-size: 0.7rem;
+  1344→  1344→  color: var(--text-muted);
+  1345→  1345→}
+  1346→  1346→
+  1347→  1347→/* Theme block (legacy — keep for compat) */
+  1348→  1348→.theme-block { margin-bottom: 20px; }
+  1349→  1349→.theme-block:last-child { margin-bottom: 0; }
+  1350→  1350→
+  1351→  1351→/* Video Players */
+  1352→  1352→.video-container {
+  1353→  1353→  display: flex;
+  1354→  1354→  flex-direction: column;
+  1355→  1355→  gap: 20px;
+  1356→  1356→}
+  1357→  1357→.video-wrapper {
+  1358→  1358→  position: relative;
+  1359→  1359→  padding-bottom: 56.25%;
+  1360→  1360→  height: 0;
+  1361→  1361→  border-radius: 12px;
+  1362→  1362→  overflow: hidden;
+  1363→  1363→  background: #000;
+  1364→  1364→}
+  1365→  1365→.video-wrapper iframe,
+  1366→  1366→.video-wrapper video {
+  1367→  1367→  position: absolute;
+  1368→  1368→  top: 0;
+  1369→  1369→  left: 0;
+  1370→  1370→  width: 100%;
+  1371→  1371→  height: 100%;
+  1372→  1372→  border: none;
+  1373→  1373→}
+  1374→  1374→.video-title {
+  1375→  1375→  font-size: 1rem;
+  1376→  1376→  font-weight: 600;
+  1377→  1377→  margin-bottom: 10px;
+  1378→  1378→  color: var(--text-secondary);
+  1379→  1379→}
+  1380→  1380→
+  1381→  1381→/* Statistics */
+  1382→  1382→.stats-module {
+  1383→  1383→  margin-bottom: 24px;
+  1384→  1384→  padding: 16px;
+  1385→  1385→  background: var(--bg-card);
+  1386→  1386→  border-radius: 12px;
+  1387→  1387→  border: 1px solid var(--border-subtle);
+  1388→  1388→}
+  1389→  1389→.stats-module h4 {
+  1390→  1390→  font-size: 0.95rem;
+  1391→  1391→  margin-bottom: 12px;
+  1392→  1392→  color: var(--text-secondary);
+  1393→  1393→}
+  1394→  1394→.histogram {
+  1395→  1395→  display: flex;
+  1396→  1396→  align-items: flex-end;
+  1397→  1397→  gap: 3px;
+  1398→  1398→  height: 80px;
+  1399→  1399→  padding: 8px 0;
+  1400→  1400→}
+  1401→  1401→.hist-bar {
+  1402→  1402→  flex: 1;
+  1403→  1403→  background: var(--btn-primary);
+  1404→  1404→  border-radius: 4px 4px 0 0;
+  1405→  1405→  min-width: 12px;
+  1406→  1406→  transition: opacity 0.15s;
+  1407→  1407→  cursor: pointer;
+  1408→  1408→  position: relative;
+  1409→  1409→}
+  1410→  1410→.hist-bar:hover { opacity: 0.8; }
+  1411→  1411→.hist-bar::after {
+  1412→  1412→  content: attr(data-value);
+  1413→  1413→  position: absolute;
+  1414→  1414→  bottom: -20px;
+  1415→  1415→  left: 50%;
+  1416→  1416→  transform: translateX(-50%);
+  1417→  1417→  font-size: 0.65rem;
+  1418→  1418→  color: var(--text-muted);
+  1419→  1419→}
+  1420→  1420→.segmented-bar {
+  1421→  1421→  display: flex;
+  1422→  1422→  height: 24px;
+  1423→  1423→  border-radius: 12px;
+  1424→  1424→  overflow: hidden;
+  1425→  1425→  background: var(--bg-surface);
+  1426→  1426→}
+  1427→  1427→.status-segment {
+  1428→  1428→  display: flex;
+  1429→  1429→  align-items: center;
+  1430→  1430→  justify-content: center;
+  1431→  1431→  font-size: 0.7rem;
+  1432→  1432→  font-weight: 600;
+  1433→  1433→  color: #fff;
+  1434→  1434→  transition: opacity 0.15s;
+  1435→  1435→  cursor: pointer;
+  1436→  1436→}
+  1437→  1437→.status-segment:hover { opacity: 0.85; }
+  1438→  1438→.status-watching { background: var(--accent-cyan); }
+  1439→  1439→.status-completed { background: var(--accent-green); }
+  1440→  1440→.status-planning { background: #8b5cf6; }
+  1441→  1441→.status-dropped { background: var(--text-muted); }
+  1442→  1442→.metric-cards {
+  1443→  1443→  display: grid;
+  1444→  1444→  grid-template-columns: repeat(3, 1fr);
+  1445→  1445→  gap: 12px;
+  1446→  1446→}
+  1447→  1447→.metric-card {
+  1448→  1448→  text-align: center;
+  1449→  1449→  padding: 12px 8px;
+  1450→  1450→}
+  1451→  1451→.metric-value {
+  1452→  1452→  font-size: 1.5rem;
+  1453→  1453→  font-weight: 800;
+  1454→  1454→  color: var(--text-primary);
+  1455→  1455→}
+  1456→  1456→.metric-label {
+  1457→  1457→  font-size: 0.75rem;
+  1458→  1458→  color: var(--text-muted);
+  1459→  1459→  margin-top: 4px;
+  1460→  1460→}
+  1461→  1461→.metric-trend {
+  1462→  1462→  display: inline-flex;
+  1463→  1463→  align-items: center;
+  1464→  1464→  gap: 2px;
+  1465→  1465→  font-size: 0.7rem;
+  1466→  1466→  margin-top: 4px;
+  1467→  1467→}
+  1468→  1468→.metric-trend.up { color: var(--accent-green); }
+  1469→  1469→.metric-trend.down { color: var(--accent-red); }
+  1470→  1470→
+  1471→  1471→/* Recommendations - MATCHING INDEX.HTML GRID LAYOUT */
+  1472→  1472→.recommendations-section { margin-bottom: 32px; }
+  1473→  1473→.recommendations-section h3 { margin-bottom: 16px; }
+  1474→  1474→
+  1475→  1475→.recs-grid {
+  1476→  1476→  display: grid;
+  1477→  1477→  grid-template-columns: repeat(auto-fill, minmax(185px, 1fr));
+  1478→  1478→  gap: 16px;
+  1479→  1479→}
+  1480→  1480→
+  1481→  1481→@media (min-width: 768px) {
+  1482→  1482→  .recs-grid {
+  1483→  1483→    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  1484→  1484→  }
+  1485→  1485→}
+  1486→  1486→
+  1487→  1487→@media (min-width: 1201px) {
+  1488→  1488→  .recs-grid {
+  1489→  1489→    grid-template-columns: repeat(7, 1fr);
+  1490→  1490→  }
+  1491→  1491→}
+  1492→  1492→
+  1493→  1493→@media (max-width: 1200px) and (min-width: 769px) {
+  1494→  1494→  .recs-grid {
+  1495→  1495→    grid-template-columns: repeat(4, 1fr);
+  1496→  1496→  }
+  1497→  1497→}
+  1498→  1498→
+  1499→  1499→@media (max-width: 768px) and (orientation: landscape) {
+  1500→  1500→  .recs-grid {
+  1501→  1501→    grid-template-columns: repeat(3, 1fr);
+  1502→  1502→  }
+  1503→  1503→}
+  1504→  1504→
+  1505→  1505→@media (max-width: 480px) {
+  1506→  1506→  .recs-grid {
+  1507→  1507→    grid-template-columns: repeat(2, 1fr);
+  1508→  1508→  }
+  1509→  1509→}
+  1510→  1510→
+  1511→  1511→.rec-card {
+  1512→  1512→  border-radius: var(--radius-md);
+  1513→  1513→  overflow: hidden;
+  1514→  1514→  cursor: pointer;
+  1515→  1515→  transition: transform var(--transition-fast);
+  1516→  1516→  position: relative;
+  1517→  1517→  text-decoration: none;
+  1518→  1518→  display: block;
+  1519→  1519→}
+  1520→  1520→
+  1521→  1521→.rec-card:hover {
+  1522→  1522→  transform: translateY(-3px);
+  1523→  1523→}
+  1524→  1524→
+  1525→  1525→.rec-poster {
+  1526→  1526→  width: 100%;
+  1527→  1527→  aspect-ratio: 3/4.5;
+  1528→  1528→  background-size: cover;
+  1529→  1529→  background-position: center;
+  1530→  1530→  border-radius: 0;
+  1531→  1531→  position: relative;
+  1532→  1532→  overflow: hidden;
+  1533→  1533→  margin-bottom: 0;
+  1534→  1534→  background-color: var(--bg-card);
+  1535→  1535→}
+  1536→  1536→
+  1537→  1537→.rec-poster img {
+  1538→  1538→  width: 100%;
+  1539→  1539→  height: 100%;
+  1540→  1540→  object-fit: cover;
+  1541→  1541→  display: block;
+  1542→  1542→}
+  1543→  1543→
+  1544→  1544→.quality-badge {
+  1545→  1545→  position: absolute;
+  1546→  1546→  top: 6px;
+  1547→  1547→  left: 6px;
+  1548→  1548→  background: rgba(0, 0, 0, 0.7);
+  1549→  1549→  color: #fff;
+  1550→  1550→  font-size: 0.62rem;
+  1551→  1551→  padding: 2px 5px;
+  1552→  1552→  border-radius: 3px;
+  1553→  1553→  z-index: 2;
+  1554→  1554→  font-weight: 600;
+  1555→  1555→}
+  1556→  1556→
+  1557→  1557→.score-badge {
+  1558→  1558→  position: absolute;
+  1559→  1559→  top: 6px;
+  1560→  1560→  right: 6px;
+  1561→  1561→  background: rgba(0, 0, 0, 0.7);
+  1562→  1562→  color: var(--accent-gold);
+  1563→  1563→  font-size: 0.65rem;
+  1564→  1564→  padding: 2px 5px;
+  1565→  1565→  border-radius: 3px;
+  1566→  1566→  z-index: 2;
+  1567→  1567→  font-weight: 600;
+  1568→  1568→  display: flex;
+  1569→  1569→  align-items: center;
+  1570→  1570→  gap: 3px;
+  1571→  1571→}
+  1572→  1572→
+  1573→  1573→.play-overlay {
+  1574→  1574→  position: absolute;
+  1575→  1575→  inset: 0;
+  1576→  1576→  background: rgba(0, 0, 0, 0.5);
+  1577→  1577→  display: flex;
+  1578→  1578→  align-items: center;
+  1579→  1579→  justify-content: center;
+  1580→  1580→  opacity: 0;
+  1581→  1581→  transition: opacity var(--transition-fast);
+  1582→  1582→  border-radius: var(--radius-md);
+  1583→  1583→}
+  1584→  1584→
+  1585→  1585→.play-overlay svg {
+  1586→  1586→  width: 36px;
+  1587→  1587→  height: 36px;
+  1588→  1588→  fill: #fff;
+  1589→  1589→}
+  1590→  1590→
+  1591→  1591→.rec-card:hover .play-overlay {
+  1592→  1592→  opacity: 1;
+  1593→  1593→}
+  1594→  1594→
+  1595→  1595→.rec-info {
+  1596→  1596→  position: absolute;
+  1597→  1597→  bottom: 0;
+  1598→  1598→  left: 0;
+  1599→  1599→  right: 0;
+  1600→  1600→  padding: 24px 8px 8px;
+  1601→  1601→  background: linear-gradient(to top, rgba(0, 0, 0, 0.85) 0%, transparent 100%);
+  1602→  1602→  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  1603→  1603→  color: #fff;
+  1604→  1604→  pointer-events: none;
+  1605→  1605→}
+  1606→  1606→
+  1607→  1607→.rec-title {
+  1608→  1608→  font-size: 0.85rem;
+  1609→  1609→  font-weight: 600;
+  1610→  1610→  color: #fff;
+  1611→  1611→  white-space: nowrap;
+  1612→  1612→  overflow: hidden;
+  1613→  1613→  text-overflow: ellipsis;
+  1614→  1614→  line-height: 1.3;
+  1615→  1615→  margin: 0;
+  1616→  1616→}
+  1617→  1617→
+  1618→  1618→.rec-meta {
+  1619→  1619→  font-size: 0.7rem;
+  1620→  1620→  font-weight: 500;
+  1621→  1621→  color: var(--text-muted);
+  1622→  1622→  white-space: nowrap;
+  1623→  1623→  overflow: hidden;
+  1624→  1624→  text-overflow: ellipsis;
+  1625→  1625→  margin: 0;
+  1626→  1626→}
+  1627→  1627→
+  1628→  1628→/* ✅ UPDATED: Pagination Styles - Matches index.html "Recently Completed" */
+  1629→  1629→.pagination-nav {
+  1630→  1630→  display: flex;
+  1631→  1631→  justify-content: center;
+  1632→  1632→  align-items: center;
+  1633→  1633→  gap: 8px;
+  1634→  1634→  margin-top: 20px;
+  1635→  1635→  flex-wrap: wrap;
+  1636→  1636→}
+  1637→  1637→
+  1638→  1638→.pagination-nav .btn-soft {
+  1639→  1639→  background: var(--bg-surface);
+  1640→  1640→  color: var(--text-secondary);
+  1641→  1641→  border: none;
+  1642→  1642→  padding: 8px 16px;
+  1643→  1643→  border-radius: var(--radius-pill);
+  1644→  1644→  font-size: 0.8rem;
+  1645→  1645→  font-weight: 600;
+  1646→  1646→  cursor: pointer;
+  1647→  1647→  transition: all var(--transition-fast);
+  1648→  1648→  min-width: 80px;
+  1649→  1649→  height: 36px;
+  1650→  1650→  display: flex;
+  1651→  1651→  align-items: center;
+  1652→  1652→  justify-content: center;
+  1653→  1653→  gap: 4px;
+  1654→  1654→}
+  1655→  1655→
+  1656→  1656→.pagination-nav .btn-soft:hover:not(:disabled) {
+  1657→  1657→  background: var(--btn-primary);
+  1658→  1658→  color: #fff;
+  1659→  1659→  transform: translateY(-1px);
+  1660→  1660→}
+  1661→  1661→
+  1662→  1662→.pagination-nav .btn-soft:disabled {
+  1663→  1663→  opacity: 0.4;
+  1664→  1664→  cursor: not-allowed;
+  1665→  1665→  transform: none;
+  1666→  1666→}
+  1667→  1667→
+  1668→  1668→/* Page counter styling */
+  1669→  1669→.pagination-nav .page-counter {
+  1670→  1670→  font-size: 0.85rem;
+  1671→  1671→  font-weight: 600;
+  1672→  1672→  color: var(--text-primary);
+  1673→  1673→  min-width: 60px;
+  1674→  1674→  text-align: center;
+  1675→  1675→  user-select: none;
+  1676→  1676→}
+  1677→  1677→
+  1678→  1678→/* Hide text on mobile, show chevrons */
+  1679→  1679→@media (max-width: 768px) {
+  1680→  1680→  .pagination-nav .btn-soft .prev-text,
+  1681→  1681→  .pagination-nav .btn-soft .next-text {
+  1682→  1682→    display: none;
+  1683→  1683→  }
+  1684→  1684→  .pagination-nav .btn-soft .prev-chevron,
+  1685→  1685→  .pagination-nav .btn-soft .next-chevron {
+  1686→  1686→    display: inline;
+  1687→  1687→    font-size: 1.2rem;
+  1688→  1688→    font-weight: 700;
+  1689→  1689→  }
+  1690→  1690→  .pagination-nav .btn-soft {
+  1691→  1691→    min-width: 40px;
+  1692→  1692→    padding: 8px 12px;
+  1693→  1693→  }
+  1694→  1694→}
+  1695→  1695→
+  1696→  1696→@media (min-width: 769px) {
+  1697→  1697→  .pagination-nav .btn-soft .prev-chevron,
+  1698→  1698→  .pagination-nav .btn-soft .next-chevron {
+  1699→  1699→    display: none;
+  1700→  1700→  }
+  1701→  1701→  .pagination-nav .btn-soft .prev-text,
+  1702→  1702→  .pagination-nav .btn-soft .next-text {
+  1703→  1703→    display: inline;
+  1704→  1704→  }
+  1705→  1705→}
+  1706→  1706→
+  1707→  1707→/* Loading state */
+  1708→  1708→.pagination-nav.loading {
+  1709→  1709→  opacity: 0.6;
+  1710→  1710→  pointer-events: none;
+  1711→  1711→}
+  1712→  1712→
+  1713→  1713→/* Smooth fade for grid updates */
+  1714→  1714→#sunkenTreasuresGrid {
+  1715→  1715→  /* Prevent layout-shift scroll during page transitions */
+  1716→  1716→  contain: layout;
+  1717→  1717→  transition: opacity 0.2s ease;
+  1718→  1718→}
+  1719→  1719→
+  1720→  1720→/* Alert Popup */
+  1721→  1721→.alert-popup {
+  1722→  1722→  position: fixed;
+  1723→  1723→  bottom: 20px;
+  1724→  1724→  right: 20px;
+  1725→  1725→  z-index: 1000;
+  1726→  1726→  display: none;
+  1727→  1727→  animation: slideIn 0.3s ease;
+  1728→  1728→}
+  1729→  1729→.alert-popup.show { display: block; }
+  1730→  1730→@keyframes slideIn {
+  1731→  1731→  from { transform: translateX(100px); opacity: 0; }
+  1732→  1732→  to { transform: translateX(0); opacity: 1; }
+  1733→  1733→}
+  1734→  1734→.alert-content {
+  1735→  1735→  display: flex;
+  1736→  1736→  align-items: center;
+  1737→  1737→  gap: 12px;
+  1738→  1738→  padding: 14px 18px;
+  1739→  1739→  background: var(--bg-card);
+  1740→  1740→  border: 1px solid var(--border-medium);
+  1741→  1741→  border-radius: 12px;
+  1742→  1742→  box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+  1743→  1743→  max-width: 320px;
+  1744→  1744→}
+  1745→  1745→.alert-content svg {
+  1746→  1746→  color: var(--accent-cyan);
+  1747→  1747→  flex-shrink: 0;
+  1748→  1748→}
+  1749→  1749→.alert-content p {
+  1750→  1750→  font-size: 0.9rem;
+  1751→  1751→  color: var(--text-secondary);
+  1752→  1752→  line-height: 1.4;
+  1753→  1753→}
+  1754→  1754→.alert-content strong { color: var(--text-primary); }
+  1755→  1755→.alert-close {
+  1756→  1756→  margin-left: auto;
+  1757→  1757→  font-size: 1.2rem;
+  1758→  1758→  color: var(--text-muted);
+  1759→  1759→  transition: color 0.15s;
+  1760→  1760→}
+  1761→  1761→.alert-close:hover { color: var(--text-primary); }
+  1762→  1762→
+  1763→  1763→/* Lightbox */
+  1764→  1764→.lightbox {
+  1765→  1765→  position: fixed;
+  1766→  1766→  inset: 0;
+  1767→  1767→  background: rgba(0,0,0,0.9);
+  1768→  1768→  z-index: 2000;
+  1769→  1769→  display: none;
+  1770→  1770→  align-items: center;
+  1771→  1771→  justify-content: center;
+  1772→  1772→  padding: 20px;
+  1773→  1773→}
+  1774→  1774→.lightbox.show { display: flex; }
+  1775→  1775→.lightbox-close {
+  1776→  1776→  position: absolute;
+  1777→  1777→  top: 20px;
+  1778→  1778→  right: 20px;
+  1779→  1779→  width: 40px;
+  1780→  1780→  height: 40px;
+  1781→  1781→  border-radius: 50%;
+  1782→  1782→  background: rgba(255,255,255,0.1);
+  1783→  1783→  color: #fff;
+  1784→  1784→  font-size: 1.5rem;
+  1785→  1785→  display: flex;
+  1786→  1786→  align-items: center;
+  1787→  1787→  justify-content: center;
+  1788→  1788→  transition: background 0.15s;
+  1789→  1789→}
+  1790→  1790→.lightbox-close:hover { background: rgba(255,255,255,0.2); }
+  1791→  1791→#lightboxImg {
+  1792→  1792→  max-width: 90%;
+  1793→  1793→  max-height: 90vh;
+  1794→  1794→  border-radius: 8px;
+  1795→  1795→  box-shadow: 0 25px 80px rgba(0,0,0,0.6);
+  1796→  1796→}
+  1797→  1797→
+  1798→  1798→/* Responsive Breakpoints */
+  1799→  1799→@media (max-width: 1024px) {
+  1800→  1800→  .info-grid {
+  1801→  1801→    flex-direction: column;
+  1802→  1802→    padding: 0 var(--gutter) var(--gutter);
+  1803→  1803→  }
+  1804→  1804→  .main-content, .sidebar {
+  1805→  1805→    flex: 1;
+  1806→  1806→    max-width: 100%;
+  1807→  1807→    padding: 0;
+  1808→  1808→  }
+  1809→  1809→  .sidebar {
+  1810→  1810→    position: static;
+  1811→  1811→    max-height: none;
+  1812→  1812→    overflow: visible;
+  1813→  1813→  }
+  1814→  1814→  .sidebar-combined {
+  1815→  1815→    display: grid;
+  1816→  1816→    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  1817→  1817→    gap: 20px;
+  1818→  1818→    background: transparent;
+  1819→  1819→    border: none;
+  1820→  1820→  }
+  1821→  1821→  .sidebar-section {
+  1822→  1822→    background: var(--bg-card);
+  1823→  1823→    border: 1px solid var(--border-subtle);
+  1824→  1824→    border-radius: var(--radius-md);
+  1825→  1825→    margin: 0;
+  1826→  1826→  }
+  1827→  1827→  .sidebar-list {
+  1828→  1828→    max-height: none;
+  1829→  1829→    overflow-y: visible;
+  1830→  1830→  }
+  1831→  1831→}
+  1832→  1832→
+  1833→  1833→@media (max-width: 768px) {
+  1834→  1834→  :root {
+  1835→  1835→    --gutter: 16px;
+  1836→  1836→    --content-padding: 16px;
+  1837→  1837→  }
+  1838→  1838→  
+  1839→  1839→  .breadcrumbs { padding: 12px var(--gutter); }
+  1840→  1840→  .breadcrumbs ol { font-size: 0.8rem; }
+  1841→  1841→  .breadcrumb-current { max-width: 180px; }
+  1842→  1842→  .backdrop-container { aspect-ratio: 16/7; min-height: 200px; }
+  1843→  1843→  
+  1844→  1844→  .hero-section {
+  1845→  1845→    grid-template-columns: 1fr;
+  1846→  1846→    grid-template-rows: auto auto;
+  1847→  1847→    margin-top: -40px;
+  1848→  1848→    text-align: center;
+  1849→  1849→  }
+  1850→  1850→  .poster-wrapper { width: 180px; margin: 0 auto; }
+  1851→  1851→  .title-meta-container { padding-top: 0; }
+  1852→  1852→  .show-title { font-size: 1.5rem; }
+  1853→  1853→  .action-buttons { justify-content: center; }
+  1854→  1854→  .btn { padding: 9px 16px; font-size: 0.85rem; }
+  1855→  1855→  
+  1856→  1856→  .metadata-row { justify-content: center; }
+  1857→  1857→  
+  1858→  1858→  .stats-container {
+  1859→  1859→    grid-template-columns: repeat(4, 1fr);
+  1860→  1860→    padding: 12px;
+  1861→  1861→  }
+  1862→  1862→  .stat-column { padding: 4px; }
+  1863→  1863→  .stat-value { font-size: 1rem; }
+  1864→  1864→  .stat-column:last-child { grid-column: span 1; }
+  1865→  1865→  
+  1866→  1866→  .details-grid {
+  1867→  1867→    grid-template-columns: 1fr;
+  1868→  1868→    gap: 10px 16px;
+  1869→  1869→  }
+  1870→  1870→  .detail-item {
+  1871→  1871→    justify-content: flex-start;
+  1872→  1872→    flex-direction: row;
+  1873→  1873→    flex-wrap: wrap;
+  1874→  1874→  }
+  1875→  1875→  .detail-label {
+  1876→  1876→    min-width: auto;
+  1877→  1877→    flex: 0 0 100px;
+  1878→  1878→  }
+  1879→  1879→  .detail-value {
+  1880→  1880→    text-align: left;
+  1881→  1881→    flex: 1;
+  1882→  1882→    min-width: 0;
+  1883→  1883→  }
+  1884→  1884→  
+  1885→  1885→  .seasons-grid { grid-template-columns: 1fr; }
+  1886→  1886→  
+  1887→  1887→  .tabs-container {
+  1888→  1888→    flex-wrap: wrap;
+  1889→  1889→    gap: 2px;
+  1890→  1890→    overflow-x: auto;
+  1891→  1891→    justify-content: flex-start;
+  1892→  1892→    padding: 4px 8px;
+  1893→  1893→  }
+  1894→  1894→  .tab-btn { padding: 8px 12px; font-size: 0.8rem; }
+  1895→  1895→  .tab-indicator { display: none; }
+  1896→  1896→  .tab-btn.active { background: var(--btn-primary); color: #fff; }
+  1897→  1897→  
+  1898→  1898→  .dropdown-menu {
+  1899→  1899→    left: 50%;
+  1900→  1900→    transform: translateX(-50%);
+  1901→  1901→    width: calc(100vw - 32px);
+  1902→  1902→    max-width: 300px;
+  1903→  1903→  }
+  1904→  1904→  
+  1905→  1905→  .cast-scroll-container { padding: 5px 0 15px 0; }
+  1906→  1906→  .cast-card { width: 120px; padding: 12px 8px; }
+  1907→  1907→  .cast-card-img { width: 70px; height: 70px; }
+  1908→  1908→  .cast-card-name { font-size: 0.85rem; }
+  1909→  1909→  .cast-card-role { font-size: 0.7rem; }
+  1910→  1910→  
+  1911→  1911→  .cast-item {
+  1912→  1912→    grid-template-columns: 48px 1fr 48px;
+  1913→  1913→    gap: 10px;
+  1914→  1914→    padding: 10px;
+  1915→  1915→  }
+  1916→  1916→  .cast-avatar, .actor-avatar { width: 48px; height: 48px; }
+  1917→  1917→  
+  1918→  1918→  .artwork-grid { grid-template-columns: 1fr; }
+  1919→  1919→  
+  1920→  1920→  .sidebar-combined {
+  1921→  1921→    grid-template-columns: 1fr;
+  1922→  1922→  }
+  1923→  1923→}
+  1924→  1924→
+  1925→  1925→@media (max-width: 480px) {
+  1926→  1926→  :root { --gutter: 12px; --content-padding: 12px; }
+  1927→  1927→  .breadcrumbs ol { gap: 2px; }
+  1928→  1928→  
+  1929→  1929→  .backdrop-container { aspect-ratio: 16/4; }
+  1930→  1930→  .poster-wrapper { width: 140px; }
+  1931→  1931→  .show-title { font-size: 1.3rem; }
+  1932→  1932→
+  1933→  1933→  /* Action Buttons Layout */
+  1934→  1934→  .action-buttons {
+  1935→  1935→    display: flex;
+  1936→  1936→    flex-direction: row;
+  1937→  1937→    flex-wrap: wrap;
+  1938→  1938→    justify-content: center;
+  1939→  1939→    gap: 10px;
+  1940→  1940→  }
+  1941→  1941→  .action-buttons > .btn-primary {
+  1942→  1942→    flex: 1 1 calc(50% - 5px);
+  1943→  1943→    width: 100%;
+  1944→  1944→    justify-content: center;
+  1945→  1945→    border-radius: 50px;
+  1946→  1946→  }
+  1947→  1947→  .action-buttons > .dropdown-container {
+  1948→  1948→    flex: 1 1 calc(50% - 5px);
+  1949→  1949→    min-width: 0;
+  1950→  1950→  }
+  1951→  1951→  .action-buttons > .dropdown-container .btn {
+  1952→  1952→    width: 100%;
+  1953→  1953→    justify-content: center;
+  1954→  1954→    border-radius: 50px;
+  1955→  1955→  }
+  1956→  1956→  .action-buttons > .btn-icon-only {
+  1957→  1957→    flex: 0 0 100%;
+  1958→  1958→    width: 100%;
+  1959→  1959→    height: 44px;
+  1960→  1960→    border-radius: 50px;
+  1961→  1961→    justify-content: center;
+  1962→  1962→  }
+  1963→  1963→
+  1964→  1964→  .stats-container { grid-template-columns: repeat(3, 1fr); }
+  1965→  1965→  .stat-col-duration { display: none; }
+  1966→  1966→  .details-grid { grid-template-columns: 1fr; }
+  1967→  1967→  .metric-cards { grid-template-columns: 1fr; }
+  1968→  1968→  .alert-content {
+  1969→  1969→    max-width: calc(100vw - 40px);
+  1970→  1970→    flex-wrap: wrap;
+  1971→  1971→    text-align: center;
+  1972→  1972→    justify-content: center;
+  1973→  1973→  }
+  1974→  1974→  .alert-content p { margin: 0; }
+  1975→  1975→  .alert-close { margin: 0; }
+  1976→  1976→  .sidebar-section { padding: 12px; }
+  1977→  1977→  
+  1978→  1978→  .recs-grid { grid-template-columns: repeat(2, 1fr); }
+  1979→  1979→  
+  1980→  1980→  .pagination-nav {
+  1981→  1981→    gap: 4px;
+  1982→  1982→  }
+  1983→  1983→  .pagination-nav .btn-soft {
+  1984→  1984→    min-width: 40px;
+  1985→  1985→    height: 32px;
+  1986→  1986→    padding: 0;
+  1987→  1987→    font-size: 0.75rem;
+  1988→  1988→  }
+  1989→  1989→}
+  1990→  1990→
+  1991→  1991→/* Landscape mobile */
+  1992→  1992→@media (max-height: 500px) and (orientation: landscape) {
+  1993→  1993→  .backdrop-container { display: none; }
+  1994→  1994→  .hero-section { margin-top: 0; }
+  1995→  1995→  .poster-wrapper { width: 100px; }
+  1996→  1996→  .show-title { font-size: 1.2rem; -webkit-line-clamp: 1; }
+  1997→  1997→  .metadata-row { font-size: 0.8rem; }
+  1998→  1998→  .action-buttons { gap: 8px; }
+  1999→  1999→  .btn { padding: 8px 14px; font-size: 0.8rem; }
+  2000→  2000→}
+
+[showing lines 1-2000 of 2002; use offset=2001 with limit to continue reading]
