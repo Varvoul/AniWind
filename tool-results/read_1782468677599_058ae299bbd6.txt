@@ -1,0 +1,2002 @@
+     1→// shared.js – Complete header, footer, search, and authentication system
+     2→(function () {
+     3→  'use strict';
+     4→
+     5→  /* ═══════════════════════════════════════════════════════════
+     6→     CONSTANTS
+     7→  ═══════════════════════════════════════════════════════════ */
+     8→  const SUPABASE_URL      = 'https://uhjucwqiadymmogmwkxc.supabase.co';
+     9→  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVoanVjd3FpYWR5bW1vZ213a3hjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1MTY0NDcsImV4cCI6MjA5NzA5MjQ0N30.nJZQftmkbu0Ix-4lgtfzJcm_qIkI32e3SykF49XPrlg';
+    10→  const supabase          = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    11→  const CF_WORKER_URL     = 'https://aniocen.bionmovies47.workers.dev';
+    12→  const PROFILE_BUCKET_URL= `${SUPABASE_URL}/storage/v1/object/public/Aniumi/`;
+    13→  // NOTE: Frieren.jpeg lives inside the `profile_ava/` folder of the Aniumi bucket,
+    14→  // not at the bucket root.  Verified publicly accessible (HTTP 200, 80KB JPEG).
+    15→  const DEFAULT_AVATAR    = 'https://uhjucwqiadymmogmwkxc.supabase.co/storage/v1/object/public/Aniumi/profile_ava/Frieren.jpeg';
+    16→  const HCAPTCHA_SITEKEY  = '2dd853ec-9482-4bf6-b2e6-f5f478d0bf86';
+    17→  const SESSION_MAX_AGE   = 30 * 24 * 60 * 60 * 1000; // 1 month in ms
+    18→  // Dedicated permanent bucket for user-uploaded & Google-downloaded avatars.
+    19→  // Public bucket, no lifecycle policy → URLs NEVER expire.
+    20→  const AVATAR_BUCKET     = 'AniumiAvatars';
+    21→  const AVATAR_BUCKET_URL = `${SUPABASE_URL}/storage/v1/object/public/${AVATAR_BUCKET}/`;
+    22→
+    23→  // Landscape images for the MOBILE auth modal carousel (crossfade every 3s).
+    24→  // Desktop keeps its static left-column image — these are mobile-only.
+    25→  const AUTH_CAROUSEL_IMAGES = [
+    26→    'https://i.postimg.cc/KjK0mCTK/9cde8b5c-129b-4019-8bb0-65c91b52191a.jpg',
+    27→    'https://i.postimg.cc/9MNCs2mn/c6a0dae09f9141a402966858be6768ae.jpg',
+    28→    'https://i.postimg.cc/h46KrK3c/0f71ce1f0c0dfb357586848e2000be96.jpg',
+    29→    'https://i.postimg.cc/7ZyDFm4f/12fc1dce99f4f6f2a345fcea1a2b2a27.jpg',
+    30→    'https://i.postimg.cc/JhpLB8Bv/d28e7da6684d2f604733f1b8f25e83af.jpg',
+    31→    'https://i.postimg.cc/nrjpJWMM/9a0d0fda049ebcc44e5cb64b38c5a2f7.jpg'
+    32→  ];
+    33→
+    34→  let searchDebounceTimer = null;
+    35→  let currentSearchMode   = 'non-anime';
+    36→  let currentUser         = null;
+    37→  let hcaptchaToken       = '';
+    38→  let cachedGeo           = null;   // { ip, country, country_code, state, city, timezone }
+    39→
+    40→  /* ═══════════════════════════════════════════════════════════
+    41→     GEO / IP CAPTURE  — used by both signup & login
+    42→     Caches the result so we don't hit the free API multiple times.
+    43→  ═══════════════════════════════════════════════════════════ */
+    44→  async function getUserGeo() {
+    45→    if (cachedGeo) return cachedGeo;
+    46→    // Browser local timezone (always available, no API needed)
+    47→    const localTz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+    48→    // Compute UTC offset string e.g. "UTC+6" or "UTC-5"
+    49→    const offsetMin  = -new Date().getTimezoneOffset();
+    50→    const offsetSign = offsetMin >= 0 ? '+' : '-';
+    51→    const offsetHrs  = Math.floor(Math.abs(offsetMin) / 60);
+    52→    const offsetMins = Math.abs(offsetMin) % 60;
+    53→    const utcOffset  = 'UTC' + offsetSign + offsetHrs + (offsetMins ? ':' + String(offsetMins).padStart(2,'0') : '');
+    54→    const fallback = {
+    55→      ip: null, country: null, country_code: null,
+    56→      state: null, city: null,
+    57→      local_timezone: localTz, utc_offset: utcOffset, timezone: localTz
+    58→    };
+    59→    try {
+    60→      // ipapi.co via Cloudflare Worker proxy — no CORS issues
+    61→      const res = await fetch('https://ipapi-proxy.bionmovies47.workers.dev/json/', { cache: 'no-store' });
+    62→      if (res.ok) {
+    63→        const j = await res.json();
+    64→        if (j.success !== false && !j.error) {
+    65→          cachedGeo = {
+    66→            ip:             j.ip || null,
+    67→            country:        j.country_name || null,
+    68→            country_code:   j.country_code || null,
+    69→            state:          j.region || null,
+    70→            city:           j.city || null,
+    71→            local_timezone: localTz,
+    72→            utc_offset:     utcOffset,
+    73→            timezone:       localTz   // kept for backward compat
+    74→          };
+    75→          return cachedGeo;
+    76→        }
+    77→      }
+    78→    } catch (e) { /* network error — fall through */ }
+    79→    try {
+    80→      const r2 = await fetch('https://api.ipify.org?format=json', { cache: 'no-store' });
+    81→      if (r2.ok) {
+    82→        const j2 = await r2.json();
+    83→        cachedGeo = { ...fallback, ip: j2.ip || null };
+    84→        return cachedGeo;
+    85→      }
+    86→    } catch (e) { /* give up gracefully */ }
+    87→    cachedGeo = fallback;
+    88→    return cachedGeo;
+    89→  }
+    90→
+    91→  window.onHcaptchaSuccess = (t) => { hcaptchaToken = t; };
+    92→  window.onHcaptchaExpired = ()  => { hcaptchaToken = ''; };
+    93→  window.onHcaptchaError   = ()  => { hcaptchaToken = ''; };
+    94→
+    95→  /* ═══════════════════════════════════════════════════════════
+    96→     SVG ICONS
+    97→  ═══════════════════════════════════════════════════════════ */
+    98→  const SVG = {
+    99→    discord:  `<svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M20.317 4.492c-1.53-.69-3.17-1.2-4.885-1.49a.075.075 0 0 0-.079.036c-.21.369-.444.85-.608 1.23a18.566 18.566 0 0 0-5.487 0 12.36 12.36 0 0 0-.617-1.23A.077.077 0 0 0 8.562 3c-1.714.29-3.354.8-4.885 1.491a.07.07 0 0 0-.032.027C.533 9.093-.32 13.555.099 17.961a.08.08 0 0 0 .031.055 20.03 20.03 0 0 0 5.993 2.98.078.078 0 0 0 .084-.026c.462-.62.874-1.275 1.226-1.963a.075.075 0 0 0-.041-.104 13.2 13.2 0 0 1-1.872-.878.075.075 0 0 1-.008-.125c.126-.093.252-.19.372-.287a.075.075 0 0 1 .078-.01c3.927 1.764 8.18 1.764 12.061 0a.075.075 0 0 1 .079.009c.12.098.245.195.372.288a.075.075 0 0 1-.006.125c-.598.344-1.22.635-1.873.877a.075.075 0 0 0-.041.105c.36.687.772 1.341 1.225 1.962a.077.077 0 0 0 .084.028 19.963 19.963 0 0 0 6.002-2.981.076.076 0 0 0 .032-.054c.5-5.094-.838-9.52-3.549-13.442a.06.06 0 0 0-.031-.028zM8.02 15.278c-1.182 0-2.157-1.069-2.157-2.38 0-1.312.956-2.38 2.157-2.38 1.21 0 2.176 1.077 2.157 2.38 0 1.312-.956 2.38-2.157 2.38zm7.975 0c-1.183 0-2.157-1.069-2.157-2.38 0-1.312.955-2.38 2.157-2.38 1.21 0 2.176 1.077 2.157 2.38 0 1.312-.946 2.38-2.157 2.38z"/></svg>`,
+   100→    tumblr:   `<svg viewBox="0 0 512 512" fill="currentColor" width="18" height="18"><path d="M412.904,405.777c0.123-0.088,0.225-0.213,0.324-0.313v0.313v89.785c-17.043,9.107-31.264,15.932-105.418,15.932c-10.729,0-20.66-0.074-31.713,0c-48.542,0.324-119.016-13.697-119.016-92.305v-185.1v-22.767h-58.31v-84.222H109.5c17.278,0,33.491-6.362,47.582-17.44c8.745-6.862,16.623-15.606,23.447-25.774c14.858-22.157,24.502-51.187,26.254-83.386h69.527v126.601h121.422v62.453v21.769H276.311v84.658v107.514c0,10.779,36.314,26.859,62.775,26.859S391.496,419.414,412.904,405.777z"/></svg>`,
+   101→    bluesky:  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512" fill="currentColor" width="18" height="18"><path d="M407.8 294.7c-3.3-.4-6.7-.8-10-1.3 3.4 .4 6.7 .9 10 1.3zM288 227.1C261.9 176.4 190.9 81.9 124.9 35.3 61.6-9.4 37.5-1.7 21.6 5.5 3.3 13.8 0 41.9 0 58.4S9.1 194 15 213.9c19.5 65.7 89.1 87.9 153.2 80.7 3.3-.5 6.6-.9 10-1.4-3.3 .5-6.6 1-10 1.4-93.9 14-177.3 48.2-67.9 169.9 120.3 124.6 164.8-26.7 187.7-103.4 22.9 76.7 49.2 222.5 185.6 103.4 102.4-103.4 28.1-156-65.8-169.9-3.3-.4-6.7-.8-10-1.3 3.4 .4 6.7 .9 10 1.3 64.1 7.1 133.6-15.1 153.2-80.7 5.9-19.9 15-138.9 15-155.5s-3.3-44.7-21.6-52.9c-15.8-7.1-40-14.9-103.2 29.8-66.1 46.6-137.1 141.1-163.2 191.8z"/></svg>',
+   102→    search:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>`,
+   103→    user:     `<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path opacity="0.4" d="M12 22.01C17.52 22.01 22 17.53 22 12.01C22 6.49 17.52 2.01 12 2.01C6.48 2.01 2 6.49 2 12.01C2 17.53 6.48 22.01 12 22.01Z" fill="currentColor"/><path d="M12 6.94C9.93 6.94 8.25 8.62 8.25 10.69C8.25 12.72 9.84 14.37 11.95 14.43C12.02 14.43 12.09 14.43 12.13 14.43C14.15 14.36 15.74 12.72 15.75 10.69C15.75 8.62 14.07 6.94 12 6.94Z" fill="currentColor"/><path d="M18.78 19.36C17 21 14.62 22.01 12 22.01C9.38 22.01 7 21 5.22 19.36C5.46 18.45 6.11 17.62 7.06 16.98C9.79 15.16 14.23 15.16 16.94 16.98C17.9 17.62 18.54 18.45 18.78 19.36Z" fill="currentColor"/></svg>`,
+   104→    close:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18"><path d="M18 6 6 18M6 6l12 12"/></svg>`,
+   105→    eye:      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`,
+   106→    eyeOff:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`,
+   107→    google:   `<svg width="18" height="18" viewBox="-0.5 0 48 48" xmlns="http://www.w3.org/2000/svg"><path d="M9.827,24C9.827,22.476 10.08,21.014 10.532,19.644L2.624,13.604C1.082,16.734 0.214,20.26 0.214,24C0.214,27.736 1.081,31.261 2.62,34.388L10.525,28.337C10.077,26.973 9.827,25.517 9.827,24" fill="#FBBC05"/><path d="M23.714,10.133C27.025,10.133 30.016,11.307 32.366,13.227L39.202,6.4C35.036,2.773 29.695,0.533 23.714,0.533C14.427,0.533 6.445,5.844 2.624,13.604L10.532,19.644C12.355,14.112 17.549,10.133 23.714,10.133" fill="#EB4335"/><path d="M23.714,37.867C17.549,37.867 12.355,33.888 10.532,28.356L2.624,34.395C6.445,42.156 14.427,47.467 23.714,47.467C29.417,47.467 34.918,45.431 39.025,41.618L31.518,35.814C29.4,37.149 26.732,37.867 23.714,37.867" fill="#34A853"/><path d="M46.145,24C46.145,22.613 45.932,21.12 45.611,19.733L23.714,19.733L23.714,28.8L36.318,28.8C35.688,31.891 33.972,34.268 31.518,35.814L39.025,41.618C43.339,37.614 46.145,31.649 46.145,24" fill="#4285F4"/></svg>`,
+   108→    logout:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>`,
+   109→    profile:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`,
+   110→    film:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="2" y="2" width="20" height="20" rx="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/><line x1="17" y1="17" x2="22" y2="17"/></svg>`,
+   111→    list:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>`,
+   112→    bar:      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>`,
+   113→    settings: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`,
+   114→    upload:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>`,
+   115→    arrow:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="m9 18 6-6-6-6"/></svg>`,
+   116→    star:     `<svg viewBox="0 0 24 24" fill="currentColor" width="10" height="10"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`
+   117→  };
+   118→
+   119→  /* ═══════════════════════════════════════════════════════════
+   120→     CSS
+   121→  ═══════════════════════════════════════════════════════════ */
+   122→  const css = `
+   123→    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+   124→    a{text-decoration:none;color:inherit;}
+   125→    button{cursor:pointer;font-family:inherit;}
+   126→
+   127→    /* ── HEADER ── */
+   128→    .site-header{
+   129→      background:var(--bg-header,#0d1117);
+   130→      padding:0 20px;display:flex;align-items:center;gap:10px;
+   131→      border-bottom:1px solid var(--border-subtle,rgba(255,255,255,0.08));
+   132→      position:sticky;top:0;z-index:200;height:64px;flex-wrap:nowrap;
+   133→    }
+   134→
+   135→    /* ── LOGO ── */
+   136→    .header-logo{flex-shrink:0;display:flex;align-items:center;}
+   137→    .header-logo img{width:clamp(98px,13vw,212px);height:auto;object-fit:contain;max-height:63px;}
+   138→
+   139→    /* ── DESKTOP NAV (hover-only) ── */
+   140→    .main-nav{display:flex;align-items:center;gap:2px;flex-shrink:0;}
+   141→    .nav-link-item{
+   142→      padding:7px 10px;font-size:0.78rem;font-weight:500;
+   143→      color:var(--text-secondary,#ccc);border-radius:6px;
+   144→      transition:background .18s,color .18s;white-space:nowrap;display:block;
+   145→    }
+   146→    .nav-link-item:hover,.nav-link-item:focus{background:rgba(255,255,255,0.08);color:#fff;}
+   147→    .nav-dd-wrap{position:relative;}
+   148→    .nav-dd-label{
+   149→      padding:7px 10px;font-size:0.78rem;color:var(--text-secondary,#ccc);
+   150→      border-radius:6px;transition:background .18s,color .18s;
+   151→      white-space:nowrap;user-select:none;cursor:default;display:flex;align-items:center;gap:3px;
+   152→    }
+   153→    .nav-dd-wrap:hover .nav-dd-label,.nav-dd-wrap:focus-within .nav-dd-label{background:rgba(255,255,255,0.08);color:#fff;}
+   154→    /* Desktop dropdown: ONLY shown on hover of parent wrapper */
+   155→    .nav-dropdown{
+   156→      display:none;position:absolute;top:calc(100% + 4px);left:0;
+   157→      background:var(--bg-body,#13191f);
+   158→      border:1px solid var(--border-medium,rgba(255,255,255,0.12));
+   159→      border-radius:14px;padding:14px;z-index:300;
+   160→      box-shadow:0 16px 48px rgba(0,0,0,.6);
+   161→      pointer-events:none;
+   162→    }
+   163→    .nav-dd-wrap:hover .nav-dropdown{display:grid;pointer-events:auto;}
+   164→    .nav-dropdown.grid-4{min-width:560px;grid-template-columns:repeat(4,1fr);gap:2px;}
+   165→    .nav-dropdown.grid-1{min-width:160px;grid-template-columns:1fr;}
+   166→    .nav-dropdown a{
+   167→      display:block;padding:6px 10px;font-size:0.74rem;
+   168→      color:var(--text-secondary,#aaa);border-radius:7px;
+   169→      transition:background .15s,color .15s;
+   170→    }
+   171→    .nav-dropdown a:hover{background:rgba(255,255,255,0.08);color:#fff;}
+   172→
+   173→    /* ── SEARCH ── */
+   174→    .header-search-wrap{flex:1;max-width:330px;position:relative;min-width:0;}
+   175→    .header-search-bar{
+   176→      display:flex;align-items:center;
+   177→      background:var(--bg-surface,rgba(255,255,255,0.05));
+   178→      border-radius:50px;overflow:hidden;
+   179→      transition:box-shadow .2s;
+   180→    }
+   181→    .header-search-bar:focus-within{box-shadow:0 0 0 2px var(--btn-primary,#3b82f6);}
+   182→    .search-toggle-tabs{display:flex;padding:4px;gap:2px;flex-shrink:0;}
+   183→    .search-toggle-tab{
+   184→      padding:4px 9px;font-size:0.6rem;font-weight:700;border-radius:50px;
+   185→      cursor:pointer;color:var(--text-muted,#888);white-space:nowrap;
+   186→      letter-spacing:.03em;transition:background .18s,color .18s;user-select:none;
+   187→    }
+   188→    .search-toggle-tab.active{background:var(--btn-primary,#3b82f6);color:#fff;}
+   189→    .search-input-field{
+   190→      flex:1;padding:9px 6px 9px 2px;background:transparent;
+   191→      border:none;outline:none;color:#fff;font-size:0.78rem;min-width:0;
+   192→    }
+   193→    .search-input-field::placeholder{color:var(--text-muted,#666);}
+   194→
+   195→    /* ── SUGGESTIONS ── */
+   196→    .search-suggestions{
+   197→      display:none;position:absolute;top:calc(100% + 8px);left:0;right:0;
+   198→      background:var(--bg-body,#13191f);
+   199→      border:1px solid var(--border-medium,rgba(255,255,255,0.1));
+   200→      border-radius:14px;max-height:430px;
+   201→      overflow-y:auto;overflow-x:hidden;
+   202→      z-index:350;box-shadow:0 20px 60px rgba(0,0,0,.7);
+   203→      scrollbar-width:none;
+   204→    }
+   205→    .search-suggestions::-webkit-scrollbar{display:none;}
+   206→    .suggestion-item{
+   207→      display:flex;align-items:center;gap:10px;padding:8px 12px;
+   208→      cursor:pointer;transition:background .15s;
+   209→      border-bottom:1px solid rgba(255,255,255,0.04);
+   210→    }
+   211→    .suggestion-item:last-of-type{border-bottom:none;}
+   212→    .suggestion-item:hover{background:rgba(255,255,255,0.06);}
+   213→    .suggestion-poster{
+   214→      width:38px;height:54px;border-radius:5px;
+   215→      object-fit:cover;flex-shrink:0;background:var(--bg-surface,#1e2633);
+   216→    }
+   217→    .suggestion-info{flex:1;min-width:0;}
+   218→    .sug-title{font-size:10px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+   219→    .sug-orig{font-size:9px;color:var(--text-muted,#888);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;}
+   220→    .sug-meta{font-size:8.5px;color:var(--text-muted,#666);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+   221→    .sug-score{display:inline-flex;align-items:center;gap:2px;color:#f59e0b;}
+   222→    .view-all-btn{
+   223→      display:flex;align-items:center;justify-content:center;gap:5px;
+   224→      padding:9px 0;margin:4px 12px 8px;
+   225→      border:1.5px solid var(--btn-primary,#3b82f6);border-radius:50px;
+   226→      color:var(--btn-primary,#3b82f6);font-size:0.72rem;font-weight:600;
+   227→      cursor:pointer;background:transparent;width:calc(100% - 24px);
+   228→      transition:background .18s,color .18s;
+   229→    }
+   230→    .view-all-btn:hover{background:var(--btn-primary,#3b82f6);color:#fff;}
+   231→
+   232→    /* ── SOCIALS ── */
+   233→    .header-socials{display:flex;gap:4px;flex-shrink:0;}
+   234→    .social-icon-btn{
+   235→      width:32px;height:32px;border-radius:50%;display:flex;
+   236→      align-items:center;justify-content:center;
+   237→      color:var(--text-muted,#aaa);background:transparent;
+   238→      border:none;transition:background .18s,color .18s;flex-shrink:0;
+   239→    }
+   240→    .social-icon-btn:hover{background:rgba(255,255,255,0.1);color:#fff;}
+   241→
+   242→    /* ── LOGIN BTN ── */
+   243→    .btn-login{
+   244→      padding:7px 18px;background:transparent;color:var(--text-secondary,#ccc);
+   245→      border-radius:50px;font-weight:600;font-size:0.75rem;
+   246→      border:none;white-space:nowrap;transition:color .18s;flex-shrink:0;
+   247→    }
+   248→    .btn-login:hover{color:#fff;}
+   249→
+   250→    /* ── AVATAR & DROPDOWN – right edge only ── */
+   251→    .user-avatar-wrap{position:relative;flex-shrink:0;}
+   252→    .user-avatar{
+   253→      width:34px;height:34px;border-radius:50%;object-fit:cover;
+   254→      cursor:pointer;border:2px solid var(--btn-primary,#3b82f6);display:none;
+   255→    }
+   256→    .profile-dropdown{
+   257→      display:none;position:absolute;top:calc(100% + 10px);right:0;
+   258→      background:var(--bg-body,#13191f);
+   259→      border:1px solid var(--border-medium,rgba(255,255,255,0.1));
+   260→      border-radius:14px;min-width:210px;padding:8px;
+   261→      z-index:350;box-shadow:0 16px 40px rgba(0,0,0,.6);
+   262→      /* Smooth fade-out when closing — no more abrupt disappearance. */
+   263→      opacity:0;transform:translateY(-4px);
+   264→      transition:opacity .15s ease-out,transform .15s ease-out;
+   265→    }
+   266→    .profile-dropdown.open{display:block;opacity:1;transform:translateY(0);}
+   267→    .profile-dd-header{
+   268→      display:flex;align-items:center;gap:10px;
+   269→      padding:10px 10px 12px;
+   270→      border-bottom:1px solid rgba(255,255,255,0.07);margin-bottom:6px;
+   271→    }
+   272→    .profile-dd-header img{width:38px;height:38px;border-radius:50%;object-fit:cover;}
+   273→    .profile-dd-uname{font-size:0.82rem;font-weight:700;color:#fff;}
+   274→    .dd-sign-out{
+   275→      background:none;border:none;color:var(--text-muted,#888);
+   276→      display:flex;align-items:center;gap:4px;font-size:0.7rem;
+   277→      cursor:pointer;padding:4px 0;margin-top:3px;transition:color .15s;
+   278→    }
+   279→    .dd-sign-out:hover{color:#ef4444;}
+   280→    /* Sign-out button goes RED the instant the user clicks it, then
+   281→       fades back.  This gives immediate visual feedback while the
+   282→       async signOut() network call is in flight. */
+   283→    .dd-sign-out:active{color:#ef4444;transform:scale(.97);}
+   284→    .dd-sign-out.signing-out{color:#ef4444;pointer-events:none;opacity:.7;}
+   285→    .profile-dd-item{
+   286→      display:flex;align-items:center;gap:8px;padding:8px 10px;
+   287→      border-radius:8px;font-size:0.76rem;color:var(--text-secondary,#ccc);
+   288→      transition:background .15s,color .15s;
+   289→    }
+   290→    .profile-dd-item:hover{background:rgba(255,255,255,0.07);color:#fff;}
+   291→
+   292→    /* ── HAMBURGER ── */
+   293→    .hamburger-btn{
+   294→      display:none;flex-direction:column;justify-content:center;
+   295→      align-items:center;gap:5px;width:38px;height:38px;
+   296→      border:none;background:none;cursor:pointer;flex-shrink:0;padding:0;
+   297→    }
+   298→    .hamburger-btn span{
+   299→      display:block;width:22px;height:2px;background:#fff;
+   300→      border-radius:2px;transition:transform .3s,opacity .3s;
+   301→    }
+   302→    .hamburger-btn.open span:nth-child(1){transform:translateY(7px) rotate(45deg);}
+   303→    .hamburger-btn.open span:nth-child(2){opacity:0;}
+   304→    .hamburger-btn.open span:nth-child(3){transform:translateY(-7px) rotate(-45deg);}
+   305→
+   306→    /* ── MOBILE NAV PANEL ── */
+   307→    .mobile-nav-overlay{
+   308→      display:none;position:fixed;inset:0;
+   309→      background:rgba(0,0,0,.6);z-index:400;
+   310→    }
+   311→    .mobile-nav-overlay.open{display:block;}
+   312→    .mobile-nav-panel{
+   313→      position:fixed;top:0;left:0;bottom:0;
+   314→      width:min(300px,80vw);
+   315→      background:var(--bg-header,#0d1117);
+   316→      border-right:1px solid var(--border-subtle,rgba(255,255,255,0.08));
+   317→      z-index:401;padding:16px;overflow-y:auto;
+   318→      transform:translateX(-100%);transition:transform .3s cubic-bezier(.4,0,.2,1);
+   319→      scrollbar-width:none;
+   320→    }
+   321→    .mobile-nav-panel::-webkit-scrollbar{display:none;}
+   322→    .mobile-nav-panel.open{transform:translateX(0);}
+   323→    .mob-nav-close-row{display:flex;justify-content:flex-end;margin-bottom:14px;}
+   324→    .mob-nav-close-btn{
+   325→      width:30px;height:30px;border-radius:50%;border:none;
+   326→      background:rgba(255,255,255,0.06);color:#fff;
+   327→      display:flex;align-items:center;justify-content:center;
+   328→    }
+   329→    .mob-forum-item{
+   330→  display:flex;
+   331→  align-items:center;
+   332→  justify-content:center;
+   333→  gap:8px;
+   334→  padding:12px 14px;
+   335→  margin-bottom:12px;
+   336→  border-radius:14px;
+   337→  border:1px solid rgba(255,255,255,0.18);
+   338→  background:rgba(255,255,255,0.08);
+   339→  backdrop-filter:blur(12px);
+   340→  -webkit-backdrop-filter:blur(12px);
+   341→  font-size:0.84rem;
+   342→  font-weight:600;
+   343→  color:#fff;
+   344→  transition:background .18s, border-color .18s;
+   345→  text-align:center;
+   346→}
+   347→.mob-forum-item:hover{
+   348→  background:rgba(255,255,255,0.15);
+   349→  border-color:rgba(255,255,255,0.3);
+   350→}   
+   351→    .mob-nav-item{
+   352→      display:block;padding:9px 10px;font-size:0.82rem;
+   353→      color:var(--text-secondary,#ccc);border-radius:8px;
+   354→      transition:background .15s,color .15s;
+   355→    }
+   356→    .mob-nav-item:hover{background:rgba(255,255,255,0.07);color:#fff;}
+   357→    /* Mobile sub-triggers (click to open) */
+   358→    .mob-sub-trigger{
+   359→      display:flex;align-items:center;justify-content:space-between;
+   360→      padding:9px 10px;font-size:0.82rem;color:var(--text-secondary,#ccc);
+   361→      border-radius:8px;cursor:pointer;
+   362→      transition:background .15s,color .15s;user-select:none;
+   363→    }
+   364→    .mob-sub-trigger:hover{background:rgba(255,255,255,0.07);color:#fff;}
+   365→    .mob-sub-arr{transition:transform .25s;font-size:.7rem;flex-shrink:0;}
+   366→    .mob-sub-trigger.open .mob-sub-arr{transform:rotate(90deg);}
+   367→    .mob-sub-menu{
+   368→      display:none;padding:4px 0 4px 10px;
+   369→      grid-template-columns:1fr 1fr;gap:1px;
+   370→    }
+   371→    .mob-sub-menu.show{display:grid;}
+   372→    .mob-sub-menu.single{grid-template-columns:1fr;}
+   373→    .mob-sub-menu a{
+   374→      display:block;padding:6px 8px;font-size:0.74rem;
+   375→      color:var(--text-muted,#888);border-radius:6px;
+   376→      transition:background .15s,color .15s;
+   377→    }
+   378→    .mob-sub-menu a:hover{background:rgba(255,255,255,0.07);color:#fff;}
+   379→
+   380→    /* ── MOBILE RIGHT CONTROLS ── */
+   381→    .mobile-right{display:none;align-items:center;gap:4px;margin-left:auto;}
+   382→    .mob-icon-btn{
+   383→      width:36px;height:36px;border-radius:50%;border:none;
+   384→      background:none;color:var(--text-secondary,#ccc);
+   385→      display:flex;align-items:center;justify-content:center;
+   386→      position:relative;cursor:pointer;flex-shrink:0;
+   387→    }
+   388→    .mob-icon-btn:hover{background:rgba(255,255,255,0.08);color:#fff;}
+   389→
+   390→    /* ── MOBILE SEARCH PANEL ── */
+   391→    .mob-search-panel{
+   392→      display:none;position:fixed;
+   393→      top:64px;left:0;right:0;
+   394→      background:var(--bg-body,#13191f);
+   395→      border-bottom:1px solid var(--border-medium,rgba(255,255,255,0.1));
+   396→      padding:12px 16px;z-index:300;
+   397→      box-shadow:0 10px 30px rgba(0,0,0,.5);
+   398→    }
+   399→    .mob-search-panel.open{display:block;}
+   400→    .mob-search-bar{
+   401→      display:flex;align-items:center;
+   402→      background:var(--bg-surface,rgba(255,255,255,0.06));
+   403→      border-radius:50px;overflow:hidden;margin-bottom:8px;
+   404→    }
+   405→    .mob-search-bar .search-toggle-tabs{padding:3px;}
+   406→    .mob-search-input{
+   407→      flex:1;padding:8px 12px 8px 2px;background:transparent;
+   408→      border:none;outline:none;color:#fff;font-size:0.78rem;
+   409→    }
+   410→    .mob-suggestions{
+   411→      max-height:320px;overflow-y:auto;overflow-x:hidden;
+   412→      scrollbar-width:none;
+   413→    }
+   414→    .mob-suggestions::-webkit-scrollbar{display:none;}
+   415→
+   416→    /* ── AUTH MODAL ── */
+   417→    .auth-overlay{
+   418→      display:none;position:fixed;inset:0;
+   419→      background:rgba(0,0,0,.78);z-index:600;
+   420→      align-items:center;justify-content:center;padding:16px;
+   421→      /* Prevent scroll-chaining: when the user scrolls inside the
+   422→         modal and hits the edge, the scroll event should NOT bubble
+   423→         up to the body / page behind the modal. */
+   424→      overscroll-behavior:contain;
+   425→    }
+   426→    .auth-overlay.open{display:flex;}
+   427→    /* When any auth modal is open, lock the body so the page behind
+   428→       cannot scroll.  JS toggles this class on <body> in openModal /
+   429→       closeModal.  This is what makes "the scrolling should not
+   430→       affect the background/page content" actually true. */
+   431→    body.aniumi-modal-open{
+   432→      overflow:hidden;
+   433→      /* On iOS Safari, overflow:hidden alone does NOT prevent
+   434→         background scroll — position:fixed + a remembered scroll
+   435→         offset does.  JS handles the offset save/restore. */
+   436→      position:fixed;
+   437→      left:0;right:0;top:0;bottom:0;
+   438→    }
+   439→    .auth-modal{
+   440→      background:var(--bg-body,#13191f);
+   441→      border:1px solid var(--border-medium,rgba(255,255,255,0.1));
+   442→      border-radius:18px;
+   443→      width:100%;max-width:840px;
+   444→      max-height:94vh;overflow:hidden;
+   445→      display:flex;position:relative;
+   446→      box-shadow:0 40px 100px rgba(0,0,0,.85);
+   447→    }
+   448→    /* LEFT IMAGE – DESKTOP ONLY (mobile uses carousel instead) */
+   449→    .auth-img-col{
+   450→      flex:0 0 400px;
+   451→      position:relative;overflow:hidden;
+   452→    }
+   453→    .auth-img-col img{
+   454→      width:100%;height:100%;object-fit:cover;display:block;
+   455→    }
+   456→    /* Form column — sticky image stays put, only this column scrolls */
+   457→    .auth-form-col{
+   458→      flex:1;overflow-y:auto;padding:32px 28px;
+   459→      display:flex;flex-direction:column;justify-content:flex-start;min-width:0;
+   460→      position:relative;
+   461→      /* CRITICAL: without min-height:0 a flex child with overflow:auto
+   462→         expands to its content's natural height instead of staying
+   463→         inside the parent's max-height, which makes the bottom of the
+   464→         form (hCaptcha, terms, submit button, switch link) get clipped
+   465→         by the modal's overflow:hidden — and unscrollable.  */
+   466→      min-height:0;
+   467→      scrollbar-width:none;             /* Firefox: hide scrollbar */
+   468→      -ms-overflow-style:none;
+   469→      /* Smooth scrolling: programmatic scrollIntoView animates nicely. */
+   470→      scroll-behavior:smooth;
+   471→      /* iOS < 13 Safari needs this for momentum touch scrolling.  No-op
+   472→         on modern browsers but harmless. */
+   473→      -webkit-overflow-scrolling:touch;
+   474→      /* When the form column is scrolled to its top/bottom limit, do
+   475→         NOT chain the scroll to the body / page behind the modal. */
+   476→      overscroll-behavior:contain;
+   477→      /* Decouple the form column's scroll from the page — wheel events
+   478→         inside this element should not bubble to the document. */
+   479→      touch-action:pan-y;
+   480→    }
+   481→    .auth-form-col::-webkit-scrollbar{display:none;}  /* WebKit: hide scrollbar */
+   482→    /* Vertically center the slides ONLY when content fits.
+   483→       When it overflows, flex-start keeps the top visible & scrollable. */
+   484→    .form-slides-wrapper{margin-top:auto;margin-bottom:auto;}
+   485→    .auth-close-btn{
+   486→      position:absolute;top:12px;right:12px;
+   487→      width:30px;height:30px;border-radius:50%;
+   488→      border:none;background:rgba(255,255,255,0.08);
+   489→      color:#fff;display:flex;align-items:center;
+   490→      justify-content:center;z-index:50;transition:background .18s;
+   491→    }
+   492→    .auth-close-btn:hover{background:rgba(255,255,255,0.15);}
+   493→
+   494→    /* Slides — each slide CLIPS its own content so the inactive slide's
+   495→       hCaptcha widget cannot bleed into the visible slide. */
+   496→    .form-slides-wrapper{overflow:hidden;position:relative;width:100%;}
+   497→    .form-slides{display:flex;transition:transform .42s cubic-bezier(.4,0,.2,1);width:300%;}
+   498→    .form-slide{flex:0 0 33.333%;min-width:0;overflow:hidden;}
+   499→    .form-slide:not(.active){pointer-events:none;}
+   500→
+   501→    /* hCaptcha responsive scaling — smaller on mobile, normal on desktop */
+   502→    .cf-wrap{display:flex;justify-content:center;min-height:0;align-items:center;}
+   503→    .cf-wrap iframe{max-width:100%;transform-origin:center center;border:0;}
+   504→
+   505→    /* Password + Confirm password side-by-side (saves vertical space) */
+   506→    .pwd-pair{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start;}
+   507→    .pwd-pair .field-group{margin-bottom:0;}
+   508→    .pwd-pair .field-group label{font-size:0.62rem;}
+   509→    .pwd-pair .pwd-bar{margin-top:4px;}
+   510→    .pwd-pair .pwd-label{font-size:0.6rem;}
+   511→    .pwd-pair .field-err{font-size:0.6rem;}
+   512→    @media(max-width:480px){
+   513→      .pwd-pair{gap:8px;}
+   514→      .pwd-pair .field-input{padding:9px 10px;font-size:0.76rem;}
+   515→      .pwd-pair .field-input{padding-right:30px !important;}
+   516→      .pwd-pair .eye-btn{right:6px;}
+   517→    }
+   518→
+   519→    /* "← Back to Sign In" link — top of sign-up form, always visible */
+   520→    .auth-back-link{
+   521→      display:inline-flex;align-items:center;gap:4px;
+   522→      font-size:0.7rem;color:var(--text-muted,#888);
+   523→      background:none;border:none;cursor:pointer;padding:4px 0;
+   524→      margin-bottom:10px;font-family:inherit;transition:color .18s;
+   525→    }
+   526→    .auth-back-link:hover{color:var(--btn-primary,#3b82f6);}
+   527→
+   528→    /* "Forgot password?" inline link — sits below the password field, right-aligned */
+   529→    .forgot-inline{
+   530→      display:block;width:100%;text-align:right;
+   531→      font-size:0.68rem;color:var(--btn-primary,#3b82f6);
+   532→      background:none;border:none;cursor:pointer;padding:2px 0 0;
+   533→      font-family:inherit;margin-top:5px;line-height:1;
+   534→      transition:opacity .18s;
+   535→    }
+   536→    .forgot-inline:hover{opacity:.72;}
+   537→
+   538→    /* ─── MOBILE CAROUSEL (hidden on desktop) ─── */
+   539→    .auth-mobile-carousel{
+   540→      display:none;position:relative;width:100%;
+   541→      aspect-ratio:16/9;overflow:hidden;background:#000;flex-shrink:0;
+   542→      transition:aspect-ratio .3s ease;
+   543→    }
+   544→    /* Sign-in has less content → taller carousel looks balanced */
+   545→    /* Sign-in & forgot: taller image — less form content below */
+   546→    .auth-mobile-carousel.carousel-signin{ aspect-ratio:16/6.5; }
+   547→    /* Sign-up: short — avatar + 4 fields need the space */
+   548→    .auth-mobile-carousel.carousel-signup{ aspect-ratio:16/4; }
+   549→    /* Forgot: tallest — only 1 field */
+   550→    .auth-mobile-carousel.carousel-forgot{ aspect-ratio:16/7; }
+   551→    .auth-mobile-carousel .mc-slide{
+   552→      position:absolute;inset:0;background-size:cover;background-position:center;
+   553→      opacity:0;transform:scale(1.06);
+   554→      transition:opacity 1.6s cubic-bezier(.4,0,.2,1),transform 6s ease-out;
+   555→      will-change:opacity,transform;
+   556→    }
+   557→    .auth-mobile-carousel .mc-slide.active{opacity:1;transform:scale(1);}
+   558→    /* Gradient merges image bottom into the form below — no visual seam */
+   559→    .auth-mobile-carousel::after{
+   560→      content:'';position:absolute;left:0;right:0;bottom:0;height:55%;
+   561→      background:linear-gradient(to bottom,transparent 0%,var(--bg-body,#13191f) 95%);
+   562→      pointer-events:none;z-index:2;
+   563→    }
+   564→
+   565→    /* === MOBILE: single column with carousel on top === */
+   566→    @media(max-width:680px){
+   567→      /* Center the modal vertically with breathing room on all sides
+   568→         so it no longer "covers the full display". */
+   569→      .auth-overlay{padding:12px;align-items:center;justify-content:center;}
+   570→      .auth-modal{
+   571→        flex-direction:column;
+   572→        max-width:94vw;             /* was 100% — leaves 3vw margin each side */
+   573→        max-height:90vh;            /* was 96vh — leaves breathing room top/bottom */
+   574→        width:100%;border-radius:16px;
+   575→      }
+   576→      .auth-img-col{display:none;}
+   577→      .auth-mobile-carousel{
+   578→        display:block;flex-shrink:0;
+   579→        /* Carousel slightly taller than 16/5 (was too thin) but still
+   580→           well below the original 16/9.  16/6 ≈ 38vw tall — enough to
+   581→           show the anime character's face clearly without consuming
+   582→           the vertical space the form fields need. */
+   583→        border-top-left-radius:16px;border-top-right-radius:16px;
+   584→      }
+   585→      .auth-mobile-carousel.carousel-signin{ aspect-ratio:16/7.5; }
+   586→      .auth-mobile-carousel.carousel-signup{ aspect-ratio:16/3.5; }
+   587→      .auth-mobile-carousel.carousel-forgot{ aspect-ratio:16/6; }
+   588→      .auth-form-col{
+   589→        padding:10px 16px 12px;flex:1;
+   590→        border-radius:0 0 16px 16px;
+   591→        /* Mobile scroll fix: allow shrinking below content height so
+   592→           overflow-y:auto actually engages. */
+   593→        min-height:0;
+   594→        overflow-y:auto;
+   595→        justify-content:flex-start;
+   596→        /* Smooth + contained scroll on mobile too (mirrors desktop rules). */
+   597→        scroll-behavior:smooth;
+   598→        -webkit-overflow-scrolling:touch;
+   599→        overscroll-behavior:contain;
+   600→        touch-action:pan-y;
+   601→      }
+   602→      /* On mobile, keep the slides at the top so users see the first
+   603→         field immediately rather than the middle of the form. */
+   604→      .form-slides-wrapper{margin-top:0;margin-bottom:0;}
+   605→      .auth-close-btn{top:6px;right:6px;width:26px;height:26px;background:rgba(0,0,0,.55);}
+   606→
+   607→      /* ── COMPACT ELEMENT SPACING (mobile) ──
+   608→         Goal: every element of the SIGN IN slide fits on one screen
+   609→         (heading + 2 fields + forgot link + hCaptcha + Sign In button +
+   610→         divider + Google button + "No account? Sign up" link).
+   611→         For SIGN UP (which has 4 fields + avatar + captcha + terms),
+   612→         the form is still scrollable as a fallback on very small phones. */
+   613→      .auth-heading{font-size:1.05rem;margin-bottom:2px;}
+   614→      .auth-subheading{font-size:0.7rem;margin-bottom:10px;}
+   615→      .field-group{margin-bottom:8px;}
+   616→      .field-group label{font-size:0.62rem;margin-bottom:3px;}
+   617→      .field-input{padding:8px 12px;font-size:0.78rem;border-radius:8px;}
+   618→      .eye-btn{right:8px;}
+   619→      .field-err{font-size:0.62rem;margin-top:2px;}
+   620→      .form-err{font-size:0.66rem;margin-bottom:4px;min-height:14px;}
+   621→      .forgot-btn{font-size:0.66rem;margin-top:2px;margin-bottom:8px;}
+   622→      .forgot-inline{font-size:0.66rem;margin-top:4px;margin-bottom:6px;}
+   623→      .terms-row{font-size:0.65rem;margin-bottom:8px;gap:6px;}
+   624→      .terms-row input[type=checkbox]{width:13px;height:13px;margin-top:1px;}
+   625→
+   626→      /* Buttons — slightly shorter to save vertical pixels. */
+   627→      .btn-primary-full{padding:9px;font-size:0.78rem;border-radius:40px;}
+   628→      .btn-google{padding:8px;font-size:0.73rem;margin-bottom:8px;border-radius:40px;gap:7px;}
+   629→      .divider{margin:8px 0;font-size:0.66rem;gap:8px;}
+   630→      .auth-switch{margin-top:10px;font-size:0.68rem;}
+   631→      .auth-switch-btn{font-size:0.68rem;}
+   632→
+   633→      /* Avatar picker — pre-set with Frieren, click to change.
+   634→         Made slightly bigger (60→72) so the Frieren avatar is clearly
+   635→         visible as the default profile picture. */
+   636→      .avatar-pick-wrap{margin-bottom:2px;}
+   637→      .avatar-frame{width:56px;height:56px;}
+   638→      .avatar-frame::after{width:20px;height:20px;font-size:11px;}
+   639→      .avatar-pick-lbl{font-size:0.62rem;margin-top:5px;}
+   640→
+   641→      /* Compact hCaptcha on mobile — minimum viable size. */
+   642→      .cf-wrap{min-height:0;margin:2px 0 3px;}
+   643→      .cf-wrap iframe{transform:scale(.72);}
+   644→
+   645→      /* Password strength bar — tighter. */
+   646→      .pwd-bar{height:2px;margin-top:3px;}
+   647→      .pwd-label{font-size:0.58rem;margin-top:1px;}
+   648→    }
+   649→
+   650→    /* ── EVEN SMALLER PHONES (≤ 480px) — super-compact ── */
+   651→    @media(max-width:480px){
+   652→      .auth-overlay{padding:8px;}
+   653→      .auth-modal{max-width:96vw;max-height:92vh;}
+   654→      .auth-mobile-carousel.carousel-signin{ aspect-ratio:16/4.8; }
+   655→      .auth-mobile-carousel.carousel-signup{ aspect-ratio:16/3; }
+   656→      .auth-mobile-carousel.carousel-forgot{ aspect-ratio:16/5.2; }
+   657→      .auth-form-col{padding:8px 12px 10px;}
+   658→      .auth-heading{font-size:0.98rem;}
+   659→      .auth-subheading{font-size:0.66rem;margin-bottom:8px;}
+   660→      .field-group{margin-bottom:6px;}
+   661→      .field-input{padding:7px 10px;font-size:0.74rem;}
+   662→      .forgot-btn{font-size:0.62rem;margin-bottom:6px;}
+   663→      .forgot-inline{font-size:0.62rem;margin-top:3px;margin-bottom:5px;}
+   664→      .btn-primary-full{padding:8px;font-size:0.74rem;}
+   665→      .btn-google{padding:7px;font-size:0.7rem;margin-bottom:6px;}
+   666→      .divider{margin:6px 0;font-size:0.62rem;}
+   667→      .auth-switch{margin-top:8px;font-size:0.64rem;}
+   668→      .avatar-frame{width:50px;height:50px;}
+   669→      .avatar-pick-wrap{margin-bottom:2px;}
+   670→      .cf-wrap{min-height:0;margin:1px 0 3px;}
+   671→      .cf-wrap iframe{transform:scale(.66);}
+   672→      .terms-row{font-size:0.62rem;margin-bottom:6px;}
+   673→      /* Username + Email row — tighten gap on small phones. */
+   674→      .field-row-2{gap:8px;margin-bottom:8px;}
+   675→    }
+   676→
+   677→    /* ── TINY PHONES (≤ 380px) — minimal ── */
+   678→    @media(max-width:380px){
+   679→      .auth-modal{max-width:98vw;max-height:94vh;}
+   680→      .auth-mobile-carousel.carousel-signin{ aspect-ratio:16/4.2; }
+   681→      .auth-mobile-carousel.carousel-signup{ aspect-ratio:16/2.5; }
+   682→      .auth-mobile-carousel.carousel-forgot{ aspect-ratio:16/4.5; }
+   683→      .auth-form-col{padding:6px 10px 8px;}
+   684→      .auth-heading{font-size:0.92rem;}
+   685→      .auth-subheading{font-size:0.62rem;margin-bottom:6px;}
+   686→      .field-group{margin-bottom:5px;}
+   687→      .field-input{padding:6px 9px;font-size:0.7rem;}
+   688→      .btn-primary-full{padding:7px;font-size:0.7rem;}
+   689→      .btn-google{padding:6px;font-size:0.66rem;margin-bottom:5px;}
+   690→      .cf-wrap{min-height:0;}
+   691→      .cf-wrap iframe{transform:scale(.6);}
+   692→      .auth-switch{margin-top:6px;}
+   693→      .avatar-frame{width:46px;height:46px;}
+   694→      .avatar-frame::after{width:18px;height:18px;font-size:10px;}
+   695→    }
+   696→
+   697→    /* Fields */
+   698→    .auth-heading{font-size:1.25rem;font-weight:800;color:#fff;margin-bottom:4px;}
+   699→    .auth-subheading{font-size:0.76rem;color:var(--text-muted,#888);margin-bottom:10px;}
+   700→    .auth-subheading span{color:var(--btn-primary,#3b82f6);font-weight:600;}
+   701→    .field-group{margin-bottom:12px;}
+   702→    .field-group label{
+   703→      display:block;font-size:0.68rem;font-weight:700;
+   704→      color:var(--text-muted,#888);margin-bottom:4px;
+   705→      letter-spacing:.05em;text-transform:uppercase;
+   706→    }
+   707→    .field-wrap{position:relative;}
+   708→    .field-input{
+   709→      width:100%;padding:10px 14px;
+   710→      background:var(--bg-surface,rgba(255,255,255,0.05));
+   711→      border:1px solid var(--border-medium,rgba(255,255,255,0.1));
+   712→      border-radius:10px;color:#fff;font-size:0.82rem;
+   713→      outline:none;transition:border-color .2s,box-shadow .2s;
+   714→      font-family:inherit;
+   715→    }
+   716→    .field-input:focus{
+   717→      border-color:var(--btn-primary,#3b82f6);
+   718→      box-shadow:0 0 0 3px rgba(59,130,246,.15);
+   719→    }
+   720→    .eye-btn{
+   721→      position:absolute;right:10px;top:50%;transform:translateY(-50%);
+   722→      background:none;border:none;color:var(--text-muted,#888);
+   723→      display:flex;align-items:center;cursor:pointer;padding:2px;
+   724→    }
+   725→    .field-err{font-size:0.67rem;color:#ef4444;margin-top:3px;}
+   726→    .form-err{
+   727→      font-size:0.72rem;color:#ef4444;text-align:center;
+   728→      margin-bottom:8px;min-height:18px;
+   729→    }
+   730→
+   731→    /* Avatar frame */
+   732→    .avatar-pick-wrap{display:flex;flex-direction:column;align-items:center;margin-bottom:6px;}
+   733→    /* Two-column field row (username + email side-by-side on Sign Up) */
+   734→    .field-row-2{
+   735→      display:grid;grid-template-columns:1fr 1fr;gap:10px;
+   736→      margin-bottom:12px;
+   737→    }
+   738→    .field-row-2 .field-group{margin-bottom:0;}  /* the row handles spacing */
+   739→    .avatar-frame{
+   740→      width:84px;height:84px;border-radius:50%;
+   741→      border:2px solid var(--btn-primary,#3b82f6);
+   742→      display:flex;align-items:center;justify-content:center;
+   743→      cursor:pointer;overflow:hidden;position:relative;
+   744→      background:var(--bg-surface,rgba(255,255,255,0.05));
+   745→      transition:border-color .2s,transform .15s,box-shadow .2s;flex-shrink:0;
+   746→      box-shadow:0 4px 14px rgba(59,130,246,.25);
+   747→    }
+   748→    .avatar-frame:hover{transform:scale(1.04);box-shadow:0 6px 20px rgba(59,130,246,.4);}
+   749→    .avatar-frame:active{transform:scale(.98);}
+   750→    .avatar-frame img{width:100%;height:100%;object-fit:cover;border-radius:50%;}
+   751→    /* Tiny "edit" badge in the corner so the user knows the pre-set
+   752→       Frieren avatar is clickable to change. */
+   753→    .avatar-frame::after{
+   754→      content:'✎';position:absolute;right:-2px;bottom:-2px;
+   755→      width:24px;height:24px;border-radius:50%;
+   756→      background:var(--btn-primary,#3b82f6);color:#fff;
+   757→      font-size:12px;display:flex;align-items:center;justify-content:center;
+   758→      border:2px solid var(--bg-body,#13191f);pointer-events:none;
+   759→    }
+   760→    .avatar-pick-lbl{font-size:0.62rem;color:var(--text-muted,#888);margin-top:3px;text-align:center;}
+   761→
+   762→    /* Avatar popup */
+   763→    .avatar-popup-overlay{
+   764→      display:none;position:fixed;inset:0;
+   765→      background:rgba(0,0,0,.72);z-index:700;
+   766→      align-items:center;justify-content:center;padding:16px;
+   767→    }
+   768→    .avatar-popup-overlay.open{display:flex;}
+   769→    .avatar-popup{
+   770→      background:var(--bg-body,#13191f);
+   771→      border:1px solid var(--border-medium,rgba(255,255,255,0.12));
+   772→      border-radius:16px;padding:16px;
+   773→      width:min(320px,90vw);max-height:400px;
+   774→      overflow-y:auto;position:relative;scrollbar-width:none;
+   775→    }
+   776→    .avatar-popup::-webkit-scrollbar{display:none;}
+   777→    .avatar-popup-hdr{
+   778→      display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;
+   779→    }
+   780→    .avatar-popup-title{font-size:0.82rem;font-weight:700;color:#fff;}
+   781→    .avatar-upload-btn{
+   782→      display:flex;align-items:center;gap:4px;
+   783→      padding:5px 10px;border-radius:8px;font-size:0.7rem;font-weight:600;
+   784→      border:1px solid var(--btn-primary,#3b82f6);
+   785→      color:var(--btn-primary,#3b82f6);background:transparent;
+   786→      cursor:pointer;transition:background .18s,color .18s;
+   787→    }
+   788→    .avatar-upload-btn:hover{background:var(--btn-primary,#3b82f6);color:#fff;}
+   789→    .avatar-action-btn{transition:all .18s;}
+   790→    .avatar-action-btn:hover{filter:brightness(1.15);transform:scale(1.02);}
+   791→    .avatar-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+   792→    .avatar-opt{
+   793→      width:64px;height:64px;border-radius:50%;overflow:hidden;
+   794→      cursor:pointer;border:2px solid transparent;
+   795→      transition:border-color .18s,transform .18s;
+   796→    }
+   797→    .avatar-opt:hover{border-color:var(--btn-primary,#3b82f6);transform:scale(1.08);}
+   798→    .avatar-opt.selected{border-color:#10b981;}
+   799→    .avatar-opt img{width:100%;height:100%;object-fit:cover;}
+   800→
+   801→    /* Cloudflare Turnstile wrapper */
+   802→    .cf-wrap{margin-bottom:4px;display:flex;justify-content:center;}
+   803→
+   804→    /* Forgot password link */
+   805→    .forgot-btn{
+   806→      display:block;text-align:right;font-size:0.7rem;
+   807→      color:var(--btn-primary,#3b82f6);cursor:pointer;
+   808→      margin-top:3px;margin-bottom:12px;
+   809→      background:none;border:none;font-family:inherit;
+   810→      transition:opacity .18s;
+   811→    }
+   812→    .forgot-btn:hover{opacity:.75;}
+   813→
+   814→    /* Terms row */
+   815→    .terms-row{
+   816→      display:flex;align-items:flex-start;gap:8px;
+   817→      margin-bottom:14px;font-size:0.71rem;color:var(--text-muted,#888);
+   818→    }
+   819→    .terms-row input[type=checkbox]{
+   820→      width:15px;height:15px;flex-shrink:0;margin-top:2px;
+   821→      accent-color:var(--btn-primary,#3b82f6);cursor:pointer;
+   822→    }
+   823→    .terms-row a{color:var(--btn-primary,#3b82f6);text-decoration:underline;}
+   824→
+   825→    /* Buttons */
+   826→    .btn-primary-full{
+   827→      width:100%;padding:11px;border-radius:50px;
+   828→      background:var(--btn-primary,#3b82f6);color:#fff;
+   829→      font-weight:700;font-size:0.82rem;border:none;
+   830→      transition:opacity .2s,transform .1s;letter-spacing:.03em;
+   831→    }
+   832→    .btn-primary-full:hover{opacity:.88;}
+   833→    .btn-primary-full:active{transform:scale(.98);}
+   834→    .btn-primary-full:disabled{opacity:.5;cursor:not-allowed;}
+   835→    .btn-google{
+   836→      width:100%;padding:10px;border-radius:50px;
+   837→      background:var(--bg-surface,rgba(255,255,255,0.06));
+   838→      border:1px solid var(--border-medium,rgba(255,255,255,0.1));
+   839→      color:#fff;font-weight:600;font-size:0.78rem;
+   840→      display:flex;align-items:center;justify-content:center;gap:9px;
+   841→      margin-bottom:12px;transition:background .18s;
+   842→    }
+   843→    .btn-google:hover{background:rgba(255,255,255,0.1);}
+   844→    .divider{
+   845→      display:flex;align-items:center;gap:10px;
+   846→      margin:12px 0;color:var(--text-muted,#666);font-size:0.72rem;
+   847→    }
+   848→    .divider::before,.divider::after{
+   849→      content:'';flex:1;height:1px;background:rgba(255,255,255,0.09);
+   850→    }
+   851→    .auth-switch{text-align:center;font-size:0.73rem;color:var(--text-muted,#888);margin-top:16px;}
+   852→    .auth-switch-btn{
+   853→      background:none;border:none;color:var(--btn-primary,#3b82f6);
+   854→      font-weight:600;cursor:pointer;font-size:0.73rem;font-family:inherit;padding:0;
+   855→    }
+   856→    .auth-switch-btn:hover{text-decoration:underline;}
+   857→
+   858→    /* Password strength */
+   859→    .pwd-bar{height:3px;border-radius:3px;margin-top:4px;background:rgba(255,255,255,0.08);overflow:hidden;}
+   860→    .pwd-fill{height:100%;border-radius:3px;transition:width .3s,background .3s;width:0;}
+   861→    .pwd-label{font-size:0.63rem;margin-top:2px;}
+   862→
+   863→    /* Reset success */
+   864→    .reset-success{
+   865→      text-align:center;padding:16px 8px;
+   866→      color:var(--text-secondary,#ccc);font-size:0.8rem;line-height:1.6;
+   867→    }
+   868→    .reset-success .big{font-size:1.6rem;display:block;margin-bottom:8px;}
+   869→
+   870→    /* ── RESPONSIVE BREAKPOINTS ── */
+   871→    @media(max-width:900px){
+   872→  .main-nav,.header-search-wrap,.header-socials,.btn-login,#desktopAvatarWrap{display:none!important;}
+   873→  .hamburger-btn{display:flex!important;}
+   874→  .mobile-right{display:flex!important;}
+   875→}
+   876→    
+   877→    @media(min-width:901px){
+   878→      .hamburger-btn,.mobile-right{display:none!important;}
+   879→    }
+   880→  `;
+   881→  const styleEl = document.createElement('style');
+   882→  styleEl.textContent = css;
+   883→  document.head.appendChild(styleEl);
+   884→
+   885→  /* ═══════════════════════════════════════════════════════════
+   886→     HELPERS
+   887→  ═══════════════════════════════════════════════════════════ */
+   888→  const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+   889→
+   890→  /* ═══════════════════════════════════════════════════════════
+   891→     BUILD NAV LINKS
+   892→  ═══════════════════════════════════════════════════════════ */
+   893→  const GENRES = [
+   894→    ['Action','action'],['Adventure','adventure'],['Animation','animation'],['Apocalyptic','apocalyptic'],
+   895→    ['Avant Garde','avant-garde'],['Biography','biography'],['Boys Love','boys-love'],['Comedy','comedy'],
+   896→    ['Cult','cult'],['Demons','demons'],['Documentary','documentary'],['Drama','drama'],
+   897→    ['Ecchi','ecchi'],['Family','family'],['Fantasy','fantasy'],['Film-Noir','film-noir'],
+   898→    ['Girls Love','girls-love'],['Gourmet','gourmet'],['Harem','harem'],['Horror','horror'],
+   899→    ['Isekai','isekai'],['Iyashikei','iyashikei'],['Josei','josei'],['Kids','kids'],
+   900→    ['Kodomomuke','kodomomuke'],['Magic','magic'],['Mahou Shoujo','mahou-shoujo'],['Martial Arts','martial-arts'],
+   901→    ['Mecha','mecha'],['Military','military'],['Music','music'],['Music &amp; Musical','music-musical'],
+   902→    ['Mystery','mystery'],['Parody','parody'],['Psychological','psychological'],['Reverse Harem','reverse-harem'],
+   903→    ['Rom-Com','rom-com'],['Romance','romance'],['School','school'],['Sci-Fi','sci-fi'],
+   904→    ['Seinen','seinen'],['Shoujo','shoujo'],['Shounen','shounen'],['Slice of Life','slice-of-life'],
+   905→    ['Space','space'],['Sports','sports'],['Super Power','super-power'],['Supernatural','supernatural'],
+   906→    ['Suspense','suspense'],['Thriller','thriller'],['Vampire','vampire']
+   907→  ];
+   908→  const COUNTRIES = [
+   909→    ['Argentina','argentina'],['Australia','australia'],['Austria','austria'],['Belgium','belgium'],
+   910→    ['Brazil','brazil'],['Canada','canada'],['China','china'],['Colombia','colombia'],
+   911→    ['Czech Republic','czech-republic'],['Denmark','denmark'],['Finland','finland'],['France','france'],
+   912→    ['Germany','germany'],['Hong Kong','hong-kong'],['Hungary','hungary'],['India','india'],
+   913→    ['Ireland','ireland'],['Israel','israel'],['Italy','italy'],['Japan','japan'],
+   914→    ['Luxembourg','luxembourg'],['Mexico','mexico'],['Netherlands','netherlands'],['New Zealand','new-zealand'],
+   915→    ['Nigeria','nigeria'],['Norway','norway'],['Philippines','philippines'],['Poland','poland'],
+   916→    ['Romania','romania'],['Russia','russia'],['South Africa','south-africa'],['South Korea','south-korea'],
+   917→    ['Spain','spain'],['Sweden','sweden'],['Switzerland','switzerland'],['Taiwan','taiwan'],
+   918→    ['Thailand','thailand'],['Turkey','turkey'],['United Kingdom','united-kingdom'],['United States','united-states']
+   919→  ];
+   920→  const genreLinks    = GENRES.map(([n,s])=>`<a href="/genre/${s}">${n}</a>`).join('');
+   921→  const countryLinks  = COUNTRIES.map(([n,s])=>`<a href="/country/${s}">${n}</a>`).join('');
+   922→  const genreMob      = GENRES.map(([n,s])=>`<a href="/genre/${s}">${n}</a>`).join('');
+   923→  const countryMob    = COUNTRIES.map(([n,s])=>`<a href="/country/${s}">${n}</a>`).join('');
+   924→
+   925→  /* ═══════════════════════════════════════════════════════════
+   926→     HEADER HTML
+   927→  ═══════════════════════════════════════════════════════════ */
+   928→  const HEADER = `
+   929→<header class="site-header" id="siteHeader">
+   930→  <!-- Hamburger (mobile only) -->
+   931→  <button class="hamburger-btn" id="hamburgerBtn" aria-label="Menu">
+   932→    <span></span><span></span><span></span>
+   933→  </button>
+   934→
+   935→  <!-- Logo -->
+   936→  <a href="/" class="header-logo">
+   937→    <img src="https://i.postimg.cc/X7d0fPtJ/1778142012237-removebg-preview.png" alt="AniOcean">
+   938→  </a>
+   939→
+   940→  <!-- Desktop Nav -->
+   941→  <nav class="main-nav" id="mainNav">
+   942→    <a href="/" class="nav-link-item">Home</a>
+   943→
+   944→    <div class="nav-dd-wrap">
+   945→      <span class="nav-dd-label">Genre ▾</span>
+   946→      <div class="nav-dropdown grid-4">${genreLinks}</div>
+   947→    </div>
+   948→
+   949→    <div class="nav-dd-wrap">
+   950→      <span class="nav-dd-label">Country ▾</span>
+   951→      <div class="nav-dropdown grid-4">${countryLinks}</div>
+   952→    </div>
+   953→
+   954→    <div class="nav-dd-wrap">
+   955→      <span class="nav-dd-label">Type ▾</span>
+   956→      <div class="nav-dropdown grid-1">
+   957→        <a href="/type/anime">Anime</a>
+   958→        <a href="/type/drama">Drama</a>
+   959→        <a href="/type/movie">Movie</a>
+   960→        <a href="/type/tv-show">TV Show</a>
+   961→      </div>
+   962→    </div>
+   963→
+   964→    <a href="/status/ongoing" class="nav-link-item">Ongoing</a>
+   965→    <a href="/search?q=updates" class="nav-link-item">Updates</a>
+   966→    <a href="#" class="nav-link-item">News</a>
+   967→    <a href="#" class="nav-link-item">Forum</a>
+   968→  </nav>
+   969→
+   970→  <!-- Desktop Search -->
+   971→  <div class="header-search-wrap" id="desktopSearchWrap">
+   972→    <div class="header-search-bar">
+   973→      <div class="search-toggle-tabs" id="desktopTabs">
+   974→        <span class="search-toggle-tab active" data-mode="non-anime">Non-Anime</span>
+   975→        <span class="search-toggle-tab" data-mode="anime">Anime</span>
+   976→      </div>
+   977→      <input type="text" class="search-input-field" id="searchInput" placeholder="Search shows…" autocomplete="off">
+   978→    </div>
+   979→    <div class="search-suggestions" id="searchSuggestions"></div>
+   980→  </div>
+   981→
+   982→  <!-- Desktop Socials -->
+   983→  <div class="header-socials">
+   984→    <a href="https://discord.com" target="_blank" class="social-icon-btn" title="Discord">${SVG.discord}</a>
+   985→    <a href="https://tumblr.com" target="_blank" class="social-icon-btn" title="Tumblr">${SVG.tumblr}</a>
+   986→    <a href="https://bsky.app" target="_blank" class="social-icon-btn" title="Bluesky">${SVG.bluesky}</a>
+   987→  </div>
+   988→
+   989→  <!-- Desktop Login / Avatar (RIGHT EDGE) -->
+   990→  <button class="btn-login" id="btnLogin">Sign In</button>
+   991→  <div class="user-avatar-wrap" id="desktopAvatarWrap">
+   992→    <img class="user-avatar" id="desktopAvatar" src="${DEFAULT_AVATAR}" alt="Profile">
+   993→    <div class="profile-dropdown" id="desktopDropdown">
+   994→      <div class="profile-dd-header">
+   995→        <img id="ddAvatarImg" src="${DEFAULT_AVATAR}" alt="">
+   996→        <div>
+   997→          <div class="profile-dd-uname" id="ddUsername">—</div>
+   998→          <button class="dd-sign-out" id="btnLogoutDesktop">${SVG.logout} Sign out</button>
+   999→        </div>
+  1000→      </div>
+  1001→      <a href="" class="profile-dd-item">${SVG.profile}&nbsp;Profile</a>
+  1002→      <a href="" class="profile-dd-item">${SVG.film}&nbsp;Continue Watching</a>
+  1003→      <a href="" class="profile-dd-item">${SVG.list}&nbsp;Watchlist</a>
+  1004→      <a href="" class="profile-dd-item">${SVG.bar}&nbsp;Stats</a>
+  1005→      <a href="" class="profile-dd-item">${SVG.settings}&nbsp;Settings</a>
+  1006→    </div>
+  1007→  </div>
+  1008→
+  1009→  <!-- Mobile right controls -->
+  1010→  <div class="mobile-right" id="mobileRight">
+  1011→    <a href="https://discord.com" target="_blank" class="mob-icon-btn">${SVG.discord}</a>
+  1012→    <a href="https://tumblr.com" target="_blank" class="mob-icon-btn">${SVG.tumblr}</a>
+  1013→    <a href="https://bsky.app" target="_blank" class="mob-icon-btn">${SVG.bluesky}</a>
+  1014→    <button class="mob-icon-btn" id="mobSearchBtn" aria-label="Search">${SVG.search}</button>
+  1015→    <!-- Mobile profile / avatar -->
+  1016→    <button class="mob-icon-btn" id="mobProfileBtn" aria-label="Profile">${SVG.user}</button>
+  1017→    <div class="user-avatar-wrap" id="mobAvatarWrap" style="display:none;">
+  1018→      <img class="user-avatar" id="mobAvatar" src="${DEFAULT_AVATAR}" alt="Profile" style="display:block;">
+  1019→      <div class="profile-dropdown" id="mobDropdown">
+  1020→        <div class="profile-dd-header">
+  1021→          <img id="mobDdAvatarImg" src="${DEFAULT_AVATAR}" alt="">
+  1022→          <div>
+  1023→            <div class="profile-dd-uname" id="mobDdUsername">—</div>
+  1024→            <button class="dd-sign-out" id="btnLogoutMob">${SVG.logout} Sign out</button>
+  1025→          </div>
+  1026→        </div>
+  1027→        <a href="" class="profile-dd-item">${SVG.profile}&nbsp;Profile</a>
+  1028→        <a href="" class="profile-dd-item">${SVG.film}&nbsp;Continue Watching</a>
+  1029→        <a href="" class="profile-dd-item">${SVG.list}&nbsp;Watchlist</a>
+  1030→        <a href="" class="profile-dd-item">${SVG.bar}&nbsp;Stats</a>
+  1031→        <a href="" class="profile-dd-item">${SVG.settings}&nbsp;Settings</a>
+  1032→      </div>
+  1033→    </div>
+  1034→  </div>
+  1035→</header>
+  1036→
+  1037→<!-- Mobile search panel (drops below header) -->
+  1038→<div class="mob-search-panel" id="mobSearchPanel">
+  1039→  <div class="mob-search-bar">
+  1040→    <div class="search-toggle-tabs" id="mobTabs">
+  1041→      <span class="search-toggle-tab active" data-mode="non-anime">Non-Anime</span>
+  1042→      <span class="search-toggle-tab" data-mode="anime">Anime</span>
+  1043→    </div>
+  1044→    <input type="text" class="mob-search-input" id="mobSearchInput" placeholder="Search…" autocomplete="off">
+  1045→  </div>
+  1046→  <div class="mob-suggestions" id="mobSuggestions"></div>
+  1047→</div>
+  1048→
+  1049→<!-- Mobile Nav Overlay -->
+  1050→<div class="mobile-nav-overlay" id="mobNavOverlay">
+  1051→  <div class="mobile-nav-panel" id="mobNavPanel">
+  1052→    <div class="mob-nav-close-row">
+  1053→      <button class="mob-nav-close-btn" id="mobNavClose">${SVG.close}</button>
+  1054→    </div>
+  1055→    <a href="#" class="mob-forum-item"><svg fill="currentColor" width="15px" height="15px" viewBox="0 0 128 128" id="Layer_1" version="1.1" xml:space="preserve" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <g> <path d="M64,42c-13.2,0-24,10.8-24,24s10.8,24,24,24s24-10.8,24-24S77.2,42,64,42z M64,82c-8.8,0-16-7.2-16-16s7.2-16,16-16 s16,7.2,16,16S72.8,82,64,82z"></path> <path d="M64,100.8c-14.9,0-29.2,6.2-39.4,17.1l-2.7,2.9l5.8,5.5l2.7-2.9c8.8-9.4,20.7-14.6,33.6-14.6s24.8,5.2,33.6,14.6l2.7,2.9 l5.8-5.5l-2.7-2.9C93.2,107.1,78.9,100.8,64,100.8z"></path> <path d="M97,47.9v8c9.4,0,18.1,3.8,24.6,10.7l5.8-5.5C119.6,52.7,108.5,47.9,97,47.9z"></path> <path d="M116.1,20c0-10.5-8.6-19.1-19.1-19.1S77.9,9.5,77.9,20S86.5,39.1,97,39.1S116.1,30.5,116.1,20z M85.9,20 c0-6.1,5-11.1,11.1-11.1s11.1,5,11.1,11.1s-5,11.1-11.1,11.1S85.9,26.1,85.9,20z"></path> <path d="M31,47.9c-11.5,0-22.6,4.8-30.4,13.2l5.8,5.5c6.4-6.9,15.2-10.7,24.6-10.7V47.9z"></path> <path d="M50.1,20C50.1,9.5,41.5,0.9,31,0.9S11.9,9.5,11.9,20S20.5,39.1,31,39.1S50.1,30.5,50.1,20z M31,31.1 c-6.1,0-11.1-5-11.1-11.1S24.9,8.9,31,8.9s11.1,5,11.1,11.1S37.1,31.1,31,31.1z"></path> </g> </g></svg> Community</a>
+  1056→    <a href="/" class="mob-nav-item">Home</a>
+  1057→
+  1058→    <div class="mob-sub-trigger" data-target="mobGenreMenu">Genre <span class="mob-sub-arr">▶</span></div>
+  1059→    <div class="mob-sub-menu" id="mobGenreMenu">${genreMob}</div>
+  1060→
+  1061→    <div class="mob-sub-trigger" data-target="mobCountryMenu">Country <span class="mob-sub-arr">▶</span></div>
+  1062→    <div class="mob-sub-menu" id="mobCountryMenu">${countryMob}</div>
+  1063→
+  1064→    <div class="mob-sub-trigger" data-target="mobTypeMenu">Type <span class="mob-sub-arr">▶</span></div>
+  1065→    <div class="mob-sub-menu single" id="mobTypeMenu">
+  1066→      <a href="/type/anime">Anime</a>
+  1067→      <a href="/type/drama">Drama</a>
+  1068→      <a href="/type/movie">Movie</a>
+  1069→      <a href="/type/tv-show">TV Show</a>
+  1070→    </div>
+  1071→
+  1072→    <a href="/status/ongoing" class="mob-nav-item">Ongoing</a>
+  1073→    <a href="/search?q=updates" class="mob-nav-item">Updates</a>
+  1074→    <a href="#" class="mob-nav-item">News</a>
+  1075→  </div>
+  1076→</div>
+  1077→`;
+  1078→
+  1079→  /* ═══════════════════════════════════════════════════════════
+  1080→     FOOTER HTML
+  1081→  ═══════════════════════════════════════════════════════════ */
+  1082→  const FOOTER = `
+  1083→<footer style="background:var(--bg-header,#0d1117);padding:28px 20px;margin-top:50px;border-top:1px solid var(--border-subtle,rgba(255,255,255,0.07));display:flex;flex-wrap:wrap;gap:24px;justify-content:space-between;align-items:flex-start;">
+  1084→  <div style="flex:1;min-width:260px;">
+  1085→        <img src="https://i.postimg.cc/X7d0fPtJ/1778142012237-removebg-preview.png" alt="AniOcean" style="max-width:190px; height:auto; margin-bottom:8px;">
+  1086→    <p style="font-size:0.82rem;color:var(--text-muted,#888);margin-bottom:12px;line-height:1.6;">Stream free anime, movies, and TV shows on AniOcean. Enjoy fast, high-quality streaming with multi-language subtitles and real-time updates.</p>
+  1087→    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+  1088→      <span style="font-size:0.78rem;color:#fff;font-weight:600;">Follow us!</span>
+  1089→      <a href="https://t.me" target="_blank" class="social-icon-btn"><svg fill="currentColor" viewBox="0 0 24 24" width="20" height="20"><path d="M19.2,4.4L2.9,10.7c-1.1,0.4-1.1,1.1-0.2,1.3l4.1,1.3l1.6,4.8c0.2,0.5,0.1,0.7,0.6,0.7c0.4,0,0.6-0.2,0.8-0.4c0.1-0.1,1-1,2-2l4.2,3.1c0.8,0.4,1.3,0.2,1.5-0.7l2.8-13.1C20.6,4.6,19.9,4,19.2,4.4z M17.1,7.4l-7.8,7.1L9,17.8L7.4,13l9.2-5.8C17,6.9,17.4,7.1,17.1,7.4z"/></svg></a>
+  1090→      <a href="https://bsky.app" target="_blank" class="social-icon-btn"><svg viewBox="0 0 16 16" fill="currentColor" width="20" height="20"><path d="M3 1H0V5C0 6.65685 1.34315 8 3 8L2.03553 8.96447C1.37249 9.62751 1 10.5268 1 11.4645C1 13.4171 2.58291 15 4.53553 15C5.47322 15 6.37249 14.6275 7.03553 13.9645L8 13L8.96447 13.9645C9.62751 14.6275 10.5268 15 11.4645 15C13.4171 15 15 13.4171 15 11.4645C15 10.5268 14.6275 9.62751 13.9645 8.96447L13 8C14.6569 8 16 6.65685 16 5V1H13L8 6L3 1Z"/></svg></a>
+  1091→      <a href="https://discord.com" target="_blank" class="social-icon-btn">${SVG.discord}</a>
+  1092→      <a href="https://x.com" target="_blank" class="social-icon-btn"><svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.73-8.835L1.254 2.25H8.08l4.253 5.622 5.911-5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></a>
+  1093→      <a href="https://tumblr.com" target="_blank" class="social-icon-btn">${SVG.tumblr}</a>
+  1094→    </div>
+  1095→    <div style="display:flex;flex-wrap:wrap;gap:12px;font-size:0.72rem;margin-bottom:8px;">
+  1096→      <a href="/" style="color:var(--text-secondary,#ccc);">Home</a>
+  1097→      <a href="#" style="color:var(--text-secondary,#ccc);">Blog</a>
+  1098→      <a href="#" style="color:var(--text-secondary,#ccc);">Forum</a>
+  1099→      <a href="#" style="color:var(--text-secondary,#ccc);">Report</a>
+  1100→      <a href="/terms" target="_blank" style="color:var(--text-secondary,#ccc);">Terms &amp; Conditions</a>
+  1101→      <a href="/privacy" target="_blank" style="color:var(--text-secondary,#ccc);">Privacy Policy</a>
+  1102→      <a href="#" style="color:var(--text-secondary,#ccc);">Support</a>
+  1103→    </div>
+  1104→    <p style="font-size:0.67rem;color:var(--text-muted,#666);">This site does not store any files on its server. All contents are provided by non-affiliated third parties.</p>
+  1105→    <p style="font-size:0.67rem;color:var(--text-muted,#666);">Copyright © ${new Date().getFullYear()} AniOcean. All Rights Reserved</p>
+  1106→  </div>
+  1107→  <div style="flex-shrink:0;">
+  1108→    <img src="https://i.postimg.cc/hPqN8Q8v/Chisato-bow-Lycoris-Recoil-01-removebg-preview.png" alt="Mascot" style="height:180px;object-fit:contain;">
+  1109→  </div>
+  1110→</footer>`;
+  1111→
+  1112→  /* ═══════════════════════════════════════════════════════════
+  1113→     AUTH MODAL HTML  (3 slides: Login | Sign Up | Forgot Pwd)
+  1114→  ═══════════════════════════════════════════════════════════ */
+  1115→  const AUTH_MODAL = `
+  1116→<div class="auth-overlay" id="authOverlay">
+  1117→  <div class="auth-modal" id="authModal">
+  1118→
+  1119→    <!-- Left image column – DESKTOP ONLY (mobile uses carousel below) -->
+  1120→    <div class="auth-img-col">
+  1121→      <img src="https://i.postimg.cc/pr6CQhM8/e1223c0a1599b039da4ac536a39f0223.jpg" alt="AniOcean">
+  1122→    </div>
+  1123→
+  1124→    <!-- MOBILE-ONLY landscape image carousel — direct child of .auth-modal
+  1125→         so it stays FULLY VISIBLE at the top while the form scrolls below.
+  1126→         The gradient on the carousel merges seamlessly with the form column. -->
+  1127→    <div class="auth-mobile-carousel" id="authMobileCarousel" aria-hidden="true">
+  1128→      ${AUTH_CAROUSEL_IMAGES.map((url,i) => `<div class="mc-slide${i===0?' active':''}" style="background-image:url('${url}')"></div>`).join('')}
+  1129→    </div>
+  1130→
+  1131→    <!-- Right form column -->
+  1132→    <div class="auth-form-col">
+  1133→      <button class="auth-close-btn" id="authClose">${SVG.close}</button>
+  1134→
+  1135→      <div class="form-slides-wrapper">
+  1136→        <div class="form-slides" id="formSlides">
+  1137→
+  1138→          <!-- ── SLIDE 0 · LOGIN ──
+  1139→               Field order: username → password (+inline forgot) → hCaptcha →
+  1140→                            Sign In button → Google auth → nav button (Sign up) -->
+  1141→          <div class="form-slide active" id="slideLogin">
+  1142→            <div class="auth-heading">Welcome back 👋</div>
+  1143→            <div class="auth-subheading">Sign in to continue your anime journey.</div>
+  1144→
+  1145→            <!-- 1. Username -->
+  1146→            <div class="field-group">
+  1147→              <label>Username or Email</label>
+  1148→              <input class="field-input" type="text" id="loginUsername" placeholder="Your username or email" autocomplete="username">
+  1149→            </div>
+  1150→
+  1151→            <!-- 2. Password -->
+  1152→            <div class="field-group" style="margin-bottom:4px;">
+  1153→              <label>Password</label>
+  1154→              <div class="field-wrap">
+  1155→                <input class="field-input" type="password" id="loginPassword" placeholder="Your password" autocomplete="current-password" style="padding-right:38px;">
+  1156→                <button class="eye-btn" type="button" data-target="loginPassword">${SVG.eye}</button>
+  1157→              </div>
+  1158→            </div>
+  1159→            <!-- Forgot password link — outside field-group so it never gets clipped -->
+  1160→            <button class="forgot-inline" id="forgotLink" type="button">Forgot password?</button>
+  1161→
+  1162→            <!-- 3. hCaptcha -->
+  1163→            <div class="cf-wrap">
+  1164→              <div class="h-captcha" data-sitekey="${HCAPTCHA_SITEKEY}" data-theme="dark" data-callback="onHcaptchaSuccess" data-expired-callback="onHcaptchaExpired" data-error-callback="onHcaptchaError"></div>
+  1165→            </div>
+  1166→
+  1167→            <div class="form-err" id="loginErr"></div>
+  1168→
+  1169→            <!-- 4. Sign In button -->
+  1170→            <button class="btn-primary-full" id="btnSignIn">Sign In</button>
+  1171→
+  1172→            <!-- 5. Google auth -->
+  1173→            <div class="divider">or</div>
+  1174→            <button class="btn-google" id="btnGoogleLogin">${SVG.google} Continue with Google</button>
+  1175→
+  1176→            <!-- 6. Navigate to Sign Up -->
+  1177→            <div class="auth-switch">No account? <button class="auth-switch-btn" id="goSignUp">Sign up</button></div>
+  1178→          </div>
+  1179→
+  1180→          <!-- ── SLIDE 1 · SIGN UP ──
+  1181→               Field order: username → email → password|confirm (side-by-side) →
+  1182→                            terms → hCaptcha → Sign Up button → Google → nav (Sign in)
+  1183→               Avatar picker removed to save vertical space (DEFAULT_AVATAR used;
+  1184→               users can change avatar from profile page after signup). -->
+  1185→          <div class="form-slide" id="slideSignUp">
+  1186→            <!-- Always-visible back link at the TOP so user is never trapped -->
+  1187→            <button class="auth-back-link" id="backLoginTop" type="button">← Back to Sign In</button>
+  1188→
+  1189→            <div class="auth-heading">Create account ✨</div>
+  1190→            <div class="auth-subheading">Join <span>Aniumi</span> — it's free forever.</div>
+  1191→
+  1192→            <!-- Avatar picker — Frieren.jpeg pre-set, click to change
+  1193→                 (upload from device OR choose from bucket collection). -->
+  1194→            <div class="avatar-pick-wrap">
+  1195→              <div class="avatar-frame" id="avatarFrame">
+  1196→                <img src="${DEFAULT_AVATAR}" id="selectedAvatar" alt="avatar">
+  1197→              </div>
+  1198→              <div class="avatar-pick-lbl">Tap the avatar to change it</div>
+  1199→            </div>
+  1200→
+  1201→            <!-- Username + Email side-by-side (saves vertical space
+  1202→                 so the avatar picker can stay prominent). -->
+  1203→            <div class="field-row-2">
+  1204→              <div class="field-group">
+  1205→                <label>Username <span style="font-size:.6rem;text-transform:none;letter-spacing:0;">(max 12)</span></label>
+  1206→                <input class="field-input" type="text" id="regUsername" placeholder="OtakuNinja" maxlength="12" autocomplete="off">
+  1207→                <div class="field-err" id="errUsername"></div>
+  1208→              </div>
+  1209→              <div class="field-group">
+  1210→                <label>Email</label>
+  1211→                <input class="field-input" type="email" id="regEmail" placeholder="you@example.com" autocomplete="email">
+  1212→              </div>
+  1213→            </div>
+  1214→
+  1215→            <!-- 3. Password + Confirm Password (SIDE-BY-SIDE) -->
+  1216→            <div class="pwd-pair">
+  1217→              <div class="field-group">
+  1218→                <label>Password <span style="font-size:.58rem;text-transform:none;letter-spacing:0;">(max 20)</span></label>
+  1219→                <div class="field-wrap">
+  1220→                  <input class="field-input" type="password" id="regPassword" placeholder="Min 8 chars" maxlength="20" style="padding-right:30px;" autocomplete="new-password">
+  1221→                  <button class="eye-btn" type="button" data-target="regPassword">${SVG.eye}</button>
+  1222→                </div>
+  1223→                <div class="pwd-bar"><div class="pwd-fill" id="pwdFill"></div></div>
+  1224→                <div class="pwd-label" id="pwdLabel"></div>
+  1225→              </div>
+  1226→              <div class="field-group">
+  1227→                <label>Confirm</label>
+  1228→                <div class="field-wrap">
+  1229→                  <input class="field-input" type="password" id="regConfirm" placeholder="Repeat" maxlength="20" style="padding-right:30px;" autocomplete="new-password">
+  1230→                  <button class="eye-btn" type="button" data-target="regConfirm">${SVG.eye}</button>
+  1231→                </div>
+  1232→                <div class="field-err" id="errConfirm"></div>
+  1233→              </div>
+  1234→            </div>
+  1235→
+  1236→            <!-- 4. Terms checkbox -->
+  1237→            <div class="terms-row">
+  1238→              <input type="checkbox" id="termsCheck">
+  1239→              <label for="termsCheck">I have read and agree to the
+  1240→                <a href="/terms" target="_blank">Terms &amp; Conditions</a> and
+  1241→                <a href="/privacy" target="_blank">Privacy Policy</a>.
+  1242→              </label>
+  1243→            </div>
+  1244→
+  1245→            <!-- 5. hCaptcha -->
+  1246→            <div class="cf-wrap">
+  1247→              <div class="h-captcha" data-sitekey="${HCAPTCHA_SITEKEY}" data-theme="dark" data-callback="onHcaptchaSuccess" data-expired-callback="onHcaptchaExpired" data-error-callback="onHcaptchaError"></div>
+  1248→            </div>
+  1249→
+  1250→            <div class="form-err" id="signUpErr"></div>
+  1251→
+  1252→            <!-- 6. Sign Up button -->
+  1253→            <button class="btn-primary-full" id="btnSignUp">Create Account</button>
+  1254→
+  1255→            <!-- 7. Google auth -->
+  1256→            <div class="divider">or</div>
+  1257→            <button class="btn-google" id="btnGoogleSignUp">${SVG.google} Sign up with Google</button>
+  1258→
+  1259→            <!-- 8. Navigate to Sign In (also at top — bottom is a fallback) -->
+  1260→            <div class="auth-switch">Already have an account? <button class="auth-switch-btn" id="goLogin">Sign in</button></div>
+  1261→          </div>
+  1262→
+  1263→          <!-- ── SLIDE 2 · FORGOT PASSWORD ── -->
+  1264→          <div class="form-slide" id="slideForgot">
+  1265→            <div class="auth-heading">Reset password 🔑</div>
+  1266→            <div class="auth-subheading">Enter your email and we'll send a reset link.</div>
+  1267→
+  1268→            <div class="field-group">
+  1269→              <label>Email Address</label>
+  1270→              <input class="field-input" type="email" id="resetEmail" placeholder="you@example.com" autocomplete="email">
+  1271→            </div>
+  1272→            <div class="form-err" id="resetErr"></div>
+  1273→            <div class="reset-success" id="resetOk" style="display:none;">
+  1274→              <span class="big">📧</span>
+  1275→              Check your inbox! We've sent a password reset link to your email.
+  1276→            </div>
+  1277→            <button class="btn-primary-full" id="btnReset">Reset Password</button>
+  1278→            <div class="auth-switch"><button class="auth-switch-btn" id="backLogin">← Back to Sign In</button></div>
+  1279→          </div>
+  1280→
+  1281→        </div><!-- /form-slides -->
+  1282→      </div><!-- /form-slides-wrapper -->
+  1283→    </div><!-- /auth-form-col -->
+  1284→  </div><!-- /auth-modal -->
+  1285→</div><!-- /auth-overlay -->
+  1286→
+  1287→<!-- Avatar picker popup -->
+  1288→<div class="avatar-popup-overlay" id="avatarPopupOverlay">
+  1289→  <div class="avatar-popup" id="avatarPopup">
+  1290→    <div class="avatar-popup-hdr">
+  1291→      <span class="avatar-popup-title">Choose Avatar</span>
+  1292→    </div>
+  1293→    <div style="display:flex;gap:8px;margin-bottom:12px;">
+  1294→      <label class="avatar-action-btn" for="avatarFileInput" style="flex:1;text-align:center;cursor:pointer;border-radius:20px;padding:8px 12px;font-size:0.75rem;font-weight:600;background:var(--btn-primary,#3b82f6);color:#fff;border:none;display:flex;align-items:center;justify-content:center;gap:6px;">${SVG.upload} Upload from Device</label>
+  1295→      <button class="avatar-action-btn" id="btnChooseFromBucket" type="button" style="flex:1;border-radius:20px;padding:8px 12px;font-size:0.75rem;font-weight:600;background:transparent;color:var(--text,#e2e8f0);border:2px solid var(--btn-primary,#3b82f6);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">Choose from Collection</button>
+  1296→    </div>
+  1297→    <input type="file" id="avatarFileInput" accept="image/*" style="display:none;">
+  1298→    <div class="avatar-grid" id="avatarGrid" style="display:none;">
+  1299→      <div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-muted,#888);font-size:0.76rem;">Loading avatars…</div>
+  1300→    </div>
+  1301→  </div>
+  1302→</div>
+  1303→`;
+  1304→
+  1305→  /* ═══════════════════════════════════════════════════════════
+  1306→     DOM INJECTION
+  1307→  ═══════════════════════════════════════════════════════════ */
+  1308→  document.addEventListener('DOMContentLoaded', () => {
+  1309→    document.body.insertAdjacentHTML('afterbegin', HEADER);
+  1310→    document.body.insertAdjacentHTML('beforeend', FOOTER);
+  1311→    document.body.insertAdjacentHTML('beforeend', AUTH_MODAL);
+  1312→
+  1313→    // Load hCaptcha script
+  1314→    if (!document.querySelector('script[src*="hcaptcha"]')) {
+  1315→      const s = document.createElement('script');
+  1316→      s.src = 'https://js.hcaptcha.com/1/api.js';
+  1317→      s.async = true; s.defer = true;
+  1318→      document.head.appendChild(s);
+  1319→    }
+  1320→
+  1321→    initHeader();
+  1322→    initSearch();
+  1323→    initAuthModal();
+  1324→    initAvatarPicker();
+  1325→
+  1326→    // Auth state listener with session expiry
+  1327→    supabase.auth.onAuthStateChange(async (evt, session) => {
+  1328→      currentUser = session?.user || null;
+  1329→      // Session expiry check
+  1330→      if (session) {
+  1331→        const lastActivity = localStorage.getItem('aniumi_last_activity');
+  1332→        const now = Date.now();
+  1333→        if (lastActivity && (now - parseInt(lastActivity)) > SESSION_MAX_AGE) {
+  1334→          await supabase.auth.signOut();
+  1335→          currentUser = null;
+  1336→        } else {
+  1337→          localStorage.setItem('aniumi_last_activity', now.toString());
+  1338→        }
+  1339→      }
+  1340→      // Pass the auth event so handleOAuthCallback only increments
+  1341→      // login_count on a genuine new sign-in, not on every page load.
+  1342→      updateUserUI(evt);
+  1343→    });
+  1344→    // Track activity for session expiry
+  1345→    ['click', 'keydown', 'scroll', 'mousemove'].forEach(evt => {
+  1346→      document.addEventListener(evt, () => {
+  1347→        if (currentUser) localStorage.setItem('aniumi_last_activity', Date.now().toString());
+  1348→      }, { passive: true });
+  1349→    });
+  1350→    updateUserUI();
+  1351→  });
+  1352→
+  1353→  /* ═══════════════════════════════════════════════════════════
+  1354→     HEADER LOGIC
+  1355→  ═══════════════════════════════════════════════════════════ */
+  1356→  function initHeader() {
+  1357→    /* ── Login button ── */
+  1358→    document.getElementById('btnLogin')?.addEventListener('click', () => openModal(0));
+  1359→
+  1360→    /* ── Desktop avatar toggle ── */
+  1361→    document.getElementById('desktopAvatar')?.addEventListener('click', e => {
+  1362→      e.stopPropagation();
+  1363→      document.getElementById('desktopDropdown').classList.toggle('open');
+  1364→    });
+  1365→
+  1366→    /* ── Mobile avatar toggle ── */
+  1367→    document.getElementById('mobAvatar')?.addEventListener('click', e => {
+  1368→      e.stopPropagation();
+  1369→      document.getElementById('mobDropdown').classList.toggle('open');
+  1370→    });
+  1371→
+  1372→    /* ── Close dropdowns on outside click ── */
+  1373→    document.addEventListener('click', e => {
+  1374→      if (!e.target.closest('#desktopAvatarWrap')) {
+  1375→        document.getElementById('desktopDropdown')?.classList.remove('open');
+  1376→      }
+  1377→      if (!e.target.closest('#mobAvatarWrap')) {
+  1378→        document.getElementById('mobDropdown')?.classList.remove('open');
+  1379→      }
+  1380→    });
+  1381→
+  1382→    /* ── Logout ──
+  1383→       FIXED (v3): previously the dropdown stayed open during the
+  1384→       await supabase.auth.signOut() network call, then updateUserUI()
+  1385→       ran (which calls auth.getUser() + profiles.select() — TWO more
+  1386→       network calls) before finally hiding the avatar wrap.  That
+  1387→       200–600ms async gap is what caused the visible "flicker" the
+  1388→       user saw: dropdown-open → wait → dropdown-suddenly-disappears.
+  1389→
+  1390→       Now: the dropdown closes IMMEDIATELY on click (synchronously,
+  1391→       before any await), the button turns red instantly, and the
+  1392→       signOut + UI refresh runs in the background.  The user sees
+  1393→       one smooth transition: click → dropdown closes → header
+  1394→       reverts to "Sign In" button.  No flicker, no multiple-click
+  1395→       needed. */
+  1396→    document.getElementById('btnLogoutDesktop')?.addEventListener('click', handleLogoutClick);
+  1397→    document.getElementById('btnLogoutMob')?.addEventListener('click', handleLogoutClick);
+  1398→
+  1399→    function handleLogoutClick(e) {
+  1400→      e.stopPropagation();
+  1401→      e.preventDefault();
+  1402→      const btn = e.currentTarget;
+  1403→      // 1) Instant red feedback so the user knows the click registered.
+  1404→      btn.classList.add('signing-out');
+  1405→      // 2) Close BOTH dropdowns immediately (synchronous, before any await).
+  1406→      document.getElementById('desktopDropdown')?.classList.remove('open');
+  1407→      document.getElementById('mobDropdown')?.classList.remove('open');
+  1408→      // 3) Clear the local user state synchronously so the header
+  1409→      //    reverts to "Sign In" instantly — don't wait for the network.
+  1410→      currentUser = null;
+  1411→      // Clear OAuth login-counted flag so next sign-in is counted properly
+  1412→      try {
+  1413→        Object.keys(sessionStorage)
+  1414→          .filter(k => k.startsWith('aniumi_oauth_counted_'))
+  1415→          .forEach(k => sessionStorage.removeItem(k));
+  1416→      } catch(e) {}
+  1417→      // 4) Update UI synchronously: hide avatar, show Sign In button.
+  1418→      //    We pass { skipNetwork:true } so updateUserUI doesn't re-fetch
+  1419→      //    the user from Supabase (which would still return the old
+  1420→      //    session for ~100ms until signOut resolves).
+  1421→      updateUserUIImmediate();
+  1422→      // 5) Fire-and-forget the actual signOut network call.  The auth
+  1423→      //    state change listener will also fire updateUserUI() when
+  1424→      //    signOut completes, but by then the UI is already correct.
+  1425→      supabase.auth.signOut().catch(err => {
+  1426→        console.warn('[signOut] network call failed (UI already updated):', err);
+  1427→      }).finally(() => {
+  1428→        btn.classList.remove('signing-out');
+  1429→      });
+  1430→    }
+  1431→
+  1432→    /* Synchronous UI update — used by handleLogoutClick so the header
+  1433→       reverts to the signed-out state instantly.  No network calls. */
+  1434→    function updateUserUIImmediate() {
+  1435→      const btnLogin      = document.getElementById('btnLogin');
+  1436→      const deskAvatar    = document.getElementById('desktopAvatar');
+  1437→      const mobProfileBtn = document.getElementById('mobProfileBtn');
+  1438→      const mobAvatarWrap = document.getElementById('mobAvatarWrap');
+  1439→      if (btnLogin)      btnLogin.style.display = '';
+  1440→      if (deskAvatar)    deskAvatar.style.display = 'none';
+  1441→      if (mobProfileBtn) mobProfileBtn.style.display = 'flex';
+  1442→      if (mobAvatarWrap) mobAvatarWrap.style.display = 'none';
+  1443→    }
+  1444→
+  1445→    /* Kept for backward compatibility (any external callers). */
+  1446→    async function doLogout() { handleLogoutClick({ currentTarget:{ classList:{add(){},remove(){}}, stopPropagation(){}, preventDefault(){} } }); }
+  1447→
+  1448→    /* ── Mobile profile button ── */
+  1449→    document.getElementById('mobProfileBtn')?.addEventListener('click', e => {
+  1450→      e.stopPropagation();
+  1451→      if (currentUser) {
+  1452→        document.getElementById('mobDropdown')?.classList.toggle('open');
+  1453→      } else {
+  1454→        openModal(0);
+  1455→      }
+  1456→    });
+  1457→
+  1458→    /* ── Hamburger ── */
+  1459→    const hBtn    = document.getElementById('hamburgerBtn');
+  1460→    const overlay = document.getElementById('mobNavOverlay');
+  1461→    const panel   = document.getElementById('mobNavPanel');
+  1462→    const closeBtn= document.getElementById('mobNavClose');
+  1463→
+  1464→    const openNav  = () => { hBtn.classList.add('open'); overlay.classList.add('open'); panel.classList.add('open'); };
+  1465→    const closeNav = () => { hBtn.classList.remove('open'); overlay.classList.remove('open'); panel.classList.remove('open'); };
+  1466→
+  1467→    hBtn?.addEventListener('click', openNav);
+  1468→    closeBtn?.addEventListener('click', closeNav);
+  1469→    overlay?.addEventListener('click', e => { if (!e.target.closest('#mobNavPanel')) closeNav(); });
+  1470→
+  1471→    /* ── Mobile sub-menus (click only) ── */
+  1472→    document.querySelectorAll('.mob-sub-trigger').forEach(trigger => {
+  1473→      trigger.addEventListener('click', () => {
+  1474→        const menuId = trigger.dataset.target;
+  1475→        const menu   = document.getElementById(menuId);
+  1476→        const isOpen = menu.classList.contains('show');
+  1477→        // close all
+  1478→        document.querySelectorAll('.mob-sub-menu').forEach(m => m.classList.remove('show'));
+  1479→        document.querySelectorAll('.mob-sub-trigger').forEach(t => t.classList.remove('open'));
+  1480→        if (!isOpen) {
+  1481→          menu.classList.add('show');
+  1482→          trigger.classList.add('open');
+  1483→        }
+  1484→      });
+  1485→    });
+  1486→
+  1487→    /* ── Mobile search ── */
+  1488→    document.getElementById('mobSearchBtn')?.addEventListener('click', e => {
+  1489→      e.stopPropagation();
+  1490→      document.getElementById('mobSearchPanel').classList.toggle('open');
+  1491→      if (document.getElementById('mobSearchPanel').classList.contains('open')) {
+  1492→        setTimeout(() => document.getElementById('mobSearchInput')?.focus(), 100);
+  1493→      }
+  1494→    });
+  1495→    document.addEventListener('click', e => {
+  1496→      if (!e.target.closest('#mobSearchPanel') && !e.target.closest('#mobSearchBtn')) {
+  1497→        document.getElementById('mobSearchPanel')?.classList.remove('open');
+  1498→      }
+  1499→    });
+  1500→  }
+  1501→
+  1502→  /* ═══════════════════════════════════════════════════════════
+  1503→     SEARCH  (uses CF Worker for TMDB, Jikan direct for anime)
+  1504→  ═══════════════════════════════════════════════════════════ */
+  1505→  function initSearch() {
+  1506→    /* Desktop tabs */
+  1507→    document.querySelectorAll('#desktopTabs .search-toggle-tab').forEach(tab => {
+  1508→      tab.addEventListener('click', function () {
+  1509→        document.querySelectorAll('#desktopTabs .search-toggle-tab').forEach(t => t.classList.remove('active'));
+  1510→        this.classList.add('active');
+  1511→        currentSearchMode = this.dataset.mode;
+  1512→        const q = document.getElementById('searchInput').value.trim();
+  1513→        if (q.length >= 3) handleSearchInput(q, document.getElementById('searchSuggestions'));
+  1514→      });
+  1515→    });
+  1516→    /* Mobile tabs */
+  1517→    document.querySelectorAll('#mobTabs .search-toggle-tab').forEach(tab => {
+  1518→      tab.addEventListener('click', function () {
+  1519→        document.querySelectorAll('#mobTabs .search-toggle-tab').forEach(t => t.classList.remove('active'));
+  1520→        this.classList.add('active');
+  1521→        currentSearchMode = this.dataset.mode;
+  1522→        const q = document.getElementById('mobSearchInput').value.trim();
+  1523→        if (q.length >= 3) handleSearchInput(q, document.getElementById('mobSuggestions'));
+  1524→      });
+  1525→    });
+  1526→
+  1527→    /* Desktop input */
+  1528→    document.getElementById('searchInput')?.addEventListener('input', function () {
+  1529→      handleSearchInput(this.value, document.getElementById('searchSuggestions'));
+  1530→    });
+  1531→    /* Mobile input */
+  1532→    document.getElementById('mobSearchInput')?.addEventListener('input', function () {
+  1533→      handleSearchInput(this.value, document.getElementById('mobSuggestions'));
+  1534→    });
+  1535→
+  1536→    /* Close desktop suggestions on outside click */
+  1537→    document.addEventListener('click', e => {
+  1538→      if (!e.target.closest('#desktopSearchWrap')) {
+  1539→        document.getElementById('searchSuggestions').style.display = 'none';
+  1540→      }
+  1541→    });
+  1542→  }
+  1543→
+  1544→  function handleSearchInput(rawQ, container) {
+  1545→    const q = rawQ.trim();
+  1546→    clearTimeout(searchDebounceTimer);
+  1547→    if (q.length < 3) { container.style.display = 'none'; return; }
+  1548→    container.innerHTML = '<div style="padding:14px 12px;font-size:0.76rem;color:var(--text-muted,#888);">Searching…</div>';
+  1549→    container.style.display = 'block';
+  1550→    searchDebounceTimer = setTimeout(() => fetchSuggestions(q, container), 300);
+  1551→  }
+  1552→
+  1553→  async function fetchSuggestions(q, container) {
+  1554→    try {
+  1555→      const results = currentSearchMode === 'anime'
+  1556→        ? await fetchJikan(q)
+  1557→        : await fetchTMDB(q);
+  1558→      renderSuggestions(results.slice(0, 6), q, container);
+  1559→    } catch (err) {
+  1560→      container.innerHTML = `<div style="padding:14px 12px;font-size:0.76rem;color:var(--text-muted,#888);">Failed to fetch. Try again.</div>`;
+  1561→      console.error('Search error:', err);
+  1562→    }
+  1563→  }
+  1564→
+  1565→  /* ── Jikan (Anime) ── */
+  1566→  async function fetchJikan(q) {
+  1567→    const res  = await fetch(`https://api.jikan.moe/v4/anime?q=${encodeURIComponent(q)}&limit=6&order_by=score&sort=desc`);
+  1568→    if (!res.ok) throw new Error('Jikan error');
+  1569→    const data = await res.json();
+  1570→    return (data.data || []).map(item => {
+  1571→      const aired = item.aired?.from ? new Date(item.aired.from) : null;
+  1572→      const monthYear = aired ? aired.toLocaleDateString('en-US',{month:'long',year:'numeric'}) : '—';
+  1573→      let dur = item.duration || '—';
+  1574→      if (dur === 'Unknown') dur = '—';
+  1575→      return {
+  1576→        poster:   item.images?.jpg?.image_url || '',
+  1577→        title:    item.title_english || item.title || '—',
+  1578→        original: item.title_japanese || item.title || '',
+  1579→        meta:     `${monthYear} · ${item.type||'—'} · ${dur}`,
+  1580→        score:    item.score ? `★ MAL ${item.score}` : null,
+  1581→        id:       item.mal_id,
+  1582→        source:   'jikan'
+  1583→      };
+  1584→    });
+  1585→  }
+  1586→
+  1587→  /* ── TMDB via Cloudflare Worker ── */
+  1588→  async function fetchTMDB(q) {
+  1589→    const [movieRes, tvRes] = await Promise.all([
+  1590→      fetch(`${CF_WORKER_URL}/3/search/movie?query=${encodeURIComponent(q)}&language=en-US&page=1`),
+  1591→      fetch(`${CF_WORKER_URL}/3/search/tv?query=${encodeURIComponent(q)}&language=en-US&page=1`)
+  1592→    ]);
+  1593→
+  1594→    const movieData = await movieRes.json();
+  1595→    const tvData    = await tvRes.json();
+  1596→
+  1597→    const movieResults = (movieData.results || []).map(r => ({ ...r, media_type: 'movie' }));
+  1598→    const tvResults    = (tvData.results    || []).map(r => ({ ...r, media_type: 'tv' }));
+  1599→
+  1600→    const combined = [...movieResults, ...tvResults]
+  1601→      .sort((a, b) => (b.popularity || 0) - (a.popularity || 0))
+  1602→      .slice(0, 6);
+  1603→
+  1604→    return combined.map(item => {
+  1605→      const date      = item.release_date || item.first_air_date || '';
+  1606→      const monthYear = date ? new Date(date).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : '—';
+  1607→      const typeLabel = item.media_type === 'movie' ? 'Movie' : 'TV';
+  1608→      const poster    = item.poster_path ? `https://image.tmdb.org/t/p/w92${item.poster_path}` : '';
+  1609→      const score     = item.vote_average ? `★ TMDB ${Number(item.vote_average).toFixed(1)}` : null;
+  1610→      return {
+  1611→        poster,
+  1612→        title:    item.title || item.name || '—',
+  1613→        original: item.original_title || item.original_name || '',
+  1614→        meta:     `${monthYear} · ${typeLabel}`,
+  1615→        score,
+  1616→        id:       item.id,
+  1617→        source:   'tmdb',
+  1618→        mediaType: item.media_type
+  1619→      };
+  1620→    });
+  1621→  }
+  1622→
+  1623→  function renderSuggestions(results, q, container) {
+  1624→    if (!results.length) {
+  1625→      container.innerHTML = `<div style="padding:14px 12px;font-size:0.76rem;color:var(--text-muted,#888);">No results for "${esc(q)}"</div>`;
+  1626→      return;
+  1627→    }
+  1628→
+  1629→    const slugify = (title) => {
+  1630→      if (!title) return '';
+  1631→      return title
+  1632→        .toLowerCase()
+  1633→        .replace(/[^a-z0-9]+/g, '-')
+  1634→        .replace(/^-+|-+$/g, '');
+  1635→    };
+  1636→
+  1637→    const html = results.map(r => {
+  1638→      let detailsUrl = '#';
+  1639→      const slug = slugify(r.title);
+  1640→
+  1641→      if (r.source === 'jikan') {
+  1642→        detailsUrl = `/info/anime/jikan-${r.id}`;
+  1643→        if (slug) detailsUrl += `/${slug}`;
+  1644→      } else if (r.source === 'tmdb') {
+  1645→        const type = r.mediaType === 'movie' ? 'movie' : 'tv';
+  1646→        const prefix = r.mediaType === 'movie' ? `tmdb-movie-${r.id}` : `tmdb-tv-${r.id}`;
+  1647→        detailsUrl = `/info/${type}/${prefix}`;
+  1648→        if (slug) detailsUrl += `/${slug}`;
+  1649→      }
+  1650→
+  1651→      const img = r.poster
+  1652→        ? `<img class="suggestion-poster" src="${esc(r.poster)}" alt="" loading="lazy" onerror="this.style.background='#1e2633';">`
+  1653→        : `<div class="suggestion-poster"></div>`;
+  1654→      const orig = r.original && r.original !== r.title
+  1655→        ? `<div class="sug-orig">${esc(r.original)}</div>` : '';
+  1656→      const score = r.score
+  1657→        ? `<span class="sug-score">${esc(r.score)}</span>` : '';
+  1658→      const meta = [r.meta, score].filter(Boolean).join(' · ');
+  1659→
+  1660→      return `<a href="${detailsUrl}" class="suggestion-item">
+  1661→        ${img}
+  1662→        <div class="suggestion-info">
+  1663→          <div class="sug-title">${esc(r.title)}</div>
+  1664→          ${orig}
+  1665→          <div class="sug-meta">${meta}</div>
+  1666→        </div>
+  1667→      </a>`;
+  1668→    }).join('');
+  1669→
+  1670→    container.innerHTML = html
+  1671→      + `<button class="view-all-btn" onclick="location.href='/search?q=${encodeURIComponent(q)}&type=${currentSearchMode}'">${SVG.arrow} View all results</button>`;
+  1672→    container.style.display = 'block';
+  1673→  }
+  1674→
+  1675→  /* ═══════════════════════════════════════════════════════════
+  1676→     AUTH MODAL
+  1677→  ═══════════════════════════════════════════════════════════ */
+  1678→  let currentSlide = 0;
+  1679→
+  1680→  let carouselTimer = null;
+  1681→  function startCarousel() {
+  1682→    stopCarousel();
+  1683→    const slides = document.querySelectorAll('#authMobileCarousel .mc-slide');
+  1684→    if (slides.length < 2) return;
+  1685→    let idx = 0;
+  1686→    carouselTimer = setInterval(() => {
+  1687→      slides[idx].classList.remove('active');
+  1688→      idx = (idx + 1) % slides.length;
+  1689→      slides[idx].classList.add('active');
+  1690→    }, 3000);  // 3-second morphine crossfade
+  1691→  }
+  1692→  function stopCarousel() {
+  1693→    if (carouselTimer) { clearInterval(carouselTimer); carouselTimer = null; }
+  1694→  }
+  1695→
+  1696→  // Body scroll-lock state — saved so we can restore the exact scroll
+  1697→  // position when the modal closes (iOS Safari quirk: position:fixed on
+  1698→  // <body> resets the scroll offset, so we have to put it back manually).
+  1699→  let aniumiSavedScrollY = 0;
+  1700→
+  1701→  function openModal(n = 0) {
+  1702→    document.getElementById('authOverlay').classList.add('open');
+  1703→    // Set initial carousel class based on which slide we're opening
+  1704→    const _carousel = document.getElementById('authMobileCarousel');
+  1705→    if (_carousel) {
+  1706→      _carousel.classList.remove('carousel-signin','carousel-signup','carousel-forgot');
+  1707→      _carousel.classList.add(n === 0 ? 'carousel-signin' : n === 1 ? 'carousel-signup' : 'carousel-forgot');
+  1708→    }
+  1709→    // Lock the body so the page behind the modal cannot scroll.
+  1710→    // Save the current scroll offset first so we can restore it on close.
+  1711→    aniumiSavedScrollY = window.scrollY || window.pageYOffset || 0;
+  1712→    document.body.classList.add('aniumi-modal-open');
+  1713→    // The body is now position:fixed — nudge it so the user still
+  1714→    // appears to be at the same scroll position rather than the top.
+  1715→    document.body.style.top = `-${aniumiSavedScrollY}px`;
+  1716→    slideTo(n);
+  1717→    ['loginErr','signUpErr','resetErr','errUsername','errConfirm'].forEach(id => {
+  1718→      const el = document.getElementById(id); if (el) el.textContent = '';
+  1719→    });
+  1720→    document.getElementById('resetOk').style.display = 'none';
+  1721→    // Kick off the mobile image carousel
+  1722→    startCarousel();
+  1723→  }
+  1724→  window.openLoginModal = () => openModal(0);
+  1725→
+  1726→  function closeModal() {
+  1727→    document.getElementById('authOverlay').classList.remove('open');
+  1728→    stopCarousel();
+  1729→    // Unlock the body & restore the saved scroll offset.
+  1730→    document.body.classList.remove('aniumi-modal-open');
+  1731→    document.body.style.top = '';
+  1732→    window.scrollTo(0, aniumiSavedScrollY);
+  1733→  }
+  1734→
+  1735→  function slideTo(n) {
+  1736→    currentSlide = n;
+  1737→    document.getElementById('formSlides').style.transform = `translateX(-${n * 33.333}%)`;
+  1738→    // Toggle .active so the inactive slide can't be interacted with
+  1739→    document.querySelectorAll('.form-slide').forEach((s, i) => {
+  1740→      s.classList.toggle('active', i === n);
+  1741→    });
+  1742→    // Update carousel aspect-ratio class per slide so sign-in gets a
+  1743→    // taller image (less form content) and sign-up gets a shorter one.
+  1744→    const carousel = document.getElementById('authMobileCarousel');
+  1745→    if (carousel) {
+  1746→      carousel.classList.remove('carousel-signin','carousel-signup','carousel-forgot');
+  1747→      if (n === 0) carousel.classList.add('carousel-signin');
+  1748→      else if (n === 1) carousel.classList.add('carousel-signup');
+  1749→      else carousel.classList.add('carousel-forgot');
+  1750→    }
+  1751→    resetHCaptcha();
+  1752→  }
+  1753→
+  1754→  function initAuthModal() {
+  1755→    document.getElementById('authClose')?.addEventListener('click', closeModal);
+  1756→    document.getElementById('authOverlay')?.addEventListener('click', e => {
+  1757→      if (e.target.id === 'authOverlay') closeModal();
+  1758→    });
+  1759→
+  1760→    document.getElementById('goSignUp')?.addEventListener('click', () => slideTo(1));
+  1761→    document.getElementById('goLogin')?.addEventListener('click',  () => slideTo(0));
+  1762→    document.getElementById('forgotLink')?.addEventListener('click', () => slideTo(2));
+  1763→    document.getElementById('backLogin')?.addEventListener('click',  () => slideTo(0));
+  1764→    // New "← Back to Sign In" link at the top of the sign-up form
+  1765→    document.getElementById('backLoginTop')?.addEventListener('click', () => slideTo(0));
+  1766→
+  1767→    document.querySelectorAll('.eye-btn').forEach(btn => {
+  1768→      btn.addEventListener('click', function () {
+  1769→        const inp = document.getElementById(this.dataset.target);
+  1770→        if (!inp) return;
+  1771→        const show = inp.type === 'password';
+  1772→        inp.type = show ? 'text' : 'password';
+  1773→        this.innerHTML = show ? SVG.eyeOff : SVG.eye;
+  1774→      });
+  1775→    });
+  1776→
+  1777→    document.getElementById('regUsername')?.addEventListener('input', function () {
+  1778→      this.value = this.value.replace(/[^a-zA-Z0-9]/g, '');
+  1779→      document.getElementById('errUsername').textContent =
+  1780→        this.value.length > 0 && this.value.length < 3 ? 'Minimum 3 characters.' : '';
+  1781→    });
+  1782→
+  1783→    document.getElementById('regPassword')?.addEventListener('input', function () {
+  1784→      updatePwdStrength(this.value);
+  1785→    });
+  1786→
+  1787→    document.getElementById('regConfirm')?.addEventListener('input', function () {
+  1788→      const pwd = document.getElementById('regPassword')?.value || '';
+  1789→      document.getElementById('errConfirm').textContent =
+  1790→        this.value && this.value !== pwd ? 'Passwords do not match.' : '';
+  1791→    });
+  1792→
+  1793→    document.getElementById('btnSignIn')?.addEventListener('click', async () => {
+  1794→      const username = document.getElementById('loginUsername').value.trim();
+  1795→      const password = document.getElementById('loginPassword').value;
+  1796→      const errEl   = document.getElementById('loginErr');
+  1797→      errEl.textContent = '';
+  1798→      if (!username || !password) { errEl.textContent = 'Please fill in all fields.'; return; }
+  1799→      if (!hcaptchaToken) {
+  1800→        errEl.textContent = 'Please complete the captcha verification below.';
+  1801→        // Scroll the form column so the captcha widget is visible — most
+  1802→        // users click submit before realising the captcha hasn't verified.
+  1803→        document.getElementById('slideLogin')?.querySelector('.cf-wrap')
+  1804→          ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  1805→        document.getElementById('loginErr')?.parentElement?.querySelector('.cf-wrap')
+  1806→          ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  1807→        return;
+  1808→      }
+  1809→
+  1810→      const btn = document.getElementById('btnSignIn');
+  1811→      btn.disabled = true; btn.textContent = 'Signing in…';
+  1812→      try {
+  1813→        let email = username;
+  1814→        if (!username.includes('@')) {
+  1815→          const { data: p } = await supabase.from('profiles').select('email').eq('username', username).maybeSingle();
+  1816→          if (p?.email) email = p.email;
+  1817→          else { errEl.textContent = 'Username not found.'; return; }
+  1818→        }
+  1819→        const { data, error } = await supabase.auth.signInWithPassword({
+  1820→          email, password,
+  1821→          options: { captchaToken: hcaptchaToken }
+  1822→        });
+  1823→        if (error) {
+  1824→          // Supabase captcha errors come back with `error.code` like
+  1825→          // "captcha_failed" or with the word "captcha" in the message.
+  1826→          // Give the user a friendly explanation + scroll to the widget.
+  1827→          const msg = (error.message || '').toLowerCase();
+  1828→          if (msg.includes('captcha') || (error.code || '').includes('captcha')) {
+  1829→            errEl.textContent = 'Captcha verification failed. Please solve it again.';
+  1830→            document.getElementById('slideLogin')?.querySelector('.cf-wrap')
+  1831→              ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  1832→          } else {
+  1833→            errEl.textContent = error.message;
+  1834→          }
+  1835→          return;
+  1836→        }
+  1837→        localStorage.setItem('aniumi_last_activity', Date.now().toString());
+  1838→        // Record login metadata (IP / country / state / count / last-login)
+  1839→        if (data.user) await recordLogin(data.user.id);
+  1840→        closeModal();
+  1841→      } catch { errEl.textContent = 'An error occurred. Try again.'; }
+  1842→      finally { btn.disabled = false; btn.textContent = 'Sign In'; resetHCaptcha(); }
+  1843→    });
+  1844→
+  1845→    document.getElementById('btnGoogleLogin')?.addEventListener('click', async () => {
+  1846→        // Login — no geo needed
+  1847→        await supabase.auth.signInWithOAuth({
+  1848→          provider: 'google',
+  1849→          options: { redirectTo: window.location.origin }
+  1850→        });
+  1851→      });
+  1852→    document.getElementById('btnGoogleSignUp')?.addEventListener('click', async () => {
+  1853→        // Sign-up — collect geo for new user profile
+  1854→        const geo = await getUserGeo();
+  1855→        try { localStorage.setItem('aniumi_pending_geo', JSON.stringify(geo)); } catch(e){}
+  1856→        await supabase.auth.signInWithOAuth({
+  1857→          provider: 'google',
+  1858→          options: { redirectTo: window.location.origin }
+  1859→        });
+  1860→      });
+  1861→
+  1862→    document.getElementById('btnSignUp')?.addEventListener('click', async () => {
+  1863→      const username = document.getElementById('regUsername').value.trim();
+  1864→      const email    = document.getElementById('regEmail').value.trim();
+  1865→      const password = document.getElementById('regPassword').value;
+  1866→      const confirm  = document.getElementById('regConfirm').value;
+  1867→      const terms    = document.getElementById('termsCheck').checked;
+  1868→      const errEl    = document.getElementById('signUpErr');
+  1869→      errEl.textContent = '';
+  1870→
+  1871→      if (!username || !email || !password || !confirm) { errEl.textContent = 'Please fill in all fields.'; return; }
+  1872→      if (!/^[a-zA-Z0-9]+$/.test(username))             { errEl.textContent = 'Username: letters and numbers only.'; return; }
+  1873→      if (username.length < 3)                           { errEl.textContent = 'Username must be at least 3 characters.'; return; }
+  1874→      if (password !== confirm)                          { errEl.textContent = 'Passwords do not match.'; return; }
+  1875→      if (!isStrongPwd(password))                        { errEl.textContent = 'Password must include upper, lower, number, and symbol.'; return; }
+  1876→      if (!terms)                                        { errEl.textContent = 'Please accept the Terms & Conditions.'; return; }
+  1877→      if (!hcaptchaToken)                                {
+  1878→        errEl.textContent = 'Please complete the captcha verification below.';
+  1879→        // Auto-scroll the form column so the captcha widget is visible.
+  1880→        document.getElementById('slideSignUp')?.querySelector('.cf-wrap')
+  1881→          ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  1882→        return;
+  1883→      }
+  1884→
+  1885→      const btn = document.getElementById('btnSignUp');
+  1886→      btn.disabled = true; btn.textContent = 'Creating…';
+  1887→      try {
+  1888→        // Check username uniqueness
+  1889→        const { data: exUser } = await supabase.from('profiles').select('user_id').eq('username', username).maybeSingle();
+  1890→        if (exUser) { errEl.textContent = 'Username already taken.'; return; }
+  1891→
+  1892→        // Check email uniqueness
+  1893→        const { data: exEmail } = await supabase.from('profiles').select('user_id').eq('email', email).maybeSingle();
+  1894→        if (exEmail) { errEl.textContent = 'This email address is already registered. Please sign in instead.'; return; }
+  1895→
+  1896→        // Avatar picker was removed from the sign-up form to save space.
+  1897→        // New users get the DEFAULT_AVATAR; they can change it later from
+  1898→        // their profile page (avatar upload UI lives elsewhere).
+  1899→        const avatarUrl = DEFAULT_AVATAR;
+  1900→        const geo = await getUserGeo();
+  1901→
+  1902→        const { data, error } = await supabase.auth.signUp({
+  1903→          email, password,
+  1904→          options: {
+  1905→            // hCaptcha token — REQUIRED when "Attack Protection → Captcha"
+  1906→            // is enabled in Supabase.  Without it Supabase rejects the
+  1907→            // request with `captcha_failed`.  Frontend already checks the
+  1908→            // token is non-empty before we get here.
+  1909→            captchaToken: hcaptchaToken,
+  1910→            data: {
+  1911→              username,
+  1912→              avatar_url: avatarUrl,
+  1913→              has_password:  true,
+  1914→              ip_address_text: geo.ip,
+  1915→              country:         geo.country,
+  1916→              country_code:    geo.country_code,
+  1917→              state:           geo.state,
+  1918→              city:            geo.city,
+  1919→              timezone:        geo.timezone
+  1920→            }
+  1921→          }
+  1922→        });
+  1923→        if (error) {
+  1924→          const msg = (error.message || '').toLowerCase();
+  1925→          // Captcha-specific error → friendly message + scroll to widget.
+  1926→          if (msg.includes('captcha') || (error.code || '').includes('captcha')) {
+  1927→            errEl.textContent = 'Captcha verification failed. Please solve it again.';
+  1928→            document.getElementById('slideSignUp')?.querySelector('.cf-wrap')
+  1929→              ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  1930→          }
+  1931→          // Supabase may return "User already registered" error
+  1932→          else if (msg.includes('already registered') || msg.includes('already been registered')) {
+  1933→            errEl.textContent = 'This email address is already registered. Please sign in instead.';
+  1934→          } else {
+  1935→            errEl.textContent = error.message;
+  1936→          }
+  1937→          return;
+  1938→        }
+  1939→
+  1940→        // The handle_new_user trigger auto-creates the profile row.
+  1941→        // We also persist the chosen avatar to the PERMANENT bucket so it
+  1942→        // never expires (the on-screen URL might be from a private bucket
+  1943→        // or an external source).
+  1944→        if (data.user) {
+  1945→          await persistAvatarPermanently(data.user.id, avatarUrl);
+  1946→        }
+  1947→        localStorage.setItem('aniumi_last_activity', Date.now().toString());
+  1948→        closeModal();
+  1949→        alert('Account created! Check your email to verify your account.');
+  1950→      } catch { errEl.textContent = 'An error occurred. Try again.'; }
+  1951→      finally { btn.disabled = false; btn.textContent = 'Create Account'; resetHCaptcha(); }
+  1952→    });
+  1953→
+  1954→    document.getElementById('btnReset')?.addEventListener('click', async () => {
+  1955→      const email = document.getElementById('resetEmail').value.trim();
+  1956→      const errEl = document.getElementById('resetErr');
+  1957→      errEl.textContent = '';
+  1958→      document.getElementById('resetOk').style.display = 'none';
+  1959→      if (!email) { errEl.textContent = 'Please enter your email.'; return; }
+  1960→
+  1961→      const btn = document.getElementById('btnReset');
+  1962→      btn.disabled = true; btn.textContent = 'Sending…';
+  1963→      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+  1964→        redirectTo: `${window.location.origin}/update-password`
+  1965→      });
+  1966→      btn.disabled = false; btn.textContent = 'Reset Password';
+  1967→      if (error) errEl.textContent = error.message;
+  1968→      else document.getElementById('resetOk').style.display = 'block';
+  1969→    });
+  1970→  }
+  1971→
+  1972→  function isStrongPwd(p) {
+  1973→    return p.length >= 8 && /[A-Z]/.test(p) && /[a-z]/.test(p) && /[0-9]/.test(p) && /[^A-Za-z0-9]/.test(p);
+  1974→  }
+  1975→
+  1976→  function updatePwdStrength(p) {
+  1977→    let score = 0;
+  1978→    if (p.length >= 8) score++;
+  1979→    if (/[A-Z]/.test(p)) score++;
+  1980→    if (/[a-z]/.test(p)) score++;
+  1981→    if (/[0-9]/.test(p)) score++;
+  1982→    if (/[^A-Za-z0-9]/.test(p)) score++;
+  1983→    const lvls = [
+  1984→      {pct:0,  color:'',        label:''},
+  1985→      {pct:20, color:'#ef4444', label:'Very weak'},
+  1986→      {pct:40, color:'#f97316', label:'Weak'},
+  1987→      {pct:60, color:'#eab308', label:'Fair'},
+  1988→      {pct:80, color:'#22c55e', label:'Strong'},
+  1989→      {pct:100,color:'#10b981', label:'Very strong'},
+  1990→    ];
+  1991→    const l = lvls[score] || lvls[0];
+  1992→    const fill = document.getElementById('pwdFill');
+  1993→    const lbl  = document.getElementById('pwdLabel');
+  1994→    if (fill) { fill.style.width = l.pct+'%'; fill.style.background = l.color; }
+  1995→    if (lbl)  { lbl.textContent = l.label; lbl.style.color = l.color; }
+  1996→  }
+  1997→
+  1998→  /* ═══════════════════════════════════════════════════════════
+  1999→     AVATAR PICKER
+  2000→  ═══════════════════════════════════════════════════════════ */
+
+[showing lines 1-2000 of 2384; use offset=2001 with limit to continue reading]
