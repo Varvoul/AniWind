@@ -3380,10 +3380,27 @@ img { max-width: 100%; height: auto; display: block; }
       }
 
       // Fetch sub/dub episode counts + anilist info from AnimeSchedule proxy
+      // Caching: uses media_cache table. Finished Airing → permanent. Currently Airing → permanent (episode data stable).
       async function fetchAnimeScheduleData() {
         if (currentState.source !== 'jikan') return;
+        const _mid = `jikan-${currentState.id}`;
+        const _cacheKey = `info:animeschedule:${_mid}`;
+
+        // ── Step 1: Check DB cache first ──
+        if (window.AniCache) {
+          try {
+            const cached = await window.AniCache.get(_cacheKey);
+            if (cached) {
+              console.log('[AnimeSchedule] served from DB cache for', _mid);
+              currentState.animeScheduleData = cached;
+              applyAnimeScheduleData(cached);
+              return; // done — no API call needed
+            }
+          } catch (e) { /* cache read failed — fall through to API */ }
+        }
+
+        // ── Step 2: Fetch from API ──
         try {
-          // Use romaji title (data.title) or english title as query
           const searchTitle = currentState.data?.title || currentState.data?.title_english || currentState.title;
           if (!searchTitle) return;
           const encoded = encodeURIComponent(searchTitle);
@@ -3395,23 +3412,36 @@ img { max-width: 100%; height: auto; display: block; }
           if (!json || !json.title) { console.warn('[AnimeSchedule] no match found'); return; }
           console.log('[AnimeSchedule] got data:', json.title, 'sub:', json.sub?.aired, 'dub:', json.dub?.aired, 'anilist:', json.anilist?.url);
 
-          // Store for later use
+          // Store in memory
           currentState.animeScheduleData = json;
+          applyAnimeScheduleData(json);
 
-          // Update episode detail with sub/dub counts
-          const subCount = json.sub?.aired || 0;
-          const dubCount = json.dub?.aired || 0;
-          if (subCount > 0 || dubCount > 0) {
-            updateEpisodeDetail(subCount, dubCount);
-            // Also update language badges
-            renderLanguageBadges(subCount, dubCount);
-          }
-
-          // Add/update Anilist link in external links
-          if (json.anilist?.url) {
-            updateAnilistLink(json.anilist.url);
+          // ── Step 3: Save to DB permanently ──
+          if (window.AniCache) {
+            window.AniCache.set({
+              cacheKey: _cacheKey,
+              pageSource: 'info',
+              section: 'animeschedule',
+              showId: _mid,
+              malId: currentState.id,
+              data: json,
+              permanent: true, // permanent for both Finished & Currently Airing
+            }).catch(() => {});
           }
         } catch (e) { console.warn('[AnimeSchedule] fetch failed:', e.message); }
+      }
+
+      // Apply AnimeSchedule data to the UI (episodes + anilist link)
+      function applyAnimeScheduleData(data) {
+        const subCount = data.sub?.aired || 0;
+        const dubCount = data.dub?.aired || 0;
+        if (subCount > 0 || dubCount > 0) {
+          updateEpisodeDetail(subCount, dubCount);
+          renderLanguageBadges(subCount, dubCount);
+        }
+        if (data.anilist?.url) {
+          updateAnilistLink(data.anilist.url);
+        }
       }
 
       function updateAnilistLink(anilistUrl) {

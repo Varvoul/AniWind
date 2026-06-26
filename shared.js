@@ -57,20 +57,24 @@
       local_timezone: localTz, utc_offset: utcOffset, timezone: localTz
     };
     try {
-      const res = await fetch('https://ipapi.co/json/', { cache: 'no-store' });
+      // ipapi.co blocks cross-origin requests from some deployments.
+      // Use ipwho.is as CORS-friendly alternative (same data shape, free, no key).
+      const res = await fetch('https://ipwho.is/', { cache: 'no-store' });
       if (res.ok) {
         const j = await res.json();
-        cachedGeo = {
-          ip:             j.ip || null,
-          country:        j.country_name || null,
-          country_code:   j.country_code || null,
-          state:          j.region || null,
-          city:           j.city || null,
-          local_timezone: localTz,
-          utc_offset:     utcOffset,
-          timezone:       localTz   // kept for backward compat
-        };
-        return cachedGeo;
+        if (j.success !== false) {
+          cachedGeo = {
+            ip:             j.ip || null,
+            country:        j.country || null,
+            country_code:   j.country_code || null,
+            state:          j.region || null,
+            city:           j.city || null,
+            local_timezone: localTz,
+            utc_offset:     utcOffset,
+            timezone:       localTz   // kept for backward compat
+          };
+          return cachedGeo;
+        }
       }
     } catch (e) { /* network/CORS — fall through */ }
     try {
