@@ -1562,24 +1562,27 @@
     }
   }
 
-  /* ── Jikan (Anime) ── */
+  /* ── Anime search via Supabase RPC (search_anime) ── */
   async function fetchJikan(q) {
-    const res  = await fetch(`https://api.jikan.moe/v4/anime?q=${encodeURIComponent(q)}&limit=6&order_by=score&sort=desc`);
-    if (!res.ok) throw new Error('Jikan error');
-    const data = await res.json();
-    return (data.data || []).map(item => {
-      const aired = item.aired?.from ? new Date(item.aired.from) : null;
-      const monthYear = aired ? aired.toLocaleDateString('en-US',{month:'long',year:'numeric'}) : '—';
-      let dur = item.duration || '—';
-      if (dur === 'Unknown') dur = '—';
+    const { data, error } = await supabase.rpc('search_anime', {
+      search_query: q,
+      result_limit: 6
+    });
+    if (error) throw new Error(error.message);
+    return (data || []).map(item => {
+      const mainTitle = item.english_title || item.default_title || '—';
+      const subTitles = [item.romaji_title, item.japanese_title].filter(Boolean);
+      const studios   = Array.isArray(item.studio_name) ? item.studio_name.join(', ') : '';
+      const genres    = Array.isArray(item.genres) ? item.genres.slice(0, 3).join(', ') : '';
+      const metaParts = [item.anime_type, studios, genres].filter(Boolean);
       return {
-        poster:   item.images?.jpg?.image_url || '',
-        title:    item.title_english || item.title || '—',
-        original: item.title_japanese || item.title || '',
-        meta:     `${monthYear} · ${item.type||'—'} · ${dur}`,
-        score:    item.score ? `★ MAL ${item.score}` : null,
-        id:       item.mal_id,
-        source:   'jikan'
+        poster:      item.small_poster_jpg || '',
+        title:       mainTitle,
+        original:    subTitles.join(' / ') || '',
+        meta:        metaParts.join(' · '),
+        score:       item.mal_score ? `★ ${item.mal_score}` : null,
+        id:          item.mal_id,
+        source:      'jikan'
       };
     });
   }
