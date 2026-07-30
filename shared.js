@@ -532,12 +532,15 @@
     /* "Forgot password?" inline link — sits below the password field, right-aligned */
     .forgot-inline{
       display:block;width:100%;text-align:right;
-      font-size:0.68rem;color:var(--btn-primary,#3b82f6);
-      background:none;border:none;cursor:pointer;padding:2px 0 0;
-      font-family:inherit;margin-top:5px;line-height:1;
-      transition:opacity .18s;
+      font-size:0.72rem;color:#63b3ed;font-weight:600;
+      background:none;border:none;cursor:pointer;padding:4px 0;
+      font-family:inherit;margin-top:8px;margin-bottom:12px;line-height:1.3;
+      transition:all .18s ease;letter-spacing:.02em;
     }
-    .forgot-inline:hover{opacity:.72;}
+    .forgot-inline:hover{
+      opacity:.85;color:#90cdf4;text-decoration:underline;
+      text-underline-offset:2px;
+    }
 
     /* ─── MOBILE CAROUSEL (hidden on desktop) ─── */
     .auth-mobile-carousel{
