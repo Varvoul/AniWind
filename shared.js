@@ -889,6 +889,27 @@
   styleEl.textContent = css;
   document.head.appendChild(styleEl);
 
+  /* ── DYNAMIC FAVICON ──
+     Automatically sets/updates favicon on EVERY page that loads shared.js.
+     No manual setup needed - just include shared.js and favicon appears!
+  */
+  (function setDynamicFavicon() {
+    const faviconUrl = 'https://i.postimg.cc/BvwTjXgv/image-359e594e.png';
+    let link = document.querySelector('link[rel="icon"]') || document.querySelector('link[rel="shortcut icon"]');
+    if (link) {
+      // Update existing favicon
+      link.href = faviconUrl;
+      link.type = 'image/png';
+    } else {
+      // Create new favicon element if none exists
+      link = document.createElement('link');
+      link.rel = 'icon';
+      link.type = 'image/png';
+      link.href = faviconUrl;
+      document.head.appendChild(link);
+    }
+  })();
+
   /* ═══════════════════════════════════════════════════════════
      HELPERS
   ═══════════════════════════════════════════════════════════ */
