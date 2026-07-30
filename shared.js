@@ -801,8 +801,8 @@
       cursor:pointer;border:2px solid transparent;
       transition:border-color .18s,transform .18s;
     }
-    .avatar-opt:hover{border-color:var(--btn-primary,#3b82f6);transform:scale(1.08);}
-    .avatar-opt.selected{border-color:#10b981;}
+    .avatar-opt:hover{border-color:#63b3ed;transform:scale(1.08);}
+    .avatar-opt.selected{border-color:#4299e1;}
     .avatar-opt img{width:100%;height:100%;object-fit:cover;}
 
     /* Cloudflare Turnstile wrapper */
@@ -1298,8 +1298,8 @@
       <span class="avatar-popup-title">Choose Avatar</span>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:12px;">
-      <label class="avatar-action-btn" for="avatarFileInput" style="flex:1;text-align:center;cursor:pointer;border-radius:20px;padding:8px 12px;font-size:0.75rem;font-weight:600;background:var(--btn-primary,#3b82f6);color:#fff;border:none;display:flex;align-items:center;justify-content:center;gap:6px;">${SVG.upload} Upload from Device</label>
-      <button class="avatar-action-btn" id="btnChooseFromBucket" type="button" style="flex:1;border-radius:20px;padding:8px 12px;font-size:0.75rem;font-weight:600;background:transparent;color:var(--text,#e2e8f0);border:2px solid var(--btn-primary,#3b82f6);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">Choose from Collection</button>
+      <label class="avatar-action-btn" for="avatarFileInput" style="flex:1;text-align:center;cursor:pointer;border-radius:20px;padding:8px 12px;font-size:0.75rem;font-weight:600;background:#4299e1;color:#fff;border:none;display:flex;align-items:center;justify-content:center;gap:6px;">${SVG.upload} Upload from Device</label>
+      <button class="avatar-action-btn" id="btnChooseFromBucket" type="button" style="flex:1;border-radius:20px;padding:8px 12px;font-size:0.75rem;font-weight:600;background:transparent;color:#63b3ed;border:2px solid #4299e1;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">Choose from Collection</button>
     </div>
     <input type="file" id="avatarFileInput" accept="image/*" style="display:none;">
     <div class="avatar-grid" id="avatarGrid" style="display:none;">
