@@ -1136,16 +1136,16 @@
         <div class="form-slides" id="formSlides">
 
           <!-- ── SLIDE 0 · LOGIN ──
-               Field order: username → password (+inline forgot) → hCaptcha →
+               Field order: email → password (+inline forgot) → hCaptcha →
                             Sign In button → Google auth → nav button (Sign up) -->
           <div class="form-slide active" id="slideLogin">
             <div class="auth-heading">Welcome back 👋</div>
             <div class="auth-subheading">Sign in to continue your anime journey.</div>
 
-            <!-- 1. Username -->
+            <!-- 1. Email -->
             <div class="field-group">
-              <label>Username or Email</label>
-              <input class="field-input" type="text" id="loginUsername" placeholder="Your username or email" autocomplete="username">
+              <label>Email</label>
+              <input class="field-input" type="text" id="loginUsername" placeholder="Your email address" autocomplete="username">
             </div>
 
             <!-- 2. Password -->
