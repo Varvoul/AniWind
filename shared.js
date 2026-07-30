@@ -128,19 +128,9 @@
     .site-header{
       background:var(--bg-header,#0d1117);
       padding:0 20px;display:flex;align-items:center;gap:10px;
-      justify-content:space-between;
       border-bottom:1px solid var(--border-subtle,rgba(255,255,255,0.08));
       position:sticky;top:0;z-index:200;height:64px;flex-wrap:nowrap;
     }
-
-    /* ── LEFT GROUP (logo + nav) / RIGHT GROUP (search + socials + login) ──
-       Two groups + justify-content:space-between on .site-header gives one
-       single, predictable gap between the nav and the controls — instead of
-       relying on a capped flex:1 search bar to eat the leftover space
-       (which left an uneven gap before the search bar and dead space after
-       the Sign In button on wide screens). */
-    .header-left-group{display:flex;align-items:center;gap:22px;min-width:0;}
-    .header-right-group{display:flex;align-items:center;gap:14px;flex-shrink:0;}
 
     /* ── LOGO ── */
     .header-logo{flex-shrink:0;display:flex;align-items:center;}
@@ -181,7 +171,7 @@
     .nav-dropdown a:hover{background:rgba(255,255,255,0.08);color:#fff;}
 
     /* ── SEARCH ── */
-    .header-search-wrap{flex:0 1 280px;width:280px;position:relative;min-width:0;}
+    .header-search-wrap{flex:1;max-width:330px;position:relative;min-width:0;}
     .header-search-bar{
       display:flex;align-items:center;
       background:var(--bg-surface,rgba(255,255,255,0.05));
@@ -942,81 +932,77 @@
     <span></span><span></span><span></span>
   </button>
 
-  <div class="header-left-group">
-    <!-- Logo -->
-    <a href="/" class="header-logo">
-      <img src="https://i.postimg.cc/X7d0fPtJ/1778142012237-removebg-preview.png" alt="AniOcean">
-    </a>
+  <!-- Logo -->
+  <a href="/" class="header-logo">
+    <img src="https://i.postimg.cc/X7d0fPtJ/1778142012237-removebg-preview.png" alt="AniOcean">
+  </a>
 
-    <!-- Desktop Nav -->
-    <nav class="main-nav" id="mainNav">
-      <a href="/" class="nav-link-item">Home</a>
+  <!-- Desktop Nav -->
+  <nav class="main-nav" id="mainNav">
+    <a href="/" class="nav-link-item">Home</a>
 
-      <div class="nav-dd-wrap">
-        <span class="nav-dd-label">Genre ▾</span>
-        <div class="nav-dropdown grid-4">${genreLinks}</div>
+    <div class="nav-dd-wrap">
+      <span class="nav-dd-label">Genre ▾</span>
+      <div class="nav-dropdown grid-4">${genreLinks}</div>
+    </div>
+
+    <div class="nav-dd-wrap">
+      <span class="nav-dd-label">Country ▾</span>
+      <div class="nav-dropdown grid-4">${countryLinks}</div>
+    </div>
+
+    <div class="nav-dd-wrap">
+      <span class="nav-dd-label">Type ▾</span>
+      <div class="nav-dropdown grid-1">
+        <a href="/type/anime">Anime</a>
+        <a href="/type/drama">Drama</a>
+        <a href="/type/movie">Movie</a>
+        <a href="/type/tv-show">TV Show</a>
       </div>
+    </div>
 
-      <div class="nav-dd-wrap">
-        <span class="nav-dd-label">Country ▾</span>
-        <div class="nav-dropdown grid-4">${countryLinks}</div>
+    <a href="/status/ongoing" class="nav-link-item">Ongoing</a>
+    <a href="/search?q=updates" class="nav-link-item">Updates</a>
+    <a href="#" class="nav-link-item">News</a>
+    <a href="#" class="nav-link-item">Forum</a>
+  </nav>
+
+  <!-- Desktop Search -->
+  <div class="header-search-wrap" id="desktopSearchWrap">
+    <div class="header-search-bar">
+      <div class="search-toggle-tabs" id="desktopTabs">
+        <span class="search-toggle-tab active" data-mode="non-anime">Non-Anime</span>
+        <span class="search-toggle-tab" data-mode="anime">Anime</span>
       </div>
-
-      <div class="nav-dd-wrap">
-        <span class="nav-dd-label">Type ▾</span>
-        <div class="nav-dropdown grid-1">
-          <a href="/type/anime">Anime</a>
-          <a href="/type/drama">Drama</a>
-          <a href="/type/movie">Movie</a>
-          <a href="/type/tv-show">TV Show</a>
-        </div>
-      </div>
-
-      <a href="/status/ongoing" class="nav-link-item">Ongoing</a>
-      <a href="/search?q=updates" class="nav-link-item">Updates</a>
-      <a href="#" class="nav-link-item">News</a>
-      <a href="#" class="nav-link-item">Forum</a>
-    </nav>
+      <input type="text" class="search-input-field" id="searchInput" placeholder="Search shows…" autocomplete="off">
+    </div>
+    <div class="search-suggestions" id="searchSuggestions"></div>
   </div>
 
-  <div class="header-right-group">
-    <!-- Desktop Search -->
-    <div class="header-search-wrap" id="desktopSearchWrap">
-      <div class="header-search-bar">
-        <div class="search-toggle-tabs" id="desktopTabs">
-          <span class="search-toggle-tab active" data-mode="non-anime">Non-Anime</span>
-          <span class="search-toggle-tab" data-mode="anime">Anime</span>
-        </div>
-        <input type="text" class="search-input-field" id="searchInput" placeholder="Search shows…" autocomplete="off">
-      </div>
-      <div class="search-suggestions" id="searchSuggestions"></div>
-    </div>
+  <!-- Desktop Socials -->
+  <div class="header-socials">
+    <a href="https://discord.com" target="_blank" class="social-icon-btn" title="Discord">${SVG.discord}</a>
+    <a href="https://tumblr.com" target="_blank" class="social-icon-btn" title="Tumblr">${SVG.tumblr}</a>
+    <a href="https://bsky.app" target="_blank" class="social-icon-btn" title="Bluesky">${SVG.bluesky}</a>
+  </div>
 
-    <!-- Desktop Socials -->
-    <div class="header-socials">
-      <a href="https://discord.com" target="_blank" class="social-icon-btn" title="Discord">${SVG.discord}</a>
-      <a href="https://tumblr.com" target="_blank" class="social-icon-btn" title="Tumblr">${SVG.tumblr}</a>
-      <a href="https://bsky.app" target="_blank" class="social-icon-btn" title="Bluesky">${SVG.bluesky}</a>
-    </div>
-
-    <!-- Desktop Login / Avatar -->
-    <button class="btn-login" id="btnLogin">Sign In</button>
-    <div class="user-avatar-wrap" id="desktopAvatarWrap">
-      <img class="user-avatar" id="desktopAvatar" src="${DEFAULT_AVATAR}" alt="Profile">
-      <div class="profile-dropdown" id="desktopDropdown">
-        <div class="profile-dd-header">
-          <img id="ddAvatarImg" src="${DEFAULT_AVATAR}" alt="">
-          <div>
-            <div class="profile-dd-uname" id="ddUsername">—</div>
-            <button class="dd-sign-out" id="btnLogoutDesktop">${SVG.logout} Sign out</button>
-          </div>
+  <!-- Desktop Login / Avatar (RIGHT EDGE) -->
+  <button class="btn-login" id="btnLogin">Sign In</button>
+  <div class="user-avatar-wrap" id="desktopAvatarWrap">
+    <img class="user-avatar" id="desktopAvatar" src="${DEFAULT_AVATAR}" alt="Profile">
+    <div class="profile-dropdown" id="desktopDropdown">
+      <div class="profile-dd-header">
+        <img id="ddAvatarImg" src="${DEFAULT_AVATAR}" alt="">
+        <div>
+          <div class="profile-dd-uname" id="ddUsername">—</div>
+          <button class="dd-sign-out" id="btnLogoutDesktop">${SVG.logout} Sign out</button>
         </div>
-        <a href="" class="profile-dd-item">${SVG.profile}&nbsp;Profile</a>
-        <a href="" class="profile-dd-item">${SVG.film}&nbsp;Continue Watching</a>
-        <a href="" class="profile-dd-item">${SVG.list}&nbsp;Watchlist</a>
-        <a href="" class="profile-dd-item">${SVG.bar}&nbsp;Stats</a>
-        <a href="" class="profile-dd-item">${SVG.settings}&nbsp;Settings</a>
       </div>
+      <a href="" class="profile-dd-item">${SVG.profile}&nbsp;Profile</a>
+      <a href="" class="profile-dd-item">${SVG.film}&nbsp;Continue Watching</a>
+      <a href="" class="profile-dd-item">${SVG.list}&nbsp;Watchlist</a>
+      <a href="" class="profile-dd-item">${SVG.bar}&nbsp;Stats</a>
+      <a href="" class="profile-dd-item">${SVG.settings}&nbsp;Settings</a>
     </div>
   </div>
 
@@ -1150,16 +1136,16 @@
         <div class="form-slides" id="formSlides">
 
           <!-- ── SLIDE 0 · LOGIN ──
-               Field order: email → password (+inline forgot) → hCaptcha →
+               Field order: username → password (+inline forgot) → hCaptcha →
                             Sign In button → Google auth → nav button (Sign up) -->
           <div class="form-slide active" id="slideLogin">
             <div class="auth-heading">Welcome back 👋</div>
             <div class="auth-subheading">Sign in to continue your anime journey.</div>
 
-            <!-- 1. Email -->
+            <!-- 1. Username -->
             <div class="field-group">
-              <label>Email</label>
-              <input class="field-input" type="email" id="loginUsername" placeholder="Your email address" autocomplete="email">
+              <label>Username or Email</label>
+              <input class="field-input" type="text" id="loginUsername" placeholder="Your username or email" autocomplete="username">
             </div>
 
             <!-- 2. Password -->
@@ -1808,12 +1794,11 @@
     });
 
     document.getElementById('btnSignIn')?.addEventListener('click', async () => {
-      const email    = document.getElementById('loginUsername').value.trim();
+      const username = document.getElementById('loginUsername').value.trim();
       const password = document.getElementById('loginPassword').value;
       const errEl   = document.getElementById('loginErr');
       errEl.textContent = '';
-      if (!email || !password) { errEl.textContent = 'Please fill in all fields.'; return; }
-      if (!email.includes('@')) { errEl.textContent = 'Please enter a valid email address.'; return; }
+      if (!username || !password) { errEl.textContent = 'Please fill in all fields.'; return; }
       if (!hcaptchaToken) {
         errEl.textContent = 'Please complete the captcha verification below.';
         // Scroll the form column so the captcha widget is visible — most
@@ -1828,6 +1813,12 @@
       const btn = document.getElementById('btnSignIn');
       btn.disabled = true; btn.textContent = 'Signing in…';
       try {
+        let email = username;
+        if (!username.includes('@')) {
+          const { data: p } = await supabase.from('profiles').select('email').eq('username', username).maybeSingle();
+          if (p?.email) email = p.email;
+          else { errEl.textContent = 'Username not found.'; return; }
+        }
         const { data, error } = await supabase.auth.signInWithPassword({
           email, password,
           options: { captchaToken: hcaptchaToken }
@@ -1905,9 +1896,10 @@
         const { data: exEmail } = await supabase.from('profiles').select('user_id').eq('email', email).maybeSingle();
         if (exEmail) { errEl.textContent = 'This email address is already registered. Please sign in instead.'; return; }
 
-        // Use whatever the user picked in the avatar popup (upload, bucket
-        // selection, or left untouched at DEFAULT_AVATAR).
-        const avatarUrl = selectedAvatarUrl;
+        // Avatar picker was removed from the sign-up form to save space.
+        // New users get the DEFAULT_AVATAR; they can change it later from
+        // their profile page (avatar upload UI lives elsewhere).
+        const avatarUrl = DEFAULT_AVATAR;
         const geo = await getUserGeo();
 
         const { data, error } = await supabase.auth.signUp({
@@ -2385,4 +2377,3 @@
   window.AVATAR_BUCKET_URL= AVATAR_BUCKET_URL;
 
 })();
-
