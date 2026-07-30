@@ -230,7 +230,7 @@
     .view-all-btn:hover{background:var(--btn-primary,#3b82f6);color:#fff;}
 
     /* ── SOCIALS ── */
-    .header-socials{display:flex;gap:4px;flex-shrink:0;}
+    .header-socials{display:flex;gap:4px;flex-shrink:0;margin-left:auto;}
     .social-icon-btn{
       width:32px;height:32px;border-radius:50%;display:flex;
       align-items:center;justify-content:center;
