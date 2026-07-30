@@ -57,22 +57,25 @@
       local_timezone: localTz, utc_offset: utcOffset, timezone: localTz
     };
     try {
-      const res = await fetch('https://ipapi.co/json/', { cache: 'no-store' });
+      // ipapi.co via Cloudflare Worker proxy — no CORS issues
+      const res = await fetch('https://ipapi-proxy.bionmovies47.workers.dev/json/', { cache: 'no-store' });
       if (res.ok) {
         const j = await res.json();
-        cachedGeo = {
-          ip:             j.ip || null,
-          country:        j.country_name || null,
-          country_code:   j.country_code || null,
-          state:          j.region || null,
-          city:           j.city || null,
-          local_timezone: localTz,
-          utc_offset:     utcOffset,
-          timezone:       localTz   // kept for backward compat
-        };
-        return cachedGeo;
+        if (j.success !== false && !j.error) {
+          cachedGeo = {
+            ip:             j.ip || null,
+            country:        j.country_name || null,
+            country_code:   j.country_code || null,
+            state:          j.region || null,
+            city:           j.city || null,
+            local_timezone: localTz,
+            utc_offset:     utcOffset,
+            timezone:       localTz   // kept for backward compat
+          };
+          return cachedGeo;
+        }
       }
-    } catch (e) { /* network/CORS — fall through */ }
+    } catch (e) { /* network error — fall through */ }
     try {
       const r2 = await fetch('https://api.ipify.org?format=json', { cache: 'no-store' });
       if (r2.ok) {
@@ -1559,24 +1562,27 @@
     }
   }
 
-  /* ── Jikan (Anime) ── */
+  /* ── Anime search via Supabase RPC (search_anime) ── */
   async function fetchJikan(q) {
-    const res  = await fetch(`https://api.jikan.moe/v4/anime?q=${encodeURIComponent(q)}&limit=6&order_by=score&sort=desc`);
-    if (!res.ok) throw new Error('Jikan error');
-    const data = await res.json();
-    return (data.data || []).map(item => {
-      const aired = item.aired?.from ? new Date(item.aired.from) : null;
-      const monthYear = aired ? aired.toLocaleDateString('en-US',{month:'long',year:'numeric'}) : '—';
-      let dur = item.duration || '—';
-      if (dur === 'Unknown') dur = '—';
+    const { data, error } = await supabase.rpc('search_anime', {
+      search_query: q,
+      result_limit: 6
+    });
+    if (error) throw new Error(error.message);
+    return (data || []).map(item => {
+      const mainTitle = item.english_title || item.default_title || '—';
+      const subTitles = [item.romaji_title, item.japanese_title].filter(Boolean);
+      const studios   = Array.isArray(item.studio_name) ? item.studio_name.join(', ') : '';
+      const genres    = Array.isArray(item.genres) ? item.genres.slice(0, 3).join(', ') : '';
+      const metaParts = [item.anime_type, studios, genres].filter(Boolean);
       return {
-        poster:   item.images?.jpg?.image_url || '',
-        title:    item.title_english || item.title || '—',
-        original: item.title_japanese || item.title || '',
-        meta:     `${monthYear} · ${item.type||'—'} · ${dur}`,
-        score:    item.score ? `★ MAL ${item.score}` : null,
-        id:       item.mal_id,
-        source:   'jikan'
+        poster:      item.small_poster_jpg || '',
+        title:       mainTitle,
+        original:    subTitles.join(' / ') || '',
+        meta:        metaParts.join(' · '),
+        score:       item.mal_score ? `★ ${item.mal_score}` : null,
+        id:          item.mal_id,
+        source:      'jikan'
       };
     });
   }
@@ -1839,9 +1845,15 @@
       finally { btn.disabled = false; btn.textContent = 'Sign In'; resetHCaptcha(); }
     });
 
-    ['btnGoogleLogin','btnGoogleSignUp'].forEach(id => {
-      document.getElementById(id)?.addEventListener('click', async () => {
-        // Stash geo in localStorage so the OAuth redirect target can pick it up.
+    document.getElementById('btnGoogleLogin')?.addEventListener('click', async () => {
+        // Login — no geo needed
+        await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: { redirectTo: window.location.origin }
+        });
+      });
+    document.getElementById('btnGoogleSignUp')?.addEventListener('click', async () => {
+        // Sign-up — collect geo for new user profile
         const geo = await getUserGeo();
         try { localStorage.setItem('aniumi_pending_geo', JSON.stringify(geo)); } catch(e){}
         await supabase.auth.signInWithOAuth({
@@ -1849,7 +1861,6 @@
           options: { redirectTo: window.location.origin }
         });
       });
-    });
 
     document.getElementById('btnSignUp')?.addEventListener('click', async () => {
       const username = document.getElementById('regUsername').value.trim();
@@ -2152,19 +2163,18 @@
     // Uses an atomic Postgres RPC so login_count is never double-counted
     // even if the function is called twice (tab restore, strict-mode etc.).
     try {
-      const geo = await getUserGeo();
       const now = new Date().toISOString();
-      // Atomic increment + geo update in one round-trip — no SELECT race.
+      // Atomic increment in one round-trip — no SELECT race.
       const { error } = await supabase.rpc('increment_login', {
         p_user_id:       userId,
         p_now:           now,
-        p_ip:            geo.ip             || null,
-        p_country:       geo.country        || null,
-        p_country_code:  geo.country_code   || null,
-        p_state:         geo.state          || null,
-        p_city:          geo.city           || null,
-        p_local_tz:      geo.local_timezone || geo.timezone || null,
-        p_utc_offset:    geo.utc_offset     || null
+        p_ip:            null,
+        p_country:       null,
+        p_country_code:  null,
+        p_state:         null,
+        p_city:          null,
+        p_local_tz:      null,
+        p_utc_offset:    null
       });
       if (error) {
         // RPC not deployed yet — fall back to safe client-side increment
@@ -2176,13 +2186,6 @@
           // COALESCE(login_count,0)+1 — never set to 1 if already > 0
           login_count:      (cur?.login_count != null ? cur.login_count + 1 : 1),
           first_login_date: cur?.first_login_date || now,
-          ip_address_text:  geo.ip             || null,
-          country:          geo.country        || null,
-          country_code:     geo.country_code   || null,
-          state:            geo.state          || null,
-          city:             geo.city           || null,
-          local_timezone:   geo.local_timezone || geo.timezone || null,
-          utc_offset:       geo.utc_offset     || null,
           updated_at:       now
         };
         await supabase.from('profiles').update(patch).eq('user_id', userId);
@@ -2245,10 +2248,13 @@
     let geo = null;
     try { geo = JSON.parse(localStorage.getItem('aniumi_pending_geo') || 'null'); } catch(e){}
     try { localStorage.removeItem('aniumi_pending_geo'); } catch(e){}
-    // Fallback: if no stashed geo (e.g. user landed directly), fetch fresh
-    // from the browser. ipapi.co + ipify fallback gives us country/state/city.
-    if (!geo) {
+    // Only fetch geo on sign-up (first login). If no stashed geo, skip it.
+    // Login sessions don't need to re-collect geo data.
+    const isFirstLogin = isGenuineLogin && (!profile?.login_count || profile.login_count === 0);
+    if (!geo && isFirstLogin) {
       try { geo = await getUserGeo(); } catch(e) { geo = null; }
+    } else if (!geo) {
+      geo = null; // existing user login — skip geo fetch
     }
 
     const meta = user.user_metadata || {};
