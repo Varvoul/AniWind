@@ -171,7 +171,7 @@
     .nav-dropdown a:hover{background:rgba(255,255,255,0.08);color:#fff;}
 
     /* ── SEARCH ── */
-    .header-search-wrap{flex:0 1 auto;max-width:330px;position:relative;min-width:0;margin-left:auto;}
+    .header-search-wrap{flex:0 1 auto;max-width:330px;position:relative;min-width:0;margin-left:8px;}
     .header-search-bar{
       display:flex;align-items:center;
       background:var(--bg-surface,rgba(255,255,255,0.05));
@@ -230,7 +230,7 @@
     .view-all-btn:hover{background:var(--btn-primary,#3b82f6);color:#fff;}
 
     /* ── SOCIALS ── */
-    .header-socials{display:flex;gap:4px;flex-shrink:0;}
+    .header-socials{display:flex;gap:4px;flex-shrink:0;margin-left:auto;}
     .social-icon-btn{
       width:32px;height:32px;border-radius:50%;display:flex;
       align-items:center;justify-content:center;
@@ -241,11 +241,15 @@
 
     /* ── LOGIN BTN ── */
     .btn-login{
-      padding:7px 18px;background:transparent;color:var(--text-secondary,#ccc);
+      padding:7px 20px;background:transparent;color:var(--text-secondary,#b0c7e3);
       border-radius:50px;font-weight:600;font-size:0.75rem;
-      border:none;white-space:nowrap;transition:color .18s;flex-shrink:0;
+      border:1.5px solid #4299e1;white-space:nowrap;transition:all .2s ease;flex-shrink:0;
+      box-shadow:0 0 8px rgba(66,153,225,0.15);
     }
-    .btn-login:hover{color:#fff;}
+    .btn-login:hover{
+      color:#fff;background:rgba(66,153,225,0.12);
+      border-color:#63b3ed;box-shadow:0 0 16px rgba(66,153,225,0.35);
+    }
 
     /* ── AVATAR & DROPDOWN – right edge only ── */
     .user-avatar-wrap{position:relative;flex-shrink:0;}
@@ -528,12 +532,15 @@
     /* "Forgot password?" inline link — sits below the password field, right-aligned */
     .forgot-inline{
       display:block;width:100%;text-align:right;
-      font-size:0.68rem;color:var(--btn-primary,#3b82f6);
-      background:none;border:none;cursor:pointer;padding:2px 0 0;
-      font-family:inherit;margin-top:5px;line-height:1;
-      transition:opacity .18s;
+      font-size:0.72rem;color:#63b3ed;font-weight:600;
+      background:none;border:none;cursor:pointer;padding:4px 0;
+      font-family:inherit;margin-top:8px;margin-bottom:12px;line-height:1.3;
+      transition:all .18s ease;letter-spacing:.02em;
     }
-    .forgot-inline:hover{opacity:.72;}
+    .forgot-inline:hover{
+      opacity:.85;color:#90cdf4;text-decoration:underline;
+      text-underline-offset:2px;
+    }
 
     /* ─── MOBILE CAROUSEL (hidden on desktop) ─── */
     .auth-mobile-carousel{
@@ -794,8 +801,8 @@
       cursor:pointer;border:2px solid transparent;
       transition:border-color .18s,transform .18s;
     }
-    .avatar-opt:hover{border-color:var(--btn-primary,#3b82f6);transform:scale(1.08);}
-    .avatar-opt.selected{border-color:#10b981;}
+    .avatar-opt:hover{border-color:#63b3ed;transform:scale(1.08);}
+    .avatar-opt.selected{border-color:#4299e1;}
     .avatar-opt img{width:100%;height:100%;object-fit:cover;}
 
     /* Cloudflare Turnstile wrapper */
@@ -967,6 +974,13 @@
     <a href="#" class="nav-link-item">Forum</a>
   </nav>
 
+  <!-- Desktop Socials (left of search) -->
+  <div class="header-socials">
+    <a href="https://discord.com" target="_blank" class="social-icon-btn" title="Discord">${SVG.discord}</a>
+    <a href="https://tumblr.com" target="_blank" class="social-icon-btn" title="Tumblr">${SVG.tumblr}</a>
+    <a href="https://bsky.app" target="_blank" class="social-icon-btn" title="Bluesky">${SVG.bluesky}</a>
+  </div>
+
   <!-- Desktop Search -->
   <div class="header-search-wrap" id="desktopSearchWrap">
     <div class="header-search-bar">
@@ -977,13 +991,6 @@
       <input type="text" class="search-input-field" id="searchInput" placeholder="Search shows…" autocomplete="off">
     </div>
     <div class="search-suggestions" id="searchSuggestions"></div>
-  </div>
-
-  <!-- Desktop Socials -->
-  <div class="header-socials">
-    <a href="https://discord.com" target="_blank" class="social-icon-btn" title="Discord">${SVG.discord}</a>
-    <a href="https://tumblr.com" target="_blank" class="social-icon-btn" title="Tumblr">${SVG.tumblr}</a>
-    <a href="https://bsky.app" target="_blank" class="social-icon-btn" title="Bluesky">${SVG.bluesky}</a>
   </div>
 
   <!-- Desktop Login / Avatar (RIGHT EDGE) -->
@@ -1291,8 +1298,8 @@
       <span class="avatar-popup-title">Choose Avatar</span>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:12px;">
-      <label class="avatar-action-btn" for="avatarFileInput" style="flex:1;text-align:center;cursor:pointer;border-radius:20px;padding:8px 12px;font-size:0.75rem;font-weight:600;background:var(--btn-primary,#3b82f6);color:#fff;border:none;display:flex;align-items:center;justify-content:center;gap:6px;">${SVG.upload} Upload from Device</label>
-      <button class="avatar-action-btn" id="btnChooseFromBucket" type="button" style="flex:1;border-radius:20px;padding:8px 12px;font-size:0.75rem;font-weight:600;background:transparent;color:var(--text,#e2e8f0);border:2px solid var(--btn-primary,#3b82f6);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">Choose from Collection</button>
+      <label class="avatar-action-btn" for="avatarFileInput" style="flex:1;text-align:center;cursor:pointer;border-radius:20px;padding:8px 12px;font-size:0.75rem;font-weight:600;background:#4299e1;color:#fff;border:none;display:flex;align-items:center;justify-content:center;gap:6px;">${SVG.upload} Upload from Device</label>
+      <button class="avatar-action-btn" id="btnChooseFromBucket" type="button" style="flex:1;border-radius:20px;padding:8px 12px;font-size:0.75rem;font-weight:600;background:transparent;color:#63b3ed;border:2px solid #4299e1;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">Choose from Collection</button>
     </div>
     <input type="file" id="avatarFileInput" accept="image/*" style="display:none;">
     <div class="avatar-grid" id="avatarGrid" style="display:none;">
