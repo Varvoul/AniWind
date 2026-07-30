@@ -171,7 +171,7 @@
     .nav-dropdown a:hover{background:rgba(255,255,255,0.08);color:#fff;}
 
     /* ── SEARCH ── */
-    .header-search-wrap{flex:1;max-width:330px;position:relative;min-width:0;}
+    .header-search-wrap{flex:0 1 auto;max-width:330px;position:relative;min-width:0;margin-left:auto;}
     .header-search-bar{
       display:flex;align-items:center;
       background:var(--bg-surface,rgba(255,255,255,0.05));
@@ -1896,10 +1896,10 @@
         const { data: exEmail } = await supabase.from('profiles').select('user_id').eq('email', email).maybeSingle();
         if (exEmail) { errEl.textContent = 'This email address is already registered. Please sign in instead.'; return; }
 
-        // Avatar picker was removed from the sign-up form to save space.
-        // New users get the DEFAULT_AVATAR; they can change it later from
-        // their profile page (avatar upload UI lives elsewhere).
-        const avatarUrl = DEFAULT_AVATAR;
+        // Use the avatar selected by the user from the picker.
+        // selectedAvatarUrl is updated by initAvatarPicker() when user
+        // chooses an avatar from bucket or uploads from device.
+        const avatarUrl = selectedAvatarUrl;
         const geo = await getUserGeo();
 
         const { data, error } = await supabase.auth.signUp({
