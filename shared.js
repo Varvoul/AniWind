@@ -171,7 +171,7 @@
     .nav-dropdown a:hover{background:rgba(255,255,255,0.08);color:#fff;}
 
     /* ── SEARCH ── */
-    .header-search-wrap{flex:0 1 auto;max-width:330px;position:relative;min-width:0;margin-left:auto;}
+    .header-search-wrap{flex:0 1 auto;max-width:330px;position:relative;min-width:0;margin-left:8px;}
     .header-search-bar{
       display:flex;align-items:center;
       background:var(--bg-surface,rgba(255,255,255,0.05));
@@ -241,11 +241,15 @@
 
     /* ── LOGIN BTN ── */
     .btn-login{
-      padding:7px 18px;background:transparent;color:var(--text-secondary,#ccc);
+      padding:7px 20px;background:transparent;color:var(--text-secondary,#b0c7e3);
       border-radius:50px;font-weight:600;font-size:0.75rem;
-      border:none;white-space:nowrap;transition:color .18s;flex-shrink:0;
+      border:1.5px solid #4299e1;white-space:nowrap;transition:all .2s ease;flex-shrink:0;
+      box-shadow:0 0 8px rgba(66,153,225,0.15);
     }
-    .btn-login:hover{color:#fff;}
+    .btn-login:hover{
+      color:#fff;background:rgba(66,153,225,0.12);
+      border-color:#63b3ed;box-shadow:0 0 16px rgba(66,153,225,0.35);
+    }
 
     /* ── AVATAR & DROPDOWN – right edge only ── */
     .user-avatar-wrap{position:relative;flex-shrink:0;}
@@ -967,6 +971,13 @@
     <a href="#" class="nav-link-item">Forum</a>
   </nav>
 
+  <!-- Desktop Socials (left of search) -->
+  <div class="header-socials">
+    <a href="https://discord.com" target="_blank" class="social-icon-btn" title="Discord">${SVG.discord}</a>
+    <a href="https://tumblr.com" target="_blank" class="social-icon-btn" title="Tumblr">${SVG.tumblr}</a>
+    <a href="https://bsky.app" target="_blank" class="social-icon-btn" title="Bluesky">${SVG.bluesky}</a>
+  </div>
+
   <!-- Desktop Search -->
   <div class="header-search-wrap" id="desktopSearchWrap">
     <div class="header-search-bar">
@@ -977,13 +988,6 @@
       <input type="text" class="search-input-field" id="searchInput" placeholder="Search shows…" autocomplete="off">
     </div>
     <div class="search-suggestions" id="searchSuggestions"></div>
-  </div>
-
-  <!-- Desktop Socials -->
-  <div class="header-socials">
-    <a href="https://discord.com" target="_blank" class="social-icon-btn" title="Discord">${SVG.discord}</a>
-    <a href="https://tumblr.com" target="_blank" class="social-icon-btn" title="Tumblr">${SVG.tumblr}</a>
-    <a href="https://bsky.app" target="_blank" class="social-icon-btn" title="Bluesky">${SVG.bluesky}</a>
   </div>
 
   <!-- Desktop Login / Avatar (RIGHT EDGE) -->
