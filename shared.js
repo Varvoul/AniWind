@@ -1144,8 +1144,8 @@
 
             <!-- 1. Username -->
             <div class="field-group">
-              <label>Username or Email</label>
-              <input class="field-input" type="text" id="loginUsername" placeholder="Your username or email" autocomplete="username">
+              <label>Email</label>
+              <input class="field-input" type="text" id="loginUsername" placeholder="Your email address" autocomplete="username">
             </div>
 
             <!-- 2. Password -->
