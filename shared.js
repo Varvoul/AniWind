@@ -171,7 +171,7 @@
     .nav-dropdown a:hover{background:rgba(255,255,255,0.08);color:#fff;}
 
     /* ── SEARCH ── */
-    .header-search-wrap{flex:0 1 auto;max-width:330px;position:relative;min-width:0;margin-left:8px;}
+    .header-search-wrap{flex:0 1 auto;max-width:385px;position:relative;min-width:0;margin-left:8px;}
     .header-search-bar{
       display:flex;align-items:center;
       background:var(--bg-surface,rgba(255,255,255,0.05));
@@ -233,16 +233,16 @@
     .suggestion-info{flex:1;min-width:0;}
     .sug-title{font-size:10.5px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3;}
     .sug-orig{font-size:9px;color:#63b3ed;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;font-weight:500;}
-    .sug-meta{font-size:8.5px;color:var(--text-muted,#888);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:6px;}
+    .sug-meta{font-size:10px;color:var(--text-muted,#888);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:6px;}
     .sug-meta::before{content:'';width:3px;height:3px;background:#63b3ed;border-radius:50%;flex-shrink:0;}
     .sug-score{display:inline-flex;align-items:center;gap:2px;color:#f59e0b;font-weight:600;font-size:8.5px;padding:1px 6px;background:rgba(245,158,11,0.12);border-radius:10px;}
-    .source-badge{
-      font-size:7px;padding:2px 6px;border-radius:8px;font-weight:700;
-      text-transform:uppercase;letter-spacing:.05em;flex-shrink:0;
+    .meta-tag{
+      font-size:9px;padding:1px 7px;border-radius:6px;font-weight:700;
+      letter-spacing:.03em;flex-shrink:0;font-family:'Courier New',monospace;
     }
-    .source-db{background:rgba(16,185,129,0.2);color:#34d399;}
-    .source-jikan{background:rgba(99,179,237,0.2);color:#63b3ed;}
-    .source-anilist{background:rgba(168,85,247,0.2);color:#c084fc;}
+    .tag-smal{background:rgba(16,185,129,0.15);color:#34d399;border:1px solid rgba(16,185,129,0.25);}
+    .tag-mal{background:rgba(99,179,237,0.15);color:#63b3ed;border:1px solid rgba(99,179,237,0.25);}
+    .tag-al{background:rgba(168,85,247,0.15);color:#c084fc;border:1px solid rgba(168,85,247,0.25);}
     .view-all-btn{
       display:flex!important;align-items:center;justify-content:center;gap:6px;
       padding:10px 0;margin:0;border-top:1px solid var(--border-medium,rgba(255,255,255,0.08));
@@ -1707,17 +1707,60 @@
     return results;
   }
 
-  /* ── SOURCE 1: SUPABASE DB SEARCH ── */
+  /* ── SOURCE 1: SUPABASE DB SEARCH (OPTIMIZED) ── */
+  // Performance optimizations:
+  // 1. Prefix match first (uses index) → faster than contains
+  // 2. Minimal field selection → less data transfer
+  // 3. Lower limit initially → faster response
+  // 4. Two-phase query: exact/prefix → contains fallback
+  
+  // In-memory cache for DB results (separate from API cache)
+  const dbSearchCache = new Map();
+  const DB_CACHE_TTL = 3 * 60 * 1000; // 3 min DB cache
+
   async function searchAnimeFromDB(q) {
+    const dbCacheKey = `db:${q}`;
+    
+    // Check DB-specific cache first
+    if (dbSearchCache.has(dbCacheKey)) {
+      const cached = dbSearchCache.get(dbCacheKey);
+      if (Date.now() - cached.timestamp < DB_CACHE_TTL) {
+        console.log(`[DB Search] Cache hit for:`, q);
+        return cached.results;
+      }
+      dbSearchCache.delete(dbCacheKey);
+    }
+    
+    const startTime = performance.now();
+    
     try {
-      // Direct query on anime_data table with correct column names
-      // Using ILIKE for fuzzy matching across multiple title fields
-      const { data, error } = await supabase
+      // Phase 1: Fast prefix match on english_title and default_title (index-friendly)
+      let { data, error } = await supabase
         .from('anime_data')
-        .select('default_title,english_title,romanji_title,japanese_title,type,studios,genres,year,score,mal_id,image_url_jpg,large_image_url_jpg,episodes,status')
-        .or(`default_title.ilike.%${q}%,english_title.ilike.%${q}%,japanese_title.ilike.%${q}%,romanji_title.ilike.%${q}%`)
+        .select('default_title,english_title,romanji_title,japanese_title,type,studios,year,score,mal_id,large_image_url_jpg,image_url_jpg,episodes,status')
+        .or(`english_title.ilike.${q}%,default_title.ilike.${q}%`)
         .order('score', { ascending: false, nullsFirst: false })
-        .limit(8);
+        .limit(6);
+      
+      // Phase 2: If not enough results, do contains search (broader but slower)
+      if ((!error && (!data || data.length < 3)) || error) {
+        const { data: data2, error: error2 } = await supabase
+          .from('anime_data')
+          .select('default_title,english_title,romanji_title,japanese_title,type,studios,year,score,mal_id,large_image_url_jpg,image_url_jpg,episodes,status')
+          .or(`english_title.ilike.%${q}%,default_title.ilike.%${q}%,japanese_title.ilike.%${q}%,romanji_title.ilike.%${q}%`)
+          .order('score', { ascending: false, nullsFirst: false })
+          .limit(8);
+        
+        // Merge results avoiding duplicates
+        if (!error2 && data2) {
+          const existingIds = new Set((data || []).map(item => item.mal_id).filter(Boolean));
+          const newItems = data2.filter(item => !existingIds.has(item.mal_id));
+          data = [...(data || []), ...newItems];
+          error = null;
+        } else if (error && error2) {
+          error = error2;
+        }
+      }
       
       if (error) {
         console.warn('[DB Search] Query error:', error.message);
@@ -1725,13 +1768,14 @@
       }
       
       if (!data || !data.length) {
-        console.log('[DB Search] No results for:', q);
+        console.log(`[DB Search] No results for:`, q, `(${(performance.now() - startTime).toFixed(0)}ms)`);
         return [];
       }
       
-      console.log(`[DB Search] Found ${data.length} results for:`, q);
+      const elapsed = (performance.now() - startTime).toFixed(0);
+      console.log(`[DB Search] Found ${data.length} results for:`, q, `(${elapsed}ms)`);
       
-      return data.map(item => ({
+      const results = data.map(item => ({
         poster: item.large_image_url_jpg || item.image_url_jpg || '',
         title: item.english_title || item.default_title || 'Unknown Title',
         original: [item.japanese_title, item.romanji_title].filter(Boolean).join(' / ') || '',
@@ -1748,6 +1792,11 @@
         episodes: item.episodes,
         status: item.status
       }));
+      
+      // Cache the results
+      dbSearchCache.set(dbCacheKey, { results, timestamp: Date.now() });
+      
+      return results;
     } catch (err) {
       console.error('[DB Search] Failed:', err.message);
       return []; // Return empty array instead of throwing - allows fallback to work!
@@ -1827,7 +1876,7 @@
       },
       body: JSON.stringify({
         query,
-        variables: { search: q, page: 1, perPage: 8 }
+        variables: { search: q, page: 1, perPage: 12 } // Fetch more to account for filtering
       }),
       signal: AbortSignal.timeout(10000)
     });
@@ -1837,7 +1886,10 @@
     const json = await response.json();
     const items = json.data?.Page?.media || [];
     
-    return items.map(item => ({
+    // Filter out items WITHOUT mal_id - we need consistent /jikan-{mal_id}/slug links
+    const itemsWithMalId = items.filter(item => item.idMal);
+    
+    return itemsWithMalId.map(item => ({
       poster: item.coverImage?.large || item.coverImage?.medium || '',
       title: item.title?.english || item.title?.romaji || 'Unknown Title',
       original: [item.title?.native, item.title?.romaji].filter(Boolean).join(' / ') || '',
@@ -1848,7 +1900,7 @@
         item.genres?.slice(0, 2).join(', ')
       ].filter(Boolean).join(' · '),
       score: item.averageScore ? `★ ${item.averageScore}%` : null,
-      mal_id: item.idMal,
+      mal_id: item.idMal, // Use idMal as mal_id for consistent link format
       anilistId: item.id,
       source: 'anilist',
       year: item.seasonYear,
@@ -1919,12 +1971,10 @@
       let detailsUrl = '#';
       const slug = slugify(r.title);
 
-      // Navigation based on source and ID
+      // Consistent link format: /info/anime/jikan-{mal_id}/slug
+      // All sources MUST have mal_id for consistent navigation
       if (r.mal_id) {
         detailsUrl = `/info/anime/jikan-${r.mal_id}`;
-        if (slug) detailsUrl += `/${slug}`;
-      } else if (r.anilistId) {
-        detailsUrl = `/info/anime/anilist-${r.anilistId}`;
         if (slug) detailsUrl += `/${slug}`;
       }
 
@@ -1940,19 +1990,23 @@
       
       const meta = [r.meta].filter(Boolean).join('');
       
-      // Source badge
-      const sourceBadge = r.source 
-        ? `<span class="source-badge source-${r.source}">${r.source === 'db' ? 'DB' : r.source}</span>`
-        : '';
+      // Metadata tag: S-Mal (DB), Mal (Jikan), AL (AniList)
+      let metaTag = '';
+      if (r.source === 'db') {
+        metaTag = '<span class="meta-tag tag-smal">S-Mal</span>';
+      } else if (r.source === 'jikan') {
+        metaTag = '<span class="meta-tag tag-mal">Mal</span>';
+      } else if (r.source === 'anilist') {
+        metaTag = '<span class="meta-tag tag-al">AL</span>';
+      }
 
       return `<a href="${detailsUrl}" class="suggestion-item">
         ${img}
         <div class="suggestion-info">
           <div class="sug-title">${esc(r.title)}</div>
           ${orig}
-          <div class="sug-meta">${meta} ${score}</div>
+          <div class="sug-meta">${meta} ${score} ${metaTag}</div>
         </div>
-        ${sourceBadge}
       </a>`;
     }).join('');
 
