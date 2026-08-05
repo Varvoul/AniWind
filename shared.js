@@ -1709,47 +1709,49 @@
 
   /* ── SOURCE 1: SUPABASE DB SEARCH ── */
   async function searchAnimeFromDB(q) {
-    // Try RPC first (if you have a search_anime RPC function)
-    let { data, error } = await supabase.rpc('search_anime', {
-      search_query: q,
-      result_limit: 8
-    });
-    
-    // Fallback: direct text search on anime_data table if RPC fails
-    if (error || !data) {
-      console.log('[DB Search] RPC not available, trying direct query...');
-      
-      // Direct query with ILIKE for fuzzy matching
-      const { data: directData, error: directError } = await supabase
+    try {
+      // Direct query on anime_data table with correct column names
+      // Using ILIKE for fuzzy matching across multiple title fields
+      const { data, error } = await supabase
         .from('anime_data')
-        .select('*')
-        .or(`default_title.ilike.%${q}%,english_title.ilike.%${q}%,japanese_title.ilike.%${q}%,romaji_title.ilike.%${q}%`)
-        .order('mal_score', { ascending: false, nullsFirst: false })
+        .select('default_title,english_title,romanji_title,japanese_title,type,studios,genres,year,score,mal_id,image_url_jpg,large_image_url_jpg,episodes,status')
+        .or(`default_title.ilike.%${q}%,english_title.ilike.%${q}%,japanese_title.ilike.%${q}%,romanji_title.ilike.%${q}%`)
+        .order('score', { ascending: false, nullsFirst: false })
         .limit(8);
-        
-      data = directData;
-      error = directError;
+      
+      if (error) {
+        console.warn('[DB Search] Query error:', error.message);
+        return [];
+      }
+      
+      if (!data || !data.length) {
+        console.log('[DB Search] No results for:', q);
+        return [];
+      }
+      
+      console.log(`[DB Search] Found ${data.length} results for:`, q);
+      
+      return data.map(item => ({
+        poster: item.large_image_url_jpg || item.image_url_jpg || '',
+        title: item.english_title || item.default_title || 'Unknown Title',
+        original: [item.japanese_title, item.romanji_title].filter(Boolean).join(' / ') || '',
+        meta: [
+          item.type,
+          item.studios,
+          item.year,
+          item.episodes ? `${item.episodes} eps` : null
+        ].filter(Boolean).join(' · '),
+        score: item.score ? `★ ${item.score}` : null,
+        mal_id: item.mal_id,
+        source: 'db',
+        year: item.year,
+        episodes: item.episodes,
+        status: item.status
+      }));
+    } catch (err) {
+      console.error('[DB Search] Failed:', err.message);
+      return []; // Return empty array instead of throwing - allows fallback to work!
     }
-    
-    if (error) throw new Error(error.message);
-    if (!data || !data.length) return [];
-    
-    return data.map(item => ({
-      poster: item.large_poster_jpg || item.small_poster_jpg || '',
-      title: item.english_title || item.default_title || 'Unknown Title',
-      original: [item.japanese_title, item.romaji_title].filter(Boolean).join(' / ') || '',
-      meta: [
-        item.anime_type,
-        Array.isArray(item.studio_name) ? item.studio_name.join(', ') : item.studio_name,
-        item.year || item.season_year
-      ].filter(Boolean).join(' · '),
-      score: item.mal_score ? `★ ${item.mal_score}` : null,
-      mal_id: item.mal_id,
-      source: 'db',
-      year: item.year || item.season_year,
-      episodes: item.episodes,
-      status: item.status
-    }));
   }
 
   /* ── SOURCE 2: JIKAN API SEARCH ── */
@@ -1904,7 +1906,7 @@
       container.innerHTML = `
         <div class="suggestions-scroll">
           <div style="padding:20px 12px;text-align:center;font-size:0.76rem;color:var(--text-muted,#888);">
-            <div style="font-size:1.5rem;margin-bottom:8px;">🔍</div>
+            <i class="fa-regular fa-circle-xmark" style="font-size:1.8rem;color:#63b3ed;display:block;margin-bottom:10px;opacity:.6;"></i>
             No results for "<strong style="color:#63b3ed">${esc(q)}</strong>"
           </div>
         </div>
