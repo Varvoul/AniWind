@@ -198,36 +198,70 @@
       background:var(--bg-body,#13191f);
       border:1px solid var(--border-medium,rgba(255,255,255,0.1));
       border-radius:14px;max-height:430px;
-      overflow-y:auto;overflow-x:hidden;
-      z-index:350;box-shadow:0 20px 60px rgba(0,0,0,.7);
+      overflow:hidden;z-index:350;box-shadow:0 20px 60px rgba(0,0,0,.7);
+    }
+    .suggestions-scroll{
+      max-height:340px;overflow-y:auto;overflow-x:hidden;
       scrollbar-width:none;
     }
-    .search-suggestions::-webkit-scrollbar{display:none;}
+    .suggestions-scroll::-webkit-scrollbar{display:none;}
     .suggestion-item{
-      display:flex;align-items:center;gap:10px;padding:8px 12px;
-      cursor:pointer;transition:background .15s;
+      display:flex;align-items:center;gap:10px;padding:10px 12px;
+      cursor:pointer;transition:all .18s ease;
       border-bottom:1px solid rgba(255,255,255,0.04);
+      position:relative;
     }
     .suggestion-item:last-of-type{border-bottom:none;}
-    .suggestion-item:hover{background:rgba(255,255,255,0.06);}
+    .suggestion-item:hover{
+      background:linear-gradient(90deg, rgba(66,153,225,0.15) 0%, rgba(66,153,225,0.05) 100%);
+      transform:translateX(3px);
+      border-left:2px solid #4299e1;
+    }
+    .suggestion-item:active{
+      transform:translateX(1px) scale(0.995);
+      background:rgba(66,153,225,0.2);
+    }
     .suggestion-poster{
-      width:38px;height:54px;border-radius:5px;
+      width:42px;height:60px;border-radius:6px;
       object-fit:cover;flex-shrink:0;background:var(--bg-surface,#1e2633);
+      transition:transform .18s ease, box-shadow .18s ease;
+    }
+    .suggestion-item:hover .suggestion-poster{
+      transform:scale(1.05);
+      box-shadow:0 4px 12px rgba(66,153,225,0.3);
     }
     .suggestion-info{flex:1;min-width:0;}
-    .sug-title{font-size:10px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-    .sug-orig{font-size:9px;color:var(--text-muted,#888);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;}
-    .sug-meta{font-size:8.5px;color:var(--text-muted,#666);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-    .sug-score{display:inline-flex;align-items:center;gap:2px;color:#f59e0b;}
-    .view-all-btn{
-      display:flex;align-items:center;justify-content:center;gap:5px;
-      padding:9px 0;margin:4px 12px 8px;
-      border:1.5px solid var(--btn-primary,#3b82f6);border-radius:50px;
-      color:var(--btn-primary,#3b82f6);font-size:0.72rem;font-weight:600;
-      cursor:pointer;background:transparent;width:calc(100% - 24px);
-      transition:background .18s,color .18s;
+    .sug-title{font-size:10.5px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3;}
+    .sug-orig{font-size:9px;color:#63b3ed;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;font-weight:500;}
+    .sug-meta{font-size:8.5px;color:var(--text-muted,#888);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:6px;}
+    .sug-meta::before{content:'';width:3px;height:3px;background:#63b3ed;border-radius:50%;flex-shrink:0;}
+    .sug-score{display:inline-flex;align-items:center;gap:2px;color:#f59e0b;font-weight:600;font-size:8.5px;padding:1px 6px;background:rgba(245,158,11,0.12);border-radius:10px;}
+    .source-badge{
+      font-size:7px;padding:2px 6px;border-radius:8px;font-weight:700;
+      text-transform:uppercase;letter-spacing:.05em;flex-shrink:0;
     }
-    .view-all-btn:hover{background:var(--btn-primary,#3b82f6);color:#fff;}
+    .source-db{background:rgba(16,185,129,0.2);color:#34d399;}
+    .source-jikan{background:rgba(99,179,237,0.2);color:#63b3ed;}
+    .source-anilist{background:rgba(168,85,247,0.2);color:#c084fc;}
+    .view-all-btn{
+      display:flex!important;align-items:center;justify-content:center;gap:6px;
+      padding:10px 0;margin:0;border-top:1px solid var(--border-medium,rgba(255,255,255,0.08));
+      border-radius:0 0 14px 14px;
+      color:#63b3ed;font-size:0.75rem;font-weight:700;
+      cursor:pointer;background:linear-gradient(180deg, rgba(66,153,225,0.08) 0%, transparent 100%);
+      width:100%;transition:all .2s ease;
+      position:relative;overflow:hidden;
+    }
+    .view-all-btn::before{
+      content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;
+      background:linear-gradient(90deg,transparent, rgba(66,153,225,0.15), transparent);
+      transition:left .4s ease;
+    }
+    .view-all-btn:hover::before{left:100%;}
+    .view-all-btn:hover{
+      background:linear-gradient(180deg, rgba(66,153,225,0.18) 0%, rgba(66,153,225,0.08) 100%);
+      color:#90cdf4;box-shadow:inset 0 1px 0 rgba(255,255,255,0.05);
+    }
 
     /* ── SOCIALS ── */
     .header-socials{display:flex;gap:4px;flex-shrink:0;margin-left:auto;}
@@ -1581,38 +1615,244 @@
   async function fetchSuggestions(q, container) {
     try {
       const results = currentSearchMode === 'anime'
-        ? await fetchJikan(q)
+        ? await fetchAnimeWithFallbacks(q)
         : await fetchTMDB(q);
-      renderSuggestions(results.slice(0, 6), q, container);
+      renderSuggestions(results.slice(0, 8), q, container);
     } catch (err) {
       container.innerHTML = `<div style="padding:14px 12px;font-size:0.76rem;color:var(--text-muted,#888);">Failed to fetch. Try again.</div>`;
       console.error('Search error:', err);
     }
   }
 
-  /* ── Anime search via Supabase RPC (search_anime) ── */
-  async function fetchJikan(q) {
-    const { data, error } = await supabase.rpc('search_anime', {
+  /* ═══════════════════════════════════════════════════════════
+     ANIME SEARCH WITH FALLBACK CHAIN
+     Priority: Supabase DB → Jikan API → AniList GraphQL
+     Includes rate limiting & caching for API protection.
+  ═══════════════════════════════════════════════════════════ */
+  
+  // Rate limiting: cache results + enforce minimum delay between API calls
+  const animeSearchCache = new Map();
+  let lastApiCallTime = 0;
+  const MIN_API_DELAY = 800; // ms between API calls (rate limiting)
+  const CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache
+  
+  // API endpoints
+  const JIKAN_API_BASE = 'https://jikan-api-bohb.onrender.com/v4/search/anime';
+  
+  async function fetchAnimeWithFallbacks(q) {
+    const cacheKey = `anime:${q}`;
+    
+    // Check cache first
+    if (animeSearchCache.has(cacheKey)) {
+      const cached = animeSearchCache.get(cacheKey);
+      if (Date.now() - cached.timestamp < CACHE_TTL) {
+        return cached.results;
+      }
+      animeSearchCache.delete(cacheKey);
+    }
+    
+    // Rate limiting: ensure minimum delay between calls
+    const now = Date.now();
+    const timeSinceLastCall = now - lastApiCallTime;
+    if (timeSinceLastCall < MIN_API_DELAY) {
+      await new Promise(resolve => setTimeout(resolve, MIN_API_DELAY - timeSinceLastCall));
+    }
+    lastApiCallTime = Date.now();
+    
+    let results = [];
+    
+    // ── SOURCE 1: SUPABASE DB (Primary) ──
+    try {
+      results = await searchAnimeFromDB(q);
+      if (results.length >= 3) {
+        animeSearchCache.set(cacheKey, { results, timestamp: Date.now() });
+        return results;
+      }
+      // If DB has some but not enough, keep them and try fallbacks
+    } catch (dbErr) {
+      console.warn('[AnimeSearch] DB failed:', dbErr.message);
+    }
+    
+    // ── SOURCE 2: JIKAN API (Fallback #1) ──
+    try {
+      const jikanResults = await searchAnimeFromJikan(q);
+      
+      // Merge with DB results, avoiding duplicates by mal_id
+      const existingIds = new Set(results.map(r => r.mal_id).filter(Boolean));
+      const newResults = jikanResults.filter(r => !existingIds.has(r.mal_id));
+      results = [...results, ...newResults];
+      
+      if (results.length >= 3) {
+        animeSearchCache.set(cacheKey, { results, timestamp: Date.now() });
+        return results;
+      }
+    } catch (jikanErr) {
+      console.warn('[AnimeSearch] Jikan failed:', jikanErr.message);
+    }
+    
+    // ── SOURCE 3: ANILIST GRAPHQL (Fallback #2) ──
+    try {
+      const anilistResults = await searchAnimeFromAniList(q);
+      
+      // Merge avoiding duplicates
+      const existingIds = new Set(results.map(r => r.mal_id || r.anilistId).filter(Boolean));
+      const newResults = anilistResults.filter(r => !existingIds.has(r.anilistId));
+      results = [...results, ...newResults];
+    } catch (anilistErr) {
+      console.warn('[AnimeSearch] AniList failed:', anilistErr.message);
+    }
+    
+    // Cache final results
+    animeSearchCache.set(cacheKey, { results, timestamp: Date.now() });
+    return results;
+  }
+
+  /* ── SOURCE 1: SUPABASE DB SEARCH ── */
+  async function searchAnimeFromDB(q) {
+    // Try RPC first (if you have a search_anime RPC function)
+    let { data, error } = await supabase.rpc('search_anime', {
       search_query: q,
-      result_limit: 6
+      result_limit: 8
     });
+    
+    // Fallback: direct text search on anime_data table if RPC fails
+    if (error || !data) {
+      console.log('[DB Search] RPC not available, trying direct query...');
+      
+      // Direct query with ILIKE for fuzzy matching
+      const { data: directData, error: directError } = await supabase
+        .from('anime_data')
+        .select('*')
+        .or(`default_title.ilike.%${q}%,english_title.ilike.%${q}%,japanese_title.ilike.%${q}%,romaji_title.ilike.%${q}%`)
+        .order('mal_score', { ascending: false, nullsFirst: false })
+        .limit(8);
+        
+      data = directData;
+      error = directError;
+    }
+    
     if (error) throw new Error(error.message);
-    return (data || []).map(item => {
-      const mainTitle = item.english_title || item.default_title || '—';
-      const subTitles = [item.romaji_title, item.japanese_title].filter(Boolean);
-      const studios   = Array.isArray(item.studio_name) ? item.studio_name.join(', ') : '';
-      const genres    = Array.isArray(item.genres) ? item.genres.slice(0, 3).join(', ') : '';
-      const metaParts = [item.anime_type, studios, genres].filter(Boolean);
-      return {
-        poster:      item.small_poster_jpg || '',
-        title:       mainTitle,
-        original:    subTitles.join(' / ') || '',
-        meta:        metaParts.join(' · '),
-        score:       item.mal_score ? `★ ${item.mal_score}` : null,
-        id:          item.mal_id,
-        source:      'jikan'
-      };
+    if (!data || !data.length) return [];
+    
+    return data.map(item => ({
+      poster: item.large_poster_jpg || item.small_poster_jpg || '',
+      title: item.english_title || item.default_title || 'Unknown Title',
+      original: [item.japanese_title, item.romaji_title].filter(Boolean).join(' / ') || '',
+      meta: [
+        item.anime_type,
+        Array.isArray(item.studio_name) ? item.studio_name.join(', ') : item.studio_name,
+        item.year || item.season_year
+      ].filter(Boolean).join(' · '),
+      score: item.mal_score ? `★ ${item.mal_score}` : null,
+      mal_id: item.mal_id,
+      source: 'db',
+      year: item.year || item.season_year,
+      episodes: item.episodes,
+      status: item.status
+    }));
+  }
+
+  /* ── SOURCE 2: JIKAN API SEARCH ── */
+  async function searchAnimeFromJikan(q) {
+    const response = await fetch(`${JIKAN_API_BASE}?q=${encodeURIComponent(q)}&page=1&limit=8&sfw=true`, {
+      headers: { 'Accept': 'application/json' },
+      signal: AbortSignal.timeout(8000)
     });
+    
+    if (!response.ok) throw new Error(`Jikan HTTP ${response.status}`);
+    
+    const json = await response.json();
+    const items = json.data || [];
+    
+    return items.map(item => ({
+      poster: item.images?.jpg?.large_image_url || item.images?.jpg?.image_url || '',
+      title: item.title_english || item.title || 'Unknown Title',
+      original: [item.title_japanese, item.title].filter((t, i, arr) => t && arr.indexOf(t) === i && t !== item.title_english).join(' / ') || '',
+      meta: [
+        item.type,
+        item.year || item.season?.year,
+        item.episodes ? `${item.episodes} eps` : null,
+        item.status?.replace('_', ' ')
+      ].filter(Boolean).join(' · '),
+      score: item.score ? `★ ${item.score}` : null,
+      mal_id: item.mal_id,
+      source: 'jikan',
+      year: item.year || item.season?.year,
+      episodes: item.episodes,
+      status: item.status
+    }));
+  }
+
+  /* ── SOURCE 3: ANILIST GRAPHQL SEARCH ── */
+  async function searchAnimeFromAniList(q) {
+    const query = `
+      query ($search: String, $page: Int, $perPage: Int) {
+        Page(page: $page, perPage: $perPage) {
+          media(search: $search, type: ANIME, sort: SEARCH_MATCH) {
+            id
+            idMal
+            title {
+              romaji
+              english
+              native
+            }
+            coverImage {
+              large
+              medium
+            }
+            type
+            format
+            status
+            episodes
+            seasonYear
+            averageScore
+            genres
+            studios(isMain: true) {
+              nodes {
+                name
+              }
+            }
+          }
+        }
+      }
+    `;
+    
+    const response = await fetch('https://graphql.anilist.co', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({
+        query,
+        variables: { search: q, page: 1, perPage: 8 }
+      }),
+      signal: AbortSignal.timeout(10000)
+    });
+    
+    if (!response.ok) throw new Error(`AniList HTTP ${response.status}`);
+    
+    const json = await response.json();
+    const items = json.data?.Page?.media || [];
+    
+    return items.map(item => ({
+      poster: item.coverImage?.large || item.coverImage?.medium || '',
+      title: item.title?.english || item.title?.romaji || 'Unknown Title',
+      original: [item.title?.native, item.title?.romaji].filter(Boolean).join(' / ') || '',
+      meta: [
+        item.format?.replace(/_/g, ' '),
+        item.seasonYear,
+        item.episodes ? `${item.episodes} eps` : null,
+        item.genres?.slice(0, 2).join(', ')
+      ].filter(Boolean).join(' · '),
+      score: item.averageScore ? `★ ${item.averageScore}%` : null,
+      mal_id: item.idMal,
+      anilistId: item.id,
+      source: 'anilist',
+      year: item.seasonYear,
+      episodes: item.episodes,
+      status: item.status
+    }));
   }
 
   /* ── TMDB via Cloudflare Worker ── */
@@ -1652,11 +1892,6 @@
   }
 
   function renderSuggestions(results, q, container) {
-    if (!results.length) {
-      container.innerHTML = `<div style="padding:14px 12px;font-size:0.76rem;color:var(--text-muted,#888);">No results for "${esc(q)}"</div>`;
-      return;
-    }
-
     const slugify = (title) => {
       if (!title) return '';
       return title
@@ -1665,41 +1900,64 @@
         .replace(/^-+|-+$/g, '');
     };
 
+    if (!results.length) {
+      container.innerHTML = `
+        <div class="suggestions-scroll">
+          <div style="padding:20px 12px;text-align:center;font-size:0.76rem;color:var(--text-muted,#888);">
+            <div style="font-size:1.5rem;margin-bottom:8px;">🔍</div>
+            No results for "<strong style="color:#63b3ed">${esc(q)}</strong>"
+          </div>
+        </div>
+        <button class="view-all-btn" onclick="location.href='/search?q=${encodeURIComponent(q)}&type=${currentSearchMode}'">${SVG.arrow} View all results</button>`;
+      container.style.display = 'block';
+      return;
+    }
+
     const html = results.map(r => {
       let detailsUrl = '#';
       const slug = slugify(r.title);
 
-      if (r.source === 'jikan') {
-        detailsUrl = `/info/anime/jikan-${r.id}`;
+      // Navigation based on source and ID
+      if (r.mal_id) {
+        detailsUrl = `/info/anime/jikan-${r.mal_id}`;
         if (slug) detailsUrl += `/${slug}`;
-      } else if (r.source === 'tmdb') {
-        const type = r.mediaType === 'movie' ? 'movie' : 'tv';
-        const prefix = r.mediaType === 'movie' ? `tmdb-movie-${r.id}` : `tmdb-tv-${r.id}`;
-        detailsUrl = `/info/${type}/${prefix}`;
+      } else if (r.anilistId) {
+        detailsUrl = `/info/anime/anilist-${r.anilistId}`;
         if (slug) detailsUrl += `/${slug}`;
       }
 
       const img = r.poster
-        ? `<img class="suggestion-poster" src="${esc(r.poster)}" alt="" loading="lazy" onerror="this.style.background='#1e2633';">`
-        : `<div class="suggestion-poster"></div>`;
+        ? `<img class="suggestion-poster" src="${esc(r.poster)}" alt="" loading="lazy" onerror="this.style.background='linear-gradient(135deg,#1e2633,#2d3748)';this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 42 60%22><rect fill=%22%231e2633%22 width=%2242%22 height=%2260%22 rx=%226%22/><text x=%2221%22 y=%2235%22 text-anchor=%22middle%22 fill=%22%2363b3ed%22 font-size=%2214%22>📺</text></svg>';">`
+        : `<div class="suggestion-poster" style="background:linear-gradient(135deg,#1e2633,#2d3748);display:flex;align-items:center;justify-content:center;font-size:1.2rem;">📺</div>`;
+      
       const orig = r.original && r.original !== r.title
         ? `<div class="sug-orig">${esc(r.original)}</div>` : '';
+      
       const score = r.score
         ? `<span class="sug-score">${esc(r.score)}</span>` : '';
-      const meta = [r.meta, score].filter(Boolean).join(' · ');
+      
+      const meta = [r.meta].filter(Boolean).join('');
+      
+      // Source badge
+      const sourceBadge = r.source 
+        ? `<span class="source-badge source-${r.source}">${r.source === 'db' ? 'DB' : r.source}</span>`
+        : '';
 
       return `<a href="${detailsUrl}" class="suggestion-item">
         ${img}
         <div class="suggestion-info">
           <div class="sug-title">${esc(r.title)}</div>
           ${orig}
-          <div class="sug-meta">${meta}</div>
+          <div class="sug-meta">${meta} ${score}</div>
         </div>
+        ${sourceBadge}
       </a>`;
     }).join('');
 
-    container.innerHTML = html
-      + `<button class="view-all-btn" onclick="location.href='/search?q=${encodeURIComponent(q)}&type=${currentSearchMode}'">${SVG.arrow} View all results</button>`;
+    // Structure: scrollable suggestions + always-visible "View All" button
+    container.innerHTML = `
+      <div class="suggestions-scroll">${html}</div>
+      <button class="view-all-btn" onclick="location.href='/search?q=${encodeURIComponent(q)}&type=${currentSearchMode}'">${SVG.arrow} View all results for "${esc(q)}"</button>`;
     container.style.display = 'block';
   }
 
