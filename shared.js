@@ -173,7 +173,7 @@
     /* ── SEARCH (Optimized Responsive) ── */
     .header-search-wrap{
       flex:0 1 auto;
-      max-width:340px;
+      max-width:400px;
       min-width:180px;
       position:relative;
       margin-left:8px;
