@@ -174,7 +174,7 @@
     .header-search-wrap{
       flex:0 1 auto;
       max-width:400px;
-      min-width:180px;
+      min-width:220px;
       position:relative;
       margin-left:8px;
     }
@@ -1595,7 +1595,7 @@
         this.classList.add('active');
         currentSearchMode = this.dataset.mode;
         const q = document.getElementById('searchInput').value.trim();
-        if (q.length >= 3) handleSearchInput(q, document.getElementById('searchSuggestions'));
+        if (q.length >= 2) handleSearchInput(q, document.getElementById('searchSuggestions'));
       });
     });
     /* Mobile tabs */
@@ -1605,7 +1605,7 @@
         this.classList.add('active');
         currentSearchMode = this.dataset.mode;
         const q = document.getElementById('mobSearchInput').value.trim();
-        if (q.length >= 3) handleSearchInput(q, document.getElementById('mobSuggestions'));
+        if (q.length >= 2) handleSearchInput(q, document.getElementById('mobSuggestions'));
       });
     });
 
@@ -1629,7 +1629,7 @@
   function handleSearchInput(rawQ, container) {
     const q = rawQ.trim();
     clearTimeout(searchDebounceTimer);
-    if (q.length < 3) { container.style.display = 'none'; return; }
+    if (q.length < 2) { container.style.display = 'none'; return; }
     container.innerHTML = '<div style="padding:14px 12px;font-size:0.76rem;color:var(--text-muted,#888);">Searching…</div>';
     container.style.display = 'block';
     searchDebounceTimer = setTimeout(() => fetchSuggestions(q, container), 300);
@@ -1798,13 +1798,40 @@
       const elapsed = (performance.now() - startTime).toFixed(0);
       console.log(`[DB Search] Found ${data.length} results for:`, q, `(${elapsed}ms)`);
       
+      // Helper: Parse studio field (might be JSON array or plain string)
+      const parseStudio = (studio) => {
+        if (!studio) return '';
+        if (typeof studio === 'string') {
+          // Try to parse as JSON array
+          if (studio.startsWith('[')) {
+            try {
+              const parsed = JSON.parse(studio);
+              if (Array.isArray(parsed)) {
+                return parsed.map(s => {
+                  // Handle nested quotes like ["\"Production I.G\""]
+                  if (typeof s === 'string' && s.startsWith('"') && s.endsWith('"')) {
+                    return JSON.parse(s);
+                  }
+                  return s;
+                }).join(', ');
+              }
+            } catch (e) {
+              // Not valid JSON, return as-is
+            }
+          }
+          return studio;
+        }
+        if (Array.isArray(studio)) return studio.join(', ');
+        return String(studio);
+      };
+
       const results = data.map(item => ({
         poster: item.large_image_url_jpg || item.image_url_jpg || '',
         title: item.english_title || item.default_title || 'Unknown Title',
         original: [item.japanese_title, item.romanji_title].filter(Boolean).join(' / ') || '',
         meta: [
           item.type,
-          item.studios,
+          parseStudio(item.studios),
           item.year,
           item.episodes ? `${item.episodes} eps` : null
         ].filter(Boolean).join(' · '),
