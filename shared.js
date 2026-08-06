@@ -264,6 +264,7 @@
     .tag-smal{background:rgba(16,185,129,0.15);color:#34d399;border:1px solid rgba(16,185,129,0.25);}
     .tag-mal{background:rgba(99,179,237,0.15);color:#63b3ed;border:1px solid rgba(99,179,237,0.25);}
     .tag-al{background:rgba(168,85,247,0.15);color:#c084fc;border:1px solid rgba(168,85,247,0.25);}
+    .tag-tmdb{background:rgba(245,158,11,0.15);color:#fbbf24;border:1px solid rgba(245,158,11,0.25);}
     .view-all-btn{
       display:flex!important;align-items:center;justify-content:center;gap:6px;
       padding:10px 0;margin:0;border-top:1px solid var(--border-medium,rgba(255,255,255,0.08));
@@ -2053,11 +2054,25 @@
       let detailsUrl = '#';
       const slug = slugify(r.title);
 
-      // Consistent link format: /info/anime/jikan-{mal_id}/slug
-      // All sources MUST have mal_id for consistent navigation
+      // ── ANIME: /info/anime/jikan-{mal_id}/slug ──
+      // All anime sources (db/jikan/anilist) MUST have mal_id
       if (r.mal_id) {
         detailsUrl = `/info/anime/jikan-${r.mal_id}`;
         if (slug) detailsUrl += `/${slug}`;
+      }
+      
+      // ── TMDB MOVIE/TV: Link to TMDB info pages ──
+      // Non-Anime toggle tab uses these patterns
+      else if (r.source === 'tmdb' && r.id) {
+        if (r.mediaType === 'tv') {
+          // TV Show: /info/tv/tmdb-tv-{tmdb_id}/slug
+          detailsUrl = `/info/tv/tmdb-tv-${r.id}`;
+          if (slug) detailsUrl += `/${slug}`;
+        } else if (r.mediaType === 'movie') {
+          // Movie: /info/movie/tmdb-movie-{tmdb_id}/slug
+          detailsUrl = `/info/movie/tmdb-movie-${r.id}`;
+          if (slug) detailsUrl += `/${slug}`;
+        }
       }
 
       const img = r.poster
@@ -2072,7 +2087,7 @@
       
       const meta = [r.meta].filter(Boolean).join('');
       
-      // Metadata tag: S-Mal (DB), Mal (Jikan), AL (AniList)
+      // Metadata tag: S-Mal (DB), Mal (Jikan), AL (AniList), TMDB (Movie/TV)
       let metaTag = '';
       if (r.source === 'db') {
         metaTag = '<span class="meta-tag tag-smal">S-Mal</span>';
@@ -2080,6 +2095,10 @@
         metaTag = '<span class="meta-tag tag-mal">Mal</span>';
       } else if (r.source === 'anilist') {
         metaTag = '<span class="meta-tag tag-al">AL</span>';
+      } else if (r.source === 'tmdb') {
+        // TMDB tag - different color for movie vs tv
+        const tmdbType = r.mediaType === 'movie' ? '🎬' : '📺';
+        metaTag = `<span class="meta-tag tag-tmdb">${tmdbType} TMDB</span>`;
       }
 
       return `<a href="${detailsUrl}" class="suggestion-item">
