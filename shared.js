@@ -1801,27 +1801,59 @@
       // Helper: Parse studio field (might be JSON array or plain string)
       const parseStudio = (studio) => {
         if (!studio) return '';
+        
+        // If already a clean string (not JSON), return directly
         if (typeof studio === 'string') {
-          // Try to parse as JSON array
-          if (studio.startsWith('[')) {
-            try {
-              const parsed = JSON.parse(studio);
-              if (Array.isArray(parsed)) {
-                return parsed.map(s => {
-                  // Handle nested quotes like ["\"Production I.G\""]
-                  if (typeof s === 'string' && s.startsWith('"') && s.endsWith('"')) {
-                    return JSON.parse(s);
+          const trimmed = studio.trim();
+          // Not JSON format - return as-is
+          if (!trimmed.startsWith('[') && !trimmed.startsWith('{')) {
+            return trimmed;
+          }
+          
+          // Try to parse JSON array
+          try {
+            const parsed = JSON.parse(trimmed);
+            if (Array.isArray(parsed)) {
+              return parsed.map(s => {
+                if (s === null || s === undefined) return '';
+                // Handle nested quoted strings like "\"Production I.G\""
+                if (typeof s === 'string') {
+                  const innerTrim = s.trim();
+                  // Try parsing nested JSON strings
+                  if ((innerTrim.startsWith('"') && innerTrim.endsWith('"')) || 
+                      (innerTrim.startsWith("'") && innerTrim.endsWith("'"))) {
+                    try {
+                      const unescaped = JSON.parse(innerTrim);
+                      return typeof unescaped === 'string' ? unescaped : String(unescaped);
+                    } catch {
+                      // Remove surrounding quotes manually
+                      return innerTrim.slice(1, -1);
+                    }
                   }
                   return s;
-                }).join(', ');
-              }
-            } catch (e) {
-              // Not valid JSON, return as-is
+                }
+                return String(s);
+              }).filter(Boolean).join(', ');
             }
+            // If parsed but not array, convert to string
+            return String(parsed);
+          } catch (e) {
+            // If JSON parse fails, try to extract text from common patterns
+            // Pattern: ["text"] or ["\"text\""]
+            const match = trimmed.match(/"([^"\\]*(?:\\.[^"\\]*)*)"/g);
+            if (match) {
+              return match.map(m => {
+                try { return JSON.parse(m); } catch { return m.replace(/^"|"$/g, ''); }
+              }).join(', ');
+            }
+            return trimmed;
           }
-          return studio;
         }
-        if (Array.isArray(studio)) return studio.join(', ');
+        
+        // Handle non-string types
+        if (Array.isArray(studio)) {
+          return studio.filter(Boolean).map(s => String(s)).join(', ');
+        }
         return String(studio);
       };
 
