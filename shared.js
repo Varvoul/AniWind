@@ -173,18 +173,18 @@
     /* ── SEARCH (Optimized Responsive) ── */
     .header-search-wrap{
       flex:0 1 auto;
-      max-width:460px;
-      min-width:220px;
+      max-width:560px;
+      min-width:280px;
       position:relative;
       margin-left:8px;
     }
     /* Tablet: slightly smaller */
     @media(max-width:1200px){
-      .header-search-wrap{max-width:300px;min-width:170px;}
+      .header-search-wrap{max-width:380px;min-width:200px;}
     }
     /* Small tablet/large phone */
     @media(max-width:900px){
-      .header-search-wrap{max-width:260px;min-width:150px;}
+      .header-search-wrap{max-width:320px;min-width:180px;}
     }
     .header-search-bar{
       display:flex;align-items:center;
