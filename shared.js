@@ -2096,9 +2096,9 @@
       } else if (r.source === 'anilist') {
         metaTag = '<span class="meta-tag tag-al">AL</span>';
       } else if (r.source === 'tmdb') {
-        // TMDB tag - different color for movie vs tv
-        const tmdbType = r.mediaType === 'movie' ? '🎬' : '📺';
-        metaTag = `<span class="meta-tag tag-tmdb">${tmdbType} TMDB</span>`;
+        // TMDB tag - show media type
+        const tmdbType = r.mediaType === 'movie' ? 'Movie' : 'TV';
+        metaTag = `<span class="meta-tag tag-tmdb">${tmdbType}</span>`;
       }
 
       return `<a href="${detailsUrl}" class="suggestion-item">
