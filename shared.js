@@ -265,13 +265,6 @@
     .tag-mal{background:rgba(99,179,237,0.15);color:#63b3ed;border:1px solid rgba(99,179,237,0.25);}
     .tag-al{background:rgba(168,85,247,0.15);color:#c084fc;border:1px solid rgba(168,85,247,0.25);}
     .tag-tmdb{background:rgba(245,158,11,0.15);color:#fbbf24;border:1px solid rgba(245,158,11,0.25);}
-    /* Season year badge - shows chronological order */
-    .season-badge{
-      display:inline-flex;align-items:center;padding:1px 6px;
-      font-size:0.65rem;font-weight:600;color:#a5b4fc;background:rgba(99,102,241,0.12);
-      border:1px solid rgba(99,102,241,0.25);border-radius:4px;margin-left:6px;
-      letter-spacing:0.5px;font-family:'Inter',sans-serif;
-    }
     .view-all-btn{
       display:flex!important;align-items:center;justify-content:center;gap:6px;
       padding:10px 0;margin:0;border-top:1px solid var(--border-medium,rgba(255,255,255,0.08));
@@ -2432,16 +2425,11 @@
         const tmdbType = r.mediaType === 'movie' ? 'Movie' : 'TV';
         metaTag = `<span class="meta-tag tag-tmdb">${tmdbType}</span>`;
       }
-      
-      // Season order badge - shows when multiple seasons are grouped
-      const seasonBadge = (results.length > 1 && r.year) 
-        ? `<span class="season-badge" title="${esc(r.year)}">${esc(r.year)}</span>` 
-        : '';
 
       return `<a href="${detailsUrl}" class="suggestion-item">
         ${img}
         <div class="suggestion-info">
-          <div class="sug-title">${esc(r.title)} ${seasonBadge}</div>
+          <div class="sug-title">${esc(r.title)}</div>
           ${orig}
           <div class="sug-meta">${meta} ${score} ${metaTag}</div>
         </div>
