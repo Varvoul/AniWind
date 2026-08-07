@@ -78,36 +78,41 @@
     .slide {
       min-width: 100%;
       height: 100%;
-      background-size: cover;
+      background-size: 100%;
       background-position: center;
       position: relative;
       display: flex;
       align-items: flex-end;
       padding: 0 5%;
-    }
-    .slide::before {
-      content: '';
-      position: absolute;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: linear-gradient(
-        to right,
-        rgba(10, 25, 41, 0.97) 28%,
-        rgba(10, 25, 41, 0.35) 100%
-      );
+      overflow: hidden;
+      animation: kenburns 9s ease-in-out infinite alternate;
     }
     .slide::after {
       content: '';
       position: absolute;
-      bottom: 0; left: 0; right: 0;
-      height: 25%;
-      background: linear-gradient(to top, var(--bg-body) 0%, transparent 100%);
+      top: 0; left: 0; right: 0; bottom: 0;
+      background:
+        linear-gradient(to top, var(--bg-body) 0%, transparent 22%),
+        linear-gradient(to right, rgba(10,25,41,0.55) 0%, rgba(10,25,41,0.15) 45%, rgba(10,25,41,0.55) 100%);
+      z-index: 1;
+    }
+    @keyframes kenburns {
+      0%   { background-size: 100%; }
+      100% { background-size: 112%; }
     }
     .slide-content {
       position: relative;
       z-index: 2;
       max-width: 650px;
       width: 100%;
-      margin-bottom: 15%;
+      margin-bottom: 6%;
+      background: rgba(15, 36, 64, 0.38);
+      backdrop-filter: blur(18px) saturate(140%);
+      -webkit-backdrop-filter: blur(18px) saturate(140%);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: var(--radius-lg);
+      padding: clamp(14px, 2.5vw, 28px);
+      box-shadow: var(--shadow-lg);
     }
     .slide-title {
       font-family: var(--font-title);
@@ -127,8 +132,8 @@
       align-items: center;
     }
     .meta-badge {
-      background: rgba(255,255,255,0.12);
-      border: 1px solid var(--border-medium);
+      background: rgba(255,255,255,0.14);
+      border: 1px solid rgba(255,255,255,0.2);
       border-radius: 4px;
       padding: 2px 6px;
       font-size: clamp(0.55rem, 1.4vw, 0.72rem);
@@ -136,6 +141,7 @@
       display: flex;
       align-items: center;
       gap: 3px;
+      backdrop-filter: blur(4px);
     }
     .slide-synopsis {
       font-size: clamp(0.55rem, 1.4vw, 0.82rem);
@@ -2877,11 +2883,3 @@ window.showAnikotoPopupById = function(mal_id) {
   </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
