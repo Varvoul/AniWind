@@ -291,6 +291,9 @@
     .ranking-badge { position:absolute; top:6px; right:6px; background:rgba(0,0,0,0.6); backdrop-filter:blur(10px); color:#fff; font-weight:700; font-size:0.7rem; padding:2px 7px; border-radius:4px; z-index:2; }
     .quality-badge { position:absolute; top:6px; left:6px; background:rgba(0,0,0,0.7); color:#fff; font-size:0.62rem; padding:2px 5px; border-radius:3px; z-index:2; font-weight:600; }
     .score-badge { position:absolute; top:6px; right:6px; background:rgba(0,0,0,0.7); color:var(--accent-gold); font-size:0.65rem; padding:2px 5px; border-radius:3px; z-index:2; font-weight:600; display:flex; align-items:center; gap:3px; }
+    
+    /* No Image placeholder - vertically centered text */
+    .no-image-text { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#94a3b8; font-size:0.75rem; font-weight:600; letter-spacing:1px; text-transform:uppercase; writing-mode:vertical-rl; text-orientation:mixed; z-index:1; user-select:none; }
 
     /* NEW ON ANIOCEAN SECTION - Balanced rows */
     .new-aniocean-grid { 
@@ -2112,9 +2115,23 @@ window.showAnikotoPopupById = function(mal_id) {
       function renderPagination(page) {
         const total = Math.ceil(1000/20);
         const nav = document.getElementById('completedPagination');
-        let html = `<button ${page===1?'disabled':''} id="compPrev">Previous</button><div style="display:flex;gap:4px;">`;
-        const start = Math.max(1, page-2);
-        const end = Math.min(total, page+2);
+        
+        // Responsive: Desktop shows 6 pages, Mobile shows 4 pages
+        const isMobile = window.innerWidth <= 768;
+        const visiblePages = isMobile ? 4 : 6;
+        
+        let html = `<button ${page===1?'disabled':''} id="compPrev">Previous</button><div style="display:flex;gap:4px;flex-wrap:wrap;">`;
+        
+        // Calculate visible range centered on current page
+        const halfRange = Math.floor(visiblePages / 2);
+        let start = Math.max(1, page - halfRange);
+        let end = Math.min(total, start + visiblePages - 1);
+        
+        // Adjust start if we're near the end
+        if (end - start + 1 < visiblePages) {
+          start = Math.max(1, end - visiblePages + 1);
+        }
+        
         for (let i=start; i<=end; i++) {
           html += `<button class="${i===page?'active':''}" data-page="${i}">${i}</button>`;
         }
@@ -2129,8 +2146,13 @@ window.showAnikotoPopupById = function(mal_id) {
 
       /* ── SHARED CARD RENDERERS ── */
       function renderCompletedCard(s) {
+        // Check if poster is valid (not empty, not undefined)
+        const hasPoster = s.poster && s.poster !== '' && s.poster !== 'null' && s.poster !== 'undefined';
+        const posterStyle = hasPoster ? `background-image:url('${s.poster}');` : 'background:linear-gradient(135deg, #1e293b 0%, #334155 100%);';
+        const noImageHtml = hasPoster ? '' : `<div class="no-image-text">No Image</div>`;
         return `<a href="${infoUrl(s)}" class="show-card-grid">
-          <div class="card-poster" style="background-image:url('${s.poster}');">
+          <div class="card-poster" style="${posterStyle}">
+            ${noImageHtml}
             <span class="quality-badge">${s.quality||'HD'}</span>
             <div class="play-overlay"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" fill="white"/></svg></div>
           </div>
