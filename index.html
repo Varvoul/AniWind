@@ -1894,13 +1894,6 @@ window.showAnikotoPopupById = function(mal_id) {
         const grid = document.getElementById('newReleasesGrid');
         const data = allReleases[filter] || [];
         
-        // Helper to generate genre tags HTML (max 4)
-        const genresHtml = (genres) => {
-          if (!genres || !Array.isArray(genres) || !genres.length) return '';
-          const topGenres = genres.slice(0, 4);
-          return `<div class="card-genres">${topGenres.map(g => `<span class="genre-tag">${g}</span>`).join('')}</div>`;
-        };
-        
         grid.innerHTML = data.map(s => {
           if (s.type==='Anime') {
             const ratingText = RATING_EXPLAIN[s.rating] || s.rating;
@@ -1913,7 +1906,6 @@ window.showAnikotoPopupById = function(mal_id) {
               <div class="card-info-grid">
                 <div class="card-meta-sm">${s.type} · ${s.duration==='?'?'?':s.duration} · ${s.status}</div>
                 <div class="card-title">${s.title}</div>
-                ${genresHtml(s.genres)}
               </div>
             </a>`;
           } else if (s.type==='Movie') {
@@ -1926,7 +1918,6 @@ window.showAnikotoPopupById = function(mal_id) {
               <div class="card-info-grid">
                 <div class="card-meta-sm">${s.type} · ${s.details} · ${s.cert}</div>
                 <div class="card-title">${s.title}</div>
-                ${genresHtml(s.genres)}
               </div>
             </a>`;
           } else {
@@ -1939,7 +1930,6 @@ window.showAnikotoPopupById = function(mal_id) {
               <div class="card-info-grid">
                 <div class="card-meta-sm">${s.type} · ${s.details} · ${s.cert}</div>
                 <div class="card-title">${s.title}</div>
-                ${genresHtml(s.genres)}
               </div>
             </a>`;
           }
@@ -2100,12 +2090,6 @@ window.showAnikotoPopupById = function(mal_id) {
 
       /* ── SHARED CARD RENDERERS ── */
       function renderCompletedCard(s) {
-        // Helper for genres
-        const genresHtml = (genres) => {
-          if (!genres || !Array.isArray(genres) || !genres.length) return '';
-          return `<div class="card-genres">${genres.slice(0, 4).map(g => `<span class="genre-tag">${g}</span>`).join('')}</div>`;
-        };
-        
         return `<a href="${infoUrl(s)}" class="show-card-grid">
           <div class="card-poster" style="background-image:url('${s.poster}');">
             <span class="quality-badge">${s.quality||'HD'}</span>
@@ -2114,7 +2098,6 @@ window.showAnikotoPopupById = function(mal_id) {
           <div class="card-info-grid">
             <div class="card-meta-sm">${s.type} · ${s.year||'?'} · <i class="fas fa-star"></i> ${s.score}</div>
             <div class="card-title">${s.title}</div>
-            ${genresHtml(s.genres)}
           </div>
         </a>`;
       }
