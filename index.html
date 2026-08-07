@@ -292,8 +292,9 @@
     .quality-badge { position:absolute; top:6px; left:6px; background:rgba(0,0,0,0.7); color:#fff; font-size:0.62rem; padding:2px 5px; border-radius:3px; z-index:2; font-weight:600; }
     .score-badge { position:absolute; top:6px; right:6px; background:rgba(0,0,0,0.7); color:var(--accent-gold); font-size:0.65rem; padding:2px 5px; border-radius:3px; z-index:2; font-weight:600; display:flex; align-items:center; gap:3px; }
     
-    /* No Image placeholder - vertically centered text */
-    .no-image-text { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#94a3b8; font-size:0.75rem; font-weight:600; letter-spacing:1px; text-transform:uppercase; writing-mode:vertical-rl; text-orientation:mixed; z-index:1; user-select:none; }
+    /* No Image placeholder - vertically stacked text */
+    .card-poster.no-image::before { content:'No'; position:absolute; top:40%; left:50%; transform:translate(-50%,-50%); color:#94a3b8; font-size:0.75rem; font-weight:600; letter-spacing:2px; text-transform:uppercase; z-index:1; user-select:none; }
+    .card-poster.no-image::after { content:'Image'; position:absolute; top:55%; left:50%; transform:translate(-50%,-50%); color:#94a3b8; font-size:0.7rem; font-weight:600; letter-spacing:1px; text-transform:uppercase; z-index:1; user-select:none; }
 
     /* NEW ON ANIOCEAN SECTION - Balanced rows */
     .new-aniocean-grid { 
@@ -2149,10 +2150,9 @@ window.showAnikotoPopupById = function(mal_id) {
         // Check if poster is valid (not empty, not undefined)
         const hasPoster = s.poster && s.poster !== '' && s.poster !== 'null' && s.poster !== 'undefined';
         const posterStyle = hasPoster ? `background-image:url('${s.poster}');` : 'background:linear-gradient(135deg, #1e293b 0%, #334155 100%);';
-        const noImageHtml = hasPoster ? '' : `<div class="no-image-text">No Image</div>`;
+        const noImageClass = hasPoster ? '' : 'no-image';
         return `<a href="${infoUrl(s)}" class="show-card-grid">
-          <div class="card-poster" style="${posterStyle}">
-            ${noImageHtml}
+          <div class="card-poster ${noImageClass}" style="${posterStyle}">
             <span class="quality-badge">${s.quality||'HD'}</span>
             <div class="play-overlay"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" fill="white"/></svg></div>
           </div>
