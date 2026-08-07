@@ -1649,8 +1649,15 @@
   }
 
   /* ═══════════════════════════════════════════════════════════
-     ANIME SEARCH WITH FALLBACK CHAIN
-     Priority: Supabase DB → Jikan API → AniList GraphQL
+     ANIME SEARCH WITH TIMING FALLBACK CHAIN
+     Priority: Supabase DB (20ms) → Jikan API (15ms) → AniList GraphQL
+     
+     TIMING-BASED FALLBACK LOGIC:
+     - Primary: DB must respond within 20ms, otherwise trigger fallback
+     - Fallback #1: Jikan must respond within 15ms of starting, else next fallback
+     - Fallback #2: AniList as final safety net
+     
+     Uses Promise.race() for timeout-based source switching.
      Includes rate limiting & caching for API protection.
   ═══════════════════════════════════════════════════════════ */
   
@@ -1660,16 +1667,39 @@
   const MIN_API_DELAY = 800; // ms between API calls (rate limiting)
   const CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache
   
+  // ⏱️ TIMING FALLBACK CONSTANTS (in milliseconds) - REALISTIC VALUES
+  const DB_TIMEOUT_MS = 1200;     // Max wait for DB before triggering Jikan (DB usually 100-500ms)
+  const JIKAN_TIMEOUT_MS = 2500;  // Max wait for Jikan before triggering AniList (Jikan is slow: 300-2000ms)
+  const ANILIST_TIMEOUT_MS = 2000;// Max wait for AniList (final fallback, usually 200-800ms)
+  
   // API endpoints
   const JIKAN_API_BASE = 'https://jikan-api-bohb.onrender.com/v4/search/anime';
   
+  /**
+   * Race a promise against a timeout
+   * @param {Promise} promise - The promise to race
+   * @param {number} ms - Timeout in milliseconds
+   * @param {string} sourceName - Name for logging
+   * @returns {Promise} Resolves with {result, timedOut, source}
+   */
+  function withTimeout(promise, ms, sourceName) {
+    return Promise.race([
+      promise.then(result => ({ result, timedOut: false, source: sourceName })),
+      new Promise(resolve => 
+        setTimeout(() => resolve({ result: null, timedOut: true, source: sourceName }), ms)
+      )
+    ]);
+  }
+  
   async function fetchAnimeWithFallbacks(q) {
     const cacheKey = `anime:${q}`;
+    const overallStart = performance.now();
     
     // Check cache first
     if (animeSearchCache.has(cacheKey)) {
       const cached = animeSearchCache.get(cacheKey);
       if (Date.now() - cached.timestamp < CACHE_TTL) {
+        console.log(`[Search] Cache hit for "${q}"`);
         return cached.results;
       }
       animeSearchCache.delete(cacheKey);
@@ -1684,50 +1714,114 @@
     lastApiCallTime = Date.now();
     
     let results = [];
+    let dbCompleted = false;
+    let jikanStarted = false;
     
-    // ── SOURCE 1: SUPABASE DB (Primary) ──
-    try {
-      results = await searchAnimeFromDB(q);
+    // ── SOURCE 1: SUPABASE DB (Primary) - 20ms timeout ──
+    console.log(`[Search] Starting DB search for "${q}" (timeout: ${DB_TIMEOUT_MS}ms)`);
+    const dbStart = performance.now();
+    
+    const dbResult = await withTimeout(
+      searchAnimeFromDB(q).catch(err => {
+        console.warn(`[Search] DB error: ${err.message}`);
+        return [];
+      }),
+      DB_TIMEOUT_MS,
+      'DB'
+    );
+    
+    const dbElapsed = (performance.now() - dbStart).toFixed(0);
+    
+    if (!dbResult.timedOut && dbResult.result && dbResult.result.length > 0) {
+      // DB responded within timeout
+      results = dbResult.result;
+      dbCompleted = true;
+      console.log(`[Search] ✅ DB returned ${results.length} results in ${dbElapsed}ms`);
+      
+      // If we have enough results, cache and return early
       if (results.length >= 3) {
         animeSearchCache.set(cacheKey, { results, timestamp: Date.now() });
+        console.log(`[Search] ✅ Sufficient results from DB (${results.length}), returning early [${(performance.now() - overallStart).toFixed(0)}ms total]`);
         return results;
       }
-      // If DB has some but not enough, keep them and try fallbacks
-    } catch (dbErr) {
-      console.warn('[AnimeSearch] DB failed:', dbErr.message);
+    } else if (dbResult.timedOut) {
+      // DB took too long - will continue to fallbacks
+      console.log(`[Search] ⏰ DB timed out after ${DB_TIMEOUT_MS}ms, triggering Jikan fallback...`);
+      dbCompleted = false;
+    } else {
+      // DB returned but no results or error
+      dbCompleted = true;
+      console.log(`[Search] ⚠️ DB returned 0 results in ${dbElapsed}ms, trying fallbacks...`);
     }
     
-    // ── SOURCE 2: JIKAN API (Fallback #1) ──
-    try {
-      const jikanResults = await searchAnimeFromJikan(q);
-      
-      // Merge with DB results, avoiding duplicates by mal_id
+    // ── SOURCE 2: JIKAN API (Fallback #1) - 15ms timeout ──
+    console.log(`[Search] Starting Jikan search for "${q}" (timeout: ${JIKAN_TIMEOUT_MS}ms)`);
+    jikanStarted = true;
+    const jikanStart = performance.now();
+    
+    const jikanResult = await withTimeout(
+      searchAnimeFromJikan(q).catch(err => {
+        console.warn(`[Search] Jikan error: ${err.message}`);
+        return [];
+      }),
+      JIKAN_TIMEOUT_MS,
+      'Jikan'
+    );
+    
+    const jikanElapsed = (performance.now() - jikanStart).toFixed(0);
+    
+    if (!jikanResult.timedOut && jikanResult.result && jikanResult.result.length > 0) {
+      // Jikan responded within timeout
       const existingIds = new Set(results.map(r => r.mal_id).filter(Boolean));
-      const newResults = jikanResults.filter(r => !existingIds.has(r.mal_id));
+      const newResults = jikanResult.result.filter(r => !existingIds.has(r.mal_id));
       results = [...results, ...newResults];
+      console.log(`[Search] ✅ Jikan returned ${jikanResult.result.length} results (${newResults.length} new) in ${jikanElapsed}ms`);
       
+      // If we have enough results, cache and return
       if (results.length >= 3) {
         animeSearchCache.set(cacheKey, { results, timestamp: Date.now() });
+        console.log(`[Search] ✅ Sufficient results from DB+Jikan (${results.length}), returning [${(performance.now() - overallStart).toFixed(0)}ms total]`);
         return results;
       }
-    } catch (jikanErr) {
-      console.warn('[AnimeSearch] Jikan failed:', jikanErr.message);
+    } else if (jikanResult.timedOut) {
+      // Jikan took too long
+      console.log(`[Search] ⏰ Jikan timed out after ${JIKAN_TIMEOUT_MS}ms, triggering AniList fallback...`);
+    } else {
+      console.log(`[Search] ⚠️ Jikan returned 0 results in ${jikanElapsed}ms, trying AniList...`);
     }
     
-    // ── SOURCE 3: ANILIST GRAPHQL (Fallback #2) ──
-    try {
-      const anilistResults = await searchAnimeFromAniList(q);
-      
-      // Merge avoiding duplicates
+    // ── SOURCE 3: ANILIST GRAPHQL (Fallback #2) - Final safety net ──
+    console.log(`[Search] Starting AniList search for "${q}" (timeout: ${ANILIST_TIMEOUT_MS}ms)`);
+    const anilistStart = performance.now();
+    
+    const anilistResult = await withTimeout(
+      searchAnimeFromAniList(q).catch(err => {
+        console.warn(`[Search] AniList error: ${err.message}`);
+        return [];
+      }),
+      ANILIST_TIMEOUT_MS,
+      'AniList'
+    );
+    
+    const anilistElapsed = (performance.now() - anilistStart).toFixed(0);
+    
+    if (!anilistResult.timedOut && anilistResult.result && anilistResult.result.length > 0) {
+      // AniList responded
       const existingIds = new Set(results.map(r => r.mal_id || r.anilistId).filter(Boolean));
-      const newResults = anilistResults.filter(r => !existingIds.has(r.anilistId));
+      const newResults = anilistResult.result.filter(r => !existingIds.has(r.anilistId));
       results = [...results, ...newResults];
-    } catch (anilistErr) {
-      console.warn('[AnimeSearch] AniList failed:', anilistErr.message);
+      console.log(`[Search] ✅ AniList returned ${anilistResult.result.length} results (${newResults.length} new) in ${anilistElapsed}ms`);
+    } else if (anilistResult.timedOut) {
+      console.log(`[Search] ⏰ AniList timed out after ${ANILIST_TIMEOUT_MS}ms`);
+    } else {
+      console.log(`[Search] ⚠️ AniList returned 0 results in ${anilistElapsed}ms`);
     }
     
-    // Cache final results
+    // Cache final results (even if empty - avoids repeated slow queries)
+    const totalElapsed = (performance.now() - overallStart).toFixed(0);
     animeSearchCache.set(cacheKey, { results, timestamp: Date.now() });
+    console.log(`[Search] 🏁 Final: ${results.length} results from all sources [${totalElapsed}ms total]`);
+    
     return results;
   }
 
