@@ -1856,7 +1856,7 @@
       let { data, error } = await supabase
         .from('anime_data')
         .select('default_title,english_title,romanji_title,japanese_title,type,studios,year,score,mal_id,large_image_url_jpg,image_url_jpg,episodes,status')
-        .or(`english_title.ilike.${q}%,default_title.ilike.${q}%`)
+        .or(`default_title.ilike.${q}%,english_title.ilike.${q}%,japanese_title.ilike.${q}%`) 
         .order('score', { ascending: false, nullsFirst: false })
         .limit(6);
       
@@ -1865,7 +1865,7 @@
         const { data: data2, error: error2 } = await supabase
           .from('anime_data')
           .select('default_title,english_title,romanji_title,japanese_title,type,studios,year,score,mal_id,large_image_url_jpg,image_url_jpg,episodes,status')
-          .or(`english_title.ilike.%${q}%,default_title.ilike.%${q}%,japanese_title.ilike.%${q}%,romanji_title.ilike.%${q}%`)
+          .or(`default_title.ilike.%${q}%,english_title.ilike.%${q}%,japanese_title.ilike.%${q}%,romanji_title.ilike.%${q}%`) 
           .order('score', { ascending: false, nullsFirst: false })
           .limit(8);
         
