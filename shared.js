@@ -1641,7 +1641,7 @@
       const results = currentSearchMode === 'anime'
         ? await fetchAnimeWithFallbacks(q)
         : await fetchTMDB(q);
-      renderSuggestions(currentSearchMode === "anime" ? processSeasonResults(results) : results.slice(0, 8), q, container);
+      renderSuggestions(results.slice(0, 8), q, container);
     } catch (err) {
       container.innerHTML = `<div style="padding:14px 12px;font-size:0.76rem;color:var(--text-muted,#888);">Failed to fetch. Try again.</div>`;
       console.error('Search error:', err);
@@ -1666,76 +1666,6 @@
   let lastApiCallTime = 0;
   const MIN_API_DELAY = 800; // ms between API calls (rate limiting)
   const CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache
-
-  // ═══ SMART SEASON DETECTION (Unlimited suggestions for series!) ════
-  const SEASON_CONFIG = {
-    NORMAL_LIMIT: 8,
-    SEASON_LIMIT: 20, 
-    MIN_SEASONS_TO_UNLOCK: 2,
-    SEASON_PATTERNS: [
-      /\bseason\s*\d+/i,
-      /\bpart\s*\d+/i,
-      /\bcour\s*\d+/i,
-      /\b(?:OVA|OAD|Movie|Special)\b/i,
-      /^(?:Fairy Tail|Naruto|One Piece|Attack on Titan|Demon Slayer|Sugar Apple Fairy Tale|Frieren)/i
-    ]
-  };
-
-  function extractBaseName(t) {
-    if (!t) return '';
-    let b = t.trim();
-    [/:\s*.*$/i, /\s+Season\s*\d+.*$/i, /\s+Final.*$/i].forEach(p => b = b.replace(p, ''));
-    return b.trim().toLowerCase();
-  }
-
-  function getSeasonOrder(t) {
-    if (!t) return 1;
-    const l = t.toLowerCase();
-    if (/final/i.test(l)) return 99;
-    if (/movie/i.test(l)) return 50;
-    if (/ova|oad|special/i.test(l)) return 40;
-    const m = l.match(/season\s*(\d+)/);
-    return m ? parseInt(m[1]) : 1;
-  }
-
-  function isMultiSeason(t) {
-    if (!t) return false;
-    return SEASON_CONFIG.SEASON_PATTERNS.some(p => p.test(t));
-  }
-
-  function processSeasonResults(results) {
-    if (!results?.length) return results;
-    const groups = new Map(), standalone = [];
-    for (const item of results) {
-      const t = item.title || '', b = extractBaseName(t);
-      if (!b) { standalone.push(item); continue; }
-      if (isMultiSeason(t)) {
-        if (!groups.has(b)) groups.set(b, []);
-        groups.get(b).push({ ...item, _order: getSeasonOrder(t), _season: true });
-      } else {
-        standalone.push(item);
-      }
-    }
-    for (const [, items] of groups) {
-      items.sort((a, b) => a._order - b._order);
-    }
-    let final = [], used = 0;
-    for (const [name, items] of groups) {
-      if (items.length >= SEASON_CONFIG.MIN_SEASONS_TO_UNLOCK) {
-        final.push(...items.map(i => ({ ...i, _unlimited: true })));
-        used += items.length;
-      }
-    }
-    // Fill rest with limited/standalone
-    const remaining = Math.max(SEASON_CONFIG.NORMAL_LIMIT - used, 2);
-    for (const item of standalone) {
-      if (used >= SEASON_CONFIG.NORMAL_LIMIT + remaining) break;
-      final.push(item);
-      used++;
-    }
-    return final;
-  }
-
   
   // ⏱️ TIMING FALLBACK CONSTANTS (in milliseconds) - REALISTIC VALUES
   const DB_TIMEOUT_MS = 1200;     // Max wait for DB before triggering Jikan (DB usually 100-500ms)
