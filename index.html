@@ -1305,7 +1305,25 @@ async function loadNewAniocean() {
     }
     if (!grid) return false;
 
-    grid.innerHTML = animeList.map(anime => {
+    // Calculate target shows for 6 complete rows
+    function calcColsForGrid() {
+      const w = window.innerWidth;
+      if (w <= 520) return 2;
+      if (w <= 768) return 4;
+      if (w <= 992) return 5;
+      if (w <= 1400) return 6;
+      if (w <= 1800) return 7;
+      return 8;
+    }
+    const TARGET_ROWS = 6;
+    const cols = calcColsForGrid();
+    const TARGET_SHOWS = TARGET_ROWS * cols; // 42-48 shows
+    
+    // Trim to complete rows only
+    const trimmedTo = Math.floor(animeList.length / cols) * cols;
+    const displayList = animeList.slice(0, trimmedTo || TARGET_SHOWS);
+
+    grid.innerHTML = displayList.map(anime => {
       const studio = anime.studio || '?';
       const rating = anime.rating || 'N/A';
       const type = anime.type || 'TV';
@@ -1392,10 +1410,29 @@ async function loadNewAniocean() {
       }));
       // Deduplicate by mal_id
       const unique = dedupById(cleanJikan(formatted), 'mal_id');
-      if (renderAnimeList(unique.slice(0,20))) {
+      
+      // Calculate target for 6 rows
+      function calcColsForGrid() {
+        const w = window.innerWidth;
+        if (w <= 520) return 2;
+        if (w <= 768) return 4;
+        if (w <= 992) return 5;
+        if (w <= 1400) return 6;
+        if (w <= 1800) return 7;
+        return 8;
+      }
+      const TARGET_ROWS = 6;
+      const cols = calcColsForGrid();
+      const TARGET_SHOWS = TARGET_ROWS * cols; // 42-48 shows
+      
+      // Trim to complete rows
+      const trimmedTo = Math.floor(unique.length / cols) * cols;
+      const displayData = unique.slice(0, trimmedTo || TARGET_SHOWS);
+      
+      if (renderAnimeList(displayData)) {
         console.log(`✓ Loaded ${unique.length} anime from Anikoto proxy for "New on Aniocean"`);
         if (window.AniCache) window.AniCache.set({ cacheKey:'index:new_on_aniumi', pageSource:'index',
-          section:'new_on_aniumi', data: unique.slice(0,20), itemCount: unique.slice(0,20).length }).catch(()=>{});
+          section:'new_on_aniumi', data: displayData, itemCount: displayData.length }).catch(()=>{});
         return;
       }
     }
@@ -1437,11 +1474,25 @@ async function loadNewAniocean() {
       is_sub: 1,   // assume subbed
       is_dub: 0
     }));
+    
+    // Trim to 6 complete rows
+    function calcColsForGrid() {
+      const w = window.innerWidth;
+      if (w <= 520) return 2;
+      if (w <= 768) return 4;
+      if (w <= 992) return 5;
+      if (w <= 1400) return 6;
+      if (w <= 1800) return 7;
+      return 8;
+    }
+    const cols = calcColsForGrid();
+    const trimmedJikan = Math.floor(formattedJikan.length / cols) * cols;
+    const displayJikan = formattedJikan.slice(0, trimmedJikan || formattedJikan.length);
 
-    if (renderAnimeList(formattedJikan)) {
-      console.log(`✓ Loaded ${formattedJikan.length} anime from Jikan (fallback) for "New on Aniocean"`);
+    if (renderAnimeList(displayJikan)) {
+      console.log(`✓ Loaded ${displayJikan.length} anime from Jikan (fallback) for "New on Aniocean"`);
       if (window.AniCache) window.AniCache.set({ cacheKey:'index:new_on_aniumi', pageSource:'index',
-        section:'new_on_aniumi', data: formattedJikan, itemCount: formattedJikan.length }).catch(()=>{});
+        section:'new_on_aniumi', data: displayJikan, itemCount: displayJikan.length }).catch(()=>{});
       return;
     }
   } catch (error) {
@@ -1877,29 +1928,65 @@ window.showAnikotoPopupById = function(mal_id) {
             return;
           }
         }
-        const [nowMovies, onAirTv, jikanNow1, jikanNow2] = await Promise.all([
+        
+        // Calculate target shows for 6 complete rows
+        function calcColsForGrid() {
+          const w = window.innerWidth;
+          if (w <= 520) return 2;
+          if (w <= 768) return 4;
+          if (w <= 992) return 5;
+          if (w <= 1400) return 6;
+          if (w <= 1800) return 7;
+          return 8;
+        }
+        const TARGET_ROWS = 6;
+        const cols = calcColsForGrid();
+        const TARGET_SHOWS = TARGET_ROWS * cols; // 42-48 shows
+        
+        // Fetch MORE pages to fill 6 rows
+        const [nowMovies, nowMovies2, onAirTv, onAirTv2, jikanNow1, jikanNow2, jikanNow3] = await Promise.all([
           fetchTMDB('/movie/now_playing', 'language=en-US&page=1'),
+          fetchTMDB('/movie/now_playing', 'language=en-US&page=2'),
           fetchTMDB('/tv/on_the_air', 'language=en-US&page=1'),
+          fetchTMDB('/tv/on_the_air', 'language=en-US&page=2'),
           fetchJikan('seasons/now', 'limit=25&page=1'),
-          fetchJikan('seasons/now', 'limit=25&page=2')
+          fetchJikan('seasons/now', 'limit=25&page=2'),
+          fetchJikan('seasons/now', 'limit=25&page=3')
         ]);
-        const movies = (nowMovies.results||[]).slice(0,10).map(i => ({
-          id:`tmdb-mv-${i.id}`, title:i.title, poster:tmdbImg(i.poster_path), type:'Movie',
-          score:(i.vote_average||0).toFixed(1), details:'1h 45m', cert:'PG-13', quality:'HD'
-        }));
-        const tv = (onAirTv.results||[]).slice(0,10).map(i => ({
-          id:`tmdb-tv-${i.id}`, title:i.name, poster:tmdbImg(i.poster_path), type:'TV',
-          score:(i.vote_average||0).toFixed(1), details: 'S?', cert:'PG-13', quality:'HD'
-        }));
-        // Merge pages and deduplicate
-        const allJikanNow = [...(jikanNow1.data||[]), ...(jikanNow2.data||[])];
+        
+        // Merge multiple pages for each source
+        const allMovies = [...(nowMovies.results||[]), ...(nowMovies2.results||[])]
+          .map(i => ({
+            id:`tmdb-mv-${i.id}`, title:i.title, poster:tmdbImg(i.poster_path), type:'Movie',
+            score:(i.vote_average||0).toFixed(1), details:'1h 45m', cert:'PG-13', quality:'HD'
+          })).slice(0, TARGET_SHOWS);
+        const allTv = [...(onAirTv.results||[]), ...(onAirTv2.results||[])]
+          .map(i => ({
+            id:`tmdb-tv-${i.id}`, title:i.name, poster:tmdbImg(i.poster_path), type:'TV',
+            score:(i.vote_average||0).toFixed(1), details: 'S?', cert:'PG-13', quality:'HD'
+          })).slice(0, TARGET_SHOWS);
+        
+        // Merge all Jikan pages and deduplicate
+        const allJikanNow = [...(jikanNow1.data||[]), ...(jikanNow2.data||[]), ...(jikanNow3.data||[])];
         const jikanNowUnique = dedupById(cleanJikan(allJikanNow), 'mal_id');
-        const anime = jikanNowUnique.slice(0,20).map(a => ({
+        const anime = jikanNowUnique.slice(0, TARGET_SHOWS).map(a => ({
           id:`jikan-${a.mal_id}`, title:a.title, poster:a.images?.jpg?.large_image_url||'', type:'Anime',
           score:(a.score||0).toFixed(1), duration: a.duration||'?', status: a.status||'Airing',
           rating: a.rating||'none', quality:'HD'
         }));
-        allReleases = { all: dedupById([...anime,...movies,...tv], 'id').slice(0,50), anime, movie:movies, tv };
+        
+        // Trim each category to complete rows
+        const trimToCompleteRows = (arr) => {
+          const trimmed = Math.floor(arr.length / cols) * cols;
+          return arr.slice(0, trimmed || arr.length);
+        };
+        
+        allReleases = { 
+          all: trimToCompleteRows(dedupById([...anime,...allMovies,...allTv], 'id')), 
+          anime: trimToCompleteRows(anime), 
+          movie: trimToCompleteRows(allMovies), 
+          tv: trimToCompleteRows(allTv) 
+        };
         _newReleasesCache = allReleases;
         renderNewReleases('all');
         if (window.AniCache) window.AniCache.set({ cacheKey:'index:new_releases', pageSource:'index',
@@ -1910,10 +1997,15 @@ window.showAnikotoPopupById = function(mal_id) {
         const data = allReleases[filter] || [];
         
         grid.innerHTML = data.map(s => {
+          // Check for valid poster - show No Image placeholder if missing
+          const hasPoster = s.poster && s.poster !== '' && s.poster !== 'null' && s.poster !== 'undefined';
+          const posterStyle = hasPoster ? `background-image:url('${s.poster}');` : 'background:linear-gradient(135deg, #1e293b 0%, #334155 100%);';
+          const noImageClass = hasPoster ? '' : 'no-image';
+          
           if (s.type==='Anime') {
             const ratingText = RATING_EXPLAIN[s.rating] || s.rating;
             return `<a href="${infoUrl(s)}" class="show-card-grid">
-              <div class="card-poster" style="background-image:url('${s.poster}');">
+              <div class="card-poster ${noImageClass}" style="${posterStyle}">
                 <span class="poster-status-badge">${s.status}</span>
                 <span class="poster-rating-badge" title="${ratingText}"><i class="fas fa-star"></i> ${s.score}</span>
                 <div class="play-overlay"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" fill="white"/></svg></div>
@@ -1924,8 +2016,11 @@ window.showAnikotoPopupById = function(mal_id) {
               </div>
             </a>`;
           } else if (s.type==='Movie') {
+            const hasPoster = s.poster && s.poster !== '' && s.poster !== 'null';
+            const posterStyle = hasPoster ? `background-image:url('${s.poster}');` : 'background:linear-gradient(135deg, #1e293b 0%, #334155 100%);';
+            const noImageClass = hasPoster ? '' : 'no-image';
             return `<a href="${infoUrl(s)}" class="show-card-grid">
-              <div class="card-poster" style="background-image:url('${s.poster}');">
+              <div class="card-poster ${noImageClass}" style="${posterStyle}">
                 <span class="quality-badge">${s.quality}</span>
                 <span class="score-badge"><i class="fas fa-star"></i> ${s.score}</span>
                 <div class="play-overlay"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" fill="white"/></svg></div>
@@ -1936,8 +2031,11 @@ window.showAnikotoPopupById = function(mal_id) {
               </div>
             </a>`;
           } else {
+            const hasPoster = s.poster && s.poster !== '' && s.poster !== 'null';
+            const posterStyle = hasPoster ? `background-image:url('${s.poster}');` : 'background:linear-gradient(135deg, #1e293b 0%, #334155 100%);';
+            const noImageClass = hasPoster ? '' : 'no-image';
             return `<a href="${infoUrl(s)}" class="show-card-grid">
-              <div class="card-poster" style="background-image:url('${s.poster}');">
+              <div class="card-poster ${noImageClass}" style="${posterStyle}">
                 <span class="quality-badge">${s.quality}</span>
                 <span class="score-badge"><i class="fas fa-star"></i> ${s.score}</span>
                 <div class="play-overlay"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" fill="white"/></svg></div>
