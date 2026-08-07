@@ -2056,9 +2056,11 @@ window.showAnikotoPopupById = function(mal_id) {
           if (i<animeItems.length) interleaved.push(animeItems[i]);
           if (i<tmdbItems.length)  interleaved.push(tmdbItems[i]);
         }
+        // Limit to 15 shows max, trimmed to complete rows
+        const MAX_COMPLETED_SHOWS = 15;
         const cols = calcCols();
-        const trimTo = Math.floor(interleaved.length/cols)*cols;
-        const list = interleaved.slice(0, trimTo||interleaved.length);
+        const trimTo = Math.min(Math.floor(interleaved.length/cols)*cols, MAX_COMPLETED_SHOWS);
+        const list = interleaved.slice(0, trimTo || Math.min(interleaved.length, MAX_COMPLETED_SHOWS));
         document.getElementById('completedGrid').innerHTML = list.map(s => renderCompletedCard(s)).join('');
         _completedPagesCache[page] = list;
         // Save pages 1 & 2 globally — 5h TTL
