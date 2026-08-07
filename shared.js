@@ -1641,11 +1641,7 @@
       const results = currentSearchMode === 'anime'
         ? await fetchAnimeWithFallbacks(q)
         : await fetchTMDB(q);
-      // 🆕 Apply smart season detection for anime results (unlimited for multi-season series!)
-      const processedResults = currentSearchMode === 'anime' 
-        ? processSearchResultsWithSeasonDetection(results)
-        : results.slice(0, 8);
-      renderSuggestions(processedResults, q, container);
+      renderSuggestions(currentSearchMode === "anime" ? processSeasonResults(results) : results.slice(0, 8), q, container);
     } catch (err) {
       container.innerHTML = `<div style="padding:14px 12px;font-size:0.76rem;color:var(--text-muted,#888);">Failed to fetch. Try again.</div>`;
       console.error('Search error:', err);
@@ -1671,189 +1667,75 @@
   const MIN_API_DELAY = 800; // ms between API calls (rate limiting)
   const CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache
 
-  
-  /* ═══════════════════════════════════════════════════════════
-     SMART SEASON DETECTION CONFIGURATION
-     - Shows ALL seasons for multi-season series (no 8-item limit!)
-     - Sorts chronologically: S1 → S2 → ... → Latest
-     - Applies to both DB fetch AND API fetch results
-  ═══════════════════════════════════════════════════════════ */
-  
+  // ═══ SMART SEASON DETECTION (Unlimited suggestions for series!) ════
   const SEASON_CONFIG = {
-    NORMAL_LIMIT: 8,              // Max suggestions for normal/standalone anime
-    SEASON_LIMIT: 20,             // Safety cap per series group
-    MIN_SEASONS_TO_UNLOCK: 2,     // Min related entries to trigger unlimited mode
-    SEASON_PATTERNS: [            // Patterns indicating seasons/parts
-      /\b(?:season|saison|temporada)\s*\d+/i,
-      /\b(?:part|parte|teil|parte)\s*\d+/i,
-      /\b(?:cour|arc|saga|chapter)\s*\d+/i,
-      /\b\d+(?:nd|rd|th)?\s*(?:season|cour)/i,
-      /^\w+\s+(?:II|III|IV|V|VI|VII|VIII|IX|X)$/i,
-      /:\s*(?:final|last|end|conclusion|finale)/i,
-      /\b(?:2nd|3rd|4th|5th)\s*season/i,
-      /-\s*\d+$/i,
-      /\b(?:OVA|OAD|Movie|Special|ONA)\b/i,
-      /^(?:Fairy Tail|Naruto|One Piece|Dragon Ball|Attack on Titan|Demon Slayer|My Hero Academia|Jujutsu Kaisen|Hunter x Hunter|Bleach|Black Clover|Re:Zero|Sword Art Online|Date A Live|High School DxD|To Aru|Monogatari|Kuroko|Haikyuu|Knights of Sidonia|Log Horizon|Overlord|Made in Abyss|Spy x Family|Chainsaw Man|Blue Lock|Solo Leveling|Frieren|Sugar Apple Fairy Tale)/i
+    NORMAL_LIMIT: 8,
+    SEASON_LIMIT: 20, 
+    MIN_SEASONS_TO_UNLOCK: 2,
+    SEASON_PATTERNS: [
+      /\bseason\s*\d+/i,
+      /\bpart\s*\d+/i,
+      /\bcour\s*\d+/i,
+      /\b(?:OVA|OAD|Movie|Special)\b/i,
+      /^(?:Fairy Tail|Naruto|One Piece|Attack on Titan|Demon Slayer|Sugar Apple Fairy Tale|Frieren)/i
     ]
   };
 
-  /**
-   * Extract base series name from title (removes season/part suffixes)
-   */
-  function extractSeriesBaseName(title) {
-    if (!title) return '';
-    let base = title.trim();
-    const suffixPatterns = [
-      /:\s*.*$/i,
-      /\s*[-–—]\s*(?:\d+|II|III|IV|V|VI|VII|VIII|IX|X).*$/i,
-      /\s+(?:Season|Part|Cour|Arc|Saga)\s*\d+.*$/i,
-      /\s+(?:Final Series|Final Season|Last Season|The Movie|Special|OVA|OAD).*$/i,
-      /\s+\d+(?:nd|rd|th)?\s*Season.*$/i,
-      /\s+(?:II|III|IV|V|VI|VII|VIII|IX|X)\s*\(?\d*\)?\s*$/i
-    ];
-    for (const pattern of suffixPatterns) {
-      base = base.replace(pattern, '');
-    }
-    return base.trim().toLowerCase();
+  function extractBaseName(t) {
+    if (!t) return '';
+    let b = t.trim();
+    [/:\s*.*$/i, /\s+Season\s*\d+.*$/i, /\s+Final.*$/i].forEach(p => b = b.replace(p, ''));
+    return b.trim().toLowerCase();
   }
 
-  /**
-   * Extract season number/order from title for chronological sorting
-   */
-  function extractSeasonOrder(title) {
-    if (!title) return 1;
-    const t = title.toLowerCase().trim();
-    const seasonMatch = t.match(/(?:season|saison|temporada)\s*(\d+)/);
-    if (seasonMatch) return parseInt(seasonMatch[1]) || 1;
-    const partMatch = t.match(/(?:part|parte|teil|cour)\s*(\d+)/);
-    if (partMatch) return parseInt(partMatch[1]) || 1;
-    const romanMap = { ii: 2, iii: 3, iv: 4, v: 5, vi: 6, vii: 7, viii: 8, ix: 9, x: 10 };
-    const romanMatch = t.match(/\b(II|III|IV|V|VI|VII|VIII|IX|X)\b(?!\s*\d)/i);
-    if (romanMatch && romanMap[romanMatch[1].toLowerCase()]) return romanMap[romanMatch[1].toLowerCase()];
-    const ordinalMatch = t.match(/(\d+)(?:nd|rd|th)?\s*season/);
-    if (ordinalMatch) return parseInt(ordinalMatch[1]) || 1;
-    const dashNumMatch = t.match(/-(\d+)\s*$/);
-    if (dashNumMatch) return parseInt(dashNumMatch[1]) || 1;
-    if (/\b(?:final|last|end|conclusion|finale)/i.test(t)) return 99;
-    if (/\bmovie\b/i.test(t)) return 50;
-    if (/\b(?:ova|oad|special)\b/i.test(t)) return 40;
-    return 1;
+  function getSeasonOrder(t) {
+    if (!t) return 1;
+    const l = t.toLowerCase();
+    if (/final/i.test(l)) return 99;
+    if (/movie/i.test(l)) return 50;
+    if (/ova|oad|special/i.test(l)) return 40;
+    const m = l.match(/season\s*(\d+)/);
+    return m ? parseInt(m[1]) : 1;
   }
 
-  /**
-   * Check if title looks like it belongs to a multi-season series
-   */
-  function isMultiSeasonIndicator(title) {
-    if (!title) return false;
-    return SEASON_CONFIG.SEASON_PATTERNS.some(pattern => pattern.test(title));
+  function isMultiSeason(t) {
+    if (!t) return false;
+    return SEASON_CONFIG.SEASON_PATTERNS.some(p => p.test(t));
   }
 
-  /**
-   * Process search results with smart season detection
-   * - Groups related seasons together
-   * - Removes normal limit for multi-season series
-   * - Sorts seasons chronologically (S1 → S2 → ... → Latest)
-   */
-  function processSearchResultsWithSeasonDetection(results) {
-    if (!results || results.length === 0) return [];
-    
-    console.log(`[SeasonDetect] Processing ${results.length} raw results...`);
-    
-    const seriesGroups = new Map();
-    const standaloneItems = [];
-    
+  function processSeasonResults(results) {
+    if (!results?.length) return results;
+    const groups = new Map(), standalone = [];
     for (const item of results) {
-      const title = item.title || '';
-      const baseName = extractSeriesBaseName(title);
-      
-      if (!baseName) {
-        standaloneItems.push({ ...item, _isStandalone: true });
-        continue;
-      }
-      
-      const isSeasonal = isMultiSeasonIndicator(title);
-      
-      if (isSeasonal) {
-        if (!seriesGroups.has(baseName)) seriesGroups.set(baseName, []);
-        seriesGroups.get(baseName).push({
-          ...item,
-          _baseName: baseName,
-          _seasonOrder: extractSeasonOrder(title),
-          _isSeasonal: true
-        });
+      const t = item.title || '', b = extractBaseName(t);
+      if (!b) { standalone.push(item); continue; }
+      if (isMultiSeason(t)) {
+        if (!groups.has(b)) groups.set(b, []);
+        groups.get(b).push({ ...item, _order: getSeasonOrder(t), _season: true });
       } else {
-        standaloneItems.push({ ...item, _isStandalone: true });
+        standalone.push(item);
       }
     }
-    
-    // Sort each series group by season order
-    for (const [groupName, items] of seriesGroups) {
-      items.sort((a, b) => {
-        if (a._seasonOrder !== b._seasonOrder) return a._seasonOrder - b._seasonOrder;
-        const scoreA = parseFloat(a.score?.replace('★ ', '')) || 0;
-        const scoreB = parseFloat(b.score?.replace('★ ', '')) || 0;
-        return scoreB - scoreA;
-      });
+    for (const [, items] of groups) {
+      items.sort((a, b) => a._order - b._order);
     }
-    
-    // Identify which series should have unlimited display
-    const unlockedGroups = [];
-    const limitedGroups = [];
-    
-    for (const [groupName, items] of seriesGroups) {
+    let final = [], used = 0;
+    for (const [name, items] of groups) {
       if (items.length >= SEASON_CONFIG.MIN_SEASONS_TO_UNLOCK) {
-        unlockedGroups.push({ groupName, items, isUnlimited: true });
-        console.log(`[SeasonDetect] 🔓 UNLOCKED "${groupName}" with ${items.length} seasons`);
-      } else {
-        limitedGroups.push({ groupName, items, isUnlimited: false });
+        final.push(...items.map(i => ({ ...i, _unlimited: true })));
+        used += items.length;
       }
     }
-    
-    // Build final results array
-    let finalResults = [];
-    let usedSlots = 0;
-    
-    // Add all unlocked series (no limit!)
-    for (const group of unlockedGroups) {
-      const cappedItems = group.items.slice(0, SEASON_CONFIG.SEASON_LIMIT);
-      finalResults.push(...cappedItems.map(item => ({
-        ...item,
-        _seriesGroup: group.groupName,
-        _totalInGroup: group.items.length,
-        _showAllSeasons: true
-      })));
-      usedSlots += cappedItems.length;
+    // Fill rest with limited/standalone
+    const remaining = Math.max(SEASON_CONFIG.NORMAL_LIMIT - used, 2);
+    for (const item of standalone) {
+      if (used >= SEASON_CONFIG.NORMAL_LIMIT + remaining) break;
+      final.push(item);
+      used++;
     }
-    
-    // Fill remaining slots with limited groups and standalone
-    limitedGroups.sort((a, b) => {
-      const scoreA = parseFloat(a.items[0]?.score?.replace('★ ', '')) || 0;
-      const scoreB = parseFloat(b.items[0]?.score?.replace('★ ', '')) || 0;
-      return scoreB - scoreA;
-    });
-    
-    for (const group of limitedGroups) {
-      if (usedSlots >= SEASON_CONFIG.NORMAL_LIMIT + 4) break;
-      const itemsToShow = group.items.slice(0, 2);
-      finalResults.push(...itemsToShow.map(item => ({
-        ...item,
-        _seriesGroup: group.groupName,
-        _totalInGroup: group.items.length,
-        _showAllSeasons: false
-      })));
-      usedSlots += itemsToShow.length;
-    }
-    
-    const standaloneSlotsLeft = Math.max(SEASON_CONFIG.NORMAL_LIMIT - usedSlots, 2);
-    for (const item of standaloneItems) {
-      if (usedSlots >= SEASON_CONFIG.NORMAL_LIMIT + standaloneSlotsLeft) break;
-      finalResults.push(item);
-      usedSlots++;
-    }
-    
-    console.log(`[SeasonDetect] Final output: ${finalResults.length} items (${unlockedGroups.length} unlimited series)`);
-    return finalResults;
+    return final;
   }
+
   
   // ⏱️ TIMING FALLBACK CONSTANTS (in milliseconds) - REALISTIC VALUES
   const DB_TIMEOUT_MS = 1200;     // Max wait for DB before triggering Jikan (DB usually 100-500ms)
@@ -2025,14 +1907,6 @@
   const DB_CACHE_TTL = 3 * 60 * 1000; // 3 min DB cache
 
   async function searchAnimeFromDB(q) {
-    /* ═══════════════════════════════════════════════════════════
-       FUZZY SEARCH WITH RPC (FIXED VERSION)
-       - Uses search_anime_fuzzy() PostgreSQL function
-       - Handles spaces in queries ("fairy tail" works now!)
-       - Two strategies: Exact match → Fuzzy similarity
-       - Typo tolerant: "fary tail" still finds Fairy Tail!
-    ═══════════════════════════════════════════════════════════ */
-    
     const dbCacheKey = `db:${q}`;
     
     // Check DB-specific cache first
@@ -2048,49 +1922,37 @@
     const startTime = performance.now();
     
     try {
-      // 🚀 NEW: Use fuzzy search RPC function (handles spaces & typos!)
+      // Phase 1: Fast prefix match on english_title and default_title (index-friendly)
       let { data, error } = await supabase
-        .rpc('search_anime_fuzzy', {
-          p_query: q,
-          p_limit: 15,  // Fetch more for season detection
-          min_similarity: 0.12
-        });
+        .from('anime_data')
+        .select('default_title,english_title,romanji_title,japanese_title,type,studios,year,score,mal_id,large_image_url_jpg,image_url_jpg,episodes,status')
+        .or(`default_title.ilike.${q}%,english_title.ilike.${q}%,japanese_title.ilike.${q}%`) 
+        .order('score', { ascending: false, nullsFirst: false })
+        .limit(6);
       
-      // Fallback: If RPC doesn't exist yet, use traditional query
-      if (error && (error.message?.includes('function') || error.code === '42883')) {
-        console.warn('[DB Search] RPC not found, falling back to ILIKE...');
-        
-        // Phase 1: Fast prefix match
-        ({ data, error } = await supabase
+      // Phase 2: If not enough results, do contains search (broader but slower)
+      if ((!error && (!data || data.length < 3)) || error) {
+        const { data: data2, error: error2 } = await supabase
           .from('anime_data')
           .select('default_title,english_title,romanji_title,japanese_title,type,studios,year,score,mal_id,large_image_url_jpg,image_url_jpg,episodes,status')
-          .or(`default_title.ilike.${q}%,english_title.ilike.${q}%,japanese_title.ilike.${q}%`) 
+          .or(`default_title.ilike.%${q}%,english_title.ilike.%${q}%,japanese_title.ilike.%${q}%,romanji_title.ilike.%${q}%`) 
           .order('score', { ascending: false, nullsFirst: false })
-          .limit(10));
+          .limit(8);
         
-        // Phase 2: Contains fallback
-        if ((!error && (!data || data.length < 3)) || error) {
-          const { data: data2, error: error2 } = await supabase
-            .from('anime_data')
-            .select('default_title,english_title,romanji_title,japanese_title,type,studios,year,score,mal_id,large_image_url_jpg,image_url_jpg,episodes,status')
-            .or(`default_title.ilike.%${q}%,english_title.ilike.%${q}%,japanese_title.ilike.%${q}%,romanji_title.ilike.%${q}%`) 
-            .order('score', { ascending: false, nullsFirst: false })
-            .limit(15));
-          
-          if (!error2 && data2) {
-            const existingIds = new Set((data || []).map(item => item.mal_id).filter(Boolean));
-            const newItems = data2.filter(item => !existingIds.has(item.mal_id));
-            data = [...(data || []), ...newItems];
-            error = null;
-          } else if (error && error2) {
-            error = error2;
-          }
+        // Merge results avoiding duplicates
+        if (!error2 && data2) {
+          const existingIds = new Set((data || []).map(item => item.mal_id).filter(Boolean));
+          const newItems = data2.filter(item => !existingIds.has(item.mal_id));
+          data = [...(data || []), ...newItems];
+          error = null;
+        } else if (error && error2) {
+          error = error2;
         }
       }
       
       if (error) {
         console.warn('[DB Search] Query error:', error.message);
-        return []; // Return empty array instead of throwing - allows fallback to work!
+        return [];
       }
       
       if (!data || !data.length) {
@@ -2099,40 +1961,64 @@
       }
       
       const elapsed = (performance.now() - startTime).toFixed(0);
-      console.log(`[DB Search] ✅ Found ${data.length} results for:`, q, `(${elapsed}ms)`);
+      console.log(`[DB Search] Found ${data.length} results for:`, q, `(${elapsed}ms)`);
       
       // Helper: Parse studio field (might be JSON array or plain string)
       const parseStudio = (studio) => {
         if (!studio) return '';
+        
+        // If already a clean string (not JSON), return directly
         if (typeof studio === 'string') {
           const trimmed = studio.trim();
-          if (!trimmed.startsWith('[') && !trimmed.startsWith('{')) return trimmed;
+          // Not JSON format - return as-is
+          if (!trimmed.startsWith('[') && !trimmed.startsWith('{')) {
+            return trimmed;
+          }
+          
+          // Try to parse JSON array
           try {
             const parsed = JSON.parse(trimmed);
             if (Array.isArray(parsed)) {
               return parsed.map(s => {
                 if (s === null || s === undefined) return '';
+                // Handle nested quoted strings like "\"Production I.G\""
                 if (typeof s === 'string') {
                   const innerTrim = s.trim();
+                  // Try parsing nested JSON strings
                   if ((innerTrim.startsWith('"') && innerTrim.endsWith('"')) || 
                       (innerTrim.startsWith("'") && innerTrim.endsWith("'"))) {
-                    try { return JSON.parse(innerTrim); } catch { return innerTrim.slice(1, -1); }
+                    try {
+                      const unescaped = JSON.parse(innerTrim);
+                      return typeof unescaped === 'string' ? unescaped : String(unescaped);
+                    } catch {
+                      // Remove surrounding quotes manually
+                      return innerTrim.slice(1, -1);
+                    }
                   }
                   return s;
                 }
                 return String(s);
               }).filter(Boolean).join(', ');
             }
+            // If parsed but not array, convert to string
             return String(parsed);
           } catch (e) {
+            // If JSON parse fails, try to extract text from common patterns
+            // Pattern: ["text"] or ["\"text\""]
             const match = trimmed.match(/"([^"\\]*(?:\\.[^"\\]*)*)"/g);
             if (match) {
-              return match.map(m => { try { return JSON.parse(m); } catch { return m.replace(/^"|"$/g, ''); } }).join(', ');
+              return match.map(m => {
+                try { return JSON.parse(m); } catch { return m.replace(/^"|"$/g, ''); }
+              }).join(', ');
             }
             return trimmed;
           }
         }
-        if (Array.isArray(studio)) return studio.filter(Boolean).map(s => String(s)).join(', ');
+        
+        // Handle non-string types
+        if (Array.isArray(studio)) {
+          return studio.filter(Boolean).map(s => String(s)).join(', ');
+        }
         return String(studio);
       };
 
@@ -2151,9 +2037,7 @@
         source: 'db',
         year: item.year,
         episodes: item.episodes,
-        status: item.status,
-        _relevanceScore: item.relevance_score,  // For sorting from fuzzy search
-        _matchType: item.matchType               // For debugging
+        status: item.status
       }));
       
       // Cache the results
@@ -2163,9 +2047,6 @@
     } catch (err) {
       console.error('[DB Search] Failed:', err.message);
       return []; // Return empty array instead of throwing - allows fallback to work!
-    }
-  }
-
     }
   }
 
