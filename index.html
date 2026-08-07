@@ -2031,15 +2031,41 @@ window.showAnikotoPopupById = function(mal_id) {
         }
         completedCurrentPage = page;
         const today = new Date().toISOString().split('T')[0];
-        // Fetch 2 Jikan pages to have enough unique anime after dedup
-        const [tv, anime, anime2] = await Promise.all([
+        
+        // Grid col count - must match CSS grid-template-columns!
+        function calcCols() {
+          const w = window.innerWidth;
+          if (w <= 520) return 2;
+          if (w <= 600 && window.matchMedia('(orientation: landscape)').matches) return 3;
+          if (w <= 768) return 4;
+          if (w <= 992) return 5;
+          if (w <= 1400) return 6;
+          if (w <= 1800) return 7;
+          return 8;
+        }
+        
+        // Calculate target: 6 COMPLETE rows × columns
+        const TARGET_ROWS = 6;
+        const cols = calcCols();
+        const TARGET_SHOWS = TARGET_ROWS * cols;  // e.g., 6×7=42, 6×8=48
+        
+        // Fetch MULTIPLE pages to ensure enough data for 6 rows
+        // Need at least TARGET_SHOWS items from each source after dedup
+        const PAGES_TO_FETCH = Math.ceil(TARGET_SHOWS / 20) + 1; // ~3-4 pages
+        
+        const [tv, tv2, tv3, anime, anime2, anime3, anime4] = await Promise.all([
           fetchTMDB('/discover/tv', `with_status=3&air_date.lte=${today}&sort_by=first_air_date.desc&page=${page}`),
+          fetchTMDB('/discover/tv', `with_status=3&air_date.lte=${today}&sort_by=first_air_date.desc&page=${page+1}`),
+          fetchTMDB('/discover/tv', `with_status=3&air_date.lte=${today}&sort_by=first_air_date.desc&page=${page+2}`),
           fetchJikan('anime', `status=complete&order_by=start_date&sort=desc&page=${page}&limit=25&sfw=true`),
-          fetchJikan('anime', `status=complete&order_by=start_date&sort=desc&page=${page+1}&limit=25&sfw=true`)
+          fetchJikan('anime', `status=complete&order_by=start_date&sort=desc&page=${page+1}&limit=25&sfw=true`),
+          fetchJikan('anime', `status=complete&order_by=start_date&sort=desc&page=${page+2}&limit=25&sfw=true`),
+          fetchJikan('anime', `status=complete&order_by=start_date&sort=desc&page=${page+3}&limit=25&sfw=true`)
         ]);
+        
         // Clean, dedup and sort Jikan by type priority
         const TYPE_PRIORITY = {TV:0,Movie:1,OVA:2,ONA:3,Special:4};
-        const allRawAnime = cleanJikan([...(anime.data||[]),...(anime2.data||[])]);
+        const allRawAnime = cleanJikan([...(anime.data||[]),...(anime2.data||[]),...(anime3.data||[]),...(anime4.data||[])]);
         const seenThisPage = new Set();
         const uniqueAnime = [];
         for (const a of allRawAnime) {
@@ -2047,27 +2073,17 @@ window.showAnikotoPopupById = function(mal_id) {
           if (!seenThisPage.has(key)) { seenThisPage.add(key); uniqueAnime.push(a); }
         }
         uniqueAnime.sort((a,b)=>(TYPE_PRIORITY[a.type]??5)-(TYPE_PRIORITY[b.type]??5));
-        // Grid col count - must match CSS grid-template-columns!
-        function calcCols() {
-          const w = window.innerWidth;
-          // Match the CSS breakpoints exactly
-          if (w <= 520) return 2;                    // Mobile portrait: 2 cols
-          if (w <= 600 && window.matchMedia('(orientation: landscape)').matches) return 3;  // Mobile landscape small: 3 cols
-          if (w <= 768) return 4;                    // Tablet portrait / mobile landscape: 4 cols
-          if (w <= 992) return 5;                    // Tablet: 5 cols
-          if (w <= 1400) return 6;                    // Desktop: 6 cols
-          if (w <= 1800) return 7;                    // Large desktop: 7 cols
-          return 8;                                  // Extra large: 8 cols
-        }
-        // Calculate target shows: 6 COMPLETE rows × columns
-        const TARGET_ROWS = 6;
-        const cols = calcCols();
-        const TARGET_SHOWS = TARGET_ROWS * cols;  // e.g., 6×8=48, 6×7=42, 6×6=36, etc.
         
-        // Fetch enough items to fill 6 rows
-        const tmdbItems = [
-          ...(tv.results||[]).map(i=>({id:`tmdb-comp-${i.id}`,title:i.name,poster:tmdbImg(i.poster_path),type:'TV',year:(i.first_air_date||'').slice(0,4),score:(i.vote_average||0).toFixed(1),quality:'HD'})),
-        ].slice(0, TARGET_SHOWS);
+        // Merge multiple TMDB pages
+        const allTmdbResults = [...(tv.results||[]), ...(tv2.results||[]), ...(tv3.results||[])];
+        
+        // Create items arrays - take enough to fill 6 rows
+        const tmdbItems = allTmdbResults.map(i=>({
+          id:`tmdb-comp-${i.id}`,title:i.name,poster:tmdbImg(i.poster_path),
+          type:'TV',year:(i.first_air_date||'').slice(0,4),
+          score:(i.vote_average||0).toFixed(1),quality:'HD'
+        })).slice(0, TARGET_SHOWS);
+        
         const animeItems = uniqueAnime.slice(0, TARGET_SHOWS).map(a=>({
           id:`jikan-comp-${a.mal_id}`,title:a.title_english||a.title,
           poster:a.images?.jpg?.large_image_url||'',
