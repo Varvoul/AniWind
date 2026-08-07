@@ -1667,10 +1667,10 @@
   const MIN_API_DELAY = 800; // ms between API calls (rate limiting)
   const CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache
   
-  // ⏱️ TIMING FALLBACK CONSTANTS (in milliseconds)
-  const DB_TIMEOUT_MS = 20;       // Max wait for DB before triggering Jikan
-  const JIKAN_TIMEOUT_MS = 15;   // Max wait for Jikan before triggering AniList
-  const ANILIST_TIMEOUT_MS = 30; // Max wait for AniList (final fallback)
+  // ⏱️ TIMING FALLBACK CONSTANTS (in milliseconds) - REALISTIC VALUES
+  const DB_TIMEOUT_MS = 1200;     // Max wait for DB before triggering Jikan (DB usually 100-500ms)
+  const JIKAN_TIMEOUT_MS = 2500;  // Max wait for Jikan before triggering AniList (Jikan is slow: 300-2000ms)
+  const ANILIST_TIMEOUT_MS = 2000;// Max wait for AniList (final fallback, usually 200-800ms)
   
   // API endpoints
   const JIKAN_API_BASE = 'https://jikan-api-bohb.onrender.com/v4/search/anime';
