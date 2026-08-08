@@ -1762,23 +1762,19 @@ window.showAnikotoPopupById = function(mal_id) {
           }
         } catch(e) { /* corrupt cache — fetch fresh */ }
 
-        // ── 2) Fetch 13 TMDB ongoing TV + 20 AniList airing anime ───────
-        const [tmdbResults, anilistResults] = await Promise.allSettled([
+        // ── 2) Fetch 13 TMDB ongoing TV + 20 Jikan airing anime ────────
+        const JIKAN_BASE = 'https://jikan-api-bohb.onrender.com/v4';
+        const [tmdbResults, jikanResults] = await Promise.allSettled([
           // TMDB: 13 ongoing TV shows with popularity sort
           Promise.allSettled([
             fetchTMDB('/tv/on_the_air', `page=1&sort_by=popularity.desc`),
             fetchTMDB('/tv/on_the_air', `page=2&sort_by=popularity.desc`),
           ]),
-          // AniList: 20 currently airing anime (use bannerImage for slider!)
-          fetchAniList(`
-            query ($page: Int, $perPage: Int) {
-              Page(page: $page, perPage: $perPage) {
-                media(type: ANIME, status: RELEASING, format_in: [TV, TV_SHORT], isAdult: false, sort: [TRENDING_DESC, POPULARITY_DESC]) {
-                  ${ANILIST_ANIME_FIELDS}
-                }
-              }
-            }
-          `, { page: 1, perPage: 25 })
+          // Jikan (self-hosted): Currently airing anime - fetch 2 pages (max 25/page)
+          Promise.allSettled([
+            fetch(`${JIKAN_BASE}/seasons/now?page=1&limit=25`).then(r => r.json()),
+            fetch(`${JIKAN_BASE}/seasons/now?page=2&limit=25`).then(r => r.json()),
+          ])
         ]);
 
         // ── 3a) Collect TMDB TV shows (target: 13) ──────────────────────
@@ -1803,18 +1799,30 @@ window.showAnikotoPopupById = function(mal_id) {
         uniqueTmdb.sort((a, b) => (b.popularity||0) - (a.popularity||0));
         const top13Tmdb = uniqueTmdb.slice(0, 13);
 
-        // ── 3b) Collect AniList airing anime (target: 20) ────────────────
-        let rawAnilistAnime = [];
-        if (anilistResults.status === 'fulfilled' && anilistResults.value?.Page?.media) {
-          rawAnilistAnime = anilistResults.value.Page.media.filter(m => !m.isAdult);
+        // ── 3b) Collect Jikan airing anime (target: 20) ───────────────────
+        let rawJikanAnime = [];
+        if (jikanResults.status === 'fulfilled') {
+          for (const j of jikanResults.value) {
+            if (j.status === 'fulfilled' && j.value?.data && Array.isArray(j.value.data)) {
+              rawJikanAnime.push(...j.value.data);
+            }
+          }
         }
 
-        // Pick top 20 with banner images for hero slider
-        const top20Anilist = rawAnilistAnime
-          .filter(m => m.bannerImage || m.coverImage?.extraLarge)  // Prefer bannerImage!
-          .slice(0, 20);
+        // Deduplicate by mal_id & filter items with image_url
+        const seenMal = new Set();
+        const uniqueJikan = [];
+        for (const a of rawJikanAnime) {
+          if (!a.mal_id || seenMal.has(a.mal_id)) continue;
+          if (!a.image_url) continue;  // Must have image for hero slider
+          seenMal.add(a.mal_id);
+          uniqueJikan.push(a);
+        }
+        // Sort by members (popularity) descending, then score
+        uniqueJikan.sort((a, b) => (b.members||0) - (a.members||0) || (b.score||0) - (a.score||0));
+        const top20Jikan = uniqueJikan.slice(0, 20);
 
-        console.log(`[Hero] Fetched ${top13Tmdb.length} TMDB + ${top20Anilist.length} AniList`);
+        console.log(`[Hero] Fetched ${top13Tmdb.length} TMDB + ${top20Jikan.length} Jikan`);
 
         // ── 4a) Map TMDB slides ─────────────────────────────────────────
         const tmdbSlides = top13Tmdb.map(t => ({
@@ -1841,48 +1849,51 @@ window.showAnikotoPopupById = function(mal_id) {
           infoHref:       `/info/tv/tmdb-tv-${t.id}/${(t.name||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')}`,
         }));
 
-        // ── 4b) Map AniList slides (using BANNER IMAGE for hero!) ─────────
-        const anilistSlides = top20Anilist.map(m => {
-          const internal = anilistToInternal(m);
+        // ── 4b) Map Jikan slides (using image_url from Jikan response!) ─────
+        const jikanSlides = top20Jikan.map(a => {
+          const slugify = t => (t||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+          const genres = (a.genres || []).map(g => g.name).filter(Boolean);
+          const themes = (a.themes || []).map(t => t.name).filter(Boolean);
+          const year = (a.airing_start || '').slice(0, 4) || new Date().getFullYear().toString();
           return {
-            id:             `anilist-${m.id}`,
-            title:          internal.title,
-            source:         'anilist',
-            type:           'Anime',
-            genres:         internal.genres,
-            themes:         [],
-            score:          internal.score,
-            year:           String(internal.year),
-            duration:       internal.duration,
-            episodes:       String(internal.episodes),
-            synopsis:       internal.description?.slice(0, 320),
-            // Use BANNER IMAGE for hero slider background (user request!)
-            backdrop:       m.bannerImage || m.coverImage?.extraLarge || internal.poster,
-            backdrop_orig:  m.bannerImage || m.coverImage?.extraLarge || internal.poster,
-            backdrop_mobile:m.coverImage?.extraLarge || m.coverImage?.large || internal.poster,
-            poster:         internal.poster,
-            certification:  internal.rating,
-            studio:         internal.studio,
-            mal_id:         internal.mal_id,
-            anilist_id:     m.id,
+            id:             `jikan-${a.mal_id}`,
+            title:          a.title || 'Unknown Anime',
+            source:         'jikan',
+            type:           a.type || 'Anime',
+            genres:         genres,
+            themes:         themes,
+            score:          a.score ? Number(a.score).toFixed(1) : 'N/A',
+            year:           year,
+            duration:       '',
+            episodes:       a.episodes ? String(a.episodes) : '?',
+            synopsis:       (a.synopsis || '').slice(0, 320),
+            // Use image_url from Jikan response for hero slider background!
+            backdrop:       a.image_url,
+            backdrop_orig:  a.image_url,
+            backdrop_mobile:a.image_url,
+            poster:         a.image_url,
+            certification:  a.rating || 'TV-14',
+            studio:         '',
+            mal_id:         a.mal_id,
+            anilist_id:     null,
             status_color:   '#f472b6',  /* Pink for anime */
             status_label:   '● Airing Now',
-            infoHref:       `/info/anime/anilist-${m.id}/${internal.slug}`,
+            infoHref:       `/info/anime/jikan-${a.mal_id}/${slugify(a.title)}`,
           };
         }).filter(s => s.backdrop || s.backdrop_mobile);
 
         // ── 5) Merge: ANIME FIRST pattern ──────────────────────────────
-        // Total: 20 AniList + 13 TMDB = 33 slides
+        // Total: 20 Jikan + 13 TMDB = 33 slides
         // Pattern: Anime starts first, then alternates (Anime+TMDB)
-        // After all 13 TMDB used, continue with remaining AniList only
+        // After all 13 TMDB used, continue with remaining Jikan only
         const merged = [];
-        let tmdbIdx = 0, anilistIdx = 0;
+        let tmdbIdx = 0, jikanIdx = 0;
         
         // Phase 1: Alternate starting with ANIME FIRST
-        while (anilistIdx < anilistSlides.length && tmdbIdx < tmdbSlides.length) {
+        while (jikanIdx < jikanSlides.length && tmdbIdx < tmdbSlides.length) {
           // Always start with Anime on odd positions (0,2,4...)
-          if ((merged.length % 2 === 0 || tmdbIdx >= tmdbSlides.length) && anilistIdx < anilistSlides.length) {
-            merged.push(anilistSlides[anilistIdx++]);
+          if ((merged.length % 2 === 0 || tmdbIdx >= tmdbSlides.length) && jikanIdx < jikanSlides.length) {
+            merged.push(jikanSlides[jikanIdx++]);
           }
           // Then add TMDB on even positions (1,3,5...)
           if (tmdbIdx < tmdbSlides.length && (merged.length % 2 === 1)) {
@@ -1890,9 +1901,9 @@ window.showAnikotoPopupById = function(mal_id) {
           }
         }
         
-        // Phase 2: Add remaining AniList after TMDB is exhausted (positions 27-33)
-        while (anilistIdx < anilistSlides.length && merged.length < 33) {
-          merged.push(anilistSlides[anilistIdx++]);
+        // Phase 2: Add remaining Jikan after TMDB is exhausted (positions 27-33)
+        while (jikanIdx < jikanSlides.length && merged.length < 33) {
+          merged.push(jikanSlides[jikanIdx++]);
         }
         
         heroData = merged.slice(0, 33); // Ensure exactly 33 or fewer
@@ -1902,7 +1913,7 @@ window.showAnikotoPopupById = function(mal_id) {
           sessionStorage.setItem(HERO_CACHE_KEY, JSON.stringify({ data: heroData, ts: Date.now() }));
         } catch(e) {}
 
-        console.log(`[Hero] ${tmdbSlides.length} TMDB + ${anilistSlides.length} AniList = ${heroData.length} total slides`);
+        console.log(`[Hero] ${tmdbSlides.length} TMDB + ${jikanSlides.length} Jikan = ${heroData.length} total slides`);
         renderHero();
         if (window.AniCache && heroData.length > 0) {
           // Trim to essential fields only — keep payload small for DB storage
