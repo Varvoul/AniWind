@@ -2627,6 +2627,13 @@ window.showAnikotoPopupById = function(mal_id) {
           for (const m of anilistUpcoming.Page.media) {
             if (!m.isAdult) {
               const internal = anilistToInternal(m);
+              // Better fallbacks for upcoming anime where some data may be TBA
+              const studioName = internal.studio && internal.studio !== '?' ? internal.studio : 'TBA';
+              const durValue = internal.duration && internal.duration !== '?' ? internal.duration : 
+                (m.format === 'MOVIE' ? '1h 30m' : m.format === 'ONA' ? '24m' : '24m');
+              const yearVal = internal.year && internal.year !== '?' ? internal.year : 
+                (m.startDate?.year || m.seasonYear || 'TBA');
+              
               anilistUpAnime.push({
                 id:`anilist-up-${m.id}`,
                 title: internal.title,
@@ -2634,12 +2641,15 @@ window.showAnikotoPopupById = function(mal_id) {
                 type:'Anime',
                 poster: internal.poster,
                 score: internal.score,
-                genres: internal.genres,
-                releaseDate: `${internal.year}` || 'TBA',
-                synopsis: internal.description || '',
-                certification: internal.rating,
-                studio: internal.studio,
-                duration: internal.duration,
+                genres: internal.genres || [],
+                releaseDate: yearVal,
+                synopsis: internal.description || 'No synopsis available.',
+                certification: internal.rating || 'PG-13',
+                studio: studioName,
+                duration: durValue,
+                year: yearVal,
+                episodes: m.episodes || '?',
+                format: m.format || 'TV',
                 mal_id: internal.mal_id,
                 anilist_id: m.id
               });
@@ -3088,26 +3098,26 @@ window.showAnikotoPopupById = function(mal_id) {
   const scoreLabel = show.type === 'Anime' ? 'MAL' : 'TMDB';
   const starIcon = '<i class="fas fa-star" style="color:var(--accent-gold)"></i>';
 
-  // Build duration safely — never produce "undefinedm"
-  const rawDuration = show.duration || (show.episode_run_time?.length ? show.episode_run_time[0] + 'm/ep' : null);
-  const safeYear    = show.year || (show.release_date||show.first_air_date||'').slice(0,4) || '';
+  // Build duration safely — never produce "undefinedm" or "?"
+  const rawDuration = (show.duration && show.duration !== '?' && show.duration !== 'undefined') 
+    ? show.duration 
+    : (show.episode_run_time?.length ? show.episode_run_time[0] + 'm/ep' : null);
+  // Safe year extraction with fallbacks
+  let safeYear = show.year || (show.release_date||show.first_air_date||'').slice(0,4) || '';
+  if (!safeYear || safeYear === '?') safeYear = show.releaseDate || 'TBA';
+  if (safeYear === '?') safeYear = 'TBA';
   const safeCert    = show.certification || (show.type === 'TV' ? 'TV-14' : 'PG-13');
-
-  const metaPills = [
-    show.type,
-    safeCert,
-    safeYear || null,
-    rawDuration || null,
-    show.studio && show.studio !== '—' ? show.studio : null,
-  ].filter(Boolean);
+  
+  // Studio: filter out "?", "—", and empty values
+  const safeStudio = show.studio && show.studio !== '?' && show.studio !== '—' && show.studio !== 'undefined' ? show.studio : null;
 
   const metaHtml = `
-    <span class="meta-pill">${metaPills[0] || ''}</span>
+    <span class="meta-pill">${show.type || 'Unknown'}</span>
     <span class="meta-pill">${safeCert}</span>
     <span class="meta-pill">${scoreLabel} ${starIcon} ${show.score || 'N/A'}</span>
     ${rawDuration ? `<span class="meta-pill"><i class="fas fa-clock" style="opacity:.7"></i> ${rawDuration}</span>` : ''}
-    ${safeYear ? `<span class="meta-pill"><i class="fas fa-calendar-alt" style="opacity:.7"></i> ${safeYear}</span>` : ''}
-    ${show.studio && show.studio !== '—' ? `<span class="meta-pill">${show.studio}</span>` : ''}
+    ${safeYear && safeYear !== '?' ? `<span class="meta-pill"><i class="fas fa-calendar-alt" style="opacity:.7"></i> ${safeYear}</span>` : ''}
+    ${safeStudio ? `<span class="meta-pill">${safeStudio}</span>` : ''}
   `;
   const genresHtml = (show.genres || []).filter(Boolean).map(g =>
     `<a href="/search?genre=${encodeURIComponent(g)}" class="genre-pill">${g}</a>`
