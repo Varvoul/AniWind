@@ -3930,14 +3930,9 @@ window.showAnikotoPopupById = function(mal_id) {
         }
 
         if (needFetch) {
-          console.log('Fetching schedule one day at a time...');
-          scheduleData = {};
-          let fetchedAny = false;
-          for (const day of DAYS) {
-            scheduleData[day] = await fetchDaySchedules(day);
-            if (scheduleData[day].length > 0) fetchedAny = true;
-            await new Promise(r => setTimeout(r, 500)); // delay between days
-          }
+          console.log('[Schedule] 🚀 Fetching all 7 days in parallel...');
+          scheduleData = await fetchAllDaysParallel();
+          const fetchedAny = Object.values(scheduleData).some(arr => arr.length > 0);
           // BUGFIX (v2): only persist the cache if we actually got data.
           // Otherwise a transient Jikan outage would poison the cache
           // for 24 hours and the user would see "No episodes scheduled"
