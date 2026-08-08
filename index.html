@@ -1155,25 +1155,29 @@
   white-space: nowrap;
 }
 .schedule-more-btn {
-  width: 92%;
-  max-width: 280px;
-  padding: 12px 20px;
+  width: 95% !important;
+  max-width: 320px !important;
+  min-width: 200px;
+  padding: 14px 24px !important;
   background: linear-gradient(135deg, var(--bg-surface) 0%, rgba(43, 108, 176, 0.15) 100%);
   border: 1px dashed var(--btn-primary);
   border-radius: var(--radius-md);
   color: var(--accent-blue);
-  font-size: 0.82rem;
+  font-size: 0.85rem !important;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
   margin-top: 12px;
-  display: flex;
+  display: flex !important;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  margin-left: auto;
-  margin-right: auto;
-  letter-spacing: 0.3px;
+  gap: 10px;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  letter-spacing: 0.4px;
+  box-sizing: border-box !important;
+  text-align: center;
+  white-space: nowrap;
 }
 .schedule-more-btn i {
   transition: transform 0.3s ease;
@@ -1249,10 +1253,11 @@
       .schedule-ep { font-size: 0.65rem; padding: 3px 8px; }
       .esw-more-btn { padding: 8px 12px; font-size: 0.7rem; }
       .schedule-more-btn {
-        width: 94%;
-        max-width: 240px;
-        padding: 10px 16px;
-        font-size: 0.78rem;
+        width: 96% !important;
+        max-width: 280px !important;
+        min-width: 180px !important;
+        padding: 12px 20px !important;
+        font-size: 0.8rem !important;
       }
     }
     
@@ -3770,22 +3775,36 @@ window.showAnikotoPopupById = function(mal_id) {
           const poster = anime.images?.webp?.large_image_url || 
                          anime.images?.jpg?.large_image_url || 
                          anime.images?.jpg?.image_url || '';
-          // Enhanced broadcast time handling
+          // Enhanced broadcast time handling - Jikan v4 returns STRING format
+          // Format: "Mondays at 00:00 (JST)" or "Tuesdays at 18:30 (JST)"
           let broadcastTime = '—';
-          if (anime.broadcast?.time) {
-            // Ensure 24h format (Jikan should already return this)
-            const timeStr = anime.broadcast.time.trim();
-            const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})/);
+          const broadcast = anime.broadcast;
+          if (typeof broadcast === 'string' && broadcast.trim()) {
+            // Parse time from string like "Mondays at 00:00 (JST)"
+            const timeMatch = broadcast.match(/(\d{1,2}):(\d{2})/);
             if (timeMatch) {
               const h = parseInt(timeMatch[1]).toString().padStart(2, '0');
               const m = timeMatch[2];
               broadcastTime = `${h}:${m}`;
             } else {
-              broadcastTime = timeStr;
+              // No time found, show day abbreviation
+              const dayMatch = broadcast.match(/^(\w+)/);
+              broadcastTime = dayMatch ? dayMatch[1].slice(0, 3) : '—';
             }
-          } else if (anime.broadcast?.day) {
-            // If we have day but no time, show the day
-            broadcastTime = anime.broadcast.day.slice(0, 3);
+          } else if (broadcast && typeof broadcast === 'object') {
+            // Fallback for object format (if API changes)
+            if (broadcast.time) {
+              const timeMatch = broadcast.time.match(/(\d{1,2}):(\d{2})/);
+              if (timeMatch) {
+                const h = parseInt(timeMatch[1]).toString().padStart(2, '0');
+                const m = timeMatch[2];
+                broadcastTime = `${h}:${m}`;
+              } else {
+                broadcastTime = broadcast.time;
+              }
+            } else if (broadcast.day) {
+              broadcastTime = broadcast.day.slice(0, 3);
+            }
           }
 
           return `
