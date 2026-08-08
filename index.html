@@ -1809,12 +1809,13 @@ window.showAnikotoPopupById = function(mal_id) {
           }
         }
 
-        // Deduplicate by mal_id & filter items with image_url
+        // Deduplicate by mal_id & filter items with images (new v4 format or legacy)
         const seenMal = new Set();
         const uniqueJikan = [];
+        const hasJikanImage = (a) => a.images?.webp?.large_image_url || a.images?.jpg?.large_image_url || a.image_url;
         for (const a of rawJikanAnime) {
           if (!a.mal_id || seenMal.has(a.mal_id)) continue;
-          if (!a.image_url) continue;  // Must have image for hero slider
+          if (!hasJikanImage(a)) continue;  // Must have image for hero slider
           seenMal.add(a.mal_id);
           uniqueJikan.push(a);
         }
@@ -1849,12 +1850,21 @@ window.showAnikotoPopupById = function(mal_id) {
           infoHref:       `/info/tv/tmdb-tv-${t.id}/${(t.name||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')}`,
         }));
 
-        // ── 4b) Map Jikan slides (using image_url from Jikan response!) ─────
+        // ── 4b) Map Jikan slides (using LARGE IMAGE from Jikan v4 format!) ─
+        // Priority: WebP large > JPG large > fallback (best quality for desktop!)
+        const getJikanImage = (a) => 
+          a.images?.webp?.large_image_url ||    // WebP large (best: high quality + small size)
+          a.images?.jpg?.large_image_url ||     // JPG large fallback
+          a.images?.webp?.image_url ||          // WebP medium
+          a.images?.jpg?.image_url ||           // JPG medium
+          a.image_url;                          // Legacy fallback
+        
         const jikanSlides = top20Jikan.map(a => {
           const slugify = t => (t||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
           const genres = (a.genres || []).map(g => g.name).filter(Boolean);
           const themes = (a.themes || []).map(t => t.name).filter(Boolean);
           const year = (a.airing_start || '').slice(0, 4) || new Date().getFullYear().toString();
+          const img = getJikanImage(a);  // Get best quality image!
           return {
             id:             `jikan-${a.mal_id}`,
             title:          a.title || 'Unknown Anime',
@@ -1867,16 +1877,16 @@ window.showAnikotoPopupById = function(mal_id) {
             duration:       '',
             episodes:       a.episodes ? String(a.episodes) : '?',
             synopsis:       (a.synopsis || '').slice(0, 320),
-            // Use image_url from Jikan response for hero slider background!
-            backdrop:       a.image_url,
-            backdrop_orig:  a.image_url,
-            backdrop_mobile:a.image_url,
-            poster:         a.image_url,
+            // Use LARGE IMAGE for crystal-clear hero slider background!
+            backdrop:       img,
+            backdrop_orig:  img,
+            backdrop_mobile:a.images?.webp?.image_url || a.images?.jpg?.image_url || img,  // Medium for mobile (faster)
+            poster:         a.images?.jpg?.image_url || img,  // JPG for poster compatibility
             certification:  a.rating || 'TV-14',
-            studio:         '',
+            studio:         a.producers?.[0]?.name || '',
             mal_id:         a.mal_id,
             anilist_id:     null,
-            status_color:   '#f472b6',  /* Pink for anime */
+            status_color:   '#38bdf8',  /* Sky blue - matches site theme! */
             status_label:   '● Airing Now',
             infoHref:       `/info/anime/jikan-${a.mal_id}/${slugify(a.title)}`,
           };
