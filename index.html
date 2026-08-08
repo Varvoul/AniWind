@@ -1845,6 +1845,198 @@ window.showAnikotoPopupById = function(mal_id) {
 
         console.log(`[Hero] Fetched ${top13Tmdb.length} TMDB + ${top20Jikan.length} Jikan`);
 
+        // ═══════════════════════════════════════════════════════════════════
+        // HYBRID IMAGE RESOLUTION PIPELINE
+        // Priority: Anilist Banner → Safe TMDB Backdrop → Jikan Large Image
+        // ═══════════════════════════════════════════════════════════════════
+
+        // ── Helper: Calculate string similarity (for TMDB validation) ──
+        const calculateSimilarity = (str1, str2) => {
+          const s1 = str1.toLowerCase().replace(/[^a-z0-9]/g, '');
+          const s2 = str2.toLowerCase().replace(/[^a-z0-9]/g, '');
+          if (!s1 || !s2) return 0;
+          const longer = s1.length > s2.length ? s1 : s2;
+          const shorter = s1.length > s2.length ? s2 : s1;
+          if (longer.length === 0) return 1;
+          const costs = Array(shorter.length + 1).fill(0).map((_, i) => i);
+          for (let i = 1; i <= longer.length; i++) {
+            let prev = i;
+            for (let j = 1; j <= shorter.length; j++) {
+              const cost = longer[i-1] !== shorter[j-1] ? 1 : 0;
+              prev = Math.min(prev + 1, costs[j] + 1, costs[j-1] + cost);
+              costs[j] = prev;
+            }
+          }
+          return (1 - costs[shorter.length] / longer.length);
+        };
+
+        // ── Step 1: Fetch Anilist Banner by mal_id (PRIMARY SOURCE) ────
+        const fetchAnilistBanner = async (malId, fallbackTitle) => {
+          try {
+            // Try by mal_id first (100% accurate match)
+            const result = await fetchAniList(`
+              query ($malId: Int) {
+                Media(idMal: $malId, type: ANIME) {
+                  id
+                  title { romaji english native }
+                  bannerImage
+                  isAdult
+                }
+              }
+            `, { malId: malId });
+            
+            if (result?.Media && !result.Media.isAdult) {
+              return {
+                bannerImage: result.Media.bannerImage,
+                source: 'anilist-mal-id',
+                confidence: 100,
+                anilistId: result.Media.id
+              };
+            }
+            
+            // Fallback: Try title search if mal_id lookup failed
+            if (fallbackTitle) {
+              const titleResult = await fetchAniList(`
+                query ($search: String) {
+                  Page(page: 1, perPage: 1) {
+                    media(search: $search, type: ANIME, isAdult: false) {
+                      id
+                      title { romaji english }
+                      bannerImage
+                      idMal
+                    }
+                  }
+                }
+              `, { search: fallbackTitle });
+              
+              if (titleResult?.Page?.media?.length > 0) {
+                const media = titleResult.Page.media[0];
+                // Verify it's likely the same anime via similarity check
+                const similarity = Math.max(
+                  calculateSimilarity(fallbackTitle, media.title?.romaji || ''),
+                  calculateSimilarity(fallbackTitle, media.title?.english || '')
+                );
+                
+                if (similarity > 0.7 && media.bannerImage) {
+                  return {
+                    bannerImage: media.bannerImage,
+                    source: 'anilist-title-search',
+                    confidence: Math.round(similarity * 100),
+                    anilistId: media.id
+                  };
+                }
+              }
+            }
+            
+            return null;
+          } catch(e) {
+            console.warn(`[Hero Image] Anilist lookup failed for mal_id ${malId}:`, e.message);
+            return null;
+          }
+        };
+
+        // ── Step 2: Safe TMDB Search (SECONDARY FALLBACK) ──────────────
+        const safeTmdbBackdropSearch = async (title, year, episodes) => {
+          try {
+            if (!title) return null;
+            
+            // Build search query with animation filter
+            const searchQuery = `${encodeURIComponent(title)}&with_genres=16`;
+            const yearParam = year ? `&first_air_date_year=${year}` : '';
+            
+            const results = await fetchTMDB('/search/tv', `${searchQuery}${yearParam}&page=1`);
+            
+            if (!results?.results?.length) return null;
+            
+            // Validate each result strictly
+            for (const tv of results.results.slice(0, 5)) { // Check top 5 results only
+              // Must have backdrop
+              if (!tv.backdrop_path) continue;
+              
+              // Must be animation genre (genre 16)
+              const isAnimation = tv.genre_ids?.includes(16);
+              if (!isAnimation) continue;
+              
+              // Title similarity check (must be >80% confident)
+              const titleSim = Math.max(
+                calculateSimilarity(title, tv.name || ''),
+                calculateSimilarity(title, tv.original_name || '')
+              );
+              
+              if (titleSim < 0.8) continue;
+              
+              // Episode count validation (if we have episode data)
+              if (episodes && tv.number_of_episodes) {
+                const epDiff = Math.abs(tv.number_of_episodes - parseInt(episodes));
+                // Allow some flexibility (within 10 episodes or within 50%)
+                if (epDiff > 10 && epDiff > parseInt(episodes) * 0.5) continue;
+              }
+              
+              // All checks passed! Return this result
+              return {
+                backdrop: `https://image.tmdb.org/t/p/w1280${tv.backdrop_path}`,
+                backdrop_orig: `https://image.tmdb.org/t/p/original${tv.backdrop_path}`,
+                backdrop_mobile: `https://image.tmdb.org/t/p/w780${tv.backdrop_path}`,
+                tmdbId: tv.id,
+                source: 'tmdb-safe-match',
+                confidence: Math.round(titleSim * 100)
+              };
+            }
+            
+            return null; // No valid matches found
+          } catch(e) {
+            console.warn(`[Hero Image] TMDB safe search failed for "${title}":`, e.message);
+            return null;
+          }
+        };
+
+        // ── Step 3: Jikan Image Extractor (FINAL FALLBACK) ─────────────
+        const getJikanFallbackImage = (anime) => ({
+          backdrop:       anime.images?.webp?.large_image_url || anime.images?.jpg?.large_image_url || anime.image_url,
+          backdrop_orig:  anime.images?.webp?.large_image_url || anime.images?.jpg?.large_image_url || anime.image_url,
+          backdrop_mobile: anime.images?.webp?.image_url || anime.images?.jpg?.image_url || anime.image_url,
+          poster:         anime.images?.jpg?.image_url || anime.image_url,
+          source:         'jikan-fallback',
+          confidence:     60  // Lower confidence since it's poster format
+        });
+
+        // ── Step 4: Main Image Resolution Pipeline ─────────────────────
+        const resolveAnimeImage = async (anime) => {
+          const { mal_id, title, episodes, airing_start } = anime;
+          const year = (airing_start || '').slice(0, 4);
+          
+          // STEP 1: Try Anilist first (primary - has proper banners!)
+          const anilistResult = await fetchAnilistBanner(mal_id, title);
+          
+          if (anilistResult?.bannerImage) {
+            console.log(`[Hero Image] ✅ Anilist banner found for "${title}" (${anilistResult.source})`);
+            return {
+              backdrop: anilistResult.bannerImage,
+              backdrop_orig: anilistResult.bannerImage,
+              backdrop_mobile: anilistResult.bannerImage,
+              poster: getJikanFallbackImage(anime).poster,  // Keep Jikan poster for info card
+              source: anilistResult.source,
+              confidence: anilistResult.confidence,
+              anilistId: anilistResult.anilistId
+            };
+          }
+          
+          // STEP 2: Try safe TMDB search (secondary - has backdrops!)
+          const tmdbResult = await safeTmdbBackdropSearch(title, year, episodes);
+          
+          if (tmdbResult) {
+            console.log(`[Hero Image] ✅ TMDB backdrop found for "${title}" (${tmdbResult.confidence}% match)`);
+            return {
+              ...tmdbResult,
+              poster: getJikanFallbackImage(anime).poster,  // Keep Jikan poster for info card
+            };
+          }
+          
+          // STEP 3: Fall back to Jikan large image (final fallback)
+          console.log(`[Hero Image] ⚠️ Using Jikan fallback for "${title}"`);
+          return getJikanFallbackImage(anime);
+        };
+
         // ── 4a) Map TMDB slides ─────────────────────────────────────────
         const tmdbSlides = top13Tmdb.map(t => ({
           id:             `tmdb-tv-${t.id}`,
@@ -1870,47 +2062,61 @@ window.showAnikotoPopupById = function(mal_id) {
           infoHref:       `/info/tv/tmdb-tv-${t.id}/${(t.name||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')}`,
         }));
 
-        // ── 4b) Map Jikan slides (using LARGE IMAGE from Jikan v4 format!) ─
-        // Priority: WebP large > JPG large > fallback (best quality for desktop!)
-        const getJikanImage = (a) => 
-          a.images?.webp?.large_image_url ||    // WebP large (best: high quality + small size)
-          a.images?.jpg?.large_image_url ||     // JPG large fallback
-          a.images?.webp?.image_url ||          // WebP medium
-          a.images?.jpg?.image_url ||           // JPG medium
-          a.image_url;                          // Legacy fallback
+        // ── 4b) Map Jikan slides with HYBRID IMAGE RESOLUTION ─────────
+        // Use the image resolution pipeline: Anilist Banner → TMDB Backdrop → Jikan Fallback
+        console.log(`[Hero Image] Starting hybrid image resolution for ${top20Jikan.length} anime...`);
         
-        const jikanSlides = top20Jikan.map(a => {
-          const slugify = t => (t||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
-          const genres = (a.genres || []).map(g => g.name).filter(Boolean);
-          const themes = (a.themes || []).map(t => t.name).filter(Boolean);
-          const year = (a.airing_start || '').slice(0, 4) || new Date().getFullYear().toString();
-          const img = getJikanImage(a);  // Get best quality image!
-          return {
-            id:             `jikan-${a.mal_id}`,
-            title:          a.title || 'Unknown Anime',
-            source:         'jikan',
-            type:           a.type || 'Anime',
-            genres:         genres,
-            themes:         themes,
-            score:          a.score ? Number(a.score).toFixed(1) : 'N/A',
-            year:           year,
-            duration:       '',
-            episodes:       a.episodes ? String(a.episodes) : '?',
-            synopsis:       (a.synopsis || '').slice(0, 320),
-            // Use LARGE IMAGE for crystal-clear hero slider background!
-            backdrop:       img,
-            backdrop_orig:  img,
-            backdrop_mobile:a.images?.webp?.image_url || a.images?.jpg?.image_url || img,  // Medium for mobile (faster)
-            poster:         a.images?.jpg?.image_url || img,  // JPG for poster compatibility
-            certification:  a.rating || 'TV-14',
-            studio:         a.producers?.[0]?.name || '',
-            mal_id:         a.mal_id,
-            anilist_id:     null,
-            status_color:   '#38bdf8',  /* Sky blue - matches site theme! */
-            status_label:   '● Airing Now',
-            infoHref:       `/info/anime/jikan-${a.mal_id}/${slugify(a.title)}`,
-          };
-        }).filter(s => s.backdrop || s.backdrop_mobile);
+        // Resolve images for all anime in parallel (with concurrency limit)
+        const jikanSlidesWithImages = await Promise.all(
+          top20Jikan.map(async (a) => {
+            const slugify = t => (t||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+            const genres = (a.genres || []).map(g => g.name).filter(Boolean);
+            const themes = (a.themes || []).map(t => t.name).filter(Boolean);
+            const year = (a.airing_start || '').slice(0, 4) || new Date().getFullYear().toString();
+            
+            // ⭐ USE HYBRID PIPELINE for best quality image!
+            const imageData = await resolveAnimeImage(a);
+            
+            return {
+              id:             `jikan-${a.mal_id}`,
+              title:          a.title || 'Unknown Anime',
+              source:         'jikan',  // Metadata source is still Jikan
+              type:           a.type || 'Anime',
+              genres:         genres,
+              themes:         themes,
+              score:          a.score ? Number(a.score).toFixed(1) : 'N/A',
+              year:           year,
+              duration:       '',
+              episodes:       a.episodes ? String(a.episodes) : '?',
+              synopsis:       (a.synopsis || '').slice(0, 320),
+              // Hybrid resolved images!
+              backdrop:       imageData.backdrop,
+              backdrop_orig:  imageData.backdrop_orig,
+              backdrop_mobile:imageData.backdrop_mobile,
+              poster:         imageData.poster,  // Keep Jikan poster for info card
+              certification:  a.rating || 'TV-14',
+              studio:         a.producers?.[0]?.name || '',
+              mal_id:         a.mal_id,
+              anilist_id:     imageData.anilistId || null,
+              tmdb_image_id:  imageData.tmdbId || null,
+              image_source:   imageData.source,  // Track which source provided the image
+              image_confidence: imageData.confidence,
+              status_color:   '#38bdf8',  /* Sky blue - matches site theme! */
+              status_label:   '● Airing Now',
+              infoHref:       `/info/anime/jikan-${a.mal_id}/${slugify(a.title)}`,
+            };
+          })
+        );
+        
+        // Filter out any slides without valid images
+        const jikanSlides = jikanSlidesWithImages.filter(s => s.backdrop || s.backdrop_mobile);
+        
+        // Log image source distribution
+        const imageSources = {};
+        jikanSlides.forEach(s => {
+          imageSources[s.image_source] = (imageSources[s.image_source] || 0) + 1;
+        });
+        console.log(`[Hero Image] Resolution complete:`, imageSources);
 
         // ── 5) Merge: ANIME FIRST pattern ──────────────────────────────
         // Total: 20 Jikan + 13 TMDB = 33 slides
