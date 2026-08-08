@@ -746,7 +746,178 @@
 
     /* SCHEDULE */
     @keyframes schedSpin { to { transform: rotate(360deg); } }
+    /* ════════════════════════════════════════════════════════════
+       SCHEDULE WIDGET - REDESIGNED (Vertical Day Cards)
+       ════════════════════════════════════════════════════════════ */
     .esw-widget {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      margin-top: 20px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    }
+    .esw-head {
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border-subtle);
+      background: linear-gradient(135deg, var(--bg-surface) 0%, var(--bg-card) 100%);
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #fff;
+    }
+    .esw-head-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .esw-head-title i {
+      color: var(--accent-blue);
+      font-size: 1rem;
+    }
+    .esw-clock-container {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .esw-clock-icon {
+      color: var(--accent-gold);
+      font-size: 0.85rem;
+    }
+    .esw-clock-pill {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      background: var(--bg-body);
+      border: 1px solid var(--border-medium);
+      border-radius: var(--radius-pill);
+      padding: 4px 10px;
+      font-size: 0.65rem;
+      color: var(--text-muted);
+    }
+    /* Week Navigation */
+    .esw-week-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      background: var(--bg-body);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .esw-week-label {
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+    .esw-nav-btn {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      cursor: pointer;
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-sm);
+      transition: all var(--transition-fast);
+      font-size: 0.9rem;
+    }
+    .esw-nav-btn:hover:not(:disabled) {
+      background: var(--btn-primary);
+      border-color: var(--btn-primary);
+      color: #fff;
+      transform: scale(1.05);
+    }
+    .esw-nav-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    /* Days Row - Vertical Cards */
+    .esw-days-row {
+      display: flex;
+      align-items: stretch;
+      padding: 8px;
+      gap: 6px;
+      border-bottom: 1px solid var(--border-subtle);
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .esw-days-row::-webkit-scrollbar {
+      display: none;
+    }
+    /* Vertical Day Card */
+    .esw-day-card {
+      flex: 1;
+      min-width: 60px;
+      max-width: 90px;
+      background: var(--bg-surface);
+      border: 2px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 8px 4px;
+      text-align: center;
+      cursor: pointer;
+      font-size: 0.6rem;
+      transition: all 0.25s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      position: relative;
+    }
+    .esw-day-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 4px 12px rgba(66, 153, 225, 0.2);
+      border-color: var(--accent-blue);
+    }
+    .esw-day-card.active {
+      background: linear-gradient(135deg, var(--btn-primary) 0%, #2563eb 100%);
+      border-color: var(--btn-primary);
+      box-shadow: 0 4px 15px rgba(43, 108, 176, 0.4);
+    }
+    .esw-day-card.active .esw-dc-month,
+    .esw-day-card.active .esw-dc-day,
+    .esw-day-card.active .esw-dc-weekday {
+      color: #fff;
+    }
+    .esw-day-card.today {
+      border-color: var(--accent-gold);
+      position: relative;
+    }
+    .esw-day-card.today::after {
+      content: '';
+      position: absolute;
+      top: -2px;
+      right: -2px;
+      width: 8px;
+      height: 8px;
+      background: var(--accent-gold);
+      border-radius: 50%;
+      border: 2px solid var(--bg-card);
+    }
+    /* Vertical Date Parts */
+    .esw-dc-month {
+      font-size: 0.55rem;
+      font-weight: 600;
+      color: var(--accent-blue);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .esw-dc-day {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: #fff;
+      line-height: 1.1;
+    }
+    .esw-dc-weekday {
+      font-size: 0.5rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
       background:var(--bg-card); 
       border:1px solid var(--border-subtle); 
       border-radius:var(--radius-md); 
@@ -819,22 +990,22 @@
     .esw-day-card.today { 
       border-color:var(--accent-gold); 
     }
-    .esw-dc-date { 
-      font-size:0.8rem; 
-      font-weight:800; 
-      color:#fff; 
-    }
-    .esw-body { 
-      padding:8px 10px; 
-      max-height: 400px;
+
+    .esw-body {
+      padding: 10px 12px;
+      max-height: 420px;
       overflow-y: auto;
+      min-height: 200px;
     }
     .esw-body::-webkit-scrollbar {
       width: 4px;
     }
     .esw-body::-webkit-scrollbar-thumb {
       background: var(--border-medium);
-      border-radius: 2px;
+      border-radius: 3px;
+    }
+    .esw-body::-webkit-scrollbar-track {
+      background: transparent;
     }
     .esw-row { 
       display:flex; 
@@ -897,34 +1068,55 @@
     }
     .esw-more-btn {
       width: 100%;
-      padding: 8px;
-      background: var(--bg-surface);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-sm);
-      color: var(--text-secondary);
+      padding: 10px 14px;
+      background: linear-gradient(135deg, var(--bg-surface) 0%, rgba(43, 108, 176, 0.15) 100%);
+      border: 1px dashed var(--btn-primary);
+      border-radius: var(--radius-md);
+      color: var(--accent-blue);
       font-size: 0.75rem;
       font-weight: 600;
       cursor: pointer;
-      transition: all var(--transition-fast);
-      margin-top: 8px;
+      transition: all 0.3s ease;
+      margin-top: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      letter-spacing: 0.3px;
+    }
+    .esw-more-btn i {
+      transition: transform 0.3s ease;
     }
     .esw-more-btn:hover {
       background: var(--btn-primary);
       color: #fff;
-      border-color: var(--btn-primary);
+      border-style: solid;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(43, 108, 176, 0.3);
+    }
+    .esw-more-btn:hover i {
+      transform: rotate(180deg);
+    }
+    .esw-more-btn.expanded {
+      background: var(--btn-primary);
+      color: #fff;
+      border-style: solid;
+    }
+    .esw-more-btn.expanded i {
+      transform: rotate(180deg);
     }
 
     /* New schedule 4-column layout */
 .schedule-row {
   display: grid;
-  grid-template-columns: 80px 50px 1fr 60px;
+  grid-template-columns: 70px 45px 1fr auto;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  padding: 8px;
-  margin-bottom: 6px;
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  margin-bottom: 8px;
   text-decoration: none;
   color: inherit;
   transition: all var(--transition-fast);
@@ -964,21 +1156,33 @@
 }
 .schedule-more-btn {
   width: 100%;
-  padding: 8px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  color: var(--text-secondary);
+  padding: 10px 14px;
+  background: linear-gradient(135deg, var(--bg-surface) 0%, rgba(43, 108, 176, 0.15) 100%);
+  border: 1px dashed var(--btn-primary);
+  border-radius: var(--radius-md);
+  color: var(--accent-blue);
   font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all var(--transition-fast);
-  margin-top: 8px;
+  transition: all 0.3s ease;
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.schedule-more-btn i {
+  transition: transform 0.3s ease;
 }
 .schedule-more-btn:hover {
   background: var(--btn-primary);
   color: #fff;
-  border-color: var(--btn-primary);
+  border-style: solid;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(43, 108, 176, 0.3);
+}
+.schedule-more-btn:hover i {
+  transform: rotate(180deg);
 }
 .esw-body {
   padding: 8px 10px;
@@ -1007,6 +1211,62 @@
       .show-card-horiz { width:150px; }
       .grid-container { grid-template-columns:repeat(2, 1fr); gap:10px; } /* Mobile portrait: 2 per row */
       .new-aniocean-grid { grid-template-columns:repeat(2, 1fr); gap:8px; }
+      
+      /* Schedule Widget - Mobile Responsive */
+      .esw-widget { margin-top: 15px; border-radius: var(--radius-md); }
+      .esw-head { padding: 10px 12px; font-size: 0.8rem; }
+      .esw-head-title i { font-size: 0.9rem; }
+      .esw-week-nav { padding: 6px 10px; }
+      .esw-nav-btn { width: 26px; height: 26px; font-size: 0.8rem; }
+      .esw-days-row { padding: 6px 4px; gap: 4px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      .esw-day-card { 
+        min-width: 52px; 
+        max-width: 75px; 
+        padding: 6px 3px;
+        border-radius: var(--radius-sm);
+      }
+      .esw-dc-month { font-size: 0.5rem; }
+      .esw-dc-day { font-size: 1rem; }
+      .esw-dc-weekday { font-size: 0.45rem; }
+      .esw-body { 
+        max-height: 350px; 
+        min-height: 150px;
+        padding: 8px 8px;
+      }
+      .schedule-row {
+        grid-template-columns: 60px 40px 1fr auto;
+        gap: 8px;
+        padding: 8px;
+        margin-bottom: 6px;
+      }
+      .schedule-poster img { width: 36px; height: 50px; }
+      .schedule-title { font-size: 0.75rem; }
+      .schedule-time { font-size: 0.7rem; padding: 3px 6px; }
+      .schedule-ep { font-size: 0.65rem; padding: 3px 8px; }
+      .esw-more-btn { padding: 8px 12px; font-size: 0.7rem; }
+    }
+    
+    @media (max-width: 480px) {
+      /* Schedule - Extra Small Screens */
+      .esw-head-title span { display: none; } /* Hide text, keep icon only */
+      .esw-clock-pill { font-size: 0.6rem; padding: 2px 6px; }
+      .esw-day-card { 
+        min-width: 46px; 
+        max-width: 65px; 
+        padding: 5px 2px;
+        gap: 1px;
+      }
+      .esw-dc-month { font-size: 0.45rem; letter-spacing: 0.3px; }
+      .esw-dc-day { font-size: 0.95rem; }
+      .esw-dc-weekday { font-size: 0.4rem; }
+      .schedule-row {
+        grid-template-columns: 55px 35px 1fr auto;
+        gap: 6px;
+        padding: 7px;
+      }
+      .schedule-poster img { width: 32px; height: 44px; }
+      .schedule-title { font-size: 0.72rem; }
+      .esw-body { max-height: 300px; padding: 6px; }
     }
     .country-link:hover {
       color: #3675a8 !important;
@@ -1136,17 +1396,21 @@
       </section>
       <div class="esw-widget" id="eswWidget">
         <div class="esw-head">
-          <span>📅 Schedule</span>
+          <div class="esw-head-title">
+            <i class="fas fa-calendar-alt"></i>
+            <span>Schedule</span>
+          </div>
           <div class="esw-clock-container">
             <i class="fas fa-globe-americas esw-clock-icon"></i>
             <div class="esw-clock-pill"><span id="eswClockText"></span></div>
           </div>
         </div>
-        <div class="esw-days-row">
-          <button class="esw-nav-btn" id="eswPrev">‹</button>
-          <div class="esw-days-scroll" id="eswDaysScroll" style="display:flex; gap:3px; flex:1; overflow:hidden;"></div>
-          <button class="esw-nav-btn" id="eswNext">›</button>
+        <div class="esw-week-nav">
+          <button class="esw-nav-btn" id="eswPrev" title="Previous Week"><i class="fas fa-chevron-left"></i></button>
+          <span class="esw-week-label" id="eswWeekLabel">This Week</span>
+          <button class="esw-nav-btn" id="eswNext" title="Next Week"><i class="fas fa-chevron-right"></i></button>
         </div>
+        <div class="esw-days-row" id="eswDaysRow"></div>
         <div class="esw-body" id="eswBody"></div>
       </div>
     </aside>
@@ -3354,40 +3618,74 @@ window.showAnikotoPopupById = function(mal_id) {
         });
       }
 
-      /* ── SCHEDULE (COMPLETE REBUILD) ── 
-                 /* ── NEW SCHEDULE (4‑column, localStorage, episode count) ── */
-      let scheduleData = null;          // { monday: [anime], tuesday: [...], ... }
-      let currentDay = null;            // 'monday' ... 'sunday'
-      let currentWeekOffset = 0;        // weeks from today's week start
+      /* ════════════════════════════════════════════════════════════
+         SCHEDULE SECTION - REBUILT (Self-hosted Jikan API)
+         Features: Parallel fetch, Week nav, 5-month limit, Show More
+         ════════════════════════════════════════════════════════════ */
+      
+      // Configuration
+      const JIKAN_SCHEDULE_BASE = 'https://jikan-api-bohb.onrender.com/v4/schedule';
       const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-      const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      const DAY_FULL_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+      const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      
+      let scheduleData = null;           // { monday: [anime], tuesday: [...], ... }
+      let currentDay = null;             // 'monday' ... 'sunday'
+      let currentWeekOffset = 0;         // weeks from today's week start
+      const MAX_WEEK_OFFSET = 20;        // ~5 months limit (20 weeks)
+      const VISIBLE_COUNT = 9;           // Show 9 animes per day initially
 
-      // ---------- Helper: fetch 3 pages for one day, with delays ----------
-      async function fetchDaySchedules(day) {
-        const pagesToTry = [1, 2, 3];
-        let allAnime = [];
-
-        for (const page of pagesToTry) {
-          try {
-            const res = await fetchJikan('schedules', `filter=${day}&sfw=true&limit=25&page=${page}`);
-            if (res.data && res.data.length > 0) {
-              allAnime.push(...res.data);
-            }
-            // Wait 0.5s between pages to avoid rate limiting
-            await new Promise(r => setTimeout(r, 500));
-          } catch (err) {
-            console.warn(`Failed to fetch ${day} page ${page}:`, err);
+      // ---------- Helper: Fetch single day from self-hosted Jikan ----------
+      async function fetchDayFromJikan(day) {
+        try {
+          const url = `${JIKAN_SCHEDULE_BASE}/${day}?sfw=true`;
+          console.log(`[Schedule] Fetching: ${url}`);
+          
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 12000); // 12s timeout
+          
+          const res = await fetch(url, { 
+            signal: controller.signal,
+            headers: { 'Accept': 'application/json' }
+          });
+          
+          clearTimeout(timeoutId);
+          
+          if (!res.ok) {
+            throw new Error(`HTTP ${res.status}`);
           }
+          
+          const data = await res.json();
+          const animeList = data.data || [];
+          
+          console.log(`[Schedule] ✅ ${day}: ${animeList.length} anime`);
+          return animeList;
+          
+        } catch (err) {
+          console.warn(`[Schedule] ⚠️ Failed to fetch ${day}:`, err.message);
+          return [];
         }
+      }
 
-        // Deduplicate by mal_id
-        const unique = new Map();
-        for (const anime of allAnime) {
-          if (!unique.has(anime.mal_id)) unique.set(anime.mal_id, anime);
-        }
-        const result = Array.from(unique.values());
-        console.log(`✅ ${day}: ${result.length} unique anime`);
-        return result;
+      // ---------- Helper: Fetch ALL 7 days in parallel (rate-limit safe) ----------
+      async function fetchAllDaysParallel() {
+        console.log('[Schedule] 🚀 Starting parallel fetch of all 7 days...');
+        
+        // Fetch all 7 days simultaneously (self-hosted API should handle this)
+        const results = await Promise.allSettled(
+          DAYS.map(day => fetchDayFromJikan(day))
+        );
+        
+        const data = {};
+        DAYS.forEach((day, idx) => {
+          const result = results[idx];
+          data[day] = result.status === 'fulfilled' ? result.value : [];
+        });
+        
+        const totalAnime = Object.values(data).reduce((sum, arr) => sum + arr.length, 0);
+        console.log(`[Schedule] ✅ Complete! Total: ${totalAnime} anime across 7 days`);
+        
+        return data;
       }
 
       // ---------- Episode number calculation (unchanged) ----------
@@ -3414,73 +3712,93 @@ window.showAnikotoPopupById = function(mal_id) {
 
       // ---------- Render schedule for a given day (from scheduleData) ----------
       function renderScheduleForDay(dayName) {
-  const container = document.getElementById('eswBody');
-  const animeList = scheduleData?.[dayName] || [];
-  if (!animeList.length) {
-    container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);">No episodes scheduled</div>';
-    return;
-  }
+        const container = document.getElementById('eswBody');
+        const animeList = scheduleData?.[dayName] || [];
+        
+        if (!animeList.length) {
+          container.innerHTML = `
+            <div style="text-align:center;padding:30px 15px;color:var(--text-muted);">
+              <i class="fas fa-calendar-times" style="font-size:2rem;opacity:0.3;margin-bottom:10px;display:block;"></i>
+              <div style="font-size:0.85rem;">No episodes scheduled</div>
+              <div style="font-size:0.7rem;opacity:0.6;margin-top:4px;">for ${DAY_FULL_NAMES[DAYS.indexOf(dayName)]}</div>
+            </div>`;
+          return;
+        }
 
-  // Sort by broadcast time
-  const sorted = [...animeList].sort((a, b) => {
-    const timeA = a.broadcast?.time || '';
-    const timeB = b.broadcast?.time || '';
-    return timeA.localeCompare(timeB);
-  });
+        // Sort by broadcast time
+        const sorted = [...animeList].sort((a, b) => {
+          const timeA = a.broadcast?.time || '99:99';
+          const timeB = b.broadcast?.time || '99:99';
+          return timeA.localeCompare(timeB);
+        });
 
-  // Build rows
-  const rowsHtml = sorted.map(anime => {
-    const episode = getEpisodeNumber(anime);
-    const title = anime.title_english || anime.title;
-    const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-    const watchUrl = `/info/anime/jikan-${anime.mal_id}/${slug}`;
-    const poster = anime.images?.jpg?.image_url || '';
-    const broadcastTime = anime.broadcast?.time || 'TBA';
+        // Build rows HTML
+        const rowsHtml = sorted.map(anime => {
+          const episode = getEpisodeNumber(anime);
+          const title = anime.title_english || anime.title || 'Unknown Title';
+          const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+          const watchUrl = `/info/anime/jikan-${anime.mal_id}/${slug}`;
+          // Use large_image_url from v4 format or fallback to jpg
+          const poster = anime.images?.webp?.large_image_url || 
+                         anime.images?.jpg?.large_image_url || 
+                         anime.images?.jpg?.image_url || '';
+          const broadcastTime = anime.broadcast?.time || 'TBA';
 
-    return `
-      <a href="${watchUrl}" class="schedule-row">
-        <div class="schedule-time">${broadcastTime}</div>
-        <div class="schedule-poster"><img src="${poster}" loading="lazy" onerror="this.style.display='none'"></div>
-        <div class="schedule-title">${escapeHtml(title)}</div>
-        <div class="schedule-ep">EP ${episode}</div>
-      </a>
-    `;
-  }).join('');
+          return `
+            <a href="${watchUrl}" class="schedule-row">
+              <div class="schedule-time">${broadcastTime}</div>
+              <div class="schedule-poster">
+                <img src="${poster}" alt="${escapeHtml(title)}" loading="lazy" 
+                     onerror="this.parentElement.style.background='linear-gradient(135deg,#1e293b,#334155)';this.style.display='none';">
+              </div>
+              <div class="schedule-title">${escapeHtml(title)}</div>
+              <div class="schedule-ep">EP ${episode}</div>
+            </a>
+          `;
+        }).join('');
 
-  // Split rows into visible and hidden
-  const visibleCount = 7;
-  const rowsArray = rowsHtml.split('</a>').filter(r => r.trim());
-  const visibleRows = rowsArray.slice(0, visibleCount).join('</a>') + (rowsArray.length > visibleCount ? '</a>' : '');
-  const hiddenRows = rowsArray.slice(visibleCount).join('</a>');
-  const hasMore = rowsArray.length > visibleCount;
+        // Split into visible (9) and hidden
+        const rowsArray = rowsHtml.split('</a>').filter(r => r.trim());
+        const visibleRows = rowsArray.slice(0, VISIBLE_COUNT).join('</a>') + (rowsArray.length > VISIBLE_COUNT ? '</a>' : '');
+        const hiddenRows = rowsArray.slice(VISIBLE_COUNT).join('</a>');
+        const hasMore = rowsArray.length > VISIBLE_COUNT;
+        const remainingCount = rowsArray.length - VISIBLE_COUNT;
 
-  container.innerHTML = `
-    <div class="schedule-list">
-      ${visibleRows}
-      ${hasMore ? `<div class="schedule-more-wrapper" style="display:none;">${hiddenRows}</div>` : ''}
-      ${hasMore ? `<button type="button" class="schedule-more-btn">Show More (${rowsArray.length - visibleCount})</button>` : ''}
-    </div>
-  `;
+        container.innerHTML = `
+          <div class="schedule-list">
+            ${visibleRows}
+            ${hasMore ? `<div class="schedule-more-wrapper" style="display:none;">${hiddenRows}</div>` : ''}
+            ${hasMore ? `<button type="button" class="schedule-more-btn"><i class="fas fa-chevron-down"></i> Show More (${remainingCount} more)</button>` : ''}
+          </div>
+        `;
 
-  // Attach click handler with prevention of default action and propagation
-  const moreBtn = container.querySelector('.schedule-more-btn');
-  if (moreBtn) {
-    moreBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
+        // Attach enhanced show more handler
+        const moreBtn = container.querySelector('.schedule-more-btn');
+        if (moreBtn) {
+          moreBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
 
-      const wrapper = container.querySelector('.schedule-more-wrapper');
-      if (wrapper) {
-        const isHidden = wrapper.style.display === 'none';
-        wrapper.style.display = isHidden ? 'block' : 'none';
-        moreBtn.textContent = isHidden ? 'Show Less' : `Show More (${rowsArray.length - visibleCount})`;
+            const wrapper = container.querySelector('.schedule-more-wrapper');
+            if (wrapper) {
+              const isHidden = wrapper.style.display === 'none';
+              wrapper.style.display = isHidden ? 'block' : 'none';
+              
+              // Update button state
+              if (isHidden) {
+                moreBtn.classList.add('expanded');
+                moreBtn.innerHTML = '<i class="fas fa-chevron-up"></i> Show Less';
+              } else {
+                moreBtn.classList.remove('expanded');
+                moreBtn.innerHTML = `<i class="fas fa-chevron-down"></i> Show More (${remainingCount} more)`;
+              }
+            }
+          });
+        }
       }
-    });
-  }
-}
         
 
-      // ---------- Build week dates (Mon‑Sun) ----------
+      // ---------- Build week dates (Mon-Sun) ----------
       function buildWeekDates() {
         const now = new Date();
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -3488,6 +3806,7 @@ window.showAnikotoPopupById = function(mal_id) {
         let monday = new Date(today);
         const diffToMonday = (currentDayOfWeek === 0 ? -6 : 1 - currentDayOfWeek);
         monday.setDate(today.getDate() + diffToMonday + currentWeekOffset * 7);
+        
         const weekDates = [];
         for (let i = 0; i < 7; i++) {
           const date = new Date(monday);
@@ -3496,30 +3815,63 @@ window.showAnikotoPopupById = function(mal_id) {
         }
         return weekDates;
       }
+      
+      // ---------- Get week label for navigation ----------
+      function getWeekLabel(weekDates) {
+        if (!weekDates || !weekDates.length) return 'This Week';
+        const firstDate = weekDates[0];
+        const lastDate = weekDates[6];
+        
+        const fmt = (d) => `${MONTHS[d.getMonth()]} ${d.getDate()}`;
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        
+        if (firstDate <= today && lastDate >= today) {
+          return 'This Week';
+        }
+        return `${fmt(firstDate)} – ${fmt(lastDate)}`;
+      }
 
-      // ---------- Update day cards ----------
+      // ---------- Update day cards (Vertical Design) ----------
       function updateDaySelector() {
         const weekDates = buildWeekDates();
         const today = new Date();
         const todayStr = today.toDateString();
-        const container = document.getElementById('eswDaysScroll');
+        const container = document.getElementById('eswDaysRow');
+        
+        // Update week label
+        const weekLabelEl = document.getElementById('eswWeekLabel');
+        if (weekLabelEl) weekLabelEl.textContent = getWeekLabel(weekDates);
+        
+        // Update nav buttons state
+        const prevBtn = document.getElementById('eswPrev');
+        const nextBtn = document.getElementById('eswNext');
+        if (prevBtn) prevBtn.disabled = currentWeekOffset <= -MAX_WEEK_OFFSET;
+        if (nextBtn) nextBtn.disabled = currentWeekOffset >= MAX_WEEK_OFFSET;
+        
+        // Render vertical day cards
         container.innerHTML = weekDates.map((date, idx) => {
           const isToday = date.toDateString() === todayStr;
-          const dayName = DAY_NAMES[date.getDay() === 0 ? 6 : date.getDay() - 1];
-          const isActive = currentDay === DAYS[date.getDay() === 0 ? 6 : date.getDay() - 1];
+          const dayIndex = date.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+          const dayKeyIdx = dayIndex === 0 ? 6 : dayIndex - 1; // Convert to Mon=0 index
+          const isActive = currentDay === DAYS[dayKeyIdx];
+          
           return `
-            <div class="esw-day-card ${isToday ? 'today' : ''} ${isActive ? 'active' : ''}" data-day-index="${idx}">
-              <div class="esw-dc-date">${date.getDate()}</div>
-              <small>${dayName}</small>
+            <div class="esw-day-card ${isToday ? 'today' : ''} ${isActive ? 'active' : ''}" 
+                 data-day-index="${idx}" data-day-key="${DAYS[dayKeyIdx]}"
+                 title="${DAY_FULL_NAMES[dayKeyIdx]}, ${MONTHS[date.getMonth()]} ${date.getDate()}">
+              <span class="esw-dc-month">${MONTHS[date.getMonth()]}</span>
+              <span class="esw-dc-day">${date.getDate()}</span>
+              <span class="esw-dc-weekday">${DAY_FULL_NAMES[dayKeyIdx].slice(0, 3)}</span>
             </div>
           `;
         }).join('');
-        document.querySelectorAll('#eswDaysScroll .esw-day-card').forEach(card => {
+        
+        // Add click handlers
+        container.querySelectorAll('.esw-day-card').forEach(card => {
           card.addEventListener('click', (e) => {
-            const idx = parseInt(card.dataset.dayIndex);
-            const selectedDate = weekDates[idx];
-            const dayKey = DAYS[selectedDate.getDay() === 0 ? 6 : selectedDate.getDay() - 1];
-            setCurrentDay(dayKey);
+            const dayKey = card.dataset.dayKey;
+            if (dayKey) setCurrentDay(dayKey);
           });
         });
       }
@@ -3629,16 +3981,20 @@ window.showAnikotoPopupById = function(mal_id) {
         setInterval(updateClock, 1000);
       }
 
-      // Week navigation
+      // Week navigation (with 5-month limit)
       function previousWeek() {
-        currentWeekOffset--;
-        updateDaySelector();
-        setCurrentDay(currentDay);
+        if (currentWeekOffset > -MAX_WEEK_OFFSET) {
+          currentWeekOffset--;
+          updateDaySelector();
+          setCurrentDay(currentDay);
+        }
       }
       function nextWeek() {
-        currentWeekOffset++;
-        updateDaySelector();
-        setCurrentDay(currentDay);
+        if (currentWeekOffset < MAX_WEEK_OFFSET) {
+          currentWeekOffset++;
+          updateDaySelector();
+          setCurrentDay(currentDay);
+        }
       }
 
       function updateClock() {
