@@ -1633,6 +1633,7 @@ async function loadNewAniocean() {
         section:'new_on_aniumi', data: displayAnilist, itemCount: displayAnilist.length }).catch(()=>{});
       return;
     }
+    }
   } catch (error) {
     console.error('✗ Jikan fallback also failed:', error);
   }
