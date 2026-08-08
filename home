@@ -78,14 +78,61 @@
     .slide {
       min-width: 100%;
       height: 100%;
-      background-size: 100%;
-      background-position: center;
+      background-size: cover;
+      background-position: center center;
       position: relative;
       display: flex;
       align-items: flex-end;
       padding: 0 5%;
       overflow: hidden;
-      animation: kenburns 9s ease-in-out infinite alternate;
+      animation: kenburns 12s ease-in-out infinite alternate;
+      /* Sharpen images for better clarity on desktop */
+      image-rendering: -webkit-optimize-contrast;
+      image-rendering: crisp-edges;
+    }
+    /* Special handling for anime poster images - focus on upper portion */
+    .slide[data-anime="true"] {
+      background-position: center 20%;
+    }
+    
+    /* ════════════════════════════════════════════════════════════
+       ANILIST BANNER DISPLAY - Default Size (No Stretch!)
+       Anilist banners are ~1000x380px (wide but short)
+       Show at natural aspect ratio, no vertical stretching
+       ════════════════════════════════════════════════════════════ */
+    .slide[data-image-source*="anilist"] {
+      background-size: auto 100%;        /* Fit width, maintain aspect ratio */
+      background-repeat: no-repeat;
+      background-position: center top;   /* Align to top */
+      animation: kenburns-banner 14s ease-in-out infinite alternate;
+    }
+    
+    /* Gradient overlay for area below Anilist banner (fills empty space) */
+    .slide[data-image-source*="anilist"]::before {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 60%;  /* Cover lower portion where banner doesn't reach */
+      background: linear-gradient(
+        to top,
+        var(--bg-body) 0%,
+        rgba(10, 25, 41, 0.95) 30%,
+        rgba(10, 25, 41, 0.7) 60%,
+        transparent 100%
+      );
+      z-index: 1;
+      pointer-events: none;
+    }
+    
+    /* Subtle Ken Burns effect for banners (horizontal pan only) */
+    @keyframes kenburns-banner {
+      0%   { background-size: auto 100%; transform: translateX(0); }
+      100% { background-size: auto 105%; transform: translateX(-2%); }  /* Gentle right pan */
+    }
+    
+    /* Anime slide enhancement for non-Anilist sources (TMDB/Jikan fallback) */
+    .slide-anime:not([data-image-source*="anilist"]) {
+      filter: contrast(1.05) saturate(1.1);
     }
     .slide::after {
       content: '';
@@ -97,8 +144,8 @@
       z-index: 1;
     }
     @keyframes kenburns {
-      0%   { background-size: 100%; }
-      100% { background-size: 112%; }
+      0%   { background-size: cover; transform: scale(1); }
+      100% { background-size: cover; transform: scale(1.05); }
     }
     .slide-content {
       position: relative;
@@ -1196,22 +1243,40 @@
 
       async function fetchTMDB(endpoint, params='') {
         const qs = params ? `?${params}` : '';
+        let lastError = null;
+        
         // 1) NEW PRIMARY: t-umi proxy — optimized TMDB proxy
         try {
           const res = await fetch(`${TMDB_PROXY}${endpoint}${qs}`, {
             headers: { Accept: 'application/json' },
             signal: AbortSignal.timeout(10000)
           });
-          if (res.ok) return await res.json();
-        } catch(e) {}
+          if (res.ok) {
+            console.log(`[TMDB] ✅ t-umi proxy success: ${endpoint}`);
+            return await res.json();
+          }
+          lastError = `t-umi returned ${res.status}`;
+        } catch(e) {
+          lastError = `t-umi: ${e.message || 'CORS blocked or network error'}`;
+          console.warn(`[TMDB] ⚠️ t-umi failed: ${lastError}`);
+        }
+        
         // 2) Legacy aniocen worker — confirmed working, handles TMDB auth server-side
         try {
           const res = await fetch(`${TMDB_LEGACY}/3${endpoint}${qs}`, {
             headers: { Accept: 'application/json' },
             signal: AbortSignal.timeout(10000)
           });
-          if (res.ok) return await res.json();
-        } catch(e) {}
+          if (res.ok) {
+            console.log(`[TMDB] ✅ Legacy proxy success: ${endpoint}`);
+            return await res.json();
+          }
+          lastError = `legacy returned ${res.status}`;
+        } catch(e) {
+          lastError = `legacy: ${e.message || 'CORS blocked'}`;
+          console.warn(`[TMDB] ⚠️ Legacy failed: ${lastError}`);
+        }
+        
         // 3) Direct TMDB API — guaranteed fallback with Bearer token
         try {
           const res = await fetch(`https://api.themoviedb.org/3${endpoint}${qs}`, {
@@ -1221,16 +1286,32 @@
             },
             signal: AbortSignal.timeout(10000)
           });
-          if (res.ok) return await res.json();
-        } catch(e) {}
+          if (res.ok) {
+            console.log(`[TMDB] ✅ Direct API success: ${endpoint}`);
+            return await res.json();
+          }
+          lastError = `direct API returned ${res.status}`;
+        } catch(e) {
+          lastError = `direct API: ${e.message}`;
+          console.warn(`[TMDB] ⚠️ Direct API failed: ${lastError}`);
+        }
+        
         // 4) aniumi universal proxy (last resort — may not have TMDB_API_KEY set)
         try {
           const res = await fetch(`${ANIUMI_PROXY}/tmdb${endpoint}${qs}`, {
             headers: { Accept: 'application/json' },
             signal: AbortSignal.timeout(5000)
           });
-          if (res.ok) return await res.json();
-        } catch(e) {}
+          if (res.ok) {
+            console.log(`[TMDB] ✅ Aniumi proxy success: ${endpoint}`);
+            return await res.json();
+          }
+        } catch(e) {
+          console.warn(`[TMDB] ⚠️ Aniumi proxy also failed`);
+        }
+        
+        // All sources failed - return empty result
+        console.error(`[TMDB] ❌ All sources failed for ${endpoint}:`, lastError);
         return { results: [] };
       }
       async function fetchJikan(endpoint, params='', retries=2) {
@@ -1762,23 +1843,19 @@ window.showAnikotoPopupById = function(mal_id) {
           }
         } catch(e) { /* corrupt cache — fetch fresh */ }
 
-        // ── 2) Fetch 13 TMDB ongoing TV + 20 AniList airing anime ───────
-        const [tmdbResults, anilistResults] = await Promise.allSettled([
+        // ── 2) Fetch 13 TMDB ongoing TV + 20 Jikan airing anime ────────
+        const JIKAN_BASE = 'https://jikan-api-bohb.onrender.com/v4';
+        const [tmdbResults, jikanResults] = await Promise.allSettled([
           // TMDB: 13 ongoing TV shows with popularity sort
           Promise.allSettled([
             fetchTMDB('/tv/on_the_air', `page=1&sort_by=popularity.desc`),
             fetchTMDB('/tv/on_the_air', `page=2&sort_by=popularity.desc`),
           ]),
-          // AniList: 20 currently airing anime (use bannerImage for slider!)
-          fetchAniList(`
-            query ($page: Int, $perPage: Int) {
-              Page(page: $page, perPage: $perPage) {
-                media(type: ANIME, status: RELEASING, format_in: [TV, TV_SHORT], isAdult: false, sort: [TRENDING_DESC, POPULARITY_DESC]) {
-                  ${ANILIST_ANIME_FIELDS}
-                }
-              }
-            }
-          `, { page: 1, perPage: 25 })
+          // Jikan (self-hosted): Currently airing anime - fetch 2 pages (max 25/page)
+          Promise.allSettled([
+            fetch(`${JIKAN_BASE}/seasons/now?page=1&limit=25`).then(r => r.json()),
+            fetch(`${JIKAN_BASE}/seasons/now?page=2&limit=25`).then(r => r.json()),
+          ])
         ]);
 
         // ── 3a) Collect TMDB TV shows (target: 13) ──────────────────────
@@ -1803,18 +1880,238 @@ window.showAnikotoPopupById = function(mal_id) {
         uniqueTmdb.sort((a, b) => (b.popularity||0) - (a.popularity||0));
         const top13Tmdb = uniqueTmdb.slice(0, 13);
 
-        // ── 3b) Collect AniList airing anime (target: 20) ────────────────
-        let rawAnilistAnime = [];
-        if (anilistResults.status === 'fulfilled' && anilistResults.value?.Page?.media) {
-          rawAnilistAnime = anilistResults.value.Page.media.filter(m => !m.isAdult);
+        // ── 3b) Collect Jikan airing anime (target: 20) ───────────────────
+        let rawJikanAnime = [];
+        if (jikanResults.status === 'fulfilled') {
+          for (const j of jikanResults.value) {
+            if (j.status === 'fulfilled' && j.value?.data && Array.isArray(j.value.data)) {
+              rawJikanAnime.push(...j.value.data);
+            }
+          }
         }
 
-        // Pick top 20 with banner images for hero slider
-        const top20Anilist = rawAnilistAnime
-          .filter(m => m.bannerImage || m.coverImage?.extraLarge)  // Prefer bannerImage!
-          .slice(0, 20);
+        // Deduplicate by mal_id & filter items with images (new v4 format or legacy)
+        const seenMal = new Set();
+        const uniqueJikan = [];
+        const hasJikanImage = (a) => a.images?.webp?.large_image_url || a.images?.jpg?.large_image_url || a.image_url;
+        for (const a of rawJikanAnime) {
+          if (!a.mal_id || seenMal.has(a.mal_id)) continue;
+          if (!hasJikanImage(a)) continue;  // Must have image for hero slider
+          seenMal.add(a.mal_id);
+          uniqueJikan.push(a);
+        }
+        // Sort by members (popularity) descending, then score
+        uniqueJikan.sort((a, b) => (b.members||0) - (a.members||0) || (b.score||0) - (a.score||0));
+        const top20Jikan = uniqueJikan.slice(0, 20);
 
-        console.log(`[Hero] Fetched ${top13Tmdb.length} TMDB + ${top20Anilist.length} AniList`);
+        console.log(`[Hero] Fetched ${top13Tmdb.length} TMDB + ${top20Jikan.length} Jikan`);
+
+        // ═══════════════════════════════════════════════════════════════════
+        // HYBRID IMAGE RESOLUTION PIPELINE
+        // Priority: Anilist Banner → Safe TMDB Backdrop → Jikan Large Image
+        // ═══════════════════════════════════════════════════════════════════
+
+        // ── Helper: Calculate string similarity (for TMDB validation) ──
+        const calculateSimilarity = (str1, str2) => {
+          const s1 = str1.toLowerCase().replace(/[^a-z0-9]/g, '');
+          const s2 = str2.toLowerCase().replace(/[^a-z0-9]/g, '');
+          if (!s1 || !s2) return 0;
+          const longer = s1.length > s2.length ? s1 : s2;
+          const shorter = s1.length > s2.length ? s2 : s1;
+          if (longer.length === 0) return 1;
+          const costs = Array(shorter.length + 1).fill(0).map((_, i) => i);
+          for (let i = 1; i <= longer.length; i++) {
+            let prev = i;
+            for (let j = 1; j <= shorter.length; j++) {
+              const cost = longer[i-1] !== shorter[j-1] ? 1 : 0;
+              prev = Math.min(prev + 1, costs[j] + 1, costs[j-1] + cost);
+              costs[j] = prev;
+            }
+          }
+          return (1 - costs[shorter.length] / longer.length);
+        };
+
+        // ── Step 1: Fetch Anilist Banner by mal_id (PRIMARY SOURCE) ────
+        const fetchAnilistBanner = async (malId, fallbackTitle) => {
+          try {
+            // Try by mal_id first (100% accurate match)
+            const result = await fetchAniList(`
+              query ($malId: Int) {
+                Media(idMal: $malId, type: ANIME) {
+                  id
+                  title { romaji english native }
+                  bannerImage
+                  isAdult
+                }
+              }
+            `, { malId: malId });
+            
+            if (result?.Media && !result.Media.isAdult) {
+              return {
+                bannerImage: result.Media.bannerImage,
+                source: 'anilist-mal-id',
+                confidence: 100,
+                anilistId: result.Media.id
+              };
+            }
+            
+            // Fallback: Try title search if mal_id lookup failed
+            if (fallbackTitle) {
+              const titleResult = await fetchAniList(`
+                query ($search: String) {
+                  Page(page: 1, perPage: 1) {
+                    media(search: $search, type: ANIME, isAdult: false) {
+                      id
+                      title { romaji english }
+                      bannerImage
+                      idMal
+                    }
+                  }
+                }
+              `, { search: fallbackTitle });
+              
+              if (titleResult?.Page?.media?.length > 0) {
+                const media = titleResult.Page.media[0];
+                // Verify it's likely the same anime via similarity check
+                const similarity = Math.max(
+                  calculateSimilarity(fallbackTitle, media.title?.romaji || ''),
+                  calculateSimilarity(fallbackTitle, media.title?.english || '')
+                );
+                
+                if (similarity > 0.7 && media.bannerImage) {
+                  return {
+                    bannerImage: media.bannerImage,
+                    source: 'anilist-title-search',
+                    confidence: Math.round(similarity * 100),
+                    anilistId: media.id
+                  };
+                }
+              }
+            }
+            
+            return null;
+          } catch(e) {
+            console.warn(`[Hero Image] Anilist lookup failed for mal_id ${malId}:`, e.message);
+            return null;
+          }
+        };
+
+        // ── Step 2: Safe TMDB Search (SECONDARY FALLBACK) ──────────────
+        const safeTmdbBackdropSearch = async (title, year, episodes) => {
+          try {
+            if (!title) return null;
+            
+            // Build search query with animation filter
+            const searchQuery = `${encodeURIComponent(title)}&with_genres=16`;
+            const yearParam = year ? `&first_air_date_year=${year}` : '';
+            
+            const results = await fetchTMDB('/search/tv', `${searchQuery}${yearParam}&page=1`);
+            
+            if (!results?.results?.length) return null;
+            
+            // Validate each result strictly
+            for (const tv of results.results.slice(0, 5)) { // Check top 5 results only
+              // Must have backdrop
+              if (!tv.backdrop_path) continue;
+              
+              // Must be animation genre (genre 16)
+              const isAnimation = tv.genre_ids?.includes(16);
+              if (!isAnimation) continue;
+              
+              // Title similarity check (must be >80% confident)
+              const titleSim = Math.max(
+                calculateSimilarity(title, tv.name || ''),
+                calculateSimilarity(title, tv.original_name || '')
+              );
+              
+              if (titleSim < 0.8) continue;
+              
+              // Episode count validation (if we have episode data)
+              if (episodes && tv.number_of_episodes) {
+                const epDiff = Math.abs(tv.number_of_episodes - parseInt(episodes));
+                // Allow some flexibility (within 10 episodes or within 50%)
+                if (epDiff > 10 && epDiff > parseInt(episodes) * 0.5) continue;
+              }
+              
+              // All checks passed! Return this result
+              return {
+                backdrop: `https://image.tmdb.org/t/p/w1280${tv.backdrop_path}`,
+                backdrop_orig: `https://image.tmdb.org/t/p/original${tv.backdrop_path}`,
+                backdrop_mobile: `https://image.tmdb.org/t/p/w780${tv.backdrop_path}`,
+                tmdbId: tv.id,
+                source: 'tmdb-safe-match',
+                confidence: Math.round(titleSim * 100)
+              };
+            }
+            
+            return null; // No valid matches found
+          } catch(e) {
+            console.warn(`[Hero Image] TMDB safe search failed for "${title}":`, e.message);
+            return null;
+          }
+        };
+
+        // ── Step 3: Jikan Image Extractor (FINAL FALLBACK) ─────────────
+        const getJikanFallbackImage = (anime) => ({
+          backdrop:       anime.images?.webp?.large_image_url || anime.images?.jpg?.large_image_url || anime.image_url,
+          backdrop_orig:  anime.images?.webp?.large_image_url || anime.images?.jpg?.large_image_url || anime.image_url,
+          backdrop_mobile: anime.images?.webp?.image_url || anime.images?.jpg?.image_url || anime.image_url,
+          poster:         anime.images?.jpg?.image_url || anime.image_url,
+          source:         'jikan-fallback',
+          confidence:     60  // Lower confidence since it's poster format
+        });
+
+        // ── Step 4: Main Image Resolution Pipeline ─────────────────────
+        const resolveAnimeImage = async (anime) => {
+          const { mal_id, title, episodes, airing_start } = anime;
+          const year = (airing_start || '').slice(0, 4);
+          
+          console.log(`[Hero Image] 🔍 Resolving image for: "${title}" (mal_id: ${mal_id})`);
+          
+          // STEP 1: Try Anilist first (primary - has proper banners!)
+          try {
+            const anilistResult = await fetchAnilistBanner(mal_id, title);
+            
+            if (anilistResult?.bannerImage) {
+              console.log(`[Hero Image] ✅ Anilist banner found for "${title}" (${anilistResult.source}, confidence: ${anilistResult.confidence}%)`);
+              console.log(`[Hero Image]    Banner URL: ${anilistResult.bannerImage.substring(0, 80)}...`);
+              return {
+                backdrop: anilistResult.bannerImage,
+                backdrop_orig: anilistResult.bannerImage,
+                backdrop_mobile: anilistResult.bannerImage,
+                poster: getJikanFallbackImage(anime).poster,  // Keep Jikan poster for info card
+                source: anilistResult.source,
+                confidence: anilistResult.confidence,
+                anilistId: anilistResult.anilistId
+              };
+            } else {
+              console.log(`[Hero Image] ❌ No Anilist banner for "${title}" (result: ${JSON.stringify(anilistResult)})`);
+            }
+          } catch(e) {
+            console.error(`[Hero Image] 💥 Error in Anilist lookup for "${title}":`, e);
+          }
+          
+          // STEP 2: Try safe TMDB search (secondary - has backdrops!)
+          try {
+            const tmdbResult = await safeTmdbBackdropSearch(title, year, episodes);
+            
+            if (tmdbResult) {
+              console.log(`[Hero Image] ✅ TMDB backdrop found for "${title}" (${tmdbResult.confidence}% match)`);
+              return {
+                ...tmdbResult,
+                poster: getJikanFallbackImage(anime).poster,  // Keep Jikan poster for info card
+              };
+            } else {
+              console.log(`[Hero Image] ❌ No TMDB match for "${title}"`);
+            }
+          } catch(e) {
+            console.error(`[Hero Image] 💥 Error in TMDB search for "${title}":`, e);
+          }
+          
+          // STEP 3: Fall back to Jikan large image (final fallback)
+          console.log(`[Hero Image] ⚠️ Using Jikan fallback for "${title}"`);
+          return getJikanFallbackImage(anime);
+        };
 
         // ── 4a) Map TMDB slides ─────────────────────────────────────────
         const tmdbSlides = top13Tmdb.map(t => ({
@@ -1841,48 +2138,74 @@ window.showAnikotoPopupById = function(mal_id) {
           infoHref:       `/info/tv/tmdb-tv-${t.id}/${(t.name||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')}`,
         }));
 
-        // ── 4b) Map AniList slides (using BANNER IMAGE for hero!) ─────────
-        const anilistSlides = top20Anilist.map(m => {
-          const internal = anilistToInternal(m);
-          return {
-            id:             `anilist-${m.id}`,
-            title:          internal.title,
-            source:         'anilist',
-            type:           'Anime',
-            genres:         internal.genres,
-            themes:         [],
-            score:          internal.score,
-            year:           String(internal.year),
-            duration:       internal.duration,
-            episodes:       String(internal.episodes),
-            synopsis:       internal.description?.slice(0, 320),
-            // Use BANNER IMAGE for hero slider background (user request!)
-            backdrop:       m.bannerImage || m.coverImage?.extraLarge || internal.poster,
-            backdrop_orig:  m.bannerImage || m.coverImage?.extraLarge || internal.poster,
-            backdrop_mobile:m.coverImage?.extraLarge || m.coverImage?.large || internal.poster,
-            poster:         internal.poster,
-            certification:  internal.rating,
-            studio:         internal.studio,
-            mal_id:         internal.mal_id,
-            anilist_id:     m.id,
-            status_color:   '#f472b6',  /* Pink for anime */
-            status_label:   '● Airing Now',
-            infoHref:       `/info/anime/anilist-${m.id}/${internal.slug}`,
-          };
-        }).filter(s => s.backdrop || s.backdrop_mobile);
+        // ── 4b) Map Jikan slides with HYBRID IMAGE RESOLUTION ─────────
+        // Use the image resolution pipeline: Anilist Banner → TMDB Backdrop → Jikan Fallback
+        console.log(`[Hero Image] Starting hybrid image resolution for ${top20Jikan.length} anime...`);
+        
+        // Resolve images for all anime in parallel (with concurrency limit)
+        const jikanSlidesWithImages = await Promise.all(
+          top20Jikan.map(async (a) => {
+            const slugify = t => (t||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+            const genres = (a.genres || []).map(g => g.name).filter(Boolean);
+            const themes = (a.themes || []).map(t => t.name).filter(Boolean);
+            const year = (a.airing_start || '').slice(0, 4) || new Date().getFullYear().toString();
+            
+            // ⭐ USE HYBRID PIPELINE for best quality image!
+            const imageData = await resolveAnimeImage(a);
+            
+            return {
+              id:             `jikan-${a.mal_id}`,
+              title:          a.title || 'Unknown Anime',
+              source:         'jikan',  // Metadata source is still Jikan
+              type:           a.type || 'Anime',
+              genres:         genres,
+              themes:         themes,
+              score:          a.score ? Number(a.score).toFixed(1) : 'N/A',
+              year:           year,
+              duration:       '',
+              episodes:       a.episodes ? String(a.episodes) : '?',
+              synopsis:       (a.synopsis || '').slice(0, 320),
+              // Hybrid resolved images!
+              backdrop:       imageData.backdrop,
+              backdrop_orig:  imageData.backdrop_orig,
+              backdrop_mobile:imageData.backdrop_mobile,
+              poster:         imageData.poster,  // Keep Jikan poster for info card
+              certification:  a.rating || 'TV-14',
+              studio:         a.producers?.[0]?.name || '',
+              mal_id:         a.mal_id,
+              anilist_id:     imageData.anilistId || null,
+              tmdb_image_id:  imageData.tmdbId || null,
+              image_source:   imageData.source,  // Track which source provided the image
+              image_confidence: imageData.confidence,
+              status_color:   '#38bdf8',  /* Sky blue - matches site theme! */
+              status_label:   '● Airing Now',
+              infoHref:       `/info/anime/jikan-${a.mal_id}/${slugify(a.title)}`,
+            };
+          })
+        );
+        
+        // Filter out any slides without valid images
+        const jikanSlides = jikanSlidesWithImages.filter(s => s.backdrop || s.backdrop_mobile);
+        
+        // Log image source distribution
+        const imageSources = {};
+        jikanSlides.forEach(s => {
+          imageSources[s.image_source] = (imageSources[s.image_source] || 0) + 1;
+        });
+        console.log(`[Hero Image] Resolution complete:`, imageSources);
 
         // ── 5) Merge: ANIME FIRST pattern ──────────────────────────────
-        // Total: 20 AniList + 13 TMDB = 33 slides
+        // Total: 20 Jikan + 13 TMDB = 33 slides
         // Pattern: Anime starts first, then alternates (Anime+TMDB)
-        // After all 13 TMDB used, continue with remaining AniList only
+        // After all 13 TMDB used, continue with remaining Jikan only
         const merged = [];
-        let tmdbIdx = 0, anilistIdx = 0;
+        let tmdbIdx = 0, jikanIdx = 0;
         
         // Phase 1: Alternate starting with ANIME FIRST
-        while (anilistIdx < anilistSlides.length && tmdbIdx < tmdbSlides.length) {
+        while (jikanIdx < jikanSlides.length && tmdbIdx < tmdbSlides.length) {
           // Always start with Anime on odd positions (0,2,4...)
-          if ((merged.length % 2 === 0 || tmdbIdx >= tmdbSlides.length) && anilistIdx < anilistSlides.length) {
-            merged.push(anilistSlides[anilistIdx++]);
+          if ((merged.length % 2 === 0 || tmdbIdx >= tmdbSlides.length) && jikanIdx < jikanSlides.length) {
+            merged.push(jikanSlides[jikanIdx++]);
           }
           // Then add TMDB on even positions (1,3,5...)
           if (tmdbIdx < tmdbSlides.length && (merged.length % 2 === 1)) {
@@ -1890,9 +2213,9 @@ window.showAnikotoPopupById = function(mal_id) {
           }
         }
         
-        // Phase 2: Add remaining AniList after TMDB is exhausted (positions 27-33)
-        while (anilistIdx < anilistSlides.length && merged.length < 33) {
-          merged.push(anilistSlides[anilistIdx++]);
+        // Phase 2: Add remaining Jikan after TMDB is exhausted (positions 27-33)
+        while (jikanIdx < jikanSlides.length && merged.length < 33) {
+          merged.push(jikanSlides[jikanIdx++]);
         }
         
         heroData = merged.slice(0, 33); // Ensure exactly 33 or fewer
@@ -1902,7 +2225,7 @@ window.showAnikotoPopupById = function(mal_id) {
           sessionStorage.setItem(HERO_CACHE_KEY, JSON.stringify({ data: heroData, ts: Date.now() }));
         } catch(e) {}
 
-        console.log(`[Hero] ${tmdbSlides.length} TMDB + ${anilistSlides.length} AniList = ${heroData.length} total slides`);
+        console.log(`[Hero] ${tmdbSlides.length} TMDB + ${jikanSlides.length} Jikan = ${heroData.length} total slides`);
         renderHero();
         if (window.AniCache && heroData.length > 0) {
           // Trim to essential fields only — keep payload small for DB storage
@@ -1937,7 +2260,7 @@ window.showAnikotoPopupById = function(mal_id) {
           const statusColor = s.status_color || 'var(--accent-blue)';
           const statusLabel = s.status_label || '● Airing';
           return `
-          <div class="slide" data-index="${i}"
+          <div class="slide${isAnime ? ' slide-anime' : ''}" data-index="${i}"${isAnime ? ' data-anime="true"' : ''}${s.image_source ? ` data-image-source="${s.image_source}"` : ''}
             style="background-image:url('${s.backdrop||s.poster}');"
             data-bg-mobile="${s.backdrop_mobile||s.poster}"
             data-bg-desktop="${s.backdrop||s.poster}"
@@ -2304,6 +2627,13 @@ window.showAnikotoPopupById = function(mal_id) {
           for (const m of anilistUpcoming.Page.media) {
             if (!m.isAdult) {
               const internal = anilistToInternal(m);
+              // Better fallbacks for upcoming anime where some data may be TBA
+              const studioName = internal.studio && internal.studio !== '?' ? internal.studio : 'TBA';
+              const durValue = internal.duration && internal.duration !== '?' ? internal.duration : 
+                (m.format === 'MOVIE' ? '1h 30m' : m.format === 'ONA' ? '24m' : '24m');
+              const yearVal = internal.year && internal.year !== '?' ? internal.year : 
+                (m.startDate?.year || m.seasonYear || 'TBA');
+              
               anilistUpAnime.push({
                 id:`anilist-up-${m.id}`,
                 title: internal.title,
@@ -2311,12 +2641,15 @@ window.showAnikotoPopupById = function(mal_id) {
                 type:'Anime',
                 poster: internal.poster,
                 score: internal.score,
-                genres: internal.genres,
-                releaseDate: `${internal.year}` || 'TBA',
-                synopsis: internal.description || '',
-                certification: internal.rating,
-                studio: internal.studio,
-                duration: internal.duration,
+                genres: internal.genres || [],
+                releaseDate: yearVal,
+                synopsis: internal.description || 'No synopsis available.',
+                certification: internal.rating || 'PG-13',
+                studio: studioName,
+                duration: durValue,
+                year: yearVal,
+                episodes: m.episodes || '?',
+                format: m.format || 'TV',
                 mal_id: internal.mal_id,
                 anilist_id: m.id
               });
@@ -2346,16 +2679,22 @@ window.showAnikotoPopupById = function(mal_id) {
           pageSource:'index', section:'upcoming', data:upcomingShows, itemCount:upcomingShows.length }).catch(()=>{});
       }
       function renderUpcoming() {
-        document.getElementById('upcomingScroll').innerHTML = upcomingShows.map(s => `
-          <a href="${infoUrl(s)}" class="show-card-horiz" onmouseenter="showPopup(event,'${s.id}')" onmouseleave="window.popupTimer=setTimeout(hidePopup,500)">
-            <div class="card-poster" style="background-image:url('${s.poster}');">
-              <span class="poster-status-badge">HD</span>
+        document.getElementById('upcomingScroll').innerHTML = upcomingShows.map(s => {
+          // Check for valid poster - show No Image placeholder if missing
+          const hasPoster = s.poster && s.poster !== '' && s.poster !== 'null' && s.poster !== 'undefined';
+          const posterStyle = hasPoster ? `background-image:url('${s.poster}');` : 'background:linear-gradient(135deg, #1e293b 0%, #334155 100%);';
+          const noImageClass = hasPoster ? '' : 'no-image';
+          
+          return `<a href="${infoUrl(s)}" class="show-card-horiz" onmouseenter="showPopup(event,'${s.id}')" onmouseleave="window.popupTimer=setTimeout(hidePopup,500)">
+            <div class="card-poster ${noImageClass}" style="${posterStyle}">
+              <span class="poster-status-badge">${s.type || 'HD'}</span>
               <span class="poster-rating-badge"><i class="fas fa-star"></i> ${s.score}</span>
               <div class="play-overlay"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" fill="white"/></svg></div>
             </div>
             <h3 class="card-title">${s.title}</h3>
             <div class="card-meta-sm"><i class="fas fa-star"></i> ${s.score} · ${s.type} · ${s.releaseDate||'TBA'}</div>
-          </a>`).join('');
+          </a>`;
+        }).join('');
       }
       document.getElementById('upcomingLeft').addEventListener('click', ()=> document.getElementById('upcomingScroll').scrollBy({left:-400}));
       document.getElementById('upcomingRight').addEventListener('click', ()=> document.getElementById('upcomingScroll').scrollBy({left:400}));
@@ -2759,26 +3098,26 @@ window.showAnikotoPopupById = function(mal_id) {
   const scoreLabel = show.type === 'Anime' ? 'MAL' : 'TMDB';
   const starIcon = '<i class="fas fa-star" style="color:var(--accent-gold)"></i>';
 
-  // Build duration safely — never produce "undefinedm"
-  const rawDuration = show.duration || (show.episode_run_time?.length ? show.episode_run_time[0] + 'm/ep' : null);
-  const safeYear    = show.year || (show.release_date||show.first_air_date||'').slice(0,4) || '';
+  // Build duration safely — never produce "undefinedm" or "?"
+  const rawDuration = (show.duration && show.duration !== '?' && show.duration !== 'undefined') 
+    ? show.duration 
+    : (show.episode_run_time?.length ? show.episode_run_time[0] + 'm/ep' : null);
+  // Safe year extraction with fallbacks
+  let safeYear = show.year || (show.release_date||show.first_air_date||'').slice(0,4) || '';
+  if (!safeYear || safeYear === '?') safeYear = show.releaseDate || 'TBA';
+  if (safeYear === '?') safeYear = 'TBA';
   const safeCert    = show.certification || (show.type === 'TV' ? 'TV-14' : 'PG-13');
-
-  const metaPills = [
-    show.type,
-    safeCert,
-    safeYear || null,
-    rawDuration || null,
-    show.studio && show.studio !== '—' ? show.studio : null,
-  ].filter(Boolean);
+  
+  // Studio: filter out "?", "—", and empty values
+  const safeStudio = show.studio && show.studio !== '?' && show.studio !== '—' && show.studio !== 'undefined' ? show.studio : null;
 
   const metaHtml = `
-    <span class="meta-pill">${metaPills[0] || ''}</span>
+    <span class="meta-pill">${show.type || 'Unknown'}</span>
     <span class="meta-pill">${safeCert}</span>
     <span class="meta-pill">${scoreLabel} ${starIcon} ${show.score || 'N/A'}</span>
     ${rawDuration ? `<span class="meta-pill"><i class="fas fa-clock" style="opacity:.7"></i> ${rawDuration}</span>` : ''}
-    ${safeYear ? `<span class="meta-pill"><i class="fas fa-calendar-alt" style="opacity:.7"></i> ${safeYear}</span>` : ''}
-    ${show.studio && show.studio !== '—' ? `<span class="meta-pill">${show.studio}</span>` : ''}
+    ${safeYear && safeYear !== '?' ? `<span class="meta-pill"><i class="fas fa-calendar-alt" style="opacity:.7"></i> ${safeYear}</span>` : ''}
+    ${safeStudio ? `<span class="meta-pill">${safeStudio}</span>` : ''}
   `;
   const genresHtml = (show.genres || []).filter(Boolean).map(g =>
     `<a href="/search?genre=${encodeURIComponent(g)}" class="genre-pill">${g}</a>`
