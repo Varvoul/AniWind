@@ -2604,7 +2604,7 @@ window.showAnikotoPopupById = function(mal_id) {
         }
       });
 
-      /* ── POPULAR (sidebar) — TMDB only (movies + TV), no Jikan ── */
+      /* ── POPULAR (sidebar) — Mix of TMDB + AniList popular ── */
       let popularData = [];
       async function loadPopular() {
         if (window.AniCache) {
@@ -2622,31 +2622,68 @@ window.showAnikotoPopupById = function(mal_id) {
           }
         }
         
-        // Fetch 13 most popular anime from AniList (replacing TMDB movies/TV)
-        const anilistPop = await fetchAniList(`
-          query ($perPage: Int) {
-            Page(page: 1, perPage: $perPage) {
-              media(type: ANIME, isAdult: false, sort: [POPULARITY_DESC]) {
-                ${ANILIST_ANIME_FIELDS}
+        // Fetch BOTH TMDB and AniList for mixed results
+        const [tmdbMovies, tmdbTV, anilistPop] = await Promise.all([
+          fetchTMDB('/discover/movie', 'sort_by=vote_count.desc&vote_count.gte=5000&language=en-US&page=1'),
+          fetchTMDB('/discover/tv',    'sort_by=vote_count.desc&vote_count.gte=2000&language=en-US&page=1'),
+          // AniList: 8 most popular anime
+          fetchAniList(`
+            query ($perPage: Int) {
+              Page(page: 1, perPage: $perPage) {
+                media(type: ANIME, isAdult: false, sort: [POPULARITY_DESC]) {
+                  ${ANILIST_ANIME_FIELDS}
+                }
               }
             }
-          }
-        `, { perPage: 15 });
+          `, { perPage: 10 })
+        ]);
         
-        // Convert to sidebar format
-        const data = [];
+        const allMovies = tmdbMovies.results || [];
+        const allTV     = tmdbTV.results || [];
+
+        // TMDB items (movies + TV)
+        const tmdbItems = [
+          ...allMovies.slice(0, 5).map(i => ({
+            id:`tmdb-pop-${i.id}`,
+            title: i.title||'Unknown',
+            poster: tmdbImg(i.poster_path, 'w185'),
+            type: 'Movie',
+            score: i.vote_average ? Number(i.vote_average).toFixed(1) : 'N/A',
+            year: (i.release_date||'').slice(0,4) || '—',
+            certification: 'PG-13',
+            duration: i.runtime ? `${i.runtime} min` : '—',
+            genres: (i.genre_ids||[]).map(id => GENRE_MAP[id]).filter(Boolean),
+            synopsis: i.overview || 'No description available.',
+            studio: '—',
+          })),
+          ...allTV.slice(0, 5).map(i => ({
+            id:`tmdb-tvpop-${i.id}`,
+            title: i.name||'Unknown',
+            poster: tmdbImg(i.poster_path, 'w185'),
+            type: 'TV',
+            score: i.vote_average ? Number(i.vote_average).toFixed(1) : 'N/A',
+            year: (i.first_air_date||'').slice(0,4) || '—',
+            certification: 'TV-14',
+            duration: '—',
+            genres: (i.genre_ids||[]).map(id => GENRE_MAP[id]).filter(Boolean),
+            synopsis: i.overview || 'No description available.',
+            studio: (i.networks||[])[0]?.name || '—',
+          }))
+        ];
+        
+        // AniList items (8 popular anime)
+        const anilistItems = [];
         if (anilistPop?.Page?.media) {
-          for (const m of anilistPop.Page.media.slice(0, 13)) {
+          for (const m of anilistPop.Page.media.slice(0, 8)) {
             if (!m.isAdult) {
               const internal = anilistToInternal(m);
-              data.push({
+              anilistItems.push({
                 id: `anilist-pop-${m.id}`,
                 title: internal.title,
                 poster: internal.poster,
                 type: 'Anime',
                 score: internal.score,
                 year: String(internal.year),
-                rank: data.length + 1,
                 certification: internal.rating,
                 duration: internal.duration,
                 genres: internal.genres,
@@ -2654,13 +2691,30 @@ window.showAnikotoPopupById = function(mal_id) {
                 studio: internal.studio,
                 mal_id: internal.mal_id,
                 anilist_id: m.id,
-                status: internal.status,
-                episodes: String(internal.episodes),
               });
             }
           }
         }
+
+        // Interleave: Anime first, then TMDB, alternating
+        // Pattern: Anime, TMDB Movie, Anime, TMDB TV, repeat...
+        const merged = [];
+        let tmdbIdx = 0, anilistIdx = 0;
         
+        while ((tmdbIdx < tmdbItems.length || anilistIdx < anilistItems.length) && merged.length < 13) {
+          // Start with Anime on odd positions
+          if (anilistIdx < anilistItems.length && (merged.length % 2 === 0)) {
+            merged.push(anilistItems[anilistIdx++]);
+          } else if (tmdbIdx < tmdbItems.length) {
+            merged.push(tmdbItems[tmdbIdx++]);
+          } else if (anilistIdx < anilistItems.length) {
+            // If TMDB exhausted, add remaining anime
+            merged.push(anilistItems[anilistIdx++]);
+          }
+        }
+        
+        const data = dedupById(merged, 'id').slice(0, 13);
+        data.forEach((item, i) => item.rank = i + 1);
         popularData = data;
 
         document.getElementById('popularList').innerHTML = data.map(s => `
