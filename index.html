@@ -2032,31 +2032,46 @@ window.showAnikotoPopupById = function(mal_id) {
           const { mal_id, title, episodes, airing_start } = anime;
           const year = (airing_start || '').slice(0, 4);
           
-          // STEP 1: Try Anilist first (primary - has proper banners!)
-          const anilistResult = await fetchAnilistBanner(mal_id, title);
+          console.log(`[Hero Image] 🔍 Resolving image for: "${title}" (mal_id: ${mal_id})`);
           
-          if (anilistResult?.bannerImage) {
-            console.log(`[Hero Image] ✅ Anilist banner found for "${title}" (${anilistResult.source})`);
-            return {
-              backdrop: anilistResult.bannerImage,
-              backdrop_orig: anilistResult.bannerImage,
-              backdrop_mobile: anilistResult.bannerImage,
-              poster: getJikanFallbackImage(anime).poster,  // Keep Jikan poster for info card
-              source: anilistResult.source,
-              confidence: anilistResult.confidence,
-              anilistId: anilistResult.anilistId
-            };
+          // STEP 1: Try Anilist first (primary - has proper banners!)
+          try {
+            const anilistResult = await fetchAnilistBanner(mal_id, title);
+            
+            if (anilistResult?.bannerImage) {
+              console.log(`[Hero Image] ✅ Anilist banner found for "${title}" (${anilistResult.source}, confidence: ${anilistResult.confidence}%)`);
+              console.log(`[Hero Image]    Banner URL: ${anilistResult.bannerImage.substring(0, 80)}...`);
+              return {
+                backdrop: anilistResult.bannerImage,
+                backdrop_orig: anilistResult.bannerImage,
+                backdrop_mobile: anilistResult.bannerImage,
+                poster: getJikanFallbackImage(anime).poster,  // Keep Jikan poster for info card
+                source: anilistResult.source,
+                confidence: anilistResult.confidence,
+                anilistId: anilistResult.anilistId
+              };
+            } else {
+              console.log(`[Hero Image] ❌ No Anilist banner for "${title}" (result: ${JSON.stringify(anilistResult)})`);
+            }
+          } catch(e) {
+            console.error(`[Hero Image] 💥 Error in Anilist lookup for "${title}":`, e);
           }
           
           // STEP 2: Try safe TMDB search (secondary - has backdrops!)
-          const tmdbResult = await safeTmdbBackdropSearch(title, year, episodes);
-          
-          if (tmdbResult) {
-            console.log(`[Hero Image] ✅ TMDB backdrop found for "${title}" (${tmdbResult.confidence}% match)`);
-            return {
-              ...tmdbResult,
-              poster: getJikanFallbackImage(anime).poster,  // Keep Jikan poster for info card
-            };
+          try {
+            const tmdbResult = await safeTmdbBackdropSearch(title, year, episodes);
+            
+            if (tmdbResult) {
+              console.log(`[Hero Image] ✅ TMDB backdrop found for "${title}" (${tmdbResult.confidence}% match)`);
+              return {
+                ...tmdbResult,
+                poster: getJikanFallbackImage(anime).poster,  // Keep Jikan poster for info card
+              };
+            } else {
+              console.log(`[Hero Image] ❌ No TMDB match for "${title}"`);
+            }
+          } catch(e) {
+            console.error(`[Hero Image] 💥 Error in TMDB search for "${title}":`, e);
           }
           
           // STEP 3: Fall back to Jikan large image (final fallback)
