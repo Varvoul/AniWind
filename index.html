@@ -1155,21 +1155,25 @@
   white-space: nowrap;
 }
 .schedule-more-btn {
-  width: 100%;
-  padding: 10px 14px;
+  width: 92%;
+  max-width: 280px;
+  padding: 12px 20px;
   background: linear-gradient(135deg, var(--bg-surface) 0%, rgba(43, 108, 176, 0.15) 100%);
   border: 1px dashed var(--btn-primary);
   border-radius: var(--radius-md);
   color: var(--accent-blue);
-  font-size: 0.75rem;
+  font-size: 0.82rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-  margin-top: 10px;
+  margin-top: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
+  margin-left: auto;
+  margin-right: auto;
+  letter-spacing: 0.3px;
 }
 .schedule-more-btn i {
   transition: transform 0.3s ease;
@@ -1185,8 +1189,8 @@
   transform: rotate(180deg);
 }
 .esw-body {
-  padding: 8px 10px;
-  max-height: 500px;
+  padding: 10px 12px;
+  max-height: 580px;
   overflow-y: auto;
 }
 
@@ -1229,8 +1233,8 @@
       .esw-dc-day { font-size: 1rem; }
       .esw-dc-weekday { font-size: 0.45rem; }
       .esw-body { 
-        max-height: 350px; 
-        min-height: 150px;
+        max-height: 420px; 
+        min-height: 180px;
         padding: 8px 8px;
       }
       .schedule-row {
@@ -1244,6 +1248,12 @@
       .schedule-time { font-size: 0.7rem; padding: 3px 6px; }
       .schedule-ep { font-size: 0.65rem; padding: 3px 8px; }
       .esw-more-btn { padding: 8px 12px; font-size: 0.7rem; }
+      .schedule-more-btn {
+        width: 94%;
+        max-width: 240px;
+        padding: 10px 16px;
+        font-size: 0.78rem;
+      }
     }
     
     @media (max-width: 480px) {
@@ -1266,7 +1276,7 @@
       }
       .schedule-poster img { width: 32px; height: 44px; }
       .schedule-title { font-size: 0.72rem; }
-      .esw-body { max-height: 300px; padding: 6px; }
+      .esw-body { max-height: 360px; padding: 6px; }
     }
     .country-link:hover {
       color: #3675a8 !important;
@@ -3688,26 +3698,44 @@ window.showAnikotoPopupById = function(mal_id) {
         return data;
       }
 
-      // ---------- Episode number calculation (unchanged) ----------
+      // ---------- Enhanced Episode number calculation ----------
       function getEpisodeNumber(anime) {
+        // If finished airing, show total episodes
         if (anime.status === 'Finished Airing') return anime.episodes || '?';
-        const broadcast = anime.broadcast;
-        if (!broadcast || !broadcast.time) return '?';
-        const timeMatch = broadcast.time.match(/(\d{1,2}):(\d{2})/);
-        if (!timeMatch) return '?';
-        const [_, hour, minute] = timeMatch;
-        const broadcastHour = parseInt(hour);
-        const broadcastMinute = parseInt(minute);
-        const firstAir = anime.aired?.from ? new Date(anime.aired.from) : null;
-        if (!firstAir) return '?';
+        
         const now = new Date();
-        const currentDate = new Date(now);
-        currentDate.setHours(broadcastHour, broadcastMinute, 0, 0);
-        const diffMs = currentDate - firstAir;
-        const weeksPassed = Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000));
-        let episode = weeksPassed + 1;
-        if (anime.episodes && episode > anime.episodes) episode = anime.episodes;
-        return episode;
+        const firstAir = anime.aired?.from ? new Date(anime.aired.from) : null;
+        
+        // Method 1: Calculate from aired_from date (most reliable)
+        if (firstAir && !isNaN(firstAir.getTime())) {
+          const diffMs = now - firstAir;
+          const daysPassed = Math.floor(diffMs / (24 * 60 * 60 * 1000));
+          // Most anime air weekly, so estimate episode from weeks
+          // Add grace period of 2 days for airing delays
+          let episode = Math.floor((daysPassed + 2) / 7) + 1;
+          // Cap at total episodes if known
+          if (anime.episodes && episode > anime.episodes) {
+            episode = anime.episodes;
+          }
+          // Don't show negative or zero
+          if (episode < 1) episode = 1;
+          // Only show if anime has started airing
+          if (daysPassed >= -7) return episode;
+        }
+        
+        // Method 2: Fallback to episodes count if available
+        if (anime.episodes && anime.episodes > 0) {
+          // Check if it's currently airing based on status
+          if (anime.status === 'Currently Airing') {
+            // Estimate: assume ~12-13 week seasons for ongoing
+            const estimatedEp = Math.min(anime.episodes, 13);
+            return `${estimatedEp}+`;
+          }
+          return anime.episodes;
+        }
+        
+        // Method 3: Return TBA if we really can't determine
+        return 'TBA';
       }
 
       // ---------- Render schedule for a given day (from scheduleData) ----------
@@ -3742,7 +3770,23 @@ window.showAnikotoPopupById = function(mal_id) {
           const poster = anime.images?.webp?.large_image_url || 
                          anime.images?.jpg?.large_image_url || 
                          anime.images?.jpg?.image_url || '';
-          const broadcastTime = anime.broadcast?.time || 'TBA';
+          // Enhanced broadcast time handling
+          let broadcastTime = '—';
+          if (anime.broadcast?.time) {
+            // Ensure 24h format (Jikan should already return this)
+            const timeStr = anime.broadcast.time.trim();
+            const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})/);
+            if (timeMatch) {
+              const h = parseInt(timeMatch[1]).toString().padStart(2, '0');
+              const m = timeMatch[2];
+              broadcastTime = `${h}:${m}`;
+            } else {
+              broadcastTime = timeStr;
+            }
+          } else if (anime.broadcast?.day) {
+            // If we have day but no time, show the day
+            broadcastTime = anime.broadcast.day.slice(0, 3);
+          }
 
           return `
             <a href="${watchUrl}" class="schedule-row">
