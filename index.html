@@ -94,18 +94,45 @@
     .slide[data-anime="true"] {
       background-position: center 20%;
     }
-    /* Anime slide enhancement - reduce blur perception on poster images */
-    .slide-anime {
-      filter: contrast(1.05) saturate(1.1);
+    
+    /* ════════════════════════════════════════════════════════════
+       ANILIST BANNER DISPLAY - Default Size (No Stretch!)
+       Anilist banners are ~1000x380px (wide but short)
+       Show at natural aspect ratio, no vertical stretching
+       ════════════════════════════════════════════════════════════ */
+    .slide[data-image-source*="anilist"] {
+      background-size: auto 100%;        /* Fit width, maintain aspect ratio */
+      background-repeat: no-repeat;
+      background-position: center top;   /* Align to top */
+      animation: kenburns-banner 14s ease-in-out infinite alternate;
     }
-    .slide-anime::before {
+    
+    /* Gradient overlay for area below Anilist banner (fills empty space) */
+    .slide[data-image-source*="anilist"]::before {
       content: '';
       position: absolute;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: inherit;
-      filter: blur(0) contrast(1.1);
-      z-index: 0;
-      opacity: 0.3;
+      bottom: 0; left: 0; right: 0;
+      height: 60%;  /* Cover lower portion where banner doesn't reach */
+      background: linear-gradient(
+        to top,
+        var(--bg-body) 0%,
+        rgba(10, 25, 41, 0.95) 30%,
+        rgba(10, 25, 41, 0.7) 60%,
+        transparent 100%
+      );
+      z-index: 1;
+      pointer-events: none;
+    }
+    
+    /* Subtle Ken Burns effect for banners (horizontal pan only) */
+    @keyframes kenburns-banner {
+      0%   { background-size: auto 100%; transform: translateX(0); }
+      100% { background-size: auto 105%; transform: translateX(-2%); }  /* Gentle right pan */
+    }
+    
+    /* Anime slide enhancement for non-Anilist sources (TMDB/Jikan fallback) */
+    .slide-anime:not([data-image-source*="anilist"]) {
+      filter: contrast(1.05) saturate(1.1);
     }
     .slide::after {
       content: '';
@@ -2184,7 +2211,7 @@ window.showAnikotoPopupById = function(mal_id) {
           const statusColor = s.status_color || 'var(--accent-blue)';
           const statusLabel = s.status_label || '● Airing';
           return `
-          <div class="slide${isAnime ? ' slide-anime' : ''}" data-index="${i}"${isAnime ? ' data-anime="true"' : ''}
+          <div class="slide${isAnime ? ' slide-anime' : ''}" data-index="${i}"${isAnime ? ' data-anime="true"' : ''}${s.image_source ? ` data-image-source="${s.image_source}"` : ''}
             style="background-image:url('${s.backdrop||s.poster}');"
             data-bg-mobile="${s.backdrop_mobile||s.poster}"
             data-bg-desktop="${s.backdrop||s.poster}"
