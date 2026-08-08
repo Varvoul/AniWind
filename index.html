@@ -2669,16 +2669,22 @@ window.showAnikotoPopupById = function(mal_id) {
           pageSource:'index', section:'upcoming', data:upcomingShows, itemCount:upcomingShows.length }).catch(()=>{});
       }
       function renderUpcoming() {
-        document.getElementById('upcomingScroll').innerHTML = upcomingShows.map(s => `
-          <a href="${infoUrl(s)}" class="show-card-horiz" onmouseenter="showPopup(event,'${s.id}')" onmouseleave="window.popupTimer=setTimeout(hidePopup,500)">
-            <div class="card-poster" style="background-image:url('${s.poster}');">
-              <span class="poster-status-badge">HD</span>
+        document.getElementById('upcomingScroll').innerHTML = upcomingShows.map(s => {
+          // Check for valid poster - show No Image placeholder if missing
+          const hasPoster = s.poster && s.poster !== '' && s.poster !== 'null' && s.poster !== 'undefined';
+          const posterStyle = hasPoster ? `background-image:url('${s.poster}');` : 'background:linear-gradient(135deg, #1e293b 0%, #334155 100%);';
+          const noImageClass = hasPoster ? '' : 'no-image';
+          
+          return `<a href="${infoUrl(s)}" class="show-card-horiz" onmouseenter="showPopup(event,'${s.id}')" onmouseleave="window.popupTimer=setTimeout(hidePopup,500)">
+            <div class="card-poster ${noImageClass}" style="${posterStyle}">
+              <span class="poster-status-badge">${s.type || 'HD'}</span>
               <span class="poster-rating-badge"><i class="fas fa-star"></i> ${s.score}</span>
               <div class="play-overlay"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" fill="white"/></svg></div>
             </div>
             <h3 class="card-title">${s.title}</h3>
             <div class="card-meta-sm"><i class="fas fa-star"></i> ${s.score} · ${s.type} · ${s.releaseDate||'TBA'}</div>
-          </a>`).join('');
+          </a>`;
+        }).join('');
       }
       document.getElementById('upcomingLeft').addEventListener('click', ()=> document.getElementById('upcomingScroll').scrollBy({left:-400}));
       document.getElementById('upcomingRight').addEventListener('click', ()=> document.getElementById('upcomingScroll').scrollBy({left:400}));
