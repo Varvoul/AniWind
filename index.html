@@ -1119,7 +1119,8 @@
       const ANIUMI_PROXY  = 'https://aniumi.bionmovies47.workers.dev';
       /* Direct fallback URLs (used if proxy is unavailable) */
       const JIKAN_BASE    = 'https://api.jikan.moe/v4';
-      const TMDB_LEGACY   = 'https://aniocen.bionmovies47.workers.dev'; // working TMDB proxy
+      const TMDB_PROXY    = 'https://t-umi.bionmovies47.workers.dev'; // NEW primary TMDB proxy
+      const TMDB_LEGACY   = 'https://aniocen.bionmovies47.workers.dev'; // legacy TMDB proxy (fallback)
       const ANIKOTO_API   = 'https://anikoto.bionmovies47.workers.dev'; // direct anikoto fallback
       const TMDB_IMAGE = 'https://image.tmdb.org/t/p';
       const tmdbImg = (p,s='w500') => p ? `${TMDB_IMAGE}/${s}${p}` : '';
@@ -1195,7 +1196,15 @@
 
       async function fetchTMDB(endpoint, params='') {
         const qs = params ? `?${params}` : '';
-        // 1) aniocen worker — confirmed working, handles TMDB auth server-side
+        // 1) NEW PRIMARY: t-umi proxy — optimized TMDB proxy
+        try {
+          const res = await fetch(`${TMDB_PROXY}${endpoint}${qs}`, {
+            headers: { Accept: 'application/json' },
+            signal: AbortSignal.timeout(10000)
+          });
+          if (res.ok) return await res.json();
+        } catch(e) {}
+        // 2) Legacy aniocen worker — confirmed working, handles TMDB auth server-side
         try {
           const res = await fetch(`${TMDB_LEGACY}/3${endpoint}${qs}`, {
             headers: { Accept: 'application/json' },
@@ -1203,7 +1212,7 @@
           });
           if (res.ok) return await res.json();
         } catch(e) {}
-        // 2) Direct TMDB API — guaranteed fallback with Bearer token
+        // 3) Direct TMDB API — guaranteed fallback with Bearer token
         try {
           const res = await fetch(`https://api.themoviedb.org/3${endpoint}${qs}`, {
             headers: {
@@ -1214,7 +1223,7 @@
           });
           if (res.ok) return await res.json();
         } catch(e) {}
-        // 3) aniumi universal proxy (last resort — may not have TMDB_API_KEY set)
+        // 4) aniumi universal proxy (last resort — may not have TMDB_API_KEY set)
         try {
           const res = await fetch(`${ANIUMI_PROXY}/tmdb${endpoint}${qs}`, {
             headers: { Accept: 'application/json' },
@@ -1501,8 +1510,55 @@ async function loadNewAniocean() {
     console.error('✗ Jikan fallback also failed:', error);
   }
 
-  // Both sources failed
-  grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-muted)">Unable to load recent anime. Please try again later.</div>';
+  // ----- FINAL FALLBACK: TMDB t-umi proxy for anime-style TV shows -----
+  console.log('[New on Aniumi] Trying TMDB t-umi proxy as final fallback...');
+  try {
+    const [tmdbAnime1, tmdbAnime2, tmdbAnime3] = await Promise.all([
+      fetchTMDB('/tv/on_the_air', `page=1`),
+      fetchTMDB('/tv/on_the_air', `page=2`),
+      fetchTMDB('/discover/tv', `with_genres=16&sort_by=first_air_date.desc&page=1`) // Animation genre
+    ]);
+    
+    const allTmdbAnime = [
+      ...(tmdbAnime1.results || []),
+      ...(tmdbAnime2.results || []),
+      ...(tmdbAnime3.results || [])
+    ];
+    
+    if (allTmdbAnime.length > 0) {
+      const formattedTmdb = allTmdbAnime.slice(0, 50).map(i => ({
+        mal_id: `tmdb-${i.id}`,
+        title: i.name,
+        slug: (i.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''),
+        poster: i.poster_path ? tmdbImg(i.poster_path) : '',
+        score: (i.vote_average || 0).toFixed(1),
+        type: 'TV',
+        rating: 'PG-13',
+        description: i.overview || 'No description available.',
+        year: (i.first_air_date || '').slice(0, 4) || '?',
+        duration: '24m',
+        genres: ['Animation'],
+        studio: (i.networks || [])[0]?.name || '?',
+        is_sub: 1,
+        is_dub: 0
+      }));
+      
+      // Deduplicate by mal_id
+      const uniqueTmdb = dedupById(formattedTmdb, 'mal_id');
+      
+      if (renderAnimeList(uniqueTmdb)) {
+        console.log(`✓ Loaded ${uniqueTmdb.length} shows from TMDB fallback for "New on Aniocean"`);
+        if (window.AniCache) window.AniCache.set({ cacheKey:'index:new_on_aniumi', pageSource:'index',
+          section:'new_on_aniumi', data: uniqueTmdb, itemCount: uniqueTmdb.length }).catch(()=>{});
+        return;
+      }
+    }
+  } catch (tmdbError) {
+    console.error('✗ TMDB fallback also failed:', tmdbError);
+  }
+
+  // All sources failed - show error message using renderAnimeList with empty array
+  renderAnimeList([]);
 }
 
       /* ── ANIKOTO STYLE POPUP ── */
@@ -1592,9 +1648,10 @@ window.showAnikotoPopupById = function(mal_id) {
           Promise.allSettled(jikanPages.map(p =>
             fetchJikan('top/anime', `filter=airing&type=tv&order_by=popularity&sort=asc&limit=25&page=${p}&sfw=true`)
           )),
-          fetchTMDB('/tv/on_the_air', 'language=en-US&page=1'),
-          fetchTMDB('/tv/on_the_air', 'language=en-US&page=2'),
-          fetchTMDB('/tv/on_the_air', 'language=en-US&page=3'),
+          // Using NEW t-umi proxy: /tv/on_the_air?page=N&sort_by=popularity.desc
+          fetchTMDB('/tv/on_the_air', `page=1&sort_by=popularity.desc`),
+          fetchTMDB('/tv/on_the_air', `page=2&sort_by=popularity.desc`),
+          fetchTMDB('/tv/on_the_air', `page=3&sort_by=popularity.desc`),
         ]);
 
         // Collect Jikan anime
@@ -1945,12 +2002,12 @@ window.showAnikotoPopupById = function(mal_id) {
         const cols = calcColsForGrid();
         const TARGET_SHOWS = TARGET_ROWS * cols; // 42-48 shows
         
-        // Fetch MORE pages to fill 6 rows
+        // Fetch MORE pages to fill 6 rows - Using NEW t-umi proxy
         const [nowMovies, nowMovies2, onAirTv, onAirTv2, jikanNow1, jikanNow2, jikanNow3] = await Promise.all([
-          fetchTMDB('/movie/now_playing', 'language=en-US&page=1'),
-          fetchTMDB('/movie/now_playing', 'language=en-US&page=2'),
-          fetchTMDB('/tv/on_the_air', 'language=en-US&page=1'),
-          fetchTMDB('/tv/on_the_air', 'language=en-US&page=2'),
+          fetchTMDB('/movie/now_playing', `page=1`),
+          fetchTMDB('/movie/now_playing', `page=2`),
+          fetchTMDB('/tv/on_the_air', `page=1`),
+          fetchTMDB('/tv/on_the_air', `page=2`),
           fetchJikan('seasons/now', 'limit=25&page=1'),
           fetchJikan('seasons/now', 'limit=25&page=2'),
           fetchJikan('seasons/now', 'limit=25&page=3')
@@ -2073,22 +2130,46 @@ window.showAnikotoPopupById = function(mal_id) {
             return;
           }
         }
-        const [tmdbUp, jikanUp1, jikanUp2, jikanUp3] = await Promise.all([
-          fetchTMDB('/movie/upcoming', 'language=en-US&page=1'),
+        // Dynamic date range for upcoming TV: next 3 months from today
+        const now = new Date();
+        const startDate = new Date(now.getFullYear(), now.getMonth(), 1); // 1st of current month
+        const endDate = new Date(now.getFullYear(), now.getMonth() + 3, 0); // last day of 3rd month
+        const formatDate = (d) => d.toISOString().split('T')[0];
+        
+        // Using NEW t-umi proxy: /movie/upcoming?page=N and /discover/tv with dynamic dates
+        const [tmdbUp1, tmdbUp2, tmdbUp3, tmdbUpTv1, tmdbUpTv2, tmdbUpTv3, jikanUp1, jikanUp2, jikanUp3] = await Promise.all([
+          fetchTMDB('/movie/upcoming', `page=1`),
+          fetchTMDB('/movie/upcoming', `page=2`),
+          fetchTMDB('/movie/upcoming', `page=3`),
+          fetchTMDB('/discover/tv', `first_air_date.gte=${formatDate(startDate)}&first_air_date.lte=${formatDate(endDate)}&sort_by=first_air_date.asc&page=1`),
+          fetchTMDB('/discover/tv', `first_air_date.gte=${formatDate(startDate)}&first_air_date.lte=${formatDate(endDate)}&sort_by=first_air_date.asc&page=2`),
+          fetchTMDB('/discover/tv', `first_air_date.gte=${formatDate(startDate)}&first_air_date.lte=${formatDate(endDate)}&sort_by=first_air_date.asc&page=3`),
           fetchJikan('top/anime', 'filter=upcoming&limit=25&page=1'),
           fetchJikan('top/anime', 'filter=upcoming&limit=25&page=2'),
           fetchJikan('top/anime', 'filter=upcoming&limit=25&page=3')
         ]);
+        
+        // Merge TMDB movie pages
+        const allTmdbMovies = [...(tmdbUp1.results||[]), ...(tmdbUp2.results||[]), ...(tmdbUp3.results||[])];
+        // Merge TMDB TV pages  
+        const allTmdbTV = [...(tmdbUpTv1.results||[]), ...(tmdbUpTv2.results||[]), ...(tmdbUpTv3.results||[])];
         // Merge and deduplicate Jikan upcoming
         const allJikanUp = [...(jikanUp1.data||[]), ...(jikanUp2.data||[]), ...(jikanUp3.data||[])];
         const jikanUpUnique = dedupById(allJikanUp, 'mal_id');
         upcomingShows = dedupById([
-          ...(tmdbUp.results||[]).slice(0,40).map(i => ({
+          ...allTmdbMovies.slice(0,40).map(i => ({
             id:`tmdb-up-${i.id}`, title:i.title, original_title:i.original_title||i.title,
             type:'Movie', poster:tmdbImg(i.poster_path), score:(i.vote_average||0).toFixed(1),
             genres:(i.genre_ids||[]).map(id=>GENRE_MAP[id]||id), releaseDate:i.release_date||'',
             synopsis:i.overview||'', certification: i.adult?'18+':'PG-13',
             studio:'?', backdrop:tmdbBack(i.backdrop_path), duration:'2h 10m'
+          })),
+          ...allTmdbTV.slice(0,20).map(i => ({
+            id:`tmdb-up-tv-${i.id}`, title:i.name, original_title:i.original_name||i.name,
+            type:'TV', poster:tmdbImg(i.poster_path), score:(i.vote_average||0).toFixed(1),
+            genres:(i.genre_ids||[]).map(id=>GENRE_MAP[id]||id), releaseDate:i.first_air_date||'',
+            synopsis:i.overview||'', certification:'PG-13',
+            studio:(i.networks||[])[0]?.name||'?', backdrop:tmdbBack(i.backdrop_path), duration:'45m'
           })),
           ...jikanUpUnique.map(a => ({
             id:`jikan-up-${a.mal_id}`, title:a.title_english||a.title, original_title:a.title_japanese||a.title,
@@ -2154,13 +2235,12 @@ window.showAnikotoPopupById = function(mal_id) {
         const TARGET_SHOWS = TARGET_ROWS * cols;  // e.g., 6×7=42, 6×8=48
         
         // Fetch MULTIPLE pages to ensure enough data for 6 rows
-        // Need at least TARGET_SHOWS items from each source after dedup
-        const PAGES_TO_FETCH = Math.ceil(TARGET_SHOWS / 20) + 1; // ~3-4 pages
+        // Using NEW t-umi proxy: /discover/tv?sort_by=first_air_date.desc&page=N
         
         const [tv, tv2, tv3, anime, anime2, anime3, anime4] = await Promise.all([
-          fetchTMDB('/discover/tv', `with_status=3&air_date.lte=${today}&sort_by=first_air_date.desc&page=${page}`),
-          fetchTMDB('/discover/tv', `with_status=3&air_date.lte=${today}&sort_by=first_air_date.desc&page=${page+1}`),
-          fetchTMDB('/discover/tv', `with_status=3&air_date.lte=${today}&sort_by=first_air_date.desc&page=${page+2}`),
+          fetchTMDB('/discover/tv', `sort_by=first_air_date.desc&page=${page}`),
+          fetchTMDB('/discover/tv', `sort_by=first_air_date.desc&page=${page+1}`),
+          fetchTMDB('/discover/tv', `sort_by=first_air_date.desc&page=${page+2}`),
           fetchJikan('anime', `status=complete&order_by=start_date&sort=desc&page=${page}&limit=25&sfw=true`),
           fetchJikan('anime', `status=complete&order_by=start_date&sort=desc&page=${page+1}&limit=25&sfw=true`),
           fetchJikan('anime', `status=complete&order_by=start_date&sort=desc&page=${page+2}&limit=25&sfw=true`),
