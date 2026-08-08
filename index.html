@@ -1871,21 +1871,31 @@ window.showAnikotoPopupById = function(mal_id) {
           };
         }).filter(s => s.backdrop || s.backdrop_mobile);
 
-        // ── 5) Merge: Interleave TMDB + AniList for variety ──────────────
-        // Total: 13 TMDB + ~20 AniList = ~33 slides
+        // ── 5) Merge: ANIME FIRST pattern ──────────────────────────────
+        // Total: 20 AniList + 13 TMDB = 33 slides
+        // Pattern: Anime starts first, then alternates (Anime+TMDB)
+        // After all 13 TMDB used, continue with remaining AniList only
         const merged = [];
         let tmdbIdx = 0, anilistIdx = 0;
         
-        // Pattern: 1 TMDB, 1 AniList, 1 AniList, repeat (more anime focus)
-        while (tmdbIdx < tmdbSlides.length || anilistIdx < anilistSlides.length) {
-          if (tmdbIdx < tmdbSlides.length && (anilistIdx % 2 === 0 || anilistIdx >= anilistSlides.length)) {
-            merged.push(tmdbSlides[tmdbIdx++]);
-          }
-          if (anilistIdx < anilistSlides.length) {
+        // Phase 1: Alternate starting with ANIME FIRST
+        while (anilistIdx < anilistSlides.length && tmdbIdx < tmdbSlides.length) {
+          // Always start with Anime on odd positions (0,2,4...)
+          if ((merged.length % 2 === 0 || tmdbIdx >= tmdbSlides.length) && anilistIdx < anilistSlides.length) {
             merged.push(anilistSlides[anilistIdx++]);
           }
+          // Then add TMDB on even positions (1,3,5...)
+          if (tmdbIdx < tmdbSlides.length && (merged.length % 2 === 1)) {
+            merged.push(tmdbSlides[tmdbIdx++]);
+          }
         }
-        heroData = merged;
+        
+        // Phase 2: Add remaining AniList after TMDB is exhausted (positions 27-33)
+        while (anilistIdx < anilistSlides.length && merged.length < 33) {
+          merged.push(anilistSlides[anilistIdx++]);
+        }
+        
+        heroData = merged.slice(0, 33); // Ensure exactly 33 or fewer
 
         // ── 6) Cache in sessionStorage for 5 hours ────────────────────
         try {
@@ -2611,56 +2621,46 @@ window.showAnikotoPopupById = function(mal_id) {
             return;
           }
         }
-        // Fetch top-voted movies and TV from TMDB only
-        const [tmdbMovies, tmdbTV, tmdbMovies2, tmdbTV2] = await Promise.all([
-          fetchTMDB('/discover/movie', 'sort_by=vote_count.desc&vote_count.gte=5000&language=en-US&page=1'),
-          fetchTMDB('/discover/tv',    'sort_by=vote_count.desc&vote_count.gte=2000&language=en-US&page=1'),
-          fetchTMDB('/discover/movie', 'sort_by=vote_count.desc&vote_count.gte=5000&language=en-US&page=2'),
-          fetchTMDB('/discover/tv',    'sort_by=vote_count.desc&vote_count.gte=2000&language=en-US&page=2'),
-        ]);
-        const allMovies = [...(tmdbMovies.results||[]), ...(tmdbMovies2.results||[])];
-        const allTV     = [...(tmdbTV.results||[]),     ...(tmdbTV2.results||[])];
-
-        const movieItems = allMovies.slice(0,10).map(i => ({
-          id:`tmdb-pop-${i.id}`,
-          title: i.title||i.name||'Unknown',
-          original_title: i.original_title || i.title || '',
-          poster: tmdbImg(i.poster_path, 'w185'),
-          type: 'Movie',
-          score: i.vote_average ? Number(i.vote_average).toFixed(1) : 'N/A',
-          year: (i.release_date||'').slice(0,4) || '—',
-          certification: 'PG-13',
-          duration: i.runtime ? `${i.runtime} min` : '—',
-          genres: (i.genre_ids||[]).map(id => GENRE_MAP[id]).filter(Boolean),
-          synopsis: i.overview || 'No description available.',
-          members: i.vote_count || 0,
-          studio: '—',
-        }));
-        const tvItems = allTV.slice(0,10).map(i => ({
-          id:`tmdb-tvpop-${i.id}`,
-          title: i.name||i.title||'Unknown',
-          original_title: i.original_name || i.name || '',
-          poster: tmdbImg(i.poster_path, 'w185'),
-          type: 'TV',
-          score: i.vote_average ? Number(i.vote_average).toFixed(1) : 'N/A',
-          year: (i.first_air_date||'').slice(0,4) || '—',
-          certification: 'TV-14',
-          duration: '—',
-          genres: (i.genre_ids||[]).map(id => GENRE_MAP[id]).filter(Boolean),
-          synopsis: i.overview || 'No description available.',
-          members: i.vote_count || 0,
-          studio: '—',
-        }));
-
-        // Interleave movie + tv, deduplicate, take top 10
-        const interleaved = [];
-        const maxLen = Math.max(movieItems.length, tvItems.length);
-        for (let i = 0; i < maxLen; i++) {
-          if (movieItems[i]) interleaved.push(movieItems[i]);
-          if (tvItems[i]) interleaved.push(tvItems[i]);
+        
+        // Fetch 13 most popular anime from AniList (replacing TMDB movies/TV)
+        const anilistPop = await fetchAniList(`
+          query ($perPage: Int) {
+            Page(page: 1, perPage: $perPage) {
+              media(type: ANIME, isAdult: false, sort: [POPULARITY_DESC]) {
+                ${ANILIST_ANIME_FIELDS}
+              }
+            }
+          }
+        `, { perPage: 15 });
+        
+        // Convert to sidebar format
+        const data = [];
+        if (anilistPop?.Page?.media) {
+          for (const m of anilistPop.Page.media.slice(0, 13)) {
+            if (!m.isAdult) {
+              const internal = anilistToInternal(m);
+              data.push({
+                id: `anilist-pop-${m.id}`,
+                title: internal.title,
+                poster: internal.poster,
+                type: 'Anime',
+                score: internal.score,
+                year: String(internal.year),
+                rank: data.length + 1,
+                certification: internal.rating,
+                duration: internal.duration,
+                genres: internal.genres,
+                synopsis: internal.description || 'No description available.',
+                studio: internal.studio,
+                mal_id: internal.mal_id,
+                anilist_id: m.id,
+                status: internal.status,
+                episodes: String(internal.episodes),
+              });
+            }
+          }
         }
-        const data = dedupById(interleaved, 'id').slice(0,10);
-        data.forEach((item,i) => item.rank = i+1);
+        
         popularData = data;
 
         document.getElementById('popularList').innerHTML = data.map(s => `
