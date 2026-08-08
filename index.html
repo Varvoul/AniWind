@@ -1305,19 +1305,19 @@ async function loadNewAniocean() {
     }
     if (!grid) return false;
 
-    // Calculate target shows for 6 complete rows
+    // Calculate target shows for 4 complete rows
     function calcColsForGrid() {
       const w = window.innerWidth;
       if (w <= 520) return 2;
-      if (w <= 768) return 4;
-      if (w <= 992) return 5;
-      if (w <= 1400) return 6;
-      if (w <= 1800) return 7;
-      return 8;
+      if (w <= 768) return 3;
+      if (w <= 992) return 4;
+      if (w <= 1400) return 5;
+      if (w <= 1800) return 6;
+      return 7;
     }
-    const TARGET_ROWS = 6;
+    const TARGET_ROWS = 4;  // Reduced from 6 to 4 rows
     const cols = calcColsForGrid();
-    const TARGET_SHOWS = TARGET_ROWS * cols; // 42-48 shows
+    const TARGET_SHOWS = TARGET_ROWS * cols; // 28 shows max
     
     // Trim to complete rows only
     const trimmedTo = Math.floor(animeList.length / cols) * cols;
@@ -1389,6 +1389,7 @@ async function loadNewAniocean() {
 
   // ----- PRIMARY: Anikoto proxy -----
   try {
+    console.log('[New on Aniumi] Trying Anikoto API...');
     const response = await fetchAnikoto('/recent-anime?page=1&per_page=50');
     if (response.ok && response.data && response.data.length > 0) {
       const data = response.data;
@@ -1411,19 +1412,19 @@ async function loadNewAniocean() {
       // Deduplicate by mal_id
       const unique = dedupById(cleanJikan(formatted), 'mal_id');
       
-      // Calculate target for 6 rows
+      // Calculate target for 4 rows
       function calcColsForGrid() {
         const w = window.innerWidth;
         if (w <= 520) return 2;
-        if (w <= 768) return 4;
-        if (w <= 992) return 5;
-        if (w <= 1400) return 6;
-        if (w <= 1800) return 7;
-        return 8;
+        if (w <= 768) return 3;
+        if (w <= 992) return 4;
+        if (w <= 1400) return 5;
+        if (w <= 1800) return 6;
+        return 7;
       }
-      const TARGET_ROWS = 6;
+      const TARGET_ROWS = 4;  // 4 complete rows
       const cols = calcColsForGrid();
-      const TARGET_SHOWS = TARGET_ROWS * cols; // 42-48 shows
+      const TARGET_SHOWS = TARGET_ROWS * cols; // 28 shows max
       
       // Trim to complete rows
       const trimmedTo = Math.floor(unique.length / cols) * cols;
@@ -1440,13 +1441,14 @@ async function loadNewAniocean() {
     console.warn('Primary Anikoto source failed:', e);
   }
 
-  // ----- FALLBACK: Jikan (current season, pages 1-3) -----
-  console.log('Falling back to Jikan for "New on Aniocean"');
+  // ----- FALLBACK: Jikan (current season, pages 1-4) -----
+  console.log('[New on Aniumi] Falling back to Jikan API...');
   try {
     const pages = await Promise.all([
       fetchJikan('seasons/now', 'limit=25&page=1'),
       fetchJikan('seasons/now', 'limit=25&page=2'),
-      fetchJikan('seasons/now', 'limit=25&page=3')
+      fetchJikan('seasons/now', 'limit=25&page=3'),
+      fetchJikan('seasons/now', 'limit=25&page=4')
     ]);
 
     const allAnime = pages.flatMap(page => page.data || []);
@@ -1475,15 +1477,15 @@ async function loadNewAniocean() {
       is_dub: 0
     }));
     
-    // Trim to 6 complete rows
+    // Trim to 4 complete rows
     function calcColsForGrid() {
       const w = window.innerWidth;
       if (w <= 520) return 2;
-      if (w <= 768) return 4;
-      if (w <= 992) return 5;
-      if (w <= 1400) return 6;
-      if (w <= 1800) return 7;
-      return 8;
+      if (w <= 768) return 3;
+      if (w <= 992) return 4;
+      if (w <= 1400) return 5;
+      if (w <= 1800) return 6;
+      return 7;
     }
     const cols = calcColsForGrid();
     const trimmedJikan = Math.floor(formattedJikan.length / cols) * cols;
