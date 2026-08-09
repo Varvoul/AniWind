@@ -370,6 +370,8 @@
       position: relative;
       cursor: pointer;
       transition: transform var(--transition-fast);
+      display: flex;
+      flex-direction: column;
     }
     .aniocean-card:hover {
       transform: translateY(-4px);
@@ -386,67 +388,93 @@
       height: 100%;
       object-fit: cover;
     }
+    /* Score Badge - Top Right */
     .aniocean-badge-score {
       position: absolute;
       top: 6px;
       right: 6px;
-      background: rgba(0,0,0,0.8);
-      color: var(--accent-gold);
-      padding: 3px 6px;
+      background: rgba(0,0,0,0.85);
+      backdrop-filter: blur(8px);
+      color: var(--accent-gold, #fbbf24);
+      padding: 3px 7px;
       border-radius: 4px;
-      font-size: 0.7rem;
+      font-size: 0.72rem;
       font-weight: 700;
       display: flex;
       align-items: center;
-      gap: 3px;
+      gap: 4px;
       z-index: 2;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
     }
+    .aniocean-badge-score i {
+      font-size: 0.65rem;
+    }
+    
+    /* Sub/Dub Badges Container - Bottom Left */
     .aniocean-badge-lang {
       position: absolute;
       bottom: 6px;
       left: 6px;
       display: flex;
-      gap: 4px;
+      gap: 5px;
       z-index: 2;
     }
+    
+    /* Individual Language Badge */
     .aniocean-lang-badge {
-      background: rgba(0,0,0,0.8);
-      color: #fff;
-      padding: 3px 5px;
+      padding: 3px 6px;
       border-radius: 4px;
-      font-size: 0.65rem;
-      font-weight: 600;
+      font-size: 0.62rem;
+      font-weight: 700;
       display: flex;
       align-items: center;
       gap: 3px;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+      letter-spacing: 0.3px;
     }
     .aniocean-lang-badge i {
-      font-size: 0.7rem;
+      font-size: 0.6rem;
     }
-    .aniocean-info {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      padding: 30px 6px 6px;
-      background: linear-gradient(to top, rgba(10,25,41,0.95) 0%, rgba(10,25,41,0.7) 40%, transparent 100%);
+    
+    /* Sub Badge - Cyan/Blue theme (matches site accent) */
+    .aniocean-lang-badge.sub-badge {
+      background: rgba(6, 182, 212, 0.85);
+      color: #ffffff;
+      border: 1px solid rgba(34, 211, 238, 0.9);
+    }
+    
+    /* Dub Badge - Purple/Violet theme (complementary) */
+    .aniocean-lang-badge.dub-badge {
+      background: rgba(139, 92, 246, 0.85);
+      color: #ffffff;
+      border: 1px solid rgba(167, 139, 250, 0.9);
+    }
+    
+    /* Title Section - Below Poster (not overlaid) */
+    .aniocean-title-section {
+      padding: 8px 4px 2px;
       text-align: center;
-      pointer-events: none;
     }
     .aniocean-meta {
-      font-size: 0.65rem;
-      color: var(--text-muted);
-      margin-bottom: 2px;
+      font-size: 0.62rem;
+      color: var(--text-muted, #94a3b8);
+      margin-bottom: 3px;
       font-weight: 500;
-    }
-    .aniocean-title {
-      font-size: 0.8rem;
-      font-weight: 600;
-      color: #fff;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+    }
+    .aniocean-title {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #fff;
       line-height: 1.3;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     /* Grid containers with balanced rows - 6 rows always complete */
@@ -1845,17 +1873,20 @@ async function loadNewAniocean() {
           <div class="aniocean-poster">
             <img src="${anime.poster}" alt="${anime.title}" 
                  onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22300%22%3E%3Crect fill=%22%23132f4c%22 width=%22200%22 height=%22300%22/%3E%3Ctext fill=%22%2394a3b8%22 font-family=%22sans-serif%22 font-size=%2214%22 x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22%3ENo Image%3C/text%3E%3C/svg%3E'">
+            <!-- Score Badge - Top Right -->
             <div class="aniocean-badge-score">
               <i class="fas fa-star"></i> ${score}
             </div>
+            <!-- Sub/Dub Badges - Bottom Left -->
             <div class="aniocean-badge-lang">
-              ${anime.is_sub > 0 ? `<div class="aniocean-lang-badge"><i class="fas fa-closed-captioning"></i> ${anime.is_sub}</div>` : ''}
-              ${anime.is_dub > 0 ? `<div class="aniocean-lang-badge"><i class="fas fa-microphone"></i> ${anime.is_dub}</div>` : ''}
+              ${anime.is_sub > 0 ? `<span class="aniocean-lang-badge sub-badge"><i class="fas fa-closed-captioning"></i> SUB ${anime.is_sub}</span>` : ''}
+              ${anime.is_dub > 0 ? `<span class="aniocean-lang-badge dub-badge"><i class="fas fa-microphone"></i> DUB ${anime.is_dub}</span>` : ''}
             </div>
-            <div class="aniocean-info">
-              <div class="aniocean-meta">${type} · ${rating} · ${studio}</div>
-              <div class="aniocean-title">${anime.title}</div>
-            </div>
+          </div>
+          <!-- Title Section - Below Poster -->
+          <div class="aniocean-title-section">
+            <div class="aniocean-meta">${type} · ${rating}</div>
+            <div class="aniocean-title">${anime.title}</div>
           </div>
         </a>
       `;
@@ -1875,10 +1906,10 @@ async function loadNewAniocean() {
     } catch(e) {}
   }
 
-  // ----- PRIMARY: Anikoto proxy -----
+  // ----- PRIMARY: Anikoto proxy (100 items for 6 complete rows) -----
   try {
     console.log('[New on Aniumi] Trying Anikoto API...');
-    const response = await fetchAnikoto('/recent-anime?page=1&per_page=50');
+    const response = await fetchAnikoto('/recent-anime?page=1&per_page=100');
     if (response.ok && response.data && response.data.length > 0) {
       const data = response.data;
       const formatted = data.map(anime => ({
@@ -1900,7 +1931,7 @@ async function loadNewAniocean() {
       // Deduplicate by mal_id
       const unique = dedupById(cleanJikan(formatted), 'mal_id');
       
-      // Calculate target for 4 rows
+      // Calculate target for 6 complete rows (balanced grid)
       function calcColsForGrid() {
         const w = window.innerWidth;
         if (w <= 520) return 2;
@@ -1910,9 +1941,9 @@ async function loadNewAniocean() {
         if (w <= 1800) return 6;
         return 7;
       }
-      const TARGET_ROWS = 4;  // 4 complete rows
+      const TARGET_ROWS = 6;  // 6 complete rows for full grid
       const cols = calcColsForGrid();
-      const TARGET_SHOWS = TARGET_ROWS * cols; // 28 shows max
+      const TARGET_SHOWS = TARGET_ROWS * cols; // Max shows for 6 rows
       
       // Trim to complete rows
       const trimmedTo = Math.floor(unique.length / cols) * cols;
@@ -1995,57 +2026,11 @@ async function loadNewAniocean() {
     }
     }
   } catch (error) {
-    console.error('✗ Jikan fallback also failed:', error);
-  }
-
-  // ----- FINAL FALLBACK: TMDB t-umi proxy for anime-style TV shows -----
-  console.log('[New on Aniumi] Trying TMDB t-umi proxy as final fallback...');
-  try {
-    const [tmdbAnime1, tmdbAnime2, tmdbAnime3] = await Promise.all([
-      fetchTMDB('/tv/on_the_air', `page=1`),
-      fetchTMDB('/tv/on_the_air', `page=2`),
-      fetchTMDB('/discover/tv', `with_genres=16&sort_by=first_air_date.desc&page=1`) // Animation genre
-    ]);
-    
-    const allTmdbAnime = [
-      ...(tmdbAnime1.results || []),
-      ...(tmdbAnime2.results || []),
-      ...(tmdbAnime3.results || [])
-    ];
-    
-    if (allTmdbAnime.length > 0) {
-      const formattedTmdb = allTmdbAnime.slice(0, 50).map(i => ({
-        mal_id: `tmdb-${i.id}`,
-        title: i.name,
-        slug: (i.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''),
-        poster: i.poster_path ? tmdbImg(i.poster_path) : '',
-        score: (i.vote_average || 0).toFixed(1),
-        type: 'TV',
-        rating: 'PG-13',
-        description: i.overview || 'No description available.',
-        year: (i.first_air_date || '').slice(0, 4) || '?',
-        duration: '24m',
-        genres: ['Animation'],
-        studio: (i.networks || [])[0]?.name || '?',
-        is_sub: 1,
-        is_dub: 0
-      }));
-      
-      // Deduplicate by mal_id
-      const uniqueTmdb = dedupById(formattedTmdb, 'mal_id');
-      
-      if (renderAnimeList(uniqueTmdb)) {
-        console.log(`✓ Loaded ${uniqueTmdb.length} shows from TMDB fallback for "New on Aniocean"`);
-        if (window.AniCache) window.AniCache.set({ cacheKey:'index:new_on_aniumi', pageSource:'index',
-          section:'new_on_aniumi', data: uniqueTmdb, itemCount: uniqueTmdb.length }).catch(()=>{});
-        return;
-      }
-    }
-  } catch (tmdbError) {
-    console.error('✗ TMDB fallback also failed:', tmdbError);
+    console.error('✗ AniList fallback also failed:', error);
   }
 
   // All sources failed - show error message using renderAnimeList with empty array
+  console.log('[New on Aniumi] All APIs failed - showing empty state');
   renderAnimeList([]);
 }
 
