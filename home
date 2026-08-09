@@ -300,8 +300,8 @@
     .card-info-grid .card-title { font-size:0.85rem; }
     .card-info-grid .card-meta-sm { font-size:0.7rem; }
     .badge { font-size:0.625rem; font-weight:700; text-transform:uppercase; }
-    /* Status badge - PINK color */
-    .poster-status-badge { position:absolute; bottom:6px; left:6px; background:linear-gradient(135deg, rgba(236,72,153,0.9), rgba(244,114,182,0.9)); color:#fff; font-size:0.6rem; padding:2px 6px; border-radius:3px; z-index:2; font-weight:600; backdrop-filter:blur(4px); }
+    /* Status badge - PINK color - TOP LEFT POSITION */
+    .poster-status-badge { position:absolute; top:6px; left:6px; background:linear-gradient(135deg, rgba(236,72,153,0.9), rgba(244,114,182,0.9)); color:#fff; font-size:0.6rem; padding:2px 6px; border-radius:3px; z-index:2; font-weight:600; backdrop-filter:blur(4px); }
     
     /* Genre tags on cards */
     .card-genres { display:flex; flex-wrap:wrap; gap:3px; margin-top:4px; }
@@ -370,6 +370,8 @@
       position: relative;
       cursor: pointer;
       transition: transform var(--transition-fast);
+      display: flex;
+      flex-direction: column;
     }
     .aniocean-card:hover {
       transform: translateY(-4px);
@@ -386,86 +388,118 @@
       height: 100%;
       object-fit: cover;
     }
+    /* Score Badge - Top Right */
     .aniocean-badge-score {
       position: absolute;
       top: 6px;
       right: 6px;
-      background: rgba(0,0,0,0.8);
-      color: var(--accent-gold);
-      padding: 3px 6px;
+      background: rgba(0,0,0,0.85);
+      backdrop-filter: blur(8px);
+      color: var(--accent-gold, #fbbf24);
+      padding: 3px 7px;
       border-radius: 4px;
-      font-size: 0.7rem;
+      font-size: 0.72rem;
       font-weight: 700;
       display: flex;
       align-items: center;
-      gap: 3px;
+      gap: 4px;
       z-index: 2;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
     }
+    .aniocean-badge-score i {
+      font-size: 0.65rem;
+    }
+    
+    /* Sub/Dub Badges Container - Bottom Left */
     .aniocean-badge-lang {
       position: absolute;
       bottom: 6px;
       left: 6px;
       display: flex;
-      gap: 4px;
+      gap: 5px;
       z-index: 2;
     }
+    
+    /* Individual Language Badge */
     .aniocean-lang-badge {
-      background: rgba(0,0,0,0.8);
-      color: #fff;
-      padding: 3px 5px;
+      padding: 3px 6px;
       border-radius: 4px;
-      font-size: 0.65rem;
-      font-weight: 600;
+      font-size: 0.62rem;
+      font-weight: 700;
       display: flex;
       align-items: center;
       gap: 3px;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+      letter-spacing: 0.3px;
     }
     .aniocean-lang-badge i {
-      font-size: 0.7rem;
+      font-size: 0.6rem;
     }
-    .aniocean-info {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      padding: 30px 6px 6px;
-      background: linear-gradient(to top, rgba(10,25,41,0.95) 0%, rgba(10,25,41,0.7) 40%, transparent 100%);
+    
+    /* Sub Badge - Cyan/Blue theme (matches site accent) */
+    .aniocean-lang-badge.sub-badge {
+      background: rgba(6, 182, 212, 0.85);
+      color: #ffffff;
+      border: 1px solid rgba(34, 211, 238, 0.9);
+    }
+    
+    /* Dub Badge - Purple/Violet theme (complementary) */
+    .aniocean-lang-badge.dub-badge {
+      background: rgba(139, 92, 246, 0.85);
+      color: #ffffff;
+      border: 1px solid rgba(167, 139, 250, 0.9);
+    }
+    
+    /* Title Section - Below Poster (not overlaid) */
+    .aniocean-title-section {
+      padding: 8px 4px 2px;
       text-align: center;
-      pointer-events: none;
     }
     .aniocean-meta {
-      font-size: 0.65rem;
-      color: var(--text-muted);
-      margin-bottom: 2px;
+      font-size: 0.62rem;
+      color: var(--text-muted, #94a3b8);
+      margin-bottom: 3px;
       font-weight: 500;
-    }
-    .aniocean-title {
-      font-size: 0.8rem;
-      font-weight: 600;
-      color: #fff;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+    }
+    .aniocean-title {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #fff;
       line-height: 1.3;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
-    /* Grid containers with balanced rows - 6 rows always complete */
+    /* Grid containers with balanced rows - New Releases section */
     .grid-container { 
       display:grid; 
-      grid-template-columns:repeat(8, 1fr); 
+      grid-template-columns:repeat(7, 1fr); 
       gap:14px;
     }
-    /* Large desktop: 8 cols × 6 rows = 48 shows */
-    @media (max-width:1800px) { .grid-container { grid-template-columns:repeat(7, 1fr); } } /* 7 cols × 6 rows = 42 shows */
-    @media (max-width:1600px) { .grid-container { grid-template-columns:repeat(7, 1fr); gap:12px; } }
-    @media (max-width:1400px) { .grid-container { grid-template-columns:repeat(6, 1fr); } } /* 6 cols × 6 rows = 36 shows */
-    @media (max-width:1200px) { .grid-container { grid-template-columns:repeat(6, 1fr); } }
-    @media (max-width:992px) { .grid-container { grid-template-columns:repeat(5, 1fr); } } /* Tablet: 5 cols × 6 rows = 30 shows */
-    @media (max-width:768px) { .grid-container { grid-template-columns:repeat(4, 1fr); gap:10px; } } /* Tablet portrait: 4 cols × 6 rows = 24 shows */
-    /* Mobile landscape: 3-4 cols based on width */
-    @media (max-width:600px) and (orientation:landscape) { .grid-container { grid-template-columns:repeat(4, 1fr); } }
-    @media (max-width:520px) and (orientation:landscape) { .grid-container { grid-template-columns:repeat(3, 1fr); } }
-    /* Mobile portrait: 2 cols × 6+ rows */
+    /* Large desktop (>1800px): 7 cols × 6 rows = 42 shows */
+    @media (max-width:1800px) { .grid-container { grid-template-columns:repeat(7, 1fr); gap:12px; } }
+    /* Desktop (1400-1800px): 6 cols × 6 rows = 36 shows */
+    @media (max-width:1600px) { .grid-container { grid-template-columns:repeat(6, 1fr); } }
+    /* Medium desktop (1200-1400px): 6 cols */
+    @media (max-width:1400px) { .grid-container { grid-template-columns:repeat(6, 1fr); } }
+    /* Small desktop/large tablet (992-1200px): 5 cols */
+    @media (max-width:1200px) { .grid-container { grid-template-columns:repeat(5, 1fr); } }
+    /* Tablet (768-992px): 4 cols */
+    @media (max-width:992px) { .grid-container { grid-template-columns:repeat(4, 1fr); gap:10px; } }
+    /* Tablet portrait (600-768px): 3 cols */
+    @media (max-width:768px) { .grid-container { grid-template-columns:repeat(3, 1fr); gap:10px; } }
+    /* Mobile landscape (520-600px): 3 cols */
+    @media (max-width:600px) and (orientation:landscape) { .grid-container { grid-template-columns:repeat(3, 1fr); } }
+    /* Mobile landscape (<520px): 2 cols */
+    @media (max-width:520px) and (orientation:landscape) { .grid-container { grid-template-columns:repeat(2, 1fr); } }
+    /* Mobile portrait (<520px): 2 cols */
     @media (max-width:520px) and (orientation:portrait) { .grid-container { grid-template-columns:repeat(2, 1fr); } }
     @media (max-width:520px) { .grid-container { grid-template-columns:repeat(2, 1fr); } }
     .show-card-grid { border-radius:var(--radius-md); overflow:hidden; cursor:pointer; transition:transform var(--transition-fast); position:relative; }
@@ -487,9 +521,74 @@
       pointer-events: none;
     }
 
-    .toggle-tabs { display:flex; gap:4px; }
-    .toggle-tab { padding:5px 12px; border-radius:var(--radius-pill); background:rgba(255,255,255,0.04); border:1px solid var(--border-medium); font-size:0.72rem; cursor:pointer; transition:all var(--transition-fast); color:var(--text-secondary); font-weight:500; }
-    .toggle-tab.active { background:var(--popup-btn); color:#fff; border-color:var(--popup-btn); font-weight:600; }
+    /* Sliding Toggle Tabs with Glider Effect */
+    .toggle-tabs {
+      display: flex;
+      position: relative;
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(12px);
+      padding: 4px;
+      border-radius: var(--radius-pill, 50px);
+      border: 1px solid rgba(148, 163, 184, 0.1);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+      gap: 0;
+    }
+    .toggle-tab {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 32px;
+      padding: 0 16px;
+      border-radius: var(--radius-pill, 50px);
+      font-size: 0.75rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: color 0.25s ease-in-out;
+      position: relative;
+      z-index: 2;
+      background: transparent;
+      border: none;
+      color: var(--text-secondary, #94a3b8);
+      white-space: nowrap;
+    }
+    .toggle-tab:hover {
+      color: #e2e8f0;
+    }
+    .toggle-tab.active {
+      color: #ffffff;
+      font-weight: 600;
+    }
+    /* Glider/Slider Background */
+    .tabs-glider {
+      position: absolute;
+      height: 32px;
+      background: linear-gradient(135deg, var(--btn-primary, #3b82f6), rgba(59, 130, 246, 0.85));
+      border-radius: var(--radius-pill, 50px);
+      z-index: 1;
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 2px 8px rgba(59, 130, 246, 0.35);
+    }
+    /* Responsive tabs scaling */
+    @media (max-width: 768px) {
+      .toggle-tabs {
+        transform: scale(0.9);
+        transform-origin: right center;
+      }
+    }
+    @media (max-width: 480px) {
+      .toggle-tabs {
+        transform: scale(0.82);
+        transform-origin: right center;
+      }
+      .toggle-tab {
+        padding: 0 12px;
+        font-size: 0.7rem;
+        height: 28px;
+      }
+      .tabs-glider {
+        height: 28px;
+      }
+    }
 
     /* sidebar - wider and improved */
     .sidebar-list-item { display:flex; gap:12px; align-items:center; padding:10px 8px; border-radius:var(--radius-sm); cursor:pointer; transition:background var(--transition-fast); margin-bottom:2px; }
@@ -746,7 +845,178 @@
 
     /* SCHEDULE */
     @keyframes schedSpin { to { transform: rotate(360deg); } }
+    /* ════════════════════════════════════════════════════════════
+       SCHEDULE WIDGET - REDESIGNED (Vertical Day Cards)
+       ════════════════════════════════════════════════════════════ */
     .esw-widget {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      margin-top: 20px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    }
+    .esw-head {
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border-subtle);
+      background: linear-gradient(135deg, var(--bg-surface) 0%, var(--bg-card) 100%);
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #fff;
+    }
+    .esw-head-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .esw-head-title i {
+      color: var(--accent-blue);
+      font-size: 1rem;
+    }
+    .esw-clock-container {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .esw-clock-icon {
+      color: var(--accent-gold);
+      font-size: 0.85rem;
+    }
+    .esw-clock-pill {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      background: var(--bg-body);
+      border: 1px solid var(--border-medium);
+      border-radius: var(--radius-pill);
+      padding: 4px 10px;
+      font-size: 0.65rem;
+      color: var(--text-muted);
+    }
+    /* Week Navigation */
+    .esw-week-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      background: var(--bg-body);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .esw-week-label {
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+    .esw-nav-btn {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      cursor: pointer;
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-sm);
+      transition: all var(--transition-fast);
+      font-size: 0.9rem;
+    }
+    .esw-nav-btn:hover:not(:disabled) {
+      background: var(--btn-primary);
+      border-color: var(--btn-primary);
+      color: #fff;
+      transform: scale(1.05);
+    }
+    .esw-nav-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    /* Days Row - Vertical Cards */
+    .esw-days-row {
+      display: flex;
+      align-items: stretch;
+      padding: 8px;
+      gap: 6px;
+      border-bottom: 1px solid var(--border-subtle);
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .esw-days-row::-webkit-scrollbar {
+      display: none;
+    }
+    /* Vertical Day Card */
+    .esw-day-card {
+      flex: 1;
+      min-width: 60px;
+      max-width: 90px;
+      background: var(--bg-surface);
+      border: 2px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 8px 4px;
+      text-align: center;
+      cursor: pointer;
+      font-size: 0.6rem;
+      transition: all 0.25s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      position: relative;
+    }
+    .esw-day-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 4px 12px rgba(66, 153, 225, 0.2);
+      border-color: var(--accent-blue);
+    }
+    .esw-day-card.active {
+      background: linear-gradient(135deg, var(--btn-primary) 0%, #2563eb 100%);
+      border-color: var(--btn-primary);
+      box-shadow: 0 4px 15px rgba(43, 108, 176, 0.4);
+    }
+    .esw-day-card.active .esw-dc-month,
+    .esw-day-card.active .esw-dc-day,
+    .esw-day-card.active .esw-dc-weekday {
+      color: #fff;
+    }
+    .esw-day-card.today {
+      border-color: var(--accent-gold);
+      position: relative;
+    }
+    .esw-day-card.today::after {
+      content: '';
+      position: absolute;
+      top: -2px;
+      right: -2px;
+      width: 8px;
+      height: 8px;
+      background: var(--accent-gold);
+      border-radius: 50%;
+      border: 2px solid var(--bg-card);
+    }
+    /* Vertical Date Parts */
+    .esw-dc-month {
+      font-size: 0.55rem;
+      font-weight: 600;
+      color: var(--accent-blue);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .esw-dc-day {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: #fff;
+      line-height: 1.1;
+    }
+    .esw-dc-weekday {
+      font-size: 0.5rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
       background:var(--bg-card); 
       border:1px solid var(--border-subtle); 
       border-radius:var(--radius-md); 
@@ -819,22 +1089,22 @@
     .esw-day-card.today { 
       border-color:var(--accent-gold); 
     }
-    .esw-dc-date { 
-      font-size:0.8rem; 
-      font-weight:800; 
-      color:#fff; 
-    }
-    .esw-body { 
-      padding:8px 10px; 
-      max-height: 400px;
+
+    .esw-body {
+      padding: 10px 12px;
+      max-height: 420px;
       overflow-y: auto;
+      min-height: 200px;
     }
     .esw-body::-webkit-scrollbar {
       width: 4px;
     }
     .esw-body::-webkit-scrollbar-thumb {
       background: var(--border-medium);
-      border-radius: 2px;
+      border-radius: 3px;
+    }
+    .esw-body::-webkit-scrollbar-track {
+      background: transparent;
     }
     .esw-row { 
       display:flex; 
@@ -897,34 +1167,55 @@
     }
     .esw-more-btn {
       width: 100%;
-      padding: 8px;
-      background: var(--bg-surface);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-sm);
-      color: var(--text-secondary);
+      padding: 10px 14px;
+      background: linear-gradient(135deg, var(--bg-surface) 0%, rgba(43, 108, 176, 0.15) 100%);
+      border: 1px dashed var(--btn-primary);
+      border-radius: var(--radius-md);
+      color: var(--accent-blue);
       font-size: 0.75rem;
       font-weight: 600;
       cursor: pointer;
-      transition: all var(--transition-fast);
-      margin-top: 8px;
+      transition: all 0.3s ease;
+      margin-top: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      letter-spacing: 0.3px;
+    }
+    .esw-more-btn i {
+      transition: transform 0.3s ease;
     }
     .esw-more-btn:hover {
       background: var(--btn-primary);
       color: #fff;
-      border-color: var(--btn-primary);
+      border-style: solid;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(43, 108, 176, 0.3);
+    }
+    .esw-more-btn:hover i {
+      transform: rotate(180deg);
+    }
+    .esw-more-btn.expanded {
+      background: var(--btn-primary);
+      color: #fff;
+      border-style: solid;
+    }
+    .esw-more-btn.expanded i {
+      transform: rotate(180deg);
     }
 
     /* New schedule 4-column layout */
 .schedule-row {
   display: grid;
-  grid-template-columns: 80px 50px 1fr 60px;
+  grid-template-columns: 70px 45px 1fr auto;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  padding: 8px;
-  margin-bottom: 6px;
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  margin-bottom: 8px;
   text-decoration: none;
   color: inherit;
   transition: all var(--transition-fast);
@@ -963,26 +1254,46 @@
   white-space: nowrap;
 }
 .schedule-more-btn {
-  width: 100%;
-  padding: 8px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  color: var(--text-secondary);
-  font-size: 0.75rem;
+  width: 95% !important;
+  max-width: 320px !important;
+  min-width: 200px;
+  padding: 14px 24px !important;
+  background: linear-gradient(135deg, var(--bg-surface) 0%, rgba(43, 108, 176, 0.15) 100%);
+  border: 1px dashed var(--btn-primary);
+  border-radius: var(--radius-md);
+  color: var(--accent-blue);
+  font-size: 0.85rem !important;
   font-weight: 600;
   cursor: pointer;
-  transition: all var(--transition-fast);
-  margin-top: 8px;
+  transition: all 0.3s ease;
+  margin-top: 12px;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  letter-spacing: 0.4px;
+  box-sizing: border-box !important;
+  text-align: center;
+  white-space: nowrap;
+}
+.schedule-more-btn i {
+  transition: transform 0.3s ease;
 }
 .schedule-more-btn:hover {
   background: var(--btn-primary);
   color: #fff;
-  border-color: var(--btn-primary);
+  border-style: solid;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(43, 108, 176, 0.3);
+}
+.schedule-more-btn:hover i {
+  transform: rotate(180deg);
 }
 .esw-body {
-  padding: 8px 10px;
-  max-height: 500px;
+  padding: 10px 12px;
+  max-height: 580px;
   overflow-y: auto;
 }
 
@@ -1007,6 +1318,69 @@
       .show-card-horiz { width:150px; }
       .grid-container { grid-template-columns:repeat(2, 1fr); gap:10px; } /* Mobile portrait: 2 per row */
       .new-aniocean-grid { grid-template-columns:repeat(2, 1fr); gap:8px; }
+      
+      /* Schedule Widget - Mobile Responsive */
+      .esw-widget { margin-top: 15px; border-radius: var(--radius-md); }
+      .esw-head { padding: 10px 12px; font-size: 0.8rem; }
+      .esw-head-title i { font-size: 0.9rem; }
+      .esw-week-nav { padding: 6px 10px; }
+      .esw-nav-btn { width: 26px; height: 26px; font-size: 0.8rem; }
+      .esw-days-row { padding: 6px 4px; gap: 4px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      .esw-day-card { 
+        min-width: 52px; 
+        max-width: 75px; 
+        padding: 6px 3px;
+        border-radius: var(--radius-sm);
+      }
+      .esw-dc-month { font-size: 0.5rem; }
+      .esw-dc-day { font-size: 1rem; }
+      .esw-dc-weekday { font-size: 0.45rem; }
+      .esw-body { 
+        max-height: 420px; 
+        min-height: 180px;
+        padding: 8px 8px;
+      }
+      .schedule-row {
+        grid-template-columns: 60px 40px 1fr auto;
+        gap: 8px;
+        padding: 8px;
+        margin-bottom: 6px;
+      }
+      .schedule-poster img { width: 36px; height: 50px; }
+      .schedule-title { font-size: 0.75rem; }
+      .schedule-time { font-size: 0.7rem; padding: 3px 6px; }
+      .schedule-ep { font-size: 0.65rem; padding: 3px 8px; }
+      .esw-more-btn { padding: 8px 12px; font-size: 0.7rem; }
+      .schedule-more-btn {
+        width: 96% !important;
+        max-width: 280px !important;
+        min-width: 180px !important;
+        padding: 12px 20px !important;
+        font-size: 0.8rem !important;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      /* Schedule - Extra Small Screens */
+      .esw-head-title span { display: none; } /* Hide text, keep icon only */
+      .esw-clock-pill { font-size: 0.6rem; padding: 2px 6px; }
+      .esw-day-card { 
+        min-width: 46px; 
+        max-width: 65px; 
+        padding: 5px 2px;
+        gap: 1px;
+      }
+      .esw-dc-month { font-size: 0.45rem; letter-spacing: 0.3px; }
+      .esw-dc-day { font-size: 0.95rem; }
+      .esw-dc-weekday { font-size: 0.4rem; }
+      .schedule-row {
+        grid-template-columns: 55px 35px 1fr auto;
+        gap: 6px;
+        padding: 7px;
+      }
+      .schedule-poster img { width: 32px; height: 44px; }
+      .schedule-title { font-size: 0.72rem; }
+      .esw-body { max-height: 360px; padding: 6px; }
     }
     .country-link:hover {
       color: #3675a8 !important;
@@ -1077,6 +1451,7 @@
         <div class="section-header">
           <h2 class="section-title" id="newReleasesTitle">New Releases</h2>
           <div class="toggle-tabs" id="releaseTabs">
+            <span class="tabs-glider" id="releaseGlider"></span>
             <button class="toggle-tab active" data-filter="all">All</button>
             <button class="toggle-tab" data-filter="anime">Anime</button>
             <button class="toggle-tab" data-filter="movie">Movies</button>
@@ -1119,6 +1494,7 @@
         <div class="section-header">
           <h2 class="section-title">Trending Now</h2>
           <div class="toggle-tabs" id="trendingTabs">
+            <span class="tabs-glider" id="trendingGlider"></span>
             <button class="toggle-tab active" data-period="today">Today</button>
             <button class="toggle-tab" data-period="week">Week</button>
             <button class="toggle-tab" data-period="month">Month</button>
@@ -1136,17 +1512,21 @@
       </section>
       <div class="esw-widget" id="eswWidget">
         <div class="esw-head">
-          <span>📅 Schedule</span>
+          <div class="esw-head-title">
+            <i class="fas fa-calendar-alt"></i>
+            <span>Schedule</span>
+          </div>
           <div class="esw-clock-container">
             <i class="fas fa-globe-americas esw-clock-icon"></i>
             <div class="esw-clock-pill"><span id="eswClockText"></span></div>
           </div>
         </div>
-        <div class="esw-days-row">
-          <button class="esw-nav-btn" id="eswPrev">‹</button>
-          <div class="esw-days-scroll" id="eswDaysScroll" style="display:flex; gap:3px; flex:1; overflow:hidden;"></div>
-          <button class="esw-nav-btn" id="eswNext">›</button>
+        <div class="esw-week-nav">
+          <button class="esw-nav-btn" id="eswPrev" title="Previous Week"><i class="fas fa-chevron-left"></i></button>
+          <span class="esw-week-label" id="eswWeekLabel">This Week</span>
+          <button class="esw-nav-btn" id="eswNext" title="Next Week"><i class="fas fa-chevron-right"></i></button>
         </div>
+        <div class="esw-days-row" id="eswDaysRow"></div>
         <div class="esw-body" id="eswBody"></div>
       </div>
     </aside>
@@ -1524,13 +1904,12 @@ async function loadNewAniocean() {
       if (w <= 1800) return 6;
       return 7;
     }
-    const TARGET_ROWS = 4;  // Reduced from 6 to 4 rows
+    const TARGET_ROWS = 6;  // FIXED: Always show exactly 6 rows
     const cols = calcColsForGrid();
-    const TARGET_SHOWS = TARGET_ROWS * cols; // 28 shows max
+    const TARGET_SHOWS = TARGET_ROWS * cols; // Max shows for 6 rows
     
-    // Trim to complete rows only
-    const trimmedTo = Math.floor(animeList.length / cols) * cols;
-    const displayList = animeList.slice(0, trimmedTo || TARGET_SHOWS);
+    // Trim to exactly 6 rows (no more, no less)
+    const displayList = animeList.slice(0, TARGET_SHOWS);
 
     grid.innerHTML = displayList.map(anime => {
       const studio = anime.studio || '?';
@@ -1566,17 +1945,20 @@ async function loadNewAniocean() {
           <div class="aniocean-poster">
             <img src="${anime.poster}" alt="${anime.title}" 
                  onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22300%22%3E%3Crect fill=%22%23132f4c%22 width=%22200%22 height=%22300%22/%3E%3Ctext fill=%22%2394a3b8%22 font-family=%22sans-serif%22 font-size=%2214%22 x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22%3ENo Image%3C/text%3E%3C/svg%3E'">
+            <!-- Score Badge - Top Right -->
             <div class="aniocean-badge-score">
               <i class="fas fa-star"></i> ${score}
             </div>
+            <!-- Sub/Dub Badges - Bottom Left -->
             <div class="aniocean-badge-lang">
-              ${anime.is_sub > 0 ? `<div class="aniocean-lang-badge"><i class="fas fa-closed-captioning"></i> ${anime.is_sub}</div>` : ''}
-              ${anime.is_dub > 0 ? `<div class="aniocean-lang-badge"><i class="fas fa-microphone"></i> ${anime.is_dub}</div>` : ''}
+              ${anime.is_sub > 0 ? `<span class="aniocean-lang-badge sub-badge"><i class="fas fa-closed-captioning"></i> SUB ${anime.is_sub}</span>` : ''}
+              ${anime.is_dub > 0 ? `<span class="aniocean-lang-badge dub-badge"><i class="fas fa-microphone"></i> DUB ${anime.is_dub}</span>` : ''}
             </div>
-            <div class="aniocean-info">
-              <div class="aniocean-meta">${type} · ${rating} · ${studio}</div>
-              <div class="aniocean-title">${anime.title}</div>
-            </div>
+          </div>
+          <!-- Title Section - Below Poster -->
+          <div class="aniocean-title-section">
+            <div class="aniocean-meta">${type} · ${rating}</div>
+            <div class="aniocean-title">${anime.title}</div>
           </div>
         </a>
       `;
@@ -1596,10 +1978,10 @@ async function loadNewAniocean() {
     } catch(e) {}
   }
 
-  // ----- PRIMARY: Anikoto proxy -----
+  // ----- PRIMARY: Anikoto proxy (100 items for 6 complete rows) -----
   try {
     console.log('[New on Aniumi] Trying Anikoto API...');
-    const response = await fetchAnikoto('/recent-anime?page=1&per_page=50');
+    const response = await fetchAnikoto('/recent-anime?page=1&per_page=100');
     if (response.ok && response.data && response.data.length > 0) {
       const data = response.data;
       const formatted = data.map(anime => ({
@@ -1621,28 +2003,11 @@ async function loadNewAniocean() {
       // Deduplicate by mal_id
       const unique = dedupById(cleanJikan(formatted), 'mal_id');
       
-      // Calculate target for 4 rows
-      function calcColsForGrid() {
-        const w = window.innerWidth;
-        if (w <= 520) return 2;
-        if (w <= 768) return 3;
-        if (w <= 992) return 4;
-        if (w <= 1400) return 5;
-        if (w <= 1800) return 6;
-        return 7;
-      }
-      const TARGET_ROWS = 4;  // 4 complete rows
-      const cols = calcColsForGrid();
-      const TARGET_SHOWS = TARGET_ROWS * cols; // 28 shows max
-      
-      // Trim to complete rows
-      const trimmedTo = Math.floor(unique.length / cols) * cols;
-      const displayData = unique.slice(0, trimmedTo || TARGET_SHOWS);
-      
-      if (renderAnimeList(displayData)) {
+      // Use exactly 6 rows (fixed limit)
+      if (renderAnimeList(unique)) {
         console.log(`✓ Loaded ${unique.length} anime from Anikoto proxy for "New on Aniocean"`);
         if (window.AniCache) window.AniCache.set({ cacheKey:'index:new_on_aniumi', pageSource:'index',
-          section:'new_on_aniumi', data: displayData, itemCount: displayData.length }).catch(()=>{});
+          section:'new_on_aniumi', data: unique, itemCount: unique.length }).catch(()=>{});
         return;
       }
     }
@@ -1694,79 +2059,20 @@ async function loadNewAniocean() {
         throw new Error('No anime data from AniList');
       }
     
-    // Trim to 4 complete rows
-    function calcColsForGrid() {
-      const w = window.innerWidth;
-      if (w <= 520) return 2;
-      if (w <= 768) return 3;
-      if (w <= 992) return 4;
-      if (w <= 1400) return 5;
-      if (w <= 1800) return 6;
-      return 7;
-    }
-    const cols = calcColsForGrid();
-    const trimmedAnilist = Math.floor(unique.length / cols) * cols;
-    const displayAnilist = unique.slice(0, trimmedAnilist || unique.length);
-
-    if (renderAnimeList(displayAnilist)) {
-      console.log(`✓ Loaded ${displayAnilist.length} anime from AniList (fallback) for "New on Aniocean"`);
+    // Use exactly 6 rows (fixed limit)
+    if (renderAnimeList(unique)) {
+      console.log(`✓ Loaded ${unique.length} anime from AniList (fallback) for "New on Aniocean"`);
       if (window.AniCache) window.AniCache.set({ cacheKey:'index:new_on_aniumi', pageSource:'index',
-        section:'new_on_aniumi', data: displayAnilist, itemCount: displayAnilist.length }).catch(()=>{});
+        section:'new_on_aniumi', data: unique, itemCount: unique.length }).catch(()=>{});
       return;
     }
     }
   } catch (error) {
-    console.error('✗ Jikan fallback also failed:', error);
-  }
-
-  // ----- FINAL FALLBACK: TMDB t-umi proxy for anime-style TV shows -----
-  console.log('[New on Aniumi] Trying TMDB t-umi proxy as final fallback...');
-  try {
-    const [tmdbAnime1, tmdbAnime2, tmdbAnime3] = await Promise.all([
-      fetchTMDB('/tv/on_the_air', `page=1`),
-      fetchTMDB('/tv/on_the_air', `page=2`),
-      fetchTMDB('/discover/tv', `with_genres=16&sort_by=first_air_date.desc&page=1`) // Animation genre
-    ]);
-    
-    const allTmdbAnime = [
-      ...(tmdbAnime1.results || []),
-      ...(tmdbAnime2.results || []),
-      ...(tmdbAnime3.results || [])
-    ];
-    
-    if (allTmdbAnime.length > 0) {
-      const formattedTmdb = allTmdbAnime.slice(0, 50).map(i => ({
-        mal_id: `tmdb-${i.id}`,
-        title: i.name,
-        slug: (i.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''),
-        poster: i.poster_path ? tmdbImg(i.poster_path) : '',
-        score: (i.vote_average || 0).toFixed(1),
-        type: 'TV',
-        rating: 'PG-13',
-        description: i.overview || 'No description available.',
-        year: (i.first_air_date || '').slice(0, 4) || '?',
-        duration: '24m',
-        genres: ['Animation'],
-        studio: (i.networks || [])[0]?.name || '?',
-        is_sub: 1,
-        is_dub: 0
-      }));
-      
-      // Deduplicate by mal_id
-      const uniqueTmdb = dedupById(formattedTmdb, 'mal_id');
-      
-      if (renderAnimeList(uniqueTmdb)) {
-        console.log(`✓ Loaded ${uniqueTmdb.length} shows from TMDB fallback for "New on Aniocean"`);
-        if (window.AniCache) window.AniCache.set({ cacheKey:'index:new_on_aniumi', pageSource:'index',
-          section:'new_on_aniumi', data: uniqueTmdb, itemCount: uniqueTmdb.length }).catch(()=>{});
-        return;
-      }
-    }
-  } catch (tmdbError) {
-    console.error('✗ TMDB fallback also failed:', tmdbError);
+    console.error('✗ AniList fallback also failed:', error);
   }
 
   // All sources failed - show error message using renderAnimeList with empty array
+  console.log('[New on Aniumi] All APIs failed - showing empty state');
   renderAnimeList([]);
 }
 
@@ -2529,7 +2835,7 @@ window.showAnikotoPopupById = function(mal_id) {
                 <div class="play-overlay"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" fill="white"/></svg></div>
               </div>
               <div class="card-info-grid">
-                <div class="card-meta-sm">${s.type} · ${s.duration==='?'?'?':s.duration} · ${s.status}</div>
+                <div class="card-meta-sm">${s.type} · ${s.duration==='?'?'?':s.duration} · ${ratingText || s.rating}</div>
                 <div class="card-title">${s.title}</div>
               </div>
             </a>`;
@@ -2568,8 +2874,13 @@ window.showAnikotoPopupById = function(mal_id) {
       }
       document.getElementById('releaseTabs').addEventListener('click', e => {
         if (e.target.classList.contains('toggle-tab')) {
+          // Update active state
           document.querySelectorAll('#releaseTabs .toggle-tab').forEach(t=>t.classList.remove('active'));
           e.target.classList.add('active');
+          
+          // Move glider to active tab
+          moveGlider('releaseTabs', 'releaseGlider', e.target);
+          
           const filter = e.target.dataset.filter;
           renderNewReleases(filter);
           document.getElementById('newReleasesTitle').textContent = filter==='all' ? 'New Releases' : `Latest ${e.target.textContent}`;
@@ -2939,6 +3250,10 @@ window.showAnikotoPopupById = function(mal_id) {
         if(e.target.classList.contains('toggle-tab')) {
           document.querySelectorAll('#trendingTabs .toggle-tab').forEach(t=>t.classList.remove('active'));
           e.target.classList.add('active');
+          
+          // Move glider to active tab
+          moveGlider('trendingTabs', 'trendingGlider', e.target);
+          
           loadTrending(e.target.dataset.period);
         }
       });
@@ -3354,133 +3669,235 @@ window.showAnikotoPopupById = function(mal_id) {
         });
       }
 
-      /* ── SCHEDULE (COMPLETE REBUILD) ── 
-                 /* ── NEW SCHEDULE (4‑column, localStorage, episode count) ── */
-      let scheduleData = null;          // { monday: [anime], tuesday: [...], ... }
-      let currentDay = null;            // 'monday' ... 'sunday'
-      let currentWeekOffset = 0;        // weeks from today's week start
+      /* ════════════════════════════════════════════════════════════
+         SCHEDULE SECTION - REBUILT (Self-hosted Jikan API)
+         Features: Parallel fetch, Week nav, 5-month limit, Show More
+         ════════════════════════════════════════════════════════════ */
+      
+      // Configuration
+      const JIKAN_SCHEDULE_BASE = 'https://jikan-api-bohb.onrender.com/v4/schedule';
       const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-      const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      const DAY_FULL_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+      const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      
+      let scheduleData = null;           // { monday: [anime], tuesday: [...], ... }
+      let currentDay = null;             // 'monday' ... 'sunday'
+      let currentWeekOffset = 0;         // weeks from today's week start
+      const MAX_WEEK_OFFSET = 20;        // ~5 months limit (20 weeks)
+      const VISIBLE_COUNT = 9;           // Show 9 animes per day initially
 
-      // ---------- Helper: fetch 3 pages for one day, with delays ----------
-      async function fetchDaySchedules(day) {
-        const pagesToTry = [1, 2, 3];
-        let allAnime = [];
-
-        for (const page of pagesToTry) {
-          try {
-            const res = await fetchJikan('schedules', `filter=${day}&sfw=true&limit=25&page=${page}`);
-            if (res.data && res.data.length > 0) {
-              allAnime.push(...res.data);
-            }
-            // Wait 0.5s between pages to avoid rate limiting
-            await new Promise(r => setTimeout(r, 500));
-          } catch (err) {
-            console.warn(`Failed to fetch ${day} page ${page}:`, err);
+      // ---------- Helper: Fetch single day from self-hosted Jikan ----------
+      async function fetchDayFromJikan(day) {
+        try {
+          const url = `${JIKAN_SCHEDULE_BASE}/${day}?sfw=true`;
+          console.log(`[Schedule] Fetching: ${url}`);
+          
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 12000); // 12s timeout
+          
+          const res = await fetch(url, { 
+            signal: controller.signal,
+            headers: { 'Accept': 'application/json' }
+          });
+          
+          clearTimeout(timeoutId);
+          
+          if (!res.ok) {
+            throw new Error(`HTTP ${res.status}`);
           }
+          
+          const data = await res.json();
+          const animeList = data.data || [];
+          
+          console.log(`[Schedule] ✅ ${day}: ${animeList.length} anime`);
+          return animeList;
+          
+        } catch (err) {
+          console.warn(`[Schedule] ⚠️ Failed to fetch ${day}:`, err.message);
+          return [];
         }
-
-        // Deduplicate by mal_id
-        const unique = new Map();
-        for (const anime of allAnime) {
-          if (!unique.has(anime.mal_id)) unique.set(anime.mal_id, anime);
-        }
-        const result = Array.from(unique.values());
-        console.log(`✅ ${day}: ${result.length} unique anime`);
-        return result;
       }
 
-      // ---------- Episode number calculation (unchanged) ----------
+      // ---------- Helper: Fetch ALL 7 days in parallel (rate-limit safe) ----------
+      async function fetchAllDaysParallel() {
+        console.log('[Schedule] 🚀 Starting parallel fetch of all 7 days...');
+        
+        // Fetch all 7 days simultaneously (self-hosted API should handle this)
+        const results = await Promise.allSettled(
+          DAYS.map(day => fetchDayFromJikan(day))
+        );
+        
+        const data = {};
+        DAYS.forEach((day, idx) => {
+          const result = results[idx];
+          data[day] = result.status === 'fulfilled' ? result.value : [];
+        });
+        
+        const totalAnime = Object.values(data).reduce((sum, arr) => sum + arr.length, 0);
+        console.log(`[Schedule] ✅ Complete! Total: ${totalAnime} anime across 7 days`);
+        
+        return data;
+      }
+
+      // ---------- Enhanced Episode number calculation ----------
       function getEpisodeNumber(anime) {
+        // If finished airing, show total episodes
         if (anime.status === 'Finished Airing') return anime.episodes || '?';
-        const broadcast = anime.broadcast;
-        if (!broadcast || !broadcast.time) return '?';
-        const timeMatch = broadcast.time.match(/(\d{1,2}):(\d{2})/);
-        if (!timeMatch) return '?';
-        const [_, hour, minute] = timeMatch;
-        const broadcastHour = parseInt(hour);
-        const broadcastMinute = parseInt(minute);
-        const firstAir = anime.aired?.from ? new Date(anime.aired.from) : null;
-        if (!firstAir) return '?';
+        
         const now = new Date();
-        const currentDate = new Date(now);
-        currentDate.setHours(broadcastHour, broadcastMinute, 0, 0);
-        const diffMs = currentDate - firstAir;
-        const weeksPassed = Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000));
-        let episode = weeksPassed + 1;
-        if (anime.episodes && episode > anime.episodes) episode = anime.episodes;
-        return episode;
+        const firstAir = anime.aired?.from ? new Date(anime.aired.from) : null;
+        
+        // Method 1: Calculate from aired_from date (most reliable)
+        if (firstAir && !isNaN(firstAir.getTime())) {
+          const diffMs = now - firstAir;
+          const daysPassed = Math.floor(diffMs / (24 * 60 * 60 * 1000));
+          // Most anime air weekly, so estimate episode from weeks
+          // Add grace period of 2 days for airing delays
+          let episode = Math.floor((daysPassed + 2) / 7) + 1;
+          // Cap at total episodes if known
+          if (anime.episodes && episode > anime.episodes) {
+            episode = anime.episodes;
+          }
+          // Don't show negative or zero
+          if (episode < 1) episode = 1;
+          // Only show if anime has started airing
+          if (daysPassed >= -7) return episode;
+        }
+        
+        // Method 2: Fallback to episodes count if available
+        if (anime.episodes && anime.episodes > 0) {
+          // Check if it's currently airing based on status
+          if (anime.status === 'Currently Airing') {
+            // Estimate: assume ~12-13 week seasons for ongoing
+            const estimatedEp = Math.min(anime.episodes, 13);
+            return `${estimatedEp}+`;
+          }
+          return anime.episodes;
+        }
+        
+        // Method 3: Return TBA if we really can't determine
+        return 'TBA';
       }
 
       // ---------- Render schedule for a given day (from scheduleData) ----------
       function renderScheduleForDay(dayName) {
-  const container = document.getElementById('eswBody');
-  const animeList = scheduleData?.[dayName] || [];
-  if (!animeList.length) {
-    container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);">No episodes scheduled</div>';
-    return;
-  }
+        const container = document.getElementById('eswBody');
+        const animeList = scheduleData?.[dayName] || [];
+        
+        if (!animeList.length) {
+          container.innerHTML = `
+            <div style="text-align:center;padding:30px 15px;color:var(--text-muted);">
+              <i class="fas fa-calendar-times" style="font-size:2rem;opacity:0.3;margin-bottom:10px;display:block;"></i>
+              <div style="font-size:0.85rem;">No episodes scheduled</div>
+              <div style="font-size:0.7rem;opacity:0.6;margin-top:4px;">for ${DAY_FULL_NAMES[DAYS.indexOf(dayName)]}</div>
+            </div>`;
+          return;
+        }
 
-  // Sort by broadcast time
-  const sorted = [...animeList].sort((a, b) => {
-    const timeA = a.broadcast?.time || '';
-    const timeB = b.broadcast?.time || '';
-    return timeA.localeCompare(timeB);
-  });
+        // Sort by broadcast time
+        const sorted = [...animeList].sort((a, b) => {
+          const timeA = a.broadcast?.time || '99:99';
+          const timeB = b.broadcast?.time || '99:99';
+          return timeA.localeCompare(timeB);
+        });
 
-  // Build rows
-  const rowsHtml = sorted.map(anime => {
-    const episode = getEpisodeNumber(anime);
-    const title = anime.title_english || anime.title;
-    const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-    const watchUrl = `/info/anime/jikan-${anime.mal_id}/${slug}`;
-    const poster = anime.images?.jpg?.image_url || '';
-    const broadcastTime = anime.broadcast?.time || 'TBA';
+        // Build rows HTML
+        const rowsHtml = sorted.map(anime => {
+          const episode = getEpisodeNumber(anime);
+          const title = anime.title_english || anime.title || 'Unknown Title';
+          const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+          const watchUrl = `/info/anime/jikan-${anime.mal_id}/${slug}`;
+          // Use large_image_url from v4 format or fallback to jpg
+          const poster = anime.images?.webp?.large_image_url || 
+                         anime.images?.jpg?.large_image_url || 
+                         anime.images?.jpg?.image_url || '';
+          // Enhanced broadcast time handling - Jikan v4 returns STRING format
+          // Format: "Mondays at 00:00 (JST)" or "Tuesdays at 18:30 (JST)"
+          let broadcastTime = '—';
+          const broadcast = anime.broadcast;
+          if (typeof broadcast === 'string' && broadcast.trim()) {
+            // Parse time from string like "Mondays at 00:00 (JST)"
+            const timeMatch = broadcast.match(/(\d{1,2}):(\d{2})/);
+            if (timeMatch) {
+              const h = parseInt(timeMatch[1]).toString().padStart(2, '0');
+              const m = timeMatch[2];
+              broadcastTime = `${h}:${m}`;
+            } else {
+              // No time found, show day abbreviation
+              const dayMatch = broadcast.match(/^(\w+)/);
+              broadcastTime = dayMatch ? dayMatch[1].slice(0, 3) : '—';
+            }
+          } else if (broadcast && typeof broadcast === 'object') {
+            // Fallback for object format (if API changes)
+            if (broadcast.time) {
+              const timeMatch = broadcast.time.match(/(\d{1,2}):(\d{2})/);
+              if (timeMatch) {
+                const h = parseInt(timeMatch[1]).toString().padStart(2, '0');
+                const m = timeMatch[2];
+                broadcastTime = `${h}:${m}`;
+              } else {
+                broadcastTime = broadcast.time;
+              }
+            } else if (broadcast.day) {
+              broadcastTime = broadcast.day.slice(0, 3);
+            }
+          }
 
-    return `
-      <a href="${watchUrl}" class="schedule-row">
-        <div class="schedule-time">${broadcastTime}</div>
-        <div class="schedule-poster"><img src="${poster}" loading="lazy" onerror="this.style.display='none'"></div>
-        <div class="schedule-title">${escapeHtml(title)}</div>
-        <div class="schedule-ep">EP ${episode}</div>
-      </a>
-    `;
-  }).join('');
+          return `
+            <a href="${watchUrl}" class="schedule-row">
+              <div class="schedule-time">${broadcastTime}</div>
+              <div class="schedule-poster">
+                <img src="${poster}" alt="${escapeHtml(title)}" loading="lazy" 
+                     onerror="this.parentElement.style.background='linear-gradient(135deg,#1e293b,#334155)';this.style.display='none';">
+              </div>
+              <div class="schedule-title">${escapeHtml(title)}</div>
+              <div class="schedule-ep">EP ${episode}</div>
+            </a>
+          `;
+        }).join('');
 
-  // Split rows into visible and hidden
-  const visibleCount = 7;
-  const rowsArray = rowsHtml.split('</a>').filter(r => r.trim());
-  const visibleRows = rowsArray.slice(0, visibleCount).join('</a>') + (rowsArray.length > visibleCount ? '</a>' : '');
-  const hiddenRows = rowsArray.slice(visibleCount).join('</a>');
-  const hasMore = rowsArray.length > visibleCount;
+        // Split into visible (9) and hidden
+        const rowsArray = rowsHtml.split('</a>').filter(r => r.trim());
+        const visibleRows = rowsArray.slice(0, VISIBLE_COUNT).join('</a>') + (rowsArray.length > VISIBLE_COUNT ? '</a>' : '');
+        const hiddenRows = rowsArray.slice(VISIBLE_COUNT).join('</a>');
+        const hasMore = rowsArray.length > VISIBLE_COUNT;
+        const remainingCount = rowsArray.length - VISIBLE_COUNT;
 
-  container.innerHTML = `
-    <div class="schedule-list">
-      ${visibleRows}
-      ${hasMore ? `<div class="schedule-more-wrapper" style="display:none;">${hiddenRows}</div>` : ''}
-      ${hasMore ? `<button type="button" class="schedule-more-btn">Show More (${rowsArray.length - visibleCount})</button>` : ''}
-    </div>
-  `;
+        container.innerHTML = `
+          <div class="schedule-list">
+            ${visibleRows}
+            ${hasMore ? `<div class="schedule-more-wrapper" style="display:none;">${hiddenRows}</div>` : ''}
+            ${hasMore ? `<button type="button" class="schedule-more-btn"><i class="fas fa-chevron-down"></i> Show More (${remainingCount} more)</button>` : ''}
+          </div>
+        `;
 
-  // Attach click handler with prevention of default action and propagation
-  const moreBtn = container.querySelector('.schedule-more-btn');
-  if (moreBtn) {
-    moreBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
+        // Attach enhanced show more handler
+        const moreBtn = container.querySelector('.schedule-more-btn');
+        if (moreBtn) {
+          moreBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
 
-      const wrapper = container.querySelector('.schedule-more-wrapper');
-      if (wrapper) {
-        const isHidden = wrapper.style.display === 'none';
-        wrapper.style.display = isHidden ? 'block' : 'none';
-        moreBtn.textContent = isHidden ? 'Show Less' : `Show More (${rowsArray.length - visibleCount})`;
+            const wrapper = container.querySelector('.schedule-more-wrapper');
+            if (wrapper) {
+              const isHidden = wrapper.style.display === 'none';
+              wrapper.style.display = isHidden ? 'block' : 'none';
+              
+              // Update button state
+              if (isHidden) {
+                moreBtn.classList.add('expanded');
+                moreBtn.innerHTML = '<i class="fas fa-chevron-up"></i> Show Less';
+              } else {
+                moreBtn.classList.remove('expanded');
+                moreBtn.innerHTML = `<i class="fas fa-chevron-down"></i> Show More (${remainingCount} more)`;
+              }
+            }
+          });
+        }
       }
-    });
-  }
-}
         
 
-      // ---------- Build week dates (Mon‑Sun) ----------
+      // ---------- Build week dates (Mon-Sun) ----------
       function buildWeekDates() {
         const now = new Date();
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -3488,6 +3905,7 @@ window.showAnikotoPopupById = function(mal_id) {
         let monday = new Date(today);
         const diffToMonday = (currentDayOfWeek === 0 ? -6 : 1 - currentDayOfWeek);
         monday.setDate(today.getDate() + diffToMonday + currentWeekOffset * 7);
+        
         const weekDates = [];
         for (let i = 0; i < 7; i++) {
           const date = new Date(monday);
@@ -3496,30 +3914,63 @@ window.showAnikotoPopupById = function(mal_id) {
         }
         return weekDates;
       }
+      
+      // ---------- Get week label for navigation ----------
+      function getWeekLabel(weekDates) {
+        if (!weekDates || !weekDates.length) return 'This Week';
+        const firstDate = weekDates[0];
+        const lastDate = weekDates[6];
+        
+        const fmt = (d) => `${MONTHS[d.getMonth()]} ${d.getDate()}`;
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        
+        if (firstDate <= today && lastDate >= today) {
+          return 'This Week';
+        }
+        return `${fmt(firstDate)} – ${fmt(lastDate)}`;
+      }
 
-      // ---------- Update day cards ----------
+      // ---------- Update day cards (Vertical Design) ----------
       function updateDaySelector() {
         const weekDates = buildWeekDates();
         const today = new Date();
         const todayStr = today.toDateString();
-        const container = document.getElementById('eswDaysScroll');
+        const container = document.getElementById('eswDaysRow');
+        
+        // Update week label
+        const weekLabelEl = document.getElementById('eswWeekLabel');
+        if (weekLabelEl) weekLabelEl.textContent = getWeekLabel(weekDates);
+        
+        // Update nav buttons state
+        const prevBtn = document.getElementById('eswPrev');
+        const nextBtn = document.getElementById('eswNext');
+        if (prevBtn) prevBtn.disabled = currentWeekOffset <= -MAX_WEEK_OFFSET;
+        if (nextBtn) nextBtn.disabled = currentWeekOffset >= MAX_WEEK_OFFSET;
+        
+        // Render vertical day cards
         container.innerHTML = weekDates.map((date, idx) => {
           const isToday = date.toDateString() === todayStr;
-          const dayName = DAY_NAMES[date.getDay() === 0 ? 6 : date.getDay() - 1];
-          const isActive = currentDay === DAYS[date.getDay() === 0 ? 6 : date.getDay() - 1];
+          const dayIndex = date.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+          const dayKeyIdx = dayIndex === 0 ? 6 : dayIndex - 1; // Convert to Mon=0 index
+          const isActive = currentDay === DAYS[dayKeyIdx];
+          
           return `
-            <div class="esw-day-card ${isToday ? 'today' : ''} ${isActive ? 'active' : ''}" data-day-index="${idx}">
-              <div class="esw-dc-date">${date.getDate()}</div>
-              <small>${dayName}</small>
+            <div class="esw-day-card ${isToday ? 'today' : ''} ${isActive ? 'active' : ''}" 
+                 data-day-index="${idx}" data-day-key="${DAYS[dayKeyIdx]}"
+                 title="${DAY_FULL_NAMES[dayKeyIdx]}, ${MONTHS[date.getMonth()]} ${date.getDate()}">
+              <span class="esw-dc-month">${MONTHS[date.getMonth()]}</span>
+              <span class="esw-dc-day">${date.getDate()}</span>
+              <span class="esw-dc-weekday">${DAY_FULL_NAMES[dayKeyIdx].slice(0, 3)}</span>
             </div>
           `;
         }).join('');
-        document.querySelectorAll('#eswDaysScroll .esw-day-card').forEach(card => {
+        
+        // Add click handlers
+        container.querySelectorAll('.esw-day-card').forEach(card => {
           card.addEventListener('click', (e) => {
-            const idx = parseInt(card.dataset.dayIndex);
-            const selectedDate = weekDates[idx];
-            const dayKey = DAYS[selectedDate.getDay() === 0 ? 6 : selectedDate.getDay() - 1];
-            setCurrentDay(dayKey);
+            const dayKey = card.dataset.dayKey;
+            if (dayKey) setCurrentDay(dayKey);
           });
         });
       }
@@ -3578,14 +4029,9 @@ window.showAnikotoPopupById = function(mal_id) {
         }
 
         if (needFetch) {
-          console.log('Fetching schedule one day at a time...');
-          scheduleData = {};
-          let fetchedAny = false;
-          for (const day of DAYS) {
-            scheduleData[day] = await fetchDaySchedules(day);
-            if (scheduleData[day].length > 0) fetchedAny = true;
-            await new Promise(r => setTimeout(r, 500)); // delay between days
-          }
+          console.log('[Schedule] 🚀 Fetching all 7 days in parallel...');
+          scheduleData = await fetchAllDaysParallel();
+          const fetchedAny = Object.values(scheduleData).some(arr => arr.length > 0);
           // BUGFIX (v2): only persist the cache if we actually got data.
           // Otherwise a transient Jikan outage would poison the cache
           // for 24 hours and the user would see "No episodes scheduled"
@@ -3629,16 +4075,20 @@ window.showAnikotoPopupById = function(mal_id) {
         setInterval(updateClock, 1000);
       }
 
-      // Week navigation
+      // Week navigation (with 5-month limit)
       function previousWeek() {
-        currentWeekOffset--;
-        updateDaySelector();
-        setCurrentDay(currentDay);
+        if (currentWeekOffset > -MAX_WEEK_OFFSET) {
+          currentWeekOffset--;
+          updateDaySelector();
+          setCurrentDay(currentDay);
+        }
       }
       function nextWeek() {
-        currentWeekOffset++;
-        updateDaySelector();
-        setCurrentDay(currentDay);
+        if (currentWeekOffset < MAX_WEEK_OFFSET) {
+          currentWeekOffset++;
+          updateDaySelector();
+          setCurrentDay(currentDay);
+        }
       }
 
       function updateClock() {
@@ -3733,6 +4183,44 @@ window.showAnikotoPopupById = function(mal_id) {
         }
       }
 
+      /* ── SLIDING TAB GLIDER FUNCTIONALITY ── */
+      function moveGlider(tabsContainerId, gliderId, activeTab) {
+        const glider = document.getElementById(gliderId);
+        if (!glider || !activeTab) return;
+        
+        // Calculate position and width
+        const tabRect = activeTab.getBoundingClientRect();
+        const tabsContainer = document.getElementById(tabsContainerId);
+        const containerRect = tabsContainer.getBoundingClientRect();
+        
+        // Set glider width and position relative to container
+        const leftOffset = tabRect.left - containerRect.left;
+        glider.style.width = `${tabRect.width}px`;
+        glider.style.transform = `translateX(${leftOffset}px)`;
+      }
+      
+      // Initialize gliders on page load and resize
+      function initGliders() {
+        // Initialize Release Tabs glider
+        const releaseActiveTab = document.querySelector('#releaseTabs .toggle-tab.active');
+        if (releaseActiveTab) {
+          moveGlider('releaseTabs', 'releaseGlider', releaseActiveTab);
+        }
+        
+        // Initialize Trending Tabs glider
+        const trendingActiveTab = document.querySelector('#trendingTabs .toggle-tab.active');
+        if (trendingActiveTab) {
+          moveGlider('trendingTabs', 'trendingGlider', trendingActiveTab);
+        }
+      }
+      
+      // Re-initialize on window resize (with debounce)
+      let resizeTimeout;
+      window.addEventListener('resize', () => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(initGliders, 100);
+      });
+
       function init() {
         injectSkeletons();
         loadHero();
@@ -3745,6 +4233,8 @@ window.showAnikotoPopupById = function(mal_id) {
         loadPopular();
         loadPopularAnime();
         loadSchedule();
+        // Initialize sliding tab gliders
+        initGliders();
         // After initial loads settle, verify everything is in DB and retry any gaps
         setTimeout(ensureHomepageComplete, 5000);
       }
