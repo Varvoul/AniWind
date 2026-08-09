@@ -1831,13 +1831,12 @@ async function loadNewAniocean() {
       if (w <= 1800) return 6;
       return 7;
     }
-    const TARGET_ROWS = 4;  // Reduced from 6 to 4 rows
+    const TARGET_ROWS = 6;  // FIXED: Always show exactly 6 rows
     const cols = calcColsForGrid();
-    const TARGET_SHOWS = TARGET_ROWS * cols; // 28 shows max
+    const TARGET_SHOWS = TARGET_ROWS * cols; // Max shows for 6 rows
     
-    // Trim to complete rows only
-    const trimmedTo = Math.floor(animeList.length / cols) * cols;
-    const displayList = animeList.slice(0, trimmedTo || TARGET_SHOWS);
+    // Trim to exactly 6 rows (no more, no less)
+    const displayList = animeList.slice(0, TARGET_SHOWS);
 
     grid.innerHTML = displayList.map(anime => {
       const studio = anime.studio || '?';
@@ -1931,28 +1930,11 @@ async function loadNewAniocean() {
       // Deduplicate by mal_id
       const unique = dedupById(cleanJikan(formatted), 'mal_id');
       
-      // Calculate target for 6 complete rows (balanced grid)
-      function calcColsForGrid() {
-        const w = window.innerWidth;
-        if (w <= 520) return 2;
-        if (w <= 768) return 3;
-        if (w <= 992) return 4;
-        if (w <= 1400) return 5;
-        if (w <= 1800) return 6;
-        return 7;
-      }
-      const TARGET_ROWS = 6;  // 6 complete rows for full grid
-      const cols = calcColsForGrid();
-      const TARGET_SHOWS = TARGET_ROWS * cols; // Max shows for 6 rows
-      
-      // Trim to complete rows
-      const trimmedTo = Math.floor(unique.length / cols) * cols;
-      const displayData = unique.slice(0, trimmedTo || TARGET_SHOWS);
-      
-      if (renderAnimeList(displayData)) {
+      // Use exactly 6 rows (fixed limit)
+      if (renderAnimeList(unique)) {
         console.log(`✓ Loaded ${unique.length} anime from Anikoto proxy for "New on Aniocean"`);
         if (window.AniCache) window.AniCache.set({ cacheKey:'index:new_on_aniumi', pageSource:'index',
-          section:'new_on_aniumi', data: displayData, itemCount: displayData.length }).catch(()=>{});
+          section:'new_on_aniumi', data: unique, itemCount: unique.length }).catch(()=>{});
         return;
       }
     }
@@ -2004,24 +1986,11 @@ async function loadNewAniocean() {
         throw new Error('No anime data from AniList');
       }
     
-    // Trim to 4 complete rows
-    function calcColsForGrid() {
-      const w = window.innerWidth;
-      if (w <= 520) return 2;
-      if (w <= 768) return 3;
-      if (w <= 992) return 4;
-      if (w <= 1400) return 5;
-      if (w <= 1800) return 6;
-      return 7;
-    }
-    const cols = calcColsForGrid();
-    const trimmedAnilist = Math.floor(unique.length / cols) * cols;
-    const displayAnilist = unique.slice(0, trimmedAnilist || unique.length);
-
-    if (renderAnimeList(displayAnilist)) {
-      console.log(`✓ Loaded ${displayAnilist.length} anime from AniList (fallback) for "New on Aniocean"`);
+    // Use exactly 6 rows (fixed limit)
+    if (renderAnimeList(unique)) {
+      console.log(`✓ Loaded ${unique.length} anime from AniList (fallback) for "New on Aniocean"`);
       if (window.AniCache) window.AniCache.set({ cacheKey:'index:new_on_aniumi', pageSource:'index',
-        section:'new_on_aniumi', data: displayAnilist, itemCount: displayAnilist.length }).catch(()=>{});
+        section:'new_on_aniumi', data: unique, itemCount: unique.length }).catch(()=>{});
       return;
     }
     }
