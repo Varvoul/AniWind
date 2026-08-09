@@ -1639,13 +1639,244 @@
   async function fetchSuggestions(q, container) {
     try {
       const results = currentSearchMode === 'anime'
-        ? await fetchAnimeWithFallbacks(q)
+        ? await fetchAnimeWithSeasonGrouping(q)
         : await fetchTMDB(q);
-      renderSuggestions(results.slice(0, 8), q, container);
+      renderSuggestions(results.slice(0, 10), q, container); // Show up to 10 for seasons
     } catch (err) {
       container.innerHTML = `<div style="padding:14px 12px;font-size:0.76rem;color:var(--text-muted,#888);">Failed to fetch. Try again.</div>`;
       console.error('Search error:', err);
     }
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     SEASON DETECTION & GROUPING FOR SEARCH SUGGESTIONS
+     
+     When user searches "Naruto" (base name), show ALL seasons:
+     - Naruto (2002) → Naruto Shippuden (2007) → Boruto (2016)
+     Sorted oldest to newest automatically!
+     
+     Only triggers when query is a BASE name (no season/part specified).
+  ═══════════════════════════════════════════════════════════ */
+  
+  // Patterns that indicate user is searching for a SPECIFIC season
+  const SEASON_PATTERNS = [
+    /\bseason\s*\d+/i,
+    /\bpart\s*\d+[a-z]?\b/i,
+    /\bpart\s+(i{1,3}|iv|v|vi)\b/i,           // Part I, II, III, IV, V, VI
+    /\b\s*(i{1,3}|iv|v|vi)\s*$/i,              // Ends with II, III, IV, etc.
+    /\b\d+nd\b/i,                               // 2nd, 3rd
+    /\b\d*rd\b/i,
+    /\b\d*th\b/i,
+    /\b(?:cour|arc|saga|chapter)\b/i,
+    /:\s*\w+\s*\d/i,                            // Title: Subtitle 2
+    /-\s*\d+$/,                                 // ends with -2, -3
+    /\bshippuden\b/i,                           // Specific to Naruto
+    /\bbrotherhood\b/i,                         // Specific to FMA
+    /\bstone wars\b/i,                          // Dr. Stone specific
+    /\bfinal season\b/i,
+    /\badventures?\b/i,                          // Konosuba, Slime isekai
+  ];
+  
+  /**
+   * Check if query looks like a base anime name (no specific season)
+   * @param {string} q - Search query
+   * @returns {boolean} True if this appears to be a base name search
+   */
+  function isBaseNameQuery(q) {
+    const trimmed = q.trim().toLowerCase();
+    // If it matches any season pattern, it's NOT a base name query
+    return !SEASON_PATTERNS.some(pattern => pattern.test(trimmed));
+  }
+  
+  /**
+   * Extract base anime name from query (for finding related seasons)
+   * @param {string} q - Search query
+   * @returns {string} Cleaned base name
+   */
+  function extractBaseName(q) {
+    let base = q.trim()
+      .replace(/\s*(?:season|part|cour|arc|saga|chapter)\s*\d+[a-z]*\s*/gi, '')
+      .replace(/\s*(i{1,3}|iv|v|vi)\s*$/gi, '')
+      .replace(/\s*\d+nd\s*$/gi, '')
+      .replace(/\s*\d*rd\s*$/gi, '')
+      .replace(/\s*\d*th\s*$/gi, '')
+      .replace(/\s*-\s*\d+$/g, '')
+      .trim();
+    
+    // Handle special cases
+    base = base.replace(/\bnaruto\s*shippuden/gi, 'naruto');
+    base = base.replace(/\bfullmetal\s*alchemist\s*brotherhood/gi, 'fullmetal alchemist');
+    base = base.replace(/\bdr\.?\s*stone\s*wars/gi, 'dr stone');
+    base = base.replace(/\bthat time.*slime/gi, 'slime'); // Tensei Shitara
+    
+    return base;
+  }
+  
+  /**
+   * Season order mapping - helps sort seasons correctly
+   * Maps common season identifiers to numeric values
+   */
+  function getSeasonOrder(title, year) {
+    const t = title.toLowerCase();
+    
+    // Check for explicit season numbers
+    const seasonMatch = t.match(/season\s*(\d+)/i);
+    if (seasonMatch) return parseInt(seasonMatch[1]) * 1000;
+    
+    const partMatch = t.match(/part\s*(\d+|[ivx]+)/i);
+    if (partMatch) {
+      const partNum = partMatch[1];
+      if (/^\d+$/.test(partNum)) return parseInt(partNum) * 1000;
+      // Roman numerals
+      const romanMap = { i: 1, ii: 2, iii: 3, iv: 4, v: 5, vi: 6 };
+      return (romanMap[partNum.toLowerCase()] || 0) * 1000;
+    }
+    
+    // Check for sequel patterns
+    if (/\b(ii|iii|iv|v|vi)\b/.test(t)) {
+      const romanMap = { ii: 2, iii: 3, iv: 4, v: 5, vi: 6 };
+      for (const [roman, num] of Object.entries(romanMap)) {
+        if (new RegExp(`\\b${roman}\\b`).test(t)) return num * 1000;
+      }
+    }
+    
+    // Special keywords that indicate later seasons
+    if (/\b(shippuden|brotherhood|final|stone wars|adventure)\b/.test(t)) {
+      return 5000; // Usually sequels
+    }
+    
+    // Default: use year as primary sort key
+    return year || 9999;
+  }
+
+  /**
+   * Fetch anime results with automatic season grouping
+   * If user searches base name like "Naruto", finds all seasons sorted chronologically
+   */
+  async function fetchAnimeWithSeasonGrouping(q) {
+    // First get normal search results
+    let results = await fetchAnimeWithFallbacks(q);
+    
+    // Only apply season grouping for anime mode with base name queries
+    if (!isBaseNameQuery(q) || results.length === 0) {
+      return results;
+    }
+    
+    console.log(`[Season] Base name detected: "${q}", checking for related seasons...`);
+    
+    const baseName = extractBaseName(q);
+    if (!baseName || baseName.length < 2) return results;
+    
+    try {
+      // Search for additional seasons using variations of the base name
+      const seasonResults = await fetchRelatedSeasons(baseName, results);
+      
+      if (seasonResults.length > 0) {
+        // Merge and deduplicate
+        const existingIds = new Set(results.map(r => r.mal_id).filter(Boolean));
+        const newSeasons = seasonResults.filter(r => !existingIds.has(r.mal_id));
+        
+        if (newSeasons.length > 0) {
+          console.log(`[Season] Found ${newSeasons.length} additional seasons for "${baseName}"`);
+          
+          // Combine all results
+          const allResults = [...results, ...newSeasons];
+          
+          // Sort by year (oldest first), then by season order
+          allResults.sort((a, b) => {
+            const yearA = a.year || 0;
+            const yearB = b.year || 0;
+            if (yearA !== yearB) return yearA - yearB;
+            
+            // Same year? Use title-based season ordering
+            const orderA = getSeasonOrder(a.title || '', yearA);
+            const orderB = getSeasonOrder(b.title || '', yearB);
+            return orderA - orderB;
+          });
+          
+          console.log(`[Season] Total ${allResults.length} results, sorted oldest→newest`);
+          return allResults;
+        }
+      }
+    } catch (err) {
+      console.warn('[Season] Could not fetch related seasons:', err.message);
+    }
+    
+    return results;
+  }
+  
+  /**
+   * Fetch related seasons for a base anime name
+   * Searches DB and Jikan for season variations
+   */
+  async function fetchRelatedSeasons(baseName, existingResults) {
+    const seasonVariations = generateSeasonVariations(baseName);
+    const allSeasonResults = [];
+    const searchedQueries = new Set([baseName.toLowerCase()]);
+    
+    // Add existing result titles to avoid re-searching
+    existingResults.forEach(r => {
+      if (r.title) searchedQueries.add(r.title.toLowerCase());
+    });
+    
+    // Search each variation (with concurrency limit)
+    const searchPromises = seasonVariations
+      .filter(v => !searchedQueries.has(v.toLowerCase()))
+      .slice(0, 8) // Limit to avoid too many API calls
+      .map(variation => searchSingleVariation(variation));
+    
+    const results = await Promise.allSettled(searchPromises);
+    
+    results.forEach(result => {
+      if (result.status === 'fulfilled' && result.value) {
+        allSeasonResults.push(...result.value);
+      }
+    });
+    
+    return allSeasonResults;
+  }
+  
+  /**
+   * Generate common season name variations for searching
+   */
+  function generateSeasonVariations(baseName) {
+    const variations = [];
+    
+    // Common season suffixes to try
+    const seasonSuffixes = [
+      ' Season 2', ' 2nd Season', ' S2',
+      ' Season 3', ' 3rd Season', ' S3',
+      ' Season 4', ' 4th Season', ' S4',
+      ' Season 5', ' 5th Season',
+      ' Part 2',
+      ' Part 3',
+      ' The Movie', ' Movie',
+      ' OVA',
+      ' Final Season',
+    ];
+    
+    // Add some variations based on the base name
+    seasonSuffixes.forEach(suffix => {
+      variations.push(baseName + suffix);
+    });
+    
+    return variations;
+  }
+  
+  /**
+   * Search a single variation and return results
+   */
+  async function searchSingleVariation(query) {
+    try {
+      // Quick DB search first
+      const dbResults = await searchAnimeFromDB(query);
+      if (dbResults && dbResults.length > 0) {
+        return dbResults.slice(0, 2); // Take top 2 per variation
+      }
+    } catch (e) {
+      // Silently fail individual variation searches
+    }
+    return [];
   }
 
   /* ═══════════════════════════════════════════════════════════
