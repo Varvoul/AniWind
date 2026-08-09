@@ -3168,28 +3168,32 @@ window.showAnikotoPopupById = function(mal_id) {
             studio:'?', backdrop:tmdbBack(i.backdrop_path), duration:'2h 10m'
           }));
         
-        // Map and filter TMDB TV (from /tv/on_the_air - check air dates + posters)
-        console.log(`[Upcoming] Filtering ${allTmdbTV.length} TV shows...`);
-        let tvPassed = 0, tvDroppedPast = 0, tvDroppedPoster = 0;
+        // Map and filter TMDB TV (from /tv/on_the_air endpoint)
+        // IMPORTANT: /tv/on_the_air ONLY returns: id, name, overview, poster_path, backdrop_path,
+        //   first_air_date, vote_average, vote_count, popularity, genre_ids, origin_country, original_language
+        // It does NOT return: status, next_episode_to_air, last_air_date
+        // Since this endpoint BY DEFINITION returns "on the air" shows, we trust it and only filter by poster!
+        console.log(`[Upcoming] Filtering ${allTmdbTV.length} TV shows from /tv/on_the_air...`);
+        let tvPassed = 0, tvDroppedNoPoster = 0;
         const tmdbTVShows = allTmdbTV
-          .filter(i => {
-            const hasPoster = hasValidPoster(i.poster_path);
-            // For /tv/on_the_air, shows are currently airing - check next episode date or first_air_date
-            // /tv/on_the_air returns shows that are airing, so we should be MORE lenient with date filtering
-            const airDate = i.first_air_date || i.last_air_date || i.next_episode_to_air?.air_date;
-            const isFuture = isFutureDate(airDate) || i.status === 'Returning Series' || i.status === 'In Production';
-            if (!isFuture || !hasPoster) {
-              if (!isFuture) tvDroppedPast++;
-              else tvDroppedPoster++;
-              if (tvPassed + tvDroppedPast <= 15) { // Log first 15 drops only
-                console.log(`[Upcoming Filter] ❌ TV dropped: "${i?.name}" - status:${i.status} - air_date:${airDate} - next_ep:${i.next_episode_to_air?.air_date || 'none'} - ${!isFuture ? 'not eligible' : 'no poster'}`);
+          .filter((item, index) => {
+            const hasPoster = hasValidPoster(item.poster_path);
+            // Deduplicate by ID (same show can appear across pages)
+            const isFirstOccurrence = allTmdbTV.findIndex(t => t.id === item.id) === index;
+            if (!hasPoster) {
+              tvDroppedNoPoster++;
+              if (tvPassed + tvDroppedNoPoster <= 10) {
+                console.log(`[Upcoming Filter] ❌ TV no poster: "${item?.name}" (id:${item.id})`);
               }
+            } else if (!isFirstOccurrence) {
+              // Skip duplicate silently
+              return false;
             } else {
               tvPassed++;
             }
-            return hasPoster && isFuture;
+            return hasPoster && isFirstOccurrence;
           })
-          .slice(0, 50)  // Take more since we filter
+          .slice(0, 50)  // Limit to 50 TV shows
           .map(i => ({
             id:`tmdb-up-tv-${i.id}`, title:i.name, original_title:i.original_name||i.name,
             type:'TV', poster:tmdbImg(i.poster_path), score:(i.vote_average||0).toFixed(1),
@@ -3207,7 +3211,7 @@ window.showAnikotoPopupById = function(mal_id) {
           return hasPoster;
         });
         
-        console.log(`[Upcoming Filter] ✅ RESULTS: ${tmdbMovieShows.length} movies (from ${moviesPassed} passed, ${moviesDroppedPast} past-date, ${moviesDroppedPoster} no-poster) + ${tmdbTVShows.length} TV (from ${tvPassed} passed, ${tvDroppedPast} dropped, ${tvDroppedPoster} no-poster) + ${anilistFiltered.length} anime`);
+        console.log(`[Upcoming Filter] ✅ RESULTS: ${tmdbMovieShows.length} movies (from ${moviesPassed} passed, ${moviesDroppedPast} past-date, ${moviesDroppedPoster} no-poster) + ${tmdbTVShows.length} TV (from ${tvPassed} passed, ${tvDroppedNoPoster} no-poster, deduped) + ${anilistFiltered.length} anime`);
         
         upcomingShows = dedupById([
           ...tmdbMovieShows,
