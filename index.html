@@ -2979,18 +2979,40 @@ window.showAnikotoPopupById = function(mal_id) {
         const formatDate = (d) => d.toISOString().split('T')[0];
         
         // Using NEW t-umi proxy + AniList (replacing Jikan)
-        // INCREASED pages because frontend will filter by date + poster!
-        const [tmdbUp1, tmdbUp2, tmdbUp3, tmdbUp4, tmdbUp5, tmdbUpTv1, tmdbUpTv2, tmdbUpTv3, tmdbUpTv4, tmdbUpTv5, anilistUpcoming] = await Promise.all([
+        // MASSIVELY INCREASED pages - ~80% of items have past dates so we need LOTS more!
+        const [tmdbUp1, tmdbUp2, tmdbUp3, tmdbUp4, tmdbUp5, tmdbUp6, tmdbUp7, tmdbUp8, tmdbUp9, tmdbUp10,
+               tmdbUpTv1, tmdbUpTv2, tmdbUpTv3, tmdbUpTv4, tmdbUpTv5, tmdbUpTv6, tmdbUpTv7, tmdbUpTv8, tmdbUpTv9, tmdbUpTv10,
+               tmdbUpTv11, tmdbUpTv12, tmdbUpTv13, tmdbUpTv14, tmdbUpTv15,
+               anilistUpcoming] = await Promise.all([
+          // MOVIES: 10 pages = 200 results (expect ~20-30 after date+poster filter)
           fetchTMDB('/movie/upcoming', `page=1`),
           fetchTMDB('/movie/upcoming', `page=2`),
           fetchTMDB('/movie/upcoming', `page=3`),
-          fetchTMDB('/movie/upcoming', `page=4`),  // EXTRA page for filtering
-          fetchTMDB('/movie/upcoming', `page=5`),  // EXTRA page for filtering
+          fetchTMDB('/movie/upcoming', `page=4`),
+          fetchTMDB('/movie/upcoming', `page=5`),
+          fetchTMDB('/movie/upcoming', `page=6`),
+          fetchTMDB('/movie/upcoming', `page=7`),
+          fetchTMDB('/movie/upcoming', `page=8`),
+          fetchTMDB('/movie/upcoming', `page=9`),
+          fetchTMDB('/movie/upcoming', `page=10`),
+          // TV SHOWS: 15 pages = 300 results (expect ~30-50 after date+poster filter)
+          // Primary: discover/tv with future date range
           fetchTMDB('/discover/tv', `first_air_date.gte=${formatDate(startDate)}&first_air_date.lte=${formatDate(endDate)}&sort_by=first_air_date.asc&page=1`),
           fetchTMDB('/discover/tv', `first_air_date.gte=${formatDate(startDate)}&first_air_date.lte=${formatDate(endDate)}&sort_by=first_air_date.asc&page=2`),
           fetchTMDB('/discover/tv', `first_air_date.gte=${formatDate(startDate)}&first_air_date.lte=${formatDate(endDate)}&sort_by=first_air_date.asc&page=3`),
-          fetchTMDB('/discover/tv', `first_air_date.gte=${formatDate(startDate)}&first_air_date.lte=${formatDate(endDate)}&sort_by=first_air_date.asc&page=4`),  // EXTRA page
-          fetchTMDB('/discover/tv', `first_air_date.gte=${formatDate(startDate)}&first_air_date.lte=${formatDate(endDate)}&sort_by=first_air_date.asc&page=5`),  // EXTRA page
+          fetchTMDB('/discover/tv', `first_air_date.gte=${formatDate(startDate)}&first_air_date.lte=${formatDate(endDate)}&sort_by=first_air_date.asc&page=4`),
+          fetchTMDB('/discover/tv', `first_air_date.gte=${formatDate(startDate)}&first_air_date.lte=${formatDate(endDate)}&sort_by=first_air_date.asc&page=5`),
+          fetchTMDB('/discover/tv', `first_air_date.gte=${formatDate(startDate)}&first_air_date.lte=${formatDate(endDate)}&sort_by=first_air_date.asc&page=6`),
+          fetchTMDB('/discover/tv', `first_air_date.gte=${formatDate(startDate)}&first_air_date.lte=${formatDate(endDate)}&sort_by=first_air_date.asc&page=7`),
+          fetchTMDB('/discover/tv', `first_air_date.gte=${formatDate(startDate)}&first_air_date.lte=${formatDate(endDate)}&sort_by=first_air_date.asc&page=8`),
+          fetchTMDB('/discover/tv', `first_air_date.gte=${formatDate(startDate)}&first_air_date.lte=${formatDate(endDate)}&sort_by=first_air_date.asc&page=9`),
+          fetchTMDB('/discover/tv', `first_air_date.gte=${formatDate(startDate)}&first_air_date.lte=${formatDate(endDate)}&sort_by=first_air_date.asc&page=10`),
+          // Fallback: on_the_air endpoint (currently airing + upcoming)
+          fetchTMDB('/tv/on_the_air', `page=1`),
+          fetchTMDB('/tv/on_the_air', `page=2`),
+          fetchTMDB('/tv/on_the_air', `page=3`),
+          fetchTMDB('/tv/on_the_air', `page=4`),
+          fetchTMDB('/tv/on_the_air', `page=5`),
           // AniList: Upcoming anime (replacing Jikan top/anime filter=upcoming)
           fetchAniList(`
             query ($perPage: Int) {
@@ -3003,10 +3025,24 @@ window.showAnikotoPopupById = function(mal_id) {
           `, { perPage: 40 })
         ]);
         
-        // Merge TMDB movie pages (increased for filtering!)
-        const allTmdbMovies = [...(tmdbUp1.results||[]), ...(tmdbUp2.results||[]), ...(tmdbUp3.results||[]), ...(tmdbUp4.results||[]), ...(tmdbUp5.results||[])];
-        // Merge TMDB TV pages (increased for filtering!)
-        const allTmdbTV = [...(tmdbUpTv1.results||[]), ...(tmdbUpTv2.results||[]), ...(tmdbUpTv3.results||[]), ...(tmdbUpTv4.results||[]), ...(tmdbUpTv5.results||[])];
+        // Merge TMDB movie pages (massively increased!)
+        const allTmdbMovies = [
+          ...(tmdbUp1.results||[]), ...(tmdbUp2.results||[]), ...(tmdbUp3.results||[]), 
+          ...(tmdbUp4.results||[]), ...(tmdbUp5.results||[]), ...(tmdbUp6.results||[]), 
+          ...(tmdbUp7.results||[]), ...(tmdbUp8.results||[]), ...(tmdbUp9.results||[]), 
+          ...(tmdbUp10.results||[])
+        ];
+        // Merge TMDB TV pages (massively increased! - includes both discover + on_the_air)
+        const allTmdbTV = [
+          // Discover TV with date range
+          ...(tmdbUpTv1.results||[]), ...(tmdbUpTv2.results||[]), ...(tmdbUpTv3.results||[]), 
+          ...(tmdbUpTv4.results||[]), ...(tmdbUpTv5.results||[]), ...(tmdbUpTv6.results||[]), 
+          ...(tmdbUpTv7.results||[]), ...(tmdbUpTv8.results||[]), ...(tmdbUpTv9.results||[]), 
+          ...(tmdbUpTv10.results||[]),
+          // On_the_air fallback
+          ...(tmdbUpTv11.results||[]), ...(tmdbUpTv12.results||[]), ...(tmdbUpTv13.results||[]), 
+          ...(tmdbUpTv14.results||[]), ...(tmdbUpTv15.results||[])
+        ];
         
         // Convert AniList upcoming anime
         const anilistUpAnime = [];
