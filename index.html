@@ -238,6 +238,98 @@
     .btn-heart-slide:hover {
       background: rgba(255,255,255,0.2);
     }
+    
+    /* ── Card Action Buttons (for sections) ── */
+    .card-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    
+    .btn-bookmark-slide {
+      width: clamp(32px, 5vw, 44px);
+      height: clamp(32px, 5vw, 44px);
+      background: rgba(255,255,255,0.08);
+      border: 1px solid var(--border-medium);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all var(--transition-fast);
+      color: #fff;
+      font-size: clamp(0.75rem, 1.8vw, 1.1rem);
+    }
+    .btn-bookmark-slide:hover {
+      background: rgba(255,255,255,0.2);
+      color: var(--accent-gold);
+    }
+    
+    .btn-details {
+      background: transparent;
+      color: var(--text-secondary);
+      padding: clamp(6px, 1.2vw, 10px) clamp(12px, 2vw, 20px);
+      border: 1px solid var(--border-medium);
+      border-radius: var(--radius-pill);
+      font-weight: 600;
+      font-size: clamp(0.65rem, 1.3vw, 0.85rem);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all var(--transition-fast);
+    }
+    .btn-details:hover {
+      background: rgba(255,255,255,0.08);
+      border-color: var(--btn-primary);
+      color: var(--btn-primary);
+    }
+
+    /* ── Compact Overlay Actions (for horizontal cards) ── */
+    .card-actions-overlay {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, transparent 100%);
+      padding: 30px 10px 10px;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    
+    .show-card-horiz:hover .card-actions-overlay,
+    .show-card-grid:hover .card-actions-overlay {
+      opacity: 1;
+    }
+    
+    .action-btns-row {
+      display: flex;
+      gap: 6px;
+      justify-content: center;
+    }
+    
+    .action-btn {
+      width: 32px;
+      height: 32px;
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.25);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 0.8rem;
+      transition: all 0.2s ease;
+    }
+    .action-btn:hover {
+      background: var(--btn-primary);
+      border-color: var(--btn-primary);
+      transform: scale(1.1);
+    }
+    .action-watch:hover { background: #22c55e; border-color: #22c55e; }
+    .action-heart:hover { background: #ec4899; border-color: #ec4899; }
+    .action-bookmark:hover { background: var(--accent-gold); border-color: var(--accent-gold); }
+    .action-details:hover { background: #3b82f6; border-color: #3b82f6; }
     .slider-nav {
       position: absolute;
       bottom: 12px;
@@ -1632,9 +1724,12 @@
         let type = 'anime';
         let prefixId = id;
 
-        if (id.startsWith('jikan-')) {
+        if (id.startsWith('jikan-') || id.startsWith('anilist-')) {
           type = 'anime';
-          prefixId = id.replace(/^jikan-(?:air-|up-|comp-|tr-|pop-)?/, 'jikan-');
+          prefixId = id.replace(/^jikan-(?:air-|up-|comp-|tr-|pop-)?/, 'jikan-')
+                        .replace(/^anilist-/, 'jikan-');
+          // Use mal_id if available for cleaner URL
+          if (show.mal_id) prefixId = `jikan-${show.mal_id}`;
         } else if (id.startsWith('tmdb-mv-') || id.startsWith('tmdb-movie-') || id.startsWith('tmdb-up-')) {
           type = 'movie';
           const numeric = id.replace(/^tmdb-(?:mv|movie|up)-/, '');
@@ -1650,6 +1745,132 @@
 
         const base = `/info/${type}/${prefixId}`;
         return slug ? `${base}/${slug}` : base;
+      }
+
+      /* ── WATCH URL GENERATOR (SEO-Friendly) ──
+       * Generates watch page URLs with proper format:
+       * - Movies: /watch/movie/tmdb-movie-{id}/slug
+       * - TV: /watch/tv/tmdb-tv-{id}/slug/season-{season}-episode-{episode}
+       * - Anime: /watch/anime/jikan-{id}/slug
+       * 
+       * TMDB TV Season Handling:
+       * TMDB uses same ID for all seasons of a show.
+       * Solution: Include season & episode in URL path for SEO clarity.
+       * Default: season=1, episode=1 for "Watch Now" button.
+       */
+      function watchUrl(show, season = 1, episode = 1) {
+        const id = show.id;
+        const title = (show.title || '').trim();
+        const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+
+        // Anime (Jikan/AniList)
+        if (id.startsWith('jikan-') || id.startsWith('anilist-') || show.mal_id) {
+          const malId = show.mal_id || id.replace(/^jikan-(?:air-|up-|comp-|tr-|pop-|anilist-)?/, '');
+          const base = `/watch/anime/jikan-${malId}`;
+          return slug ? `${base}/${slug}` : base;
+        }
+
+        // TMDB Movie
+        if (id.startsWith('tmdb-mv-') || id.startsWith('tmdb-movie-') || id.startsWith('tmdb-up-') || 
+            show.type === 'Movie' || show.type === 'movie') {
+          const numeric = show.tmdb_id || id.replace(/^tmdb-(?:mv|movie|up)-/, '');
+          const base = `/watch/movie/tmdb-movie-${numeric}`;
+          return slug ? `${base}/${slug}` : base;
+        }
+
+        // TMDB TV Show (with season/episode support!)
+        if (id.startsWith('tmdb-tv-') || id.startsWith('tmdb-tvpop-') || id.startsWith('tmdb-comp-') ||
+            show.type === 'TV' || show.type === 'tv') {
+          const numeric = show.tmdb_id || id.replace(/^tmdb-(?:tv|tvpop|comp)-/, '');
+          const base = `/watch/tv/tmdb-tv-${numeric}`;
+          const slugPart = slug ? `/${slug}` : '';
+          // SEO-friendly format: /watch/tv/tmdb-tv-{id}/slug/season-{N}-episode-{M}
+          return `${base}${slugPart}/season-${season}-episode-${episode}`;
+        }
+
+        // Fallback
+        return `/watch/${id}`;
+      }
+
+      /* ── BUTTON HTML GENERATORS ── */
+      function generateCardButtons(show, options = {}) {
+        const { 
+          showWatch = true, 
+          showHeart = true, 
+          showBookmark = true,
+          showDetails = true,
+          compact = false,
+          defaultSeason = 1,
+          defaultEpisode = 1
+        } = options;
+
+        const infoLink = infoUrl(show);
+        const watchLink = watchUrl(show, defaultSeason, defaultEpisode);
+        
+        let buttonsHtml = '';
+        
+        if (!compact) {
+          // Full button row layout
+          buttonsHtml = `<div class="card-actions">`;
+          
+          if (showWatch) {
+            buttonsHtml += `<a href="${watchLink}" class="btn-watch" title="Watch Now">
+              <i class="fas fa-play"></i> ${options.watchText || 'Watch'}
+            </a>`;
+          }
+          
+          if (showHeart) {
+            buttonsHtml += `<a href="${infoLink}" class="btn-heart-slide" title="Add to Favorites">
+              <i class="far fa-heart"></i>
+            </a>`;
+          }
+          
+          if (showBookmark) {
+            buttonsHtml += `<a href="${infoLink}" class="btn-bookmark-slide" title="Bookmark">
+              <i class="far fa-bookmark"></i>
+            </a>`;
+          }
+          
+          if (showDetails) {
+            buttonsHtml += `<a href="${infoLink}" class="btn-details" title="View Details">
+              <i class="fas fa-info-circle"></i> Details
+            </a>`;
+          }
+          
+          buttonsHtml += `</div>`;
+        } else {
+          // Compact overlay style (for horizontal cards)
+          buttonsHtml = `<div class="card-actions-overlay">
+            <div class="action-btns-row">`;
+            
+          if (showWatch) {
+            buttonsHtml += `<a href="${watchLink}" class="action-btn action-watch" title="Watch Now">
+              <i class="fas fa-play"></i>
+            </a>`;
+          }
+          
+          if (showHeart) {
+            buttonsHtml += `<a href="${infoLink}" class="action-btn action-heart" title="Favorites">
+              <i class="far fa-heart"></i>
+            </a>`;
+          }
+          
+          if (showBookmark) {
+            buttonsHtml += `<a href="${infoLink}" class="action-btn action-bookmark" title="Bookmark">
+              <i class="far fa-bookmark"></i>
+            </a>`;
+          }
+          
+          if (showDetails) {
+            buttonsHtml += `<a href="${infoLink}" class="action-btn action-details" title="Details">
+              <i class="fas fa-info-circle"></i>
+            </a>`;
+          }
+          
+          buttonsHtml += `</div></div>`;
+        }
+        
+        return buttonsHtml;
       }
 
       const GENRE_MAP = {
@@ -2630,10 +2851,9 @@ window.showAnikotoPopupById = function(mal_id) {
         container.innerHTML = heroData.map((s,i) => {
           const allTags = [...(s.genres||[]).slice(0,3), ...(s.themes||[]).slice(0,1)];
           const isAnime = s.source === 'jikan' || s.mal_id;
-          const infoHref = s.infoHref || (isAnime
-            ? `/info/anime/jikan-${s.mal_id}/${slugify(s.title)}`
-            : `/info/tv/tmdb-tv-${s.tmdb_id}/${slugify(s.title)}`);
-          const watchHref = isAnime ? `/watch/${s.id}` : `/watch/${s.id}`;
+          // Use improved infoUrl and watchUrl functions for proper link generation
+          const infoHref = s.infoHref || infoUrl(s);
+          const watchHref = watchUrl(s);  // Generates proper SEO-friendly watch URL
           const statusColor = s.status_color || 'var(--accent-blue)';
           const statusLabel = s.status_label || '● Airing';
           return `
@@ -2775,15 +2995,18 @@ window.showAnikotoPopupById = function(mal_id) {
       function renderTopAiring(shows) {
         const container = document.getElementById('topAiringScroll');
         container.innerHTML = shows.map(s => `
-          <a href="${infoUrl(s)}" class="show-card-horiz">
-            <div class="card-poster" style="background-image:url('${s.poster}');">
-              <span class="ranking-badge">EP ${s.episodes||'?'}</span>
-              <span class="score-badge"><i class="fas fa-star"></i> ${s.score}</span>
-              <div class="play-overlay"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" fill="white"/></svg></div>
-            </div>
-            <h3 class="card-title">${s.title}</h3>
-            <div class="card-meta-sm">${s.type} · ${s.duration} · ${s.status} · ${s.episodes} EP</div>
-          </a>`).join('');
+          <div class="show-card-horiz" style="position:relative;">
+            <a href="${infoUrl(s)}" class="show-card-horiz" style="position:static;">
+              <div class="card-poster" style="background-image:url('${s.poster}');">
+                <span class="ranking-badge">EP ${s.episodes||'?'}</span>
+                <span class="score-badge"><i class="fas fa-star"></i> ${s.score}</span>
+                <div class="play-overlay"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" fill="white"/></svg></div>
+              </div>
+              <h3 class="card-title">${s.title}</h3>
+              <div class="card-meta-sm">${s.type} · ${s.duration} · ${s.status} · ${s.episodes} EP</div>
+            </a>
+            ${generateCardButtons(s, { compact: true, showBookmark: false, showDetails: false })}
+          </div>`).join('');
       }
       document.getElementById('topAiringLeft').addEventListener('click',()=> document.getElementById('topAiringScroll').scrollBy({left:-400,behavior:'smooth'}));
       document.getElementById('topAiringRight').addEventListener('click',()=> document.getElementById('topAiringScroll').scrollBy({left:400,behavior:'smooth'}));
@@ -2899,47 +3122,56 @@ window.showAnikotoPopupById = function(mal_id) {
           
           if (s.type==='Anime') {
             const ratingText = RATING_EXPLAIN[s.rating] || s.rating;
-            return `<a href="${infoUrl(s)}" class="show-card-grid">
-              <div class="card-poster ${noImageClass}" style="${posterStyle}">
-                <span class="poster-status-badge">${s.status}</span>
-                <span class="poster-rating-badge" title="${ratingText}"><i class="fas fa-star"></i> ${s.score}</span>
-                <div class="play-overlay"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" fill="white"/></svg></div>
-              </div>
-              <div class="card-info-grid">
-                <div class="card-meta-sm">${s.type} · ${s.duration==='?'?'?':s.duration} · ${ratingText || s.rating}</div>
-                <div class="card-title">${s.title}</div>
-              </div>
-            </a>`;
+            return `<div class="show-card-grid" style="position:relative;">
+              <a href="${infoUrl(s)}" class="show-card-grid" style="position:static;">
+                <div class="card-poster ${noImageClass}" style="${posterStyle}">
+                  <span class="poster-status-badge">${s.status}</span>
+                  <span class="poster-rating-badge" title="${ratingText}"><i class="fas fa-star"></i> ${s.score}</span>
+                  <div class="play-overlay"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" fill="white"/></svg></div>
+                </div>
+                <div class="card-info-grid">
+                  <div class="card-meta-sm">${s.type} · ${s.duration==='?'?'?':s.duration} · ${ratingText || s.rating}</div>
+                  <div class="card-title">${s.title}</div>
+                </div>
+              </a>
+              ${generateCardButtons(s, { compact: true })}
+            </div>`;
           } else if (s.type==='Movie') {
             const hasPoster = s.poster && s.poster !== '' && s.poster !== 'null';
             const posterStyle = hasPoster ? `background-image:url('${s.poster}');` : 'background:linear-gradient(135deg, #1e293b 0%, #334155 100%);';
             const noImageClass = hasPoster ? '' : 'no-image';
-            return `<a href="${infoUrl(s)}" class="show-card-grid">
-              <div class="card-poster ${noImageClass}" style="${posterStyle}">
-                <span class="quality-badge">${s.quality}</span>
-                <span class="score-badge"><i class="fas fa-star"></i> ${s.score}</span>
-                <div class="play-overlay"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" fill="white"/></svg></div>
-              </div>
-              <div class="card-info-grid">
-                <div class="card-meta-sm">${s.type} · ${s.details} · ${s.cert}</div>
-                <div class="card-title">${s.title}</div>
-              </div>
-            </a>`;
+            return `<div class="show-card-grid" style="position:relative;">
+              <a href="${infoUrl(s)}" class="show-card-grid" style="position:static;">
+                <div class="card-poster ${noImageClass}" style="${posterStyle}">
+                  <span class="quality-badge">${s.quality}</span>
+                  <span class="score-badge"><i class="fas fa-star"></i> ${s.score}</span>
+                  <div class="play-overlay"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" fill="white"/></svg></div>
+                </div>
+                <div class="card-info-grid">
+                  <div class="card-meta-sm">${s.type} · ${s.details} · ${s.cert}</div>
+                  <div class="card-title">${s.title}</div>
+                </div>
+              </a>
+              ${generateCardButtons(s, { compact: true })}
+            </div>`;
           } else {
             const hasPoster = s.poster && s.poster !== '' && s.poster !== 'null';
             const posterStyle = hasPoster ? `background-image:url('${s.poster}');` : 'background:linear-gradient(135deg, #1e293b 0%, #334155 100%);';
             const noImageClass = hasPoster ? '' : 'no-image';
-            return `<a href="${infoUrl(s)}" class="show-card-grid">
-              <div class="card-poster ${noImageClass}" style="${posterStyle}">
-                <span class="quality-badge">${s.quality}</span>
-                <span class="score-badge"><i class="fas fa-star"></i> ${s.score}</span>
-                <div class="play-overlay"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" fill="white"/></svg></div>
-              </div>
-              <div class="card-info-grid">
-                <div class="card-meta-sm">${s.type} · ${s.details} · ${s.cert}</div>
-                <div class="card-title">${s.title}</div>
-              </div>
-            </a>`;
+            return `<div class="show-card-grid" style="position:relative;">
+              <a href="${infoUrl(s)}" class="show-card-grid" style="position:static;">
+                <div class="card-poster ${noImageClass}" style="${posterStyle}">
+                  <span class="quality-badge">${s.quality}</span>
+                  <span class="score-badge"><i class="fas fa-star"></i> ${s.score}</span>
+                  <div class="play-overlay"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" fill="white"/></svg></div>
+                </div>
+                <div class="card-info-grid">
+                  <div class="card-meta-sm">${s.type} · ${s.details} · ${s.cert}</div>
+                  <div class="card-title">${s.title}</div>
+                </div>
+              </a>
+              ${generateCardButtons(s, { compact: true })}
+            </div>`;
           }
         }).join('');
       }
@@ -3229,15 +3461,18 @@ window.showAnikotoPopupById = function(mal_id) {
           const posterStyle = hasPoster ? `background-image:url('${s.poster}');` : 'background:linear-gradient(135deg, #1e293b 0%, #334155 100%);';
           const noImageClass = hasPoster ? '' : 'no-image';
           
-          return `<a href="${infoUrl(s)}" class="show-card-horiz" onmouseenter="showPopup(event,'${s.id}')" onmouseleave="window.popupTimer=setTimeout(hidePopup,500)">
-            <div class="card-poster ${noImageClass}" style="${posterStyle}">
-              <span class="poster-status-badge">${s.type || 'HD'}</span>
-              <span class="poster-rating-badge"><i class="fas fa-star"></i> ${s.score}</span>
-              <div class="play-overlay"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" fill="white"/></svg></div>
-            </div>
-            <h3 class="card-title">${s.title}</h3>
-            <div class="card-meta-sm"><i class="fas fa-star"></i> ${s.score} · ${s.type} · ${s.releaseDate||'TBA'}</div>
-          </a>`;
+          return `<div class="show-card-horiz" style="position:relative;">
+            <a href="${infoUrl(s)}" class="show-card-horiz" style="position:static;" onmouseenter="showPopup(event,'${s.id}')" onmouseleave="window.popupTimer=setTimeout(hidePopup,500)">
+              <div class="card-poster ${noImageClass}" style="${posterStyle}">
+                <span class="poster-status-badge">${s.type || 'HD'}</span>
+                <span class="poster-rating-badge"><i class="fas fa-star"></i> ${s.score}</span>
+                <div class="play-overlay"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" fill="white"/></svg></div>
+              </div>
+              <h3 class="card-title">${s.title}</h3>
+              <div class="card-meta-sm"><i class="fas fa-star"></i> ${s.score} · ${s.type} · ${s.releaseDate||'TBA'}</div>
+            </a>
+            ${generateCardButtons(s, { compact: true })}
+          </div>`;
         }).join('');
       }
       document.getElementById('upcomingLeft').addEventListener('click', ()=> document.getElementById('upcomingScroll').scrollBy({left:-400}));
@@ -3404,23 +3639,29 @@ window.showAnikotoPopupById = function(mal_id) {
         const hasPoster = s.poster && s.poster !== '' && s.poster !== 'null' && s.poster !== 'undefined';
         const posterStyle = hasPoster ? `background-image:url('${s.poster}');` : 'background:linear-gradient(135deg, #1e293b 0%, #334155 100%);';
         const noImageClass = hasPoster ? '' : 'no-image';
-        return `<a href="${infoUrl(s)}" class="show-card-grid">
-          <div class="card-poster ${noImageClass}" style="${posterStyle}">
-            <span class="quality-badge">${s.quality||'HD'}</span>
-            <div class="play-overlay"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" fill="white"/></svg></div>
-          </div>
-          <div class="card-info-grid">
-            <div class="card-meta-sm">${s.type} · ${s.year||'?'} · <i class="fas fa-star"></i> ${s.score}</div>
-            <div class="card-title">${s.title}</div>
-          </div>
-        </a>`;
+        return `<div class="show-card-grid" style="position:relative;">
+          <a href="${infoUrl(s)}" class="show-card-grid" style="position:static;">
+            <div class="card-poster ${noImageClass}" style="${posterStyle}">
+              <span class="quality-badge">${s.quality||'HD'}</span>
+              <div class="play-overlay"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" fill="white"/></svg></div>
+            </div>
+            <div class="card-info-grid">
+              <div class="card-meta-sm">${s.type} · ${s.year||'?'} · <i class="fas fa-star"></i> ${s.score}</div>
+              <div class="card-title">${s.title}</div>
+            </div>
+          </a>
+          ${generateCardButtons(s, { compact: true })}
+        </div>`;
       }
       function renderShowCard(s) {
-        return `<a href="${infoUrl(s)}" class="sidebar-list-item" onmouseenter="showPopup(event,'${s.id}')" onmouseleave="window.popupTimer=setTimeout(hidePopup,500)">
-          <span class="sidebar-rank">${s.rank||''}</span>
-          <img class="sidebar-poster" src="${s.poster}" onerror="this.style.display='none'">
-          <div class="sidebar-info"><h4>${s.title}</h4><div class="side-meta"><i class="fas fa-star"></i> ${s.score} · ${s.type}</div></div>
-        </a>`;
+        return `<div class="sidebar-list-item" style="position:relative;">
+          <a href="${infoUrl(s)}" class="sidebar-list-item" style="position:static;" onmouseenter="showPopup(event,'${s.id}')" onmouseleave="window.popupTimer=setTimeout(hidePopup,500)">
+            <span class="sidebar-rank">${s.rank||''}</span>
+            <img class="sidebar-poster" src="${s.poster}" onerror="this.style.display='none'">
+            <div class="sidebar-info"><h4>${s.title}</h4><div class="side-meta"><i class="fas fa-star"></i> ${s.score} · ${s.type}</div></div>
+          </a>
+          ${generateCardButtons(s, { compact: true, showBookmark: false, showDetails: false })}
+        </div>`;
       }
 
       /* ── TRENDING ── */
@@ -3661,8 +3902,8 @@ window.showAnikotoPopupById = function(mal_id) {
     // Bookmark button – link to the info page (generates correct URL with slug)
     buttonHtml = `<a class="watch-btn" href="${infoUrl(show)}"><i class="fas fa-bookmark"></i> Bookmark</a>`;
   } else {
-    // Regular watch button
-    buttonHtml = `<a class="watch-btn" href="/watch/${show.id}"><i class="fas fa-play"></i> Watch Now</a>`;
+    // Regular watch button - use SEO-friendly watchUrl function
+    buttonHtml = `<a class="watch-btn" href="${watchUrl(show)}"><i class="fas fa-play"></i> Watch Now</a>`;
   }
 
   const scoreLabel = show.type === 'Anime' ? 'MAL' : 'TMDB';
