@@ -574,19 +574,37 @@
         transform: scale(0.9);
         transform-origin: right center;
       }
+      /* Fix: Keep tabs inline with title on mobile - prevent wrapping */
+      .section-header:has(.toggle-tabs) {
+        flex-wrap: nowrap !important;
+        gap: 6px !important;
+      }
+      .section-header:has(.toggle-tabs) .section-title {
+        font-size: 1.1rem !important;
+        white-space: nowrap !important;
+        flex-shrink: 1 !important;
+        min-width: 0 !important;
+      }
+      .section-header:has(.toggle-tabs) .toggle-tabs {
+        flex-shrink: 0 !important;
+      }
     }
     @media (max-width: 480px) {
       .toggle-tabs {
-        transform: scale(0.82);
+        transform: scale(0.78);
         transform-origin: right center;
       }
       .toggle-tab {
-        padding: 0 12px;
-        font-size: 0.7rem;
-        height: 28px;
+        padding: 0 10px;
+        font-size: 0.65rem;
+        height: 26px;
       }
       .tabs-glider {
-        height: 28px;
+        height: 26px;
+      }
+      /* Extra compact for very small screens */
+      .section-header:has(.toggle-tabs) .section-title {
+        font-size: 1rem !important;
       }
     }
 
