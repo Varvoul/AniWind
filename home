@@ -2972,20 +2972,81 @@ window.showAnikotoPopupById = function(mal_id) {
           }
         }
         
-        // Dynamic date range for upcoming TV: next 5 months from today (user request!)
-        const now = new Date();
-        const startDate = new Date(now.getFullYear(), now.getMonth(), 1); // 1st of current month
-        const endDate = new Date(now.getFullYear(), now.getMonth() + 5, 0); // last day of 5th month
-        const formatDate = (d) => d.toISOString().split('T')[0];
-        
         // Using NEW t-umi proxy + AniList (replacing Jikan)
-        const [tmdbUp1, tmdbUp2, tmdbUp3, tmdbUpTv1, tmdbUpTv2, tmdbUpTv3, anilistUpcoming] = await Promise.all([
+        // INCREASED to 30 pages each (user request!) - /tv/on_the_air is primary TV source now
+        console.log('[Upcoming] Starting fetch with 30 pages each for movies & TV...');
+        const todayDebug = new Date();
+        console.log(`[Upcoming] Today's date: ${todayDebug.toISOString().split('T')[0]}`);
+        
+        const [tmdbUp1, tmdbUp2, tmdbUp3, tmdbUp4, tmdbUp5, tmdbUp6, tmdbUp7, tmdbUp8, tmdbUp9, tmdbUp10,
+               tmdbUp11, tmdbUp12, tmdbUp13, tmdbUp14, tmdbUp15, tmdbUp16, tmdbUp17, tmdbUp18, tmdbUp19, tmdbUp20,
+               tmdbUp21, tmdbUp22, tmdbUp23, tmdbUp24, tmdbUp25, tmdbUp26, tmdbUp27, tmdbUp28, tmdbUp29, tmdbUp30,
+               tmdbTv1, tmdbTv2, tmdbTv3, tmdbTv4, tmdbTv5, tmdbTv6, tmdbTv7, tmdbTv8, tmdbTv9, tmdbTv10,
+               tmdbTv11, tmdbTv12, tmdbTv13, tmdbTv14, tmdbTv15, tmdbTv16, tmdbTv17, tmdbTv18, tmdbTv19, tmdbTv20,
+               tmdbTv21, tmdbTv22, tmdbTv23, tmdbTv24, tmdbTv25, tmdbTv26, tmdbTv27, tmdbTv28, tmdbTv29, tmdbTv30,
+               anilistUpcoming] = await Promise.all([
+          // MOVIES: 30 pages = 600 results (direct /movie/upcoming endpoint)
           fetchTMDB('/movie/upcoming', `page=1`),
           fetchTMDB('/movie/upcoming', `page=2`),
           fetchTMDB('/movie/upcoming', `page=3`),
-          fetchTMDB('/discover/tv', `first_air_date.gte=${formatDate(startDate)}&first_air_date.lte=${formatDate(endDate)}&sort_by=first_air_date.asc&page=1`),
-          fetchTMDB('/discover/tv', `first_air_date.gte=${formatDate(startDate)}&first_air_date.lte=${formatDate(endDate)}&sort_by=first_air_date.asc&page=2`),
-          fetchTMDB('/discover/tv', `first_air_date.gte=${formatDate(startDate)}&first_air_date.lte=${formatDate(endDate)}&sort_by=first_air_date.asc&page=3`),
+          fetchTMDB('/movie/upcoming', `page=4`),
+          fetchTMDB('/movie/upcoming', `page=5`),
+          fetchTMDB('/movie/upcoming', `page=6`),
+          fetchTMDB('/movie/upcoming', `page=7`),
+          fetchTMDB('/movie/upcoming', `page=8`),
+          fetchTMDB('/movie/upcoming', `page=9`),
+          fetchTMDB('/movie/upcoming', `page=10`),
+          fetchTMDB('/movie/upcoming', `page=11`),
+          fetchTMDB('/movie/upcoming', `page=12`),
+          fetchTMDB('/movie/upcoming', `page=13`),
+          fetchTMDB('/movie/upcoming', `page=14`),
+          fetchTMDB('/movie/upcoming', `page=15`),
+          fetchTMDB('/movie/upcoming', `page=16`),
+          fetchTMDB('/movie/upcoming', `page=17`),
+          fetchTMDB('/movie/upcoming', `page=18`),
+          fetchTMDB('/movie/upcoming', `page=19`),
+          fetchTMDB('/movie/upcoming', `page=20`),
+          fetchTMDB('/movie/upcoming', `page=21`),
+          fetchTMDB('/movie/upcoming', `page=22`),
+          fetchTMDB('/movie/upcoming', `page=23`),
+          fetchTMDB('/movie/upcoming', `page=24`),
+          fetchTMDB('/movie/upcoming', `page=25`),
+          fetchTMDB('/movie/upcoming', `page=26`),
+          fetchTMDB('/movie/upcoming', `page=27`),
+          fetchTMDB('/movie/upcoming', `page=28`),
+          fetchTMDB('/movie/upcoming', `page=29`),
+          fetchTMDB('/movie/upcoming', `page=30`),
+          // TV SHOWS: 30 pages = 600 results (DIRECT /tv/on_the_air endpoint - user requested!)
+          fetchTMDB('/tv/on_the_air', `page=1`),
+          fetchTMDB('/tv/on_the_air', `page=2`),
+          fetchTMDB('/tv/on_the_air', `page=3`),
+          fetchTMDB('/tv/on_the_air', `page=4`),
+          fetchTMDB('/tv/on_the_air', `page=5`),
+          fetchTMDB('/tv/on_the_air', `page=6`),
+          fetchTMDB('/tv/on_the_air', `page=7`),
+          fetchTMDB('/tv/on_the_air', `page=8`),
+          fetchTMDB('/tv/on_the_air', `page=9`),
+          fetchTMDB('/tv/on_the_air', `page=10`),
+          fetchTMDB('/tv/on_the_air', `page=11`),
+          fetchTMDB('/tv/on_the_air', `page=12`),
+          fetchTMDB('/tv/on_the_air', `page=13`),
+          fetchTMDB('/tv/on_the_air', `page=14`),
+          fetchTMDB('/tv/on_the_air', `page=15`),
+          fetchTMDB('/tv/on_the_air', `page=16`),
+          fetchTMDB('/tv/on_the_air', `page=17`),
+          fetchTMDB('/tv/on_the_air', `page=18`),
+          fetchTMDB('/tv/on_the_air', `page=19`),
+          fetchTMDB('/tv/on_the_air', `page=20`),
+          fetchTMDB('/tv/on_the_air', `page=21`),
+          fetchTMDB('/tv/on_the_air', `page=22`),
+          fetchTMDB('/tv/on_the_air', `page=23`),
+          fetchTMDB('/tv/on_the_air', `page=24`),
+          fetchTMDB('/tv/on_the_air', `page=25`),
+          fetchTMDB('/tv/on_the_air', `page=26`),
+          fetchTMDB('/tv/on_the_air', `page=27`),
+          fetchTMDB('/tv/on_the_air', `page=28`),
+          fetchTMDB('/tv/on_the_air', `page=29`),
+          fetchTMDB('/tv/on_the_air', `page=30`),
           // AniList: Upcoming anime (replacing Jikan top/anime filter=upcoming)
           fetchAniList(`
             query ($perPage: Int) {
@@ -2998,10 +3059,34 @@ window.showAnikotoPopupById = function(mal_id) {
           `, { perPage: 40 })
         ]);
         
-        // Merge TMDB movie pages
-        const allTmdbMovies = [...(tmdbUp1.results||[]), ...(tmdbUp2.results||[]), ...(tmdbUp3.results||[])];
-        // Merge TMDB TV pages  
-        const allTmdbTV = [...(tmdbUpTv1.results||[]), ...(tmdbUpTv2.results||[]), ...(tmdbUpTv3.results||[])];
+        // Merge TMDB movie pages (30 pages = up to 600 results)
+        const allTmdbMovies = [
+          ...(tmdbUp1.results||[]), ...(tmdbUp2.results||[]), ...(tmdbUp3.results||[]), 
+          ...(tmdbUp4.results||[]), ...(tmdbUp5.results||[]), ...(tmdbUp6.results||[]), 
+          ...(tmdbUp7.results||[]), ...(tmdbUp8.results||[]), ...(tmdbUp9.results||[]), 
+          ...(tmdbUp10.results||[]), ...(tmdbUp11.results||[]), ...(tmdbUp12.results||[]),
+          ...(tmdbUp13.results||[]), ...(tmdbUp14.results||[]), ...(tmdbUp15.results||[]),
+          ...(tmdbUp16.results||[]), ...(tmdbUp17.results||[]), ...(tmdbUp18.results||[]),
+          ...(tmdbUp19.results||[]), ...(tmdbUp20.results||[]), ...(tmdbUp21.results||[]),
+          ...(tmdbUp22.results||[]), ...(tmdbUp23.results||[]), ...(tmdbUp24.results||[]),
+          ...(tmdbUp25.results||[]), ...(tmdbUp26.results||[]), ...(tmdbUp27.results||[]),
+          ...(tmdbUp28.results||[]), ...(tmdbUp29.results||[]), ...(tmdbUp30.results||[])
+        ];
+        // Merge TMDB TV pages (30 pages from /tv/on_the_air = up to 600 results)
+        const allTmdbTV = [
+          ...(tmdbTv1.results||[]), ...(tmdbTv2.results||[]), ...(tmdbTv3.results||[]), 
+          ...(tmdbTv4.results||[]), ...(tmdbTv5.results||[]), ...(tmdbTv6.results||[]), 
+          ...(tmdbTv7.results||[]), ...(tmdbTv8.results||[]), ...(tmdbTv9.results||[]), 
+          ...(tmdbTv10.results||[]), ...(tmdbTv11.results||[]), ...(tmdbTv12.results||[]),
+          ...(tmdbTv13.results||[]), ...(tmdbTv14.results||[]), ...(tmdbTv15.results||[]),
+          ...(tmdbTv16.results||[]), ...(tmdbTv17.results||[]), ...(tmdbTv18.results||[]),
+          ...(tmdbTv19.results||[]), ...(tmdbTv20.results||[]), ...(tmdbTv21.results||[]),
+          ...(tmdbTv22.results||[]), ...(tmdbTv23.results||[]), ...(tmdbTv24.results||[]),
+          ...(tmdbTv25.results||[]), ...(tmdbTv26.results||[]), ...(tmdbTv27.results||[]),
+          ...(tmdbTv28.results||[]), ...(tmdbTv29.results||[]), ...(tmdbTv30.results||[])
+        ];
+        
+        console.log(`[Upcoming] Raw fetch complete: ${allTmdbMovies.length} movies, ${allTmdbTV.length} TV shows`);
         
         // Convert AniList upcoming anime
         const anilistUpAnime = [];
@@ -3039,23 +3124,100 @@ window.showAnikotoPopupById = function(mal_id) {
           }
         }
         
-        upcomingShows = dedupById([
-          ...allTmdbMovies.slice(0,40).map(i => ({
+        // ════════════════════════════════════════════════════════════
+        // FRONTEND FILTERING: Date + Poster validation
+        // ════════════════════════════════════════════════════════════
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);  // Start of today
+        
+        const isFutureDate = (dateStr) => {
+          if (!dateStr || dateStr === '' || dateStr === 'TBA') return false;
+          const date = new Date(dateStr);
+          return !isNaN(date.getTime()) && date >= today;
+        };
+        
+        const hasValidPoster = (posterUrl) => {
+          return posterUrl && posterUrl !== '' && posterUrl !== 'null' && 
+                 posterUrl !== 'undefined' && posterUrl !== 'none';
+        };
+        
+        // Map and filter TMDB MOVIES (only future dates + valid posters)
+        console.log(`[Upcoming] Filtering ${allTmdbMovies.length} movies...`);
+        let moviesPassed = 0, moviesDroppedPast = 0, moviesDroppedPoster = 0;
+        const tmdbMovieShows = allTmdbMovies
+          .filter(i => {
+            const hasPoster = hasValidPoster(i.poster_path);
+            const isFuture = isFutureDate(i.release_date);
+            if (!isFuture || !hasPoster) {
+              if (!isFuture) moviesDroppedPast++;
+              else moviesDroppedPoster++;
+              if (moviesPassed + moviesDroppedPast <= 10) { // Log first 10 drops only
+                console.log(`[Upcoming Filter] ❌ Movie dropped: "${i?.title}" - ${!isFuture ? 'past date: '+i.release_date : 'no poster'}`);
+              }
+            } else {
+              moviesPassed++;
+            }
+            return hasPoster && isFuture;
+          })
+          .slice(0, 50)  // Take more since we filter
+          .map(i => ({
             id:`tmdb-up-${i.id}`, title:i.title, original_title:i.original_title||i.title,
             type:'Movie', poster:tmdbImg(i.poster_path), score:(i.vote_average||0).toFixed(1),
             genres:(i.genre_ids||[]).map(id=>GENRE_MAP[id]||id), releaseDate:i.release_date||'',
             synopsis:i.overview||'', certification: i.adult?'18+':'PG-13',
             studio:'?', backdrop:tmdbBack(i.backdrop_path), duration:'2h 10m'
-          })),
-          ...allTmdbTV.slice(0,20).map(i => ({
+          }));
+        
+        // Map and filter TMDB TV (from /tv/on_the_air endpoint)
+        // IMPORTANT: /tv/on_the_air ONLY returns: id, name, overview, poster_path, backdrop_path,
+        //   first_air_date, vote_average, vote_count, popularity, genre_ids, origin_country, original_language
+        // It does NOT return: status, next_episode_to_air, last_air_date
+        // Since this endpoint BY DEFINITION returns "on the air" shows, we trust it and only filter by poster!
+        console.log(`[Upcoming] Filtering ${allTmdbTV.length} TV shows from /tv/on_the_air...`);
+        let tvPassed = 0, tvDroppedNoPoster = 0;
+        const tmdbTVShows = allTmdbTV
+          .filter((item, index) => {
+            const hasPoster = hasValidPoster(item.poster_path);
+            // Deduplicate by ID (same show can appear across pages)
+            const isFirstOccurrence = allTmdbTV.findIndex(t => t.id === item.id) === index;
+            if (!hasPoster) {
+              tvDroppedNoPoster++;
+              if (tvPassed + tvDroppedNoPoster <= 10) {
+                console.log(`[Upcoming Filter] ❌ TV no poster: "${item?.name}" (id:${item.id})`);
+              }
+            } else if (!isFirstOccurrence) {
+              // Skip duplicate silently
+              return false;
+            } else {
+              tvPassed++;
+            }
+            return hasPoster && isFirstOccurrence;
+          })
+          .slice(0, 50)  // Limit to 50 TV shows
+          .map(i => ({
             id:`tmdb-up-tv-${i.id}`, title:i.name, original_title:i.original_name||i.name,
             type:'TV', poster:tmdbImg(i.poster_path), score:(i.vote_average||0).toFixed(1),
             genres:(i.genre_ids||[]).map(id=>GENRE_MAP[id]||id), releaseDate:i.first_air_date||'',
             synopsis:i.overview||'', certification:'PG-13',
             studio:(i.networks||[])[0]?.name||'?', backdrop:tmdbBack(i.backdrop_path), duration:'45m'
-          })),
-          ...anilistUpAnime.slice(0,40)
-        ], 'id').slice(0,100);
+          }));
+        
+        // Filter Anilist anime (must have valid poster)
+        const anilistFiltered = anilistUpAnime.filter(a => {
+          const hasPoster = hasValidPoster(a.poster);
+          if (!hasPoster) {
+            console.log(`[Upcoming Filter] ❌ Anime dropped: "${a?.title}" - no poster`);
+          }
+          return hasPoster;
+        });
+        
+        console.log(`[Upcoming Filter] ✅ RESULTS: ${tmdbMovieShows.length} movies (from ${moviesPassed} passed, ${moviesDroppedPast} past-date, ${moviesDroppedPoster} no-poster) + ${tmdbTVShows.length} TV (from ${tvPassed} passed, ${tvDroppedNoPoster} no-poster, deduped) + ${anilistFiltered.length} anime`);
+        
+        upcomingShows = dedupById([
+          ...tmdbMovieShows,
+          ...tmdbTVShows,
+          ...anilistFiltered.slice(0, 50)
+        ], 'id').slice(0,120);
         renderUpcoming();
         if (window.AniCache && upcomingShows.length) window.AniCache.set({ cacheKey:'index:upcoming',
           pageSource:'index', section:'upcoming', data:upcomingShows, itemCount:upcomingShows.length }).catch(()=>{});
@@ -3158,14 +3320,36 @@ window.showAnikotoPopupById = function(mal_id) {
         }
         
         // Create items arrays - take enough to fill 6 rows
-        const tmdbItems = allTmdbResults.map(i=>({
-          id:`tmdb-comp-${i.id}`,title:i.name,poster:tmdbImg(i.poster_path),
-          type:'TV',year:(i.first_air_date||'').slice(0,4),
-          score:(i.vote_average||0).toFixed(1),quality:'HD'
-        })).slice(0, TARGET_SHOWS);
+        // FILTER: Remove items without valid poster!
+        const tmdbItems = allTmdbResults
+          .filter(i => {
+            const hasPoster = i.poster_path && i.poster_path !== '' && i.poster_path !== null && i.poster_path !== 'undefined';
+            if (!hasPoster) {
+              console.log(`[Completed Filter] ❌ TV dropped: "${i?.name}" - no poster`);
+            }
+            return hasPoster;
+          })
+          .map(i=>({
+            id:`tmdb-comp-${i.id}`,title:i.name,poster:tmdbImg(i.poster_path),
+            type:'TV',year:(i.first_air_date||'').slice(0,4),
+            score:(i.vote_average||0).toFixed(1),quality:'HD'
+          }))
+          .slice(0, TARGET_SHOWS * 1.5);  // Fetch extra to compensate for filtered items
+        
+        // Also filter Anilist completed anime without posters
+        const anilistItemsFiltered = anilistItems.filter(a => {
+          const hasPoster = a.poster && a.poster !== '' && a.poster !== 'null' && a.poster !== 'undefined';
+          if (!hasPoster) {
+            console.log(`[Completed Filter] ❌ Anime dropped: "${a?.title}" - no poster`);
+          }
+          return hasPoster;
+        });
+        
+        console.log(`[Completed Filter] ✅ After filtering: ${tmdbItems.length} TV + ${anilistItemsFiltered.length} anime`);
+        
         const interleaved = [];
-        for (let i=0; i<Math.max(anilistItems.length,tmdbItems.length); i++) {
-          if (i<anilistItems.length) interleaved.push(anilistItems[i]);
+        for (let i=0; i<Math.max(anilistItemsFiltered.length,tmdbItems.length); i++) {
+          if (i<anilistItemsFiltered.length) interleaved.push(anilistItemsFiltered[i]);
           if (i<tmdbItems.length)  interleaved.push(tmdbItems[i]);
         }
         // Trim to exactly 6 complete rows (no incomplete last row!)
