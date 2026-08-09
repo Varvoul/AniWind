@@ -1395,7 +1395,7 @@
 @media (min-width: 1024px) {
   .hero-slider {
     aspect-ratio: auto;      /* remove 16/9 ratio */
-    height: 580px;           /* fixed height – lowered from 700px for sharper banners */
+    height: 700px;           /* fixed height – adjust as needed */
   }
 }
     .hero-slider {
@@ -1404,69 +1404,7 @@
     @media (max-width: 768px) {
   .hero-slider {
     aspect-ratio: auto;
-    height: 280px;  /* Slightly shorter for mobile - more image visible */
-  }
-  /* ═══ MOBILE HERO REDESIGN - Compact Overlay ═══ */
-  .slide-content {
-    margin-bottom: 4%;
-    padding: 10px 12px !important;
-    background: rgba(15, 36, 64, 0.75) !important;  /* More opaque for readability */
-    backdrop-filter: blur(12px) saturate(120%) !important;
-    border-radius: var(--radius-md) !important;
-    max-width: 95% !important;
-  }
-  .slide-title {
-    font-size: clamp(14px, 5vw, 22px) !important;
-    margin-bottom: 4px !important;
-    -webkit-line-clamp: 1 !important;  /* Single line on mobile */
-  }
-  .slide-meta {
-    gap: 4px !important;
-    margin-bottom: 6px !important;
-    flex-wrap: nowrap !important;
-    overflow-x: auto !important;
-    -webkit-overflow-scrolling: touch;
-  }
-  .meta-badge {
-    font-size: 0.55rem !important;
-    padding: 1px 5px !important;
-    white-space: nowrap !important;
-    flex-shrink: 0 !important;
-  }
-  /* Hide less important badges on mobile - keep only essential ones */
-  .slide-meta .meta-badge:nth-child(n+5) {
-    display: none !important;  /* Show max 4 badges: type, status, year, score */
-  }
-  .slide-synopsis {
-    display: none !important;  /* Hide synopsis on mobile - too much text */
-    margin-bottom: 0 !important;
-  }
-  .slide-actions {
-    gap: 8px !important;
-  }
-  .btn-watch {
-    padding: 7px 14px !important;
-    font-size: 0.7rem !important;
-  }
-  .btn-heart-slide {
-    width: 30px !important;
-    height: 30px !important;
-    font-size: 0.85rem !important;
-  }
-  /* Slider nav smaller on mobile */
-  .slider-nav {
-    bottom: 8px !important;
-    padding: 3px 10px !important;
-  }
-  .slider-arrow {
-    font-size: 1rem !important;
-  }
-  .slide-counter {
-    font-size: 0.6rem !important;
-  }
-  /* Hide dots on mobile to save space */
-  .slider-dots {
-    display: none !important;
+    height: 320px;
   }
 }
     /* Popup Watch Now button – match hero slider style */
@@ -2270,9 +2208,9 @@ window.showAnikotoPopupById = function(mal_id) {
         }
         // Sort by members (popularity) descending, then score
         uniqueJikan.sort((a, b) => (b.members||0) - (a.members||0) || (b.score||0) - (a.score||0));
-        const top30Jikan = uniqueJikan.slice(0, 30);
+        const top20Jikan = uniqueJikan.slice(0, 20);
 
-        console.log(`[Hero] Fetched ${top13Tmdb.length} TMDB + ${top30Jikan.length} Jikan`);
+        console.log(`[Hero] Fetched ${top13Tmdb.length} TMDB + ${top20Jikan.length} Jikan`);
 
         // ═══════════════════════════════════════════════════════════════════
         // HYBRID IMAGE RESOLUTION PIPELINE
@@ -2563,7 +2501,7 @@ window.showAnikotoPopupById = function(mal_id) {
         console.log(`[Hero Image] Resolution complete:`, imageSources);
 
         // ── 5) Merge: ANIME FIRST pattern ──────────────────────────────
-        // Total: 30 Jikan + 13 TMDB = 43 slides (70%+ anime shows!)
+        // Total: 20 Jikan + 13 TMDB = 33 slides
         // Pattern: Anime starts first, then alternates (Anime+TMDB)
         // After all 13 TMDB used, continue with remaining Jikan only
         const merged = [];
@@ -2581,12 +2519,12 @@ window.showAnikotoPopupById = function(mal_id) {
           }
         }
         
-        // Phase 2: Add remaining Jikan after TMDB is exhausted
-        while (jikanIdx < jikanSlides.length && merged.length < 43) {
+        // Phase 2: Add remaining Jikan after TMDB is exhausted (positions 27-33)
+        while (jikanIdx < jikanSlides.length && merged.length < 33) {
           merged.push(jikanSlides[jikanIdx++]);
         }
         
-        heroData = merged.slice(0, 43); // Ensure exactly 43 or fewer
+        heroData = merged.slice(0, 33); // Ensure exactly 33 or fewer
 
         // ── 6) Cache in sessionStorage for 5 hours ────────────────────
         try {
@@ -2646,11 +2584,6 @@ window.showAnikotoPopupById = function(mal_id) {
                 <span class="meta-badge"><i class="fas fa-star" style="color:var(--accent-gold)"></i> ${s.score}</span>
               </div>
               <p class="slide-synopsis">${(s.synopsis||'').slice(0,280)}</p>
-              <div class="slide-meta-mobile">
-                <span class="meta-badge"><i class="fas fa-star" style="color:var(--accent-gold)"></i> ${s.score}</span>
-                <span class="meta-badge">${s.year || ''}</span>
-                <span class="meta-badge">${s.episodes && s.episodes !== '?' ? s.episodes+' eps' : ''}</span>
-              </div>
               <div class="slide-actions">
                 <a href="${watchHref}" class="btn-watch"><i class="fas fa-play"></i> Watch Now</a>
                 <a href="${infoHref}" class="btn-heart-slide"><i class="far fa-heart"></i></a>
