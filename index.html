@@ -477,23 +477,29 @@
       text-overflow: ellipsis;
     }
 
-    /* Grid containers with balanced rows - 6 rows always complete */
+    /* Grid containers with balanced rows - New Releases section */
     .grid-container { 
       display:grid; 
-      grid-template-columns:repeat(8, 1fr); 
+      grid-template-columns:repeat(7, 1fr); 
       gap:14px;
     }
-    /* Large desktop: 8 cols × 6 rows = 48 shows */
-    @media (max-width:1800px) { .grid-container { grid-template-columns:repeat(7, 1fr); } } /* 7 cols × 6 rows = 42 shows */
-    @media (max-width:1600px) { .grid-container { grid-template-columns:repeat(7, 1fr); gap:12px; } }
-    @media (max-width:1400px) { .grid-container { grid-template-columns:repeat(6, 1fr); } } /* 6 cols × 6 rows = 36 shows */
-    @media (max-width:1200px) { .grid-container { grid-template-columns:repeat(6, 1fr); } }
-    @media (max-width:992px) { .grid-container { grid-template-columns:repeat(5, 1fr); } } /* Tablet: 5 cols × 6 rows = 30 shows */
-    @media (max-width:768px) { .grid-container { grid-template-columns:repeat(4, 1fr); gap:10px; } } /* Tablet portrait: 4 cols × 6 rows = 24 shows */
-    /* Mobile landscape: 3-4 cols based on width */
-    @media (max-width:600px) and (orientation:landscape) { .grid-container { grid-template-columns:repeat(4, 1fr); } }
-    @media (max-width:520px) and (orientation:landscape) { .grid-container { grid-template-columns:repeat(3, 1fr); } }
-    /* Mobile portrait: 2 cols × 6+ rows */
+    /* Large desktop (>1800px): 7 cols × 6 rows = 42 shows */
+    @media (max-width:1800px) { .grid-container { grid-template-columns:repeat(7, 1fr); gap:12px; } }
+    /* Desktop (1400-1800px): 6 cols × 6 rows = 36 shows */
+    @media (max-width:1600px) { .grid-container { grid-template-columns:repeat(6, 1fr); } }
+    /* Medium desktop (1200-1400px): 6 cols */
+    @media (max-width:1400px) { .grid-container { grid-template-columns:repeat(6, 1fr); } }
+    /* Small desktop/large tablet (992-1200px): 5 cols */
+    @media (max-width:1200px) { .grid-container { grid-template-columns:repeat(5, 1fr); } }
+    /* Tablet (768-992px): 4 cols */
+    @media (max-width:992px) { .grid-container { grid-template-columns:repeat(4, 1fr); gap:10px; } }
+    /* Tablet portrait (600-768px): 3 cols */
+    @media (max-width:768px) { .grid-container { grid-template-columns:repeat(3, 1fr); gap:10px; } }
+    /* Mobile landscape (520-600px): 3 cols */
+    @media (max-width:600px) and (orientation:landscape) { .grid-container { grid-template-columns:repeat(3, 1fr); } }
+    /* Mobile landscape (<520px): 2 cols */
+    @media (max-width:520px) and (orientation:landscape) { .grid-container { grid-template-columns:repeat(2, 1fr); } }
+    /* Mobile portrait (<520px): 2 cols */
     @media (max-width:520px) and (orientation:portrait) { .grid-container { grid-template-columns:repeat(2, 1fr); } }
     @media (max-width:520px) { .grid-container { grid-template-columns:repeat(2, 1fr); } }
     .show-card-grid { border-radius:var(--radius-md); overflow:hidden; cursor:pointer; transition:transform var(--transition-fast); position:relative; }
@@ -515,9 +521,74 @@
       pointer-events: none;
     }
 
-    .toggle-tabs { display:flex; gap:4px; }
-    .toggle-tab { padding:5px 12px; border-radius:var(--radius-pill); background:rgba(255,255,255,0.04); border:1px solid var(--border-medium); font-size:0.72rem; cursor:pointer; transition:all var(--transition-fast); color:var(--text-secondary); font-weight:500; }
-    .toggle-tab.active { background:var(--popup-btn); color:#fff; border-color:var(--popup-btn); font-weight:600; }
+    /* Sliding Toggle Tabs with Glider Effect */
+    .toggle-tabs {
+      display: flex;
+      position: relative;
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(12px);
+      padding: 4px;
+      border-radius: var(--radius-pill, 50px);
+      border: 1px solid rgba(148, 163, 184, 0.1);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+      gap: 0;
+    }
+    .toggle-tab {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 32px;
+      padding: 0 16px;
+      border-radius: var(--radius-pill, 50px);
+      font-size: 0.75rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: color 0.25s ease-in-out;
+      position: relative;
+      z-index: 2;
+      background: transparent;
+      border: none;
+      color: var(--text-secondary, #94a3b8);
+      white-space: nowrap;
+    }
+    .toggle-tab:hover {
+      color: #e2e8f0;
+    }
+    .toggle-tab.active {
+      color: #ffffff;
+      font-weight: 600;
+    }
+    /* Glider/Slider Background */
+    .tabs-glider {
+      position: absolute;
+      height: 32px;
+      background: linear-gradient(135deg, var(--btn-primary, #3b82f6), rgba(59, 130, 246, 0.85));
+      border-radius: var(--radius-pill, 50px);
+      z-index: 1;
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 2px 8px rgba(59, 130, 246, 0.35);
+    }
+    /* Responsive tabs scaling */
+    @media (max-width: 768px) {
+      .toggle-tabs {
+        transform: scale(0.9);
+        transform-origin: right center;
+      }
+    }
+    @media (max-width: 480px) {
+      .toggle-tabs {
+        transform: scale(0.82);
+        transform-origin: right center;
+      }
+      .toggle-tab {
+        padding: 0 12px;
+        font-size: 0.7rem;
+        height: 28px;
+      }
+      .tabs-glider {
+        height: 28px;
+      }
+    }
 
     /* sidebar - wider and improved */
     .sidebar-list-item { display:flex; gap:12px; align-items:center; padding:10px 8px; border-radius:var(--radius-sm); cursor:pointer; transition:background var(--transition-fast); margin-bottom:2px; }
@@ -1380,6 +1451,7 @@
         <div class="section-header">
           <h2 class="section-title" id="newReleasesTitle">New Releases</h2>
           <div class="toggle-tabs" id="releaseTabs">
+            <span class="tabs-glider" id="releaseGlider"></span>
             <button class="toggle-tab active" data-filter="all">All</button>
             <button class="toggle-tab" data-filter="anime">Anime</button>
             <button class="toggle-tab" data-filter="movie">Movies</button>
@@ -1422,6 +1494,7 @@
         <div class="section-header">
           <h2 class="section-title">Trending Now</h2>
           <div class="toggle-tabs" id="trendingTabs">
+            <span class="tabs-glider" id="trendingGlider"></span>
             <button class="toggle-tab active" data-period="today">Today</button>
             <button class="toggle-tab" data-period="week">Week</button>
             <button class="toggle-tab" data-period="month">Month</button>
@@ -2801,8 +2874,13 @@ window.showAnikotoPopupById = function(mal_id) {
       }
       document.getElementById('releaseTabs').addEventListener('click', e => {
         if (e.target.classList.contains('toggle-tab')) {
+          // Update active state
           document.querySelectorAll('#releaseTabs .toggle-tab').forEach(t=>t.classList.remove('active'));
           e.target.classList.add('active');
+          
+          // Move glider to active tab
+          moveGlider('releaseTabs', 'releaseGlider', e.target);
+          
           const filter = e.target.dataset.filter;
           renderNewReleases(filter);
           document.getElementById('newReleasesTitle').textContent = filter==='all' ? 'New Releases' : `Latest ${e.target.textContent}`;
@@ -3172,6 +3250,10 @@ window.showAnikotoPopupById = function(mal_id) {
         if(e.target.classList.contains('toggle-tab')) {
           document.querySelectorAll('#trendingTabs .toggle-tab').forEach(t=>t.classList.remove('active'));
           e.target.classList.add('active');
+          
+          // Move glider to active tab
+          moveGlider('trendingTabs', 'trendingGlider', e.target);
+          
           loadTrending(e.target.dataset.period);
         }
       });
@@ -4101,6 +4183,44 @@ window.showAnikotoPopupById = function(mal_id) {
         }
       }
 
+      /* ── SLIDING TAB GLIDER FUNCTIONALITY ── */
+      function moveGlider(tabsContainerId, gliderId, activeTab) {
+        const glider = document.getElementById(gliderId);
+        if (!glider || !activeTab) return;
+        
+        // Calculate position and width
+        const tabRect = activeTab.getBoundingClientRect();
+        const tabsContainer = document.getElementById(tabsContainerId);
+        const containerRect = tabsContainer.getBoundingClientRect();
+        
+        // Set glider width and position relative to container
+        const leftOffset = tabRect.left - containerRect.left;
+        glider.style.width = `${tabRect.width}px`;
+        glider.style.transform = `translateX(${leftOffset}px)`;
+      }
+      
+      // Initialize gliders on page load and resize
+      function initGliders() {
+        // Initialize Release Tabs glider
+        const releaseActiveTab = document.querySelector('#releaseTabs .toggle-tab.active');
+        if (releaseActiveTab) {
+          moveGlider('releaseTabs', 'releaseGlider', releaseActiveTab);
+        }
+        
+        // Initialize Trending Tabs glider
+        const trendingActiveTab = document.querySelector('#trendingTabs .toggle-tab.active');
+        if (trendingActiveTab) {
+          moveGlider('trendingTabs', 'trendingGlider', trendingActiveTab);
+        }
+      }
+      
+      // Re-initialize on window resize (with debounce)
+      let resizeTimeout;
+      window.addEventListener('resize', () => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(initGliders, 100);
+      });
+
       function init() {
         injectSkeletons();
         loadHero();
@@ -4113,6 +4233,8 @@ window.showAnikotoPopupById = function(mal_id) {
         loadPopular();
         loadPopularAnime();
         loadSchedule();
+        // Initialize sliding tab gliders
+        initGliders();
         // After initial loads settle, verify everything is in DB and retry any gaps
         setTimeout(ensureHomepageComplete, 5000);
       }
