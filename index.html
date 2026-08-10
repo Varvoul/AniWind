@@ -1716,46 +1716,57 @@
       const tmdbImg = (p,s='w500') => p ? `${TMDB_IMAGE}/${s}${p}` : '';
       const tmdbBack = (p) => p ? `${TMDB_IMAGE}/w1280${p}` : '';
 
-      function infoUrl(show) {
+      /* ── INFO URL GENERATOR (SEO-Friendly) ──
+       * Generates info page URLs with proper format:
+       * - Anime: /info/anime/jikan-{mal_id}/slug
+       * - TMDB Movie: /info/movie/tmdb-movie-{tmdb_id}/slug
+       * - TMDB TV: /info/tv/tmdb-tv-{tmdb_id}/slug-season-{season_number}
+       */
+      function infoUrl(show, season = 1) {
         const id = show.id;
         const title = (show.title || '').trim();
         const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 
-        let type = 'anime';
-        let prefixId = id;
-
-        if (id.startsWith('jikan-') || id.startsWith('anilist-')) {
-          type = 'anime';
-          prefixId = id.replace(/^jikan-(?:air-|up-|comp-|tr-|pop-)?/, 'jikan-')
-                        .replace(/^anilist-/, 'jikan-');
-          // Use mal_id if available for cleaner URL
-          if (show.mal_id) prefixId = `jikan-${show.mal_id}`;
-        } else if (id.startsWith('tmdb-mv-') || id.startsWith('tmdb-movie-') || id.startsWith('tmdb-up-')) {
-          type = 'movie';
-          const numeric = id.replace(/^tmdb-(?:mv|movie|up)-/, '');
-          prefixId = `tmdb-movie-${numeric}`;
-        } else if (id.startsWith('tmdb-tv-') || id.startsWith('tmdb-tvpop-') || (id.startsWith('tmdb-comp-') && !id.includes('movie'))) {
-          type = 'tv';
-          const numeric = id.replace(/^tmdb-(?:tv|tvpop|comp)-/, '');
-          prefixId = `tmdb-tv-${numeric}`;
-        } else if (/^\d+$/.test(id)) {
-          type = 'anime';
-          prefixId = `jikan-${id}`;
+        // Anime (Jikan/AniList) → /info/anime/jikan-{mal_id}/slug
+        if (id.startsWith('jikan-') || id.startsWith('anilist-') || show.mal_id) {
+          const malId = show.mal_id || id.replace(/^jikan-(?:air-|up-|comp-|tr-|pop-|anilist-)?/, '').replace(/^anilist-/, '');
+          const base = `/info/anime/jikan-${malId}`;
+          return slug ? `${base}/${slug}` : base;
         }
 
-        const base = `/info/${type}/${prefixId}`;
-        return slug ? `${base}/${slug}` : base;
+        // TMDB Movie → /info/movie/tmdb-movie-{tmdb_id}/slug
+        if (id.startsWith('tmdb-mv-') || id.startsWith('tmdb-movie-') || id.startsWith('tmdb-up-') || 
+            show.type === 'Movie' || show.type === 'movie') {
+          const numeric = show.tmdb_id || id.replace(/^tmdb-(?:mv|movie|up)-/, '');
+          const base = `/info/movie/tmdb-movie-${numeric}`;
+          return slug ? `${base}/${slug}` : base;
+        }
+
+        // TMDB TV → /info/tv/tmdb-tv-{tmdb_id}/slug-season-{season_number}
+        if (id.startsWith('tmdb-tv-') || id.startsWith('tmdb-tvpop-') || id.startsWith('tmdb-comp-') ||
+            show.type === 'TV' || show.type === 'tv') {
+          const numeric = show.tmdb_id || id.replace(/^tmdb-(?:tv|tvpop|comp)-/, '');
+          const base = `/info/tv/tmdb-tv-${numeric}`;
+          const seasonSuffix = season ? `-season-${season}` : '';
+          return slug ? `${base}/${slug}${seasonSuffix}` : base;
+        }
+
+        // Numeric ID fallback (treat as anime)
+        if (/^\d+$/.test(id)) {
+          const base = `/info/anime/jikan-${id}`;
+          return slug ? `${base}/${slug}` : base;
+        }
+
+        // Final fallback
+        return `/info/${id}`;
       }
 
       /* ── WATCH URL GENERATOR (SEO-Friendly) ──
        * Generates watch page URLs with proper format:
-       * - Movies: /watch/movie/tmdb-movie-{id}/slug
-       * - TV: /watch/tv/tmdb-tv-{id}/slug/season-{season}-episode-{episode}
-       * - Anime: /watch/anime/jikan-{id}/slug
+       * - Anime: /watch/anime/jikan-{mal_id}/slug/episode/{episode_number}
+       * - TMDB Movie: /watch/movie/tmdb-movie-{tmdb_id}/slug
+       * - TMDB TV: /watch/tv/tmdb-tv-{tmdb_id}/{slug}/season/{season_number}/episode/{episode_number}
        * 
-       * TMDB TV Season Handling:
-       * TMDB uses same ID for all seasons of a show.
-       * Solution: Include season & episode in URL path for SEO clarity.
        * Default: season=1, episode=1 for "Watch Now" button.
        */
       function watchUrl(show, season = 1, episode = 1) {
@@ -1763,14 +1774,15 @@
         const title = (show.title || '').trim();
         const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 
-        // Anime (Jikan/AniList)
+        // Anime (Jikan/AniList) → /watch/anime/jikan-{mal_id}/slug/episode/{episode}
         if (id.startsWith('jikan-') || id.startsWith('anilist-') || show.mal_id) {
-          const malId = show.mal_id || id.replace(/^jikan-(?:air-|up-|comp-|tr-|pop-|anilist-)?/, '');
+          const malId = show.mal_id || id.replace(/^jikan-(?:air-|up-|comp-|tr-|pop-|anilist-)?/, '').replace(/^anilist-/, '');
           const base = `/watch/anime/jikan-${malId}`;
-          return slug ? `${base}/${slug}` : base;
+          const slugPart = slug ? `/${slug}` : '';
+          return `${base}${slugPart}/episode/${episode}`;
         }
 
-        // TMDB Movie
+        // TMDB Movie → /watch/movie/tmdb-movie-{tmdb_id}/slug
         if (id.startsWith('tmdb-mv-') || id.startsWith('tmdb-movie-') || id.startsWith('tmdb-up-') || 
             show.type === 'Movie' || show.type === 'movie') {
           const numeric = show.tmdb_id || id.replace(/^tmdb-(?:mv|movie|up)-/, '');
@@ -1778,14 +1790,13 @@
           return slug ? `${base}/${slug}` : base;
         }
 
-        // TMDB TV Show (with season/episode support!)
+        // TMDB TV → /watch/tv/tmdb-tv-{tmdb_id}/{slug}/season/{season_number}/episode/{episode_number}
         if (id.startsWith('tmdb-tv-') || id.startsWith('tmdb-tvpop-') || id.startsWith('tmdb-comp-') ||
             show.type === 'TV' || show.type === 'tv') {
           const numeric = show.tmdb_id || id.replace(/^tmdb-(?:tv|tvpop|comp)-/, '');
           const base = `/watch/tv/tmdb-tv-${numeric}`;
           const slugPart = slug ? `/${slug}` : '';
-          // SEO-friendly format: /watch/tv/tmdb-tv-{id}/slug/season-{N}-episode-{M}
-          return `${base}${slugPart}/season-${season}-episode-${episode}`;
+          return `${base}${slugPart}/season/${season}/episode/${episode}`;
         }
 
         // Fallback
@@ -2395,8 +2406,8 @@ window.showAnikotoPopupById = function(mal_id) {
         <div class="genre-pills-row">${genresHtml}</div>
         <div class="anikoto-popup-synopsis">${anime.description}</div>
         <div class="anikoto-popup-actions">
-          <a href="/watch/jikan-${anime.mal_id}" class="anikoto-btn anikoto-btn-primary">
-            <i class="fas fa-play"></i> Watch
+          <a href="/watch/anime/jikan-${anime.mal_id}/${anime.slug}/episode/1" class="anikoto-btn anikoto-btn-primary">
+            <i class="fas fa-play"></i> Watch Now
           </a>
           <a href="/info/anime/jikan-${anime.mal_id}/${anime.slug}" class="anikoto-btn anikoto-btn-secondary">
             <i class="fas fa-plus"></i> Details
@@ -3134,7 +3145,7 @@ window.showAnikotoPopupById = function(mal_id) {
                   <div class="card-title">${s.title}</div>
                 </div>
               </a>
-              ${generateCardButtons(s, { compact: true })}
+              ${generateCardButtons(s, { compact: true, showBookmark: false, showDetails: false })}
             </div>`;
           } else if (s.type==='Movie') {
             const hasPoster = s.poster && s.poster !== '' && s.poster !== 'null';
@@ -3152,7 +3163,7 @@ window.showAnikotoPopupById = function(mal_id) {
                   <div class="card-title">${s.title}</div>
                 </div>
               </a>
-              ${generateCardButtons(s, { compact: true })}
+              ${generateCardButtons(s, { compact: true, showBookmark: false, showDetails: false })}
             </div>`;
           } else {
             const hasPoster = s.poster && s.poster !== '' && s.poster !== 'null';
@@ -3170,8 +3181,8 @@ window.showAnikotoPopupById = function(mal_id) {
                   <div class="card-title">${s.title}</div>
                 </div>
               </a>
-              ${generateCardButtons(s, { compact: true })}
-            </div>`;
+              ${generateCardButtons(s, { compact: true, showBookmark: false, showDetails: false })}
+           </div>`;
           }
         }).join('');
       }
@@ -3650,7 +3661,7 @@ window.showAnikotoPopupById = function(mal_id) {
               <div class="card-title">${s.title}</div>
             </div>
           </a>
-          ${generateCardButtons(s, { compact: true })}
+          ${generateCardButtons(s, { compact: true, showBookmark: false, showDetails: false })}
         </div>`;
       }
       function renderShowCard(s) {
@@ -3972,9 +3983,9 @@ window.showAnikotoPopupById = function(mal_id) {
                   const rank = a.rank || idx+1;
                   const rankCls = rank <= 3 ? ` rank-${rank}` : '';
                   const title = a.title || 'Unknown';
-                  const href = a.anilist_id 
-                    ? `/info/anime/anilist-${a.anilist_id}/${slugify(title)}`
-                    : `/info/anime/jikan-${a.mal_id}/${slugify(title)}`;
+                  const href = a.mal_id 
+                    ? `/info/anime/jikan-${a.mal_id}/${slugify(title)}`
+                    : (a.anilist_id ? `/info/anime/jikan-${a.anilist_id}/${slugify(title)}` : '#');
                   const poster = a.poster || '';
                   const genres = Array.isArray(a.genres) ? a.genres : (typeof a.genres === 'string' ? JSON.parse(a.genres || '[]') : []);
                   return `<a href="${href}" class="pa-row${rankCls}" style="--pa-bg:url('${poster}')">
@@ -4053,7 +4064,9 @@ window.showAnikotoPopupById = function(mal_id) {
             const rankCls  = rank <= 3 ? ` rank-${rank}` : '';
             const title    = internal.title;
             const slug     = slugify(title);
-            const href     = `/info/anime/anilist-${m.id}/${slug}`;
+            // Use mal_id for jikan format: /info/anime/jikan-{mal_id}/slug
+            const malId = internal.mal_id || m.idMal || m.id;
+            const href     = `/info/anime/jikan-${malId}/${slug}`;
             const poster   = internal.poster;
             const bgImg    = poster;
             const type     = internal.type || 'TV';
