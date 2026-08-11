@@ -2426,6 +2426,160 @@
         });
       }
 
+      /* ══════════════════════════════════════════════════════════════
+         MAL ID BACKFILL — for AniList anime missing idMal
+         Used when AniList returns an anime with no MAL mapping (idMal
+         is null), so we can still build a valid /jikan-{mal_id}/ link
+         instead of dropping the anime from a section entirely.
+
+         Strategy: search the self-hosted Jikan title-search endpoint,
+         paginating through results, and only accept a match that is
+         BOTH a strong title match AND plausible on year/episode count.
+         Requiring all of these avoids attaching the wrong mal_id to
+         an anime (e.g. matching a same-titled remake, spin-off, or
+         unrelated show with a similar name).
+         ══════════════════════════════════════════════════════════════ */
+      const JIKAN_SEARCH_BASE = 'https://jikan-api-bohb.onrender.com/v4/anime';
+      const _malBackfillCache = new Map(); // session cache: "title::year" -> mal_id | null
+      const MAL_BACKFILL_MAX_PAGES = 4;    // safety cap — stop paginating after this many pages
+      const MAL_BACKFILL_MIN_SIMILARITY = 0.88; // title must be at least this close (0-1) to accept
+
+      // Levenshtein-based similarity, 0 (no match) to 1 (identical) —
+      // standard DP implementation (initializes each row correctly,
+      // unlike a naive single-array version that under-scores matches)
+      function _titleSimilarity(a, b) {
+        const s1 = (a || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const s2 = (b || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (!s1 || !s2) return 0;
+        if (s1 === s2) return 1;
+        const m = s1.length, n = s2.length;
+        const dp = Array.from({ length: m + 1 }, (_, i) => {
+          const row = new Array(n + 1).fill(0);
+          row[0] = i;
+          return row;
+        });
+        for (let j = 0; j <= n; j++) dp[0][j] = j;
+        for (let i = 1; i <= m; i++) {
+          for (let j = 1; j <= n; j++) {
+            const cost = s1[i - 1] === s2[j - 1] ? 0 : 1;
+            dp[i][j] = Math.min(
+              dp[i - 1][j] + 1,      // deletion
+              dp[i][j - 1] + 1,      // insertion
+              dp[i - 1][j - 1] + cost // substitution
+            );
+          }
+        }
+        const maxLen = Math.max(m, n);
+        return maxLen === 0 ? 1 : 1 - dp[m][n] / maxLen;
+      }
+
+      /**
+       * Search the self-hosted Jikan API for a mal_id matching an AniList
+       * media object. Paginates using the endpoint's own pagination info
+       * (has_next_page / last_visible_page) up to MAL_BACKFILL_MAX_PAGES.
+       * Returns a mal_id (number) on a confident match, or null.
+       */
+      async function findMalIdByTitle(anilistMedia) {
+        const candidateTitles = [
+          anilistMedia.title?.english,
+          anilistMedia.title?.romaji,
+          anilistMedia.title?.native
+        ].filter(Boolean);
+        if (!candidateTitles.length) return null;
+
+        const primaryTitle = candidateTitles[0];
+        const targetYear = anilistMedia.startDate?.year || anilistMedia.seasonYear || null;
+        const targetEpisodes = anilistMedia.episodes || null;
+        const cacheKey = `${primaryTitle.toLowerCase()}::${targetYear || ''}`;
+
+        if (_malBackfillCache.has(cacheKey)) return _malBackfillCache.get(cacheKey);
+
+        // Build the "+"-separated query the self-hosted Jikan search expects
+        const query = encodeURIComponent(primaryTitle).replace(/%20/g, '+');
+
+        let bestMalId = null;
+        let bestScore = 0;
+
+        try {
+          for (let page = 1; page <= MAL_BACKFILL_MAX_PAGES; page++) {
+            const res = await fetch(`${JIKAN_SEARCH_BASE}?q=${query}&page=${page}&limit=10`, {
+              headers: { Accept: 'application/json' },
+              signal: AbortSignal.timeout(10000)
+            });
+            if (!res.ok) break;
+            const json = await res.json();
+            const results = json.data || [];
+            if (!results.length) break;
+
+            for (const c of results) {
+              // Gather every title variant Jikan gives us for this candidate
+              const cTitles = [
+                c.title, c.title_english, c.title_japanese,
+                ...((c.titles || []).map(t => t.title))
+              ].filter(Boolean);
+
+              // Best similarity across every (AniList title) x (Jikan title) pair
+              let sim = 0;
+              for (const at of candidateTitles) {
+                for (const ct of cTitles) {
+                  const s = _titleSimilarity(at, ct);
+                  if (s > sim) sim = s;
+                }
+              }
+
+              // Year plausibility: if both known, allow only ±1 year
+              // (covers regional broadcast date differences)
+              const cYear = c.year || c.aired?.prop?.from?.year || null;
+              const yearOk = !(targetYear && cYear) || Math.abs(cYear - targetYear) <= 1;
+
+              // Episode plausibility: if both known, allow small variance
+              // (covers recap/OVA episode-count discrepancies)
+              const cEpisodes = c.episodes || null;
+              const epOk = !(targetEpisodes && cEpisodes) ||
+                Math.abs(cEpisodes - targetEpisodes) <= Math.max(2, targetEpisodes * 0.15);
+
+              if (sim >= MAL_BACKFILL_MIN_SIMILARITY && yearOk && epOk && sim > bestScore) {
+                bestScore = sim;
+                bestMalId = c.mal_id;
+              }
+            }
+
+            // Very confident match — no need to keep paginating
+            if (bestScore >= 0.97) break;
+
+            const pag = json.pagination;
+            if (!pag || !pag.has_next_page) break;
+          }
+        } catch (e) {
+          console.warn(`[MAL Backfill] Search failed for "${primaryTitle}":`, e.message);
+        }
+
+        const result = bestMalId || null;
+        _malBackfillCache.set(cacheKey, result);
+        if (result) {
+          console.log(`[MAL Backfill] ✅ "${primaryTitle}" -> mal_id ${result} (confidence ${(bestScore * 100).toFixed(0)}%)`);
+        } else {
+          console.log(`[MAL Backfill] ❌ No confident match for "${primaryTitle}" — will be skipped`);
+        }
+        return result;
+      }
+
+      /** Run an async mapper over items with a max concurrency limit —
+       *  keeps us from firing 40+ simultaneous requests at the self-hosted
+       *  Jikan instance when backfilling a whole page of missing MAL ids. */
+      async function mapWithConcurrency(items, limit, fn) {
+        const results = new Array(items.length);
+        let idx = 0;
+        async function worker() {
+          while (idx < items.length) {
+            const current = idx++;
+            results[current] = await fn(items[current], current);
+          }
+        }
+        await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+        return results;
+      }
+
       /* ── NEW ON ANIOCEAN ── */
      /* Store fetched data for popup lookup */
 window.anioceanData = {};
@@ -3820,26 +3974,33 @@ window.showAnikotoPopupById = function(mal_id) {
         // Merge multiple TMDB pages (ascending order - oldest first)
         const allTmdbResults = [...(tv.results||[]), ...(tv2.results||[]), ...(tv3.results||[])];
         
-        // Convert AniList completed anime
-        const anilistItems = [];
+        // Convert AniList completed anime — backfill missing MAL ids via
+        // title search instead of dropping the anime outright, so grid
+        // density isn't lost just because AniList lacks a MAL mapping.
+        let anilistItems = [];
         if (anilistComp?.Page?.media) {
-          for (const m of anilistComp.Page.media.slice(0, TARGET_SHOWS)) {
-            // Require a real MAL id — without it, infoUrl()/watchUrl() would
-            // produce a broken "/info/anime/jikan-anilist-{id}" link.
-            if (!m.isAdult && m.idMal) {
-              const internal = anilistToInternal(m);
-              anilistItems.push({
-                id:`anilist-comp-${m.id}`,
-                mal_id: internal.mal_id,
-                title: internal.title,
-                poster: internal.poster,
-                type: internal.type || 'Anime',
-                year: String(internal.year),
-                score: internal.score,
-                quality: 'HD'
-              });
+          const candidates = anilistComp.Page.media.slice(0, TARGET_SHOWS).filter(m => !m.isAdult);
+          const resolved = await mapWithConcurrency(candidates, 4, async (m) => {
+            let malId = m.idMal || null;
+            if (!malId) {
+              malId = await findMalIdByTitle(m);
             }
-          }
+            // Still no confident mal_id after backfill attempt — skip this
+            // one rather than risk a broken or (worse) wrong-anime link.
+            if (!malId) return null;
+            const internal = anilistToInternal(m);
+            return {
+              id:`anilist-comp-${m.id}`,
+              mal_id: malId,
+              title: internal.title,
+              poster: internal.poster,
+              type: internal.type || 'Anime',
+              year: String(internal.year),
+              score: internal.score,
+              quality: 'HD'
+            };
+          });
+          anilistItems = resolved.filter(Boolean);
         }
         
         // Create items arrays - take enough to fill 6 rows
