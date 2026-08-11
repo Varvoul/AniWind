@@ -9,6 +9,8 @@
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVoanVjd3FpYWR5bW1vZ213a3hjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1MTY0NDcsImV4cCI6MjA5NzA5MjQ0N30.nJZQftmkbu0Ix-4lgtfzJcm_qIkI32e3SykF49XPrlg';
   const supabase          = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   const CF_WORKER_URL     = 'https://aniocen.bionmovies47.workers.dev';
+  // Fallback TMDB proxy (mapplee) - used when t-umi fails or rate-limits
+  const MAPLEE_API_URL    = 'https://mapplee.com/api/tmdb';
   const PROFILE_BUCKET_URL= `${SUPABASE_URL}/storage/v1/object/public/Aniumi/`;
   // NOTE: Frieren.jpeg lives inside the `profile_ava/` folder of the Aniumi bucket,
   // not at the bucket root.  Verified publicly accessible (HTTP 200, 80KB JPEG).
@@ -2317,22 +2319,104 @@
     }));
   }
 
-  /* ── TMDB via Cloudflare Worker ── */
-  async function fetchTMDB(q) {
+  /* ── TMDB via Cloudflare Worker (Primary: t-umi) ── */
+  async function fetchTMDB(q, page = 1) {
+    try {
+      const results = await fetchTMDBPrimary(q, page);
+      console.log(`[Search] ✅ t-umi (primary) returned ${results.length} results`);
+      return results;
+    } catch (primaryError) {
+      console.warn(`[Search] ⚠️ t-umi primary failed: ${primaryError.message}, trying mapplee fallback...`);
+      try {
+        const fallbackResults = await fetchTMDBFallback(q, page);
+        console.log(`[Search] ✅ mapplee (fallback) returned ${fallbackResults.length} results`);
+        return fallbackResults;
+      } catch (fallbackError) {
+        console.error(`[Search] ❌ Both APIs failed:`, fallbackError);
+        return [];
+      }
+    }
+  }
+
+  /* ── Primary TMDB API (t-umi / CF Worker) ── */
+  async function fetchTMDBPrimary(q, page = 1) {
     const [movieRes, tvRes] = await Promise.all([
-      fetch(`${CF_WORKER_URL}/3/search/movie?query=${encodeURIComponent(q)}&language=en-US&page=1`),
-      fetch(`${CF_WORKER_URL}/3/search/tv?query=${encodeURIComponent(q)}&language=en-US&page=1`)
+      fetch(`${CF_WORKER_URL}/3/search/movie?query=${encodeURIComponent(q)}&language=en-US&page=${page}`),
+      fetch(`${CF_WORKER_URL}/3/search/tv?query=${encodeURIComponent(q)}&language=en-US&page=${page}`)
     ]);
+
+    // Check for HTTP errors or rate limiting
+    if (!movieRes.ok || !tvRes.ok) {
+      throw new Error(`t-umi HTTP error: movie=${movieRes.status}, tv=${tvRes.status}`);
+    }
 
     const movieData = await movieRes.json();
     const tvData    = await tvRes.json();
 
-    const movieResults = (movieData.results || []).map(r => ({ ...r, media_type: 'movie' }));
-    const tvResults    = (tvData.results    || []).map(r => ({ ...r, media_type: 'tv' }));
+    // Validate response structure
+    if (!movieData.results && !tvData.results) {
+      throw new Error('t-umi invalid response structure');
+    }
+
+    return normalizeTMDBResults(movieData, tvData);
+  }
+
+  /* ── Fallback TMDB API (mapplee) ── */
+  async function fetchTMDBFallback(q, page = 1) {
+    // mapplee requires browser-like User-Agent (Cloudflare protection)
+    const headers = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Accept': 'application/json'
+    };
+
+    // Use + for spaces in query as requested
+    const encodedQuery = q.replace(/\s+/g, '+');
+
+    const [movieRes, tvRes] = await Promise.all([
+      fetch(`${MAPLEE_API_URL}/search/movie?query=${encodedQuery}&language=en-US&page=${page}`, { headers }),
+      fetch(`${MAPLEE_API_URL}/search/tv?query=${encodedQuery}&language=en-US&page=${page}`, { headers })
+    ]);
+
+    // Check for errors
+    if (!movieRes.ok || !tvRes.ok) {
+      throw new Error(`mapplee HTTP error: movie=${movieRes.status}, tv=${tvRes.status}`);
+    }
+
+    const movieData = await movieRes.json();
+    const tvData    = await tvRes.json();
+
+    // mapplee returns Cloudflare challenge sometimes
+    if (movieData.hasOwnProperty('cf-chl-out') || typeof movieData.results === 'undefined') {
+      throw new Error('mapplee Cloudflare challenge detected');
+    }
+
+    return normalizeTMDBResults(movieData, tvData, true); // isMapplee=true
+  }
+
+  /* ── Normalize TMDB Results (handles both t-umi and mapplee formats) ── */
+  function normalizeTMDBResults(movieData, tvData, isMapplee = false) {
+    const movieResults = (movieData.results || []).map(r => {
+      // Normalize genre_ids: mapplee returns [{id,name}], t-umi returns [number]
+      const normalizedItem = { ...r, media_type: 'movie' };
+      if (isMapplee && Array.isArray(r.genre_ids) && r.genre_ids.length > 0 && 
+          typeof r.genre_ids[0] === 'object') {
+        normalizedItem.genre_ids = r.genre_ids.map(g => g.id);
+      }
+      return normalizedItem;
+    });
+
+    const tvResults = (tvData.results || []).map(r => {
+      const normalizedItem = { ...r, media_type: 'tv' };
+      if (isMapplee && Array.isArray(r.genre_ids) && r.genre_ids.length > 0 && 
+          typeof r.genre_ids[0] === 'object') {
+        normalizedItem.genre_ids = r.genre_ids.map(g => g.id);
+      }
+      return normalizedItem;
+    });
 
     const combined = [...movieResults, ...tvResults]
       .sort((a, b) => (b.popularity || 0) - (a.popularity || 0))
-      .slice(0, 6);
+      .slice(0, 8); // Slightly more results for better UX
 
     return combined.map(item => {
       const date      = item.release_date || item.first_air_date || '';
@@ -2347,8 +2431,11 @@
         meta:     `${monthYear} · ${typeLabel}`,
         score,
         id:       item.id,
-        source:   'tmdb',
-        mediaType: item.media_type
+        source:   isMapplee ? 'tmdb-fallback' : 'tmdb', // Differentiate source for logging
+        mediaType: item.media_type,
+        // Store pagination info for "View All" functionality
+        _totalPages: Math.max(movieData.total_pages || 1, tvData.total_pages || 1),
+        _sourceApi: isMapplee ? 'mapplee' : 't-umi'
       };
     });
   }
@@ -2387,8 +2474,8 @@
       }
       
       // ── TMDB MOVIE/TV: Link to TMDB info pages ──
-      // Non-Anime toggle tab uses these patterns
-      else if (r.source === 'tmdb' && r.id) {
+      // Non-Anime toggle tab uses these patterns (works for both t-umi and mapplee)
+      else if ((r.source === 'tmdb' || r.source === 'tmdb-fallback') && r.id) {
         if (r.mediaType === 'tv') {
           // TV Show: /info/tv/tmdb-tv-{tmdb_id}/slug
           detailsUrl = `/info/tv/tmdb-tv-${r.id}`;
@@ -2412,7 +2499,7 @@
       
       const meta = [r.meta].filter(Boolean).join('');
       
-      // Metadata tag: S-Mal (DB), Mal (Jikan), AL (AniList), TMDB (Movie/TV)
+      // Metadata tag: S-Mal (DB), Mal (Jikan), AL (AniList), TMDB (Movie/TV) - same for both APIs
       let metaTag = '';
       if (r.source === 'db') {
         metaTag = '<span class="meta-tag tag-smal">S-Mal</span>';
@@ -2420,8 +2507,8 @@
         metaTag = '<span class="meta-tag tag-mal">Mal</span>';
       } else if (r.source === 'anilist') {
         metaTag = '<span class="meta-tag tag-al">AL</span>';
-      } else if (r.source === 'tmdb') {
-        // TMDB tag - show media type
+      } else if (r.source === 'tmdb' || r.source === 'tmdb-fallback') {
+        // TMDB tag - show media type (same display for both t-umi and mapplee)
         const tmdbType = r.mediaType === 'movie' ? 'Movie' : 'TV';
         metaTag = `<span class="meta-tag tag-tmdb">${tmdbType}</span>`;
       }
