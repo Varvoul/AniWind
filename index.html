@@ -1954,18 +1954,31 @@
           return slug ? `${base}/${slug}` : base;
         }
 
-        // TMDB Movie → /info/movie/tmdb-movie-{tmdb_id}/slug
-        if (id.startsWith('tmdb-mv-') || id.startsWith('tmdb-movie-') || id.startsWith('tmdb-up-') || 
-            show.type === 'Movie' || show.type === 'movie') {
+        // Check explicit type FIRST — avoids id-prefix collisions
+        // (e.g. "tmdb-up-tv-123" starting with "tmdb-up-" being
+        // misread as a movie id even though show.type === 'TV')
+        if (show.type === 'TV' || show.type === 'tv') {
+          const numeric = show.tmdb_id || id.replace(/^tmdb-(?:tv|tvpop|comp|uptv|up-tv)-/, '');
+          const base = `/info/tv/tmdb-tv-${numeric}`;
+          const seasonSuffix = season ? `-season-${season}` : '';
+          return slug ? `${base}/${slug}${seasonSuffix}` : base;
+        }
+
+        if (show.type === 'Movie' || show.type === 'movie') {
           const numeric = show.tmdb_id || id.replace(/^tmdb-(?:mv|movie|up)-/, '');
           const base = `/info/movie/tmdb-movie-${numeric}`;
           return slug ? `${base}/${slug}` : base;
         }
 
-        // TMDB TV → /info/tv/tmdb-tv-{tmdb_id}/slug-season-{season_number}
-        if (id.startsWith('tmdb-tv-') || id.startsWith('tmdb-tvpop-') || id.startsWith('tmdb-comp-') ||
-            show.type === 'TV' || show.type === 'tv') {
-          const numeric = show.tmdb_id || id.replace(/^tmdb-(?:tv|tvpop|comp)-/, '');
+        // Fallback: id-prefix guessing (only used when show.type is missing)
+        if (id.startsWith('tmdb-mv-') || id.startsWith('tmdb-movie-') || id.startsWith('tmdb-up-')) {
+          const numeric = show.tmdb_id || id.replace(/^tmdb-(?:mv|movie|up)-/, '');
+          const base = `/info/movie/tmdb-movie-${numeric}`;
+          return slug ? `${base}/${slug}` : base;
+        }
+
+        if (id.startsWith('tmdb-tv-') || id.startsWith('tmdb-tvpop-') || id.startsWith('tmdb-comp-') || id.startsWith('tmdb-uptv-')) {
+          const numeric = show.tmdb_id || id.replace(/^tmdb-(?:tv|tvpop|comp|uptv)-/, '');
           const base = `/info/tv/tmdb-tv-${numeric}`;
           const seasonSuffix = season ? `-season-${season}` : '';
           return slug ? `${base}/${slug}${seasonSuffix}` : base;
@@ -2002,18 +2015,29 @@
           return `${base}${slugPart}/episode/${episode}`;
         }
 
-        // TMDB Movie → /watch/movie/tmdb-movie-{tmdb_id}/slug
-        if (id.startsWith('tmdb-mv-') || id.startsWith('tmdb-movie-') || id.startsWith('tmdb-up-') || 
-            show.type === 'Movie' || show.type === 'movie') {
+        // Check explicit type FIRST — avoids id-prefix collisions
+        if (show.type === 'TV' || show.type === 'tv') {
+          const numeric = show.tmdb_id || id.replace(/^tmdb-(?:tv|tvpop|comp|uptv|up-tv)-/, '');
+          const base = `/watch/tv/tmdb-tv-${numeric}`;
+          const slugPart = slug ? `/${slug}` : '';
+          return `${base}${slugPart}/season/${season}/episode/${episode}`;
+        }
+
+        if (show.type === 'Movie' || show.type === 'movie') {
           const numeric = show.tmdb_id || id.replace(/^tmdb-(?:mv|movie|up)-/, '');
           const base = `/watch/movie/tmdb-movie-${numeric}`;
           return slug ? `${base}/${slug}` : base;
         }
 
-        // TMDB TV → /watch/tv/tmdb-tv-{tmdb_id}/{slug}/season/{season_number}/episode/{episode_number}
-        if (id.startsWith('tmdb-tv-') || id.startsWith('tmdb-tvpop-') || id.startsWith('tmdb-comp-') ||
-            show.type === 'TV' || show.type === 'tv') {
-          const numeric = show.tmdb_id || id.replace(/^tmdb-(?:tv|tvpop|comp)-/, '');
+        // Fallback: id-prefix guessing (only used when show.type is missing)
+        if (id.startsWith('tmdb-mv-') || id.startsWith('tmdb-movie-') || id.startsWith('tmdb-up-')) {
+          const numeric = show.tmdb_id || id.replace(/^tmdb-(?:mv|movie|up)-/, '');
+          const base = `/watch/movie/tmdb-movie-${numeric}`;
+          return slug ? `${base}/${slug}` : base;
+        }
+
+        if (id.startsWith('tmdb-tv-') || id.startsWith('tmdb-tvpop-') || id.startsWith('tmdb-comp-') || id.startsWith('tmdb-uptv-')) {
+          const numeric = show.tmdb_id || id.replace(/^tmdb-(?:tv|tvpop|comp|uptv)-/, '');
           const base = `/watch/tv/tmdb-tv-${numeric}`;
           const slugPart = slug ? `/${slug}` : '';
           return `${base}${slugPart}/season/${season}/episode/${episode}`;
@@ -2335,7 +2359,7 @@
       function anilistToInternal(media) {
         if (!media) return null;
         return {
-          mal_id: media.idMal || `anilist-${media.id}`,
+          mal_id: media.idMal || null, // don't fabricate a fake id — anime without a real MAL id should be dropped by callers, not linked to a broken URL
           anilist_id: media.id,
           title: media.title?.english || media.title?.romaji || media.title?.native || 'Unknown',
           title_jp: media.title?.native || '',
@@ -3688,7 +3712,7 @@ window.showAnikotoPopupById = function(mal_id) {
           })
           .slice(0, 50)  // Limit to 50 TV shows
           .map(i => ({
-            id:`tmdb-up-tv-${i.id}`, tmdb_id: i.id, title:i.name, original_title:i.original_name||i.name,
+            id:`tmdb-uptv-${i.id}`, tmdb_id: i.id, title:i.name, original_title:i.original_name||i.name,
             type:'TV', poster:tmdbImg(i.poster_path), score:(i.vote_average||0).toFixed(1),
             genres:(i.genre_ids||[]).map(id=>GENRE_MAP[id]||id), releaseDate:i.first_air_date||'',
             synopsis:i.overview||'', certification:'PG-13',
@@ -3800,7 +3824,9 @@ window.showAnikotoPopupById = function(mal_id) {
         const anilistItems = [];
         if (anilistComp?.Page?.media) {
           for (const m of anilistComp.Page.media.slice(0, TARGET_SHOWS)) {
-            if (!m.isAdult) {
+            // Require a real MAL id — without it, infoUrl()/watchUrl() would
+            // produce a broken "/info/anime/jikan-anilist-{id}" link.
+            if (!m.isAdult && m.idMal) {
               const internal = anilistToInternal(m);
               anilistItems.push({
                 id:`anilist-comp-${m.id}`,
