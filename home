@@ -680,6 +680,23 @@
       .section-header:has(.toggle-tabs) .toggle-tabs {
         flex-shrink: 0 !important;
       }
+      /* #releaseTabs opts out of the transform-scale approach below —
+         CSS transform: scale() distorts the box that getBoundingClientRect()
+         reports, and since the glider is a child of the same scaled element,
+         its width/position get scaled a second time. That's what causes the
+         glider to land in the wrong spot in mobile portrait. Sizing directly
+         via padding/font instead keeps the glider math 1:1 at every width. */
+      #releaseTabs.toggle-tabs {
+        transform: none !important;
+      }
+      #releaseTabs .toggle-tab {
+        padding: 0 11px;
+        font-size: 0.7rem;
+        height: 29px;
+      }
+      #releaseTabs .tabs-glider {
+        height: 29px;
+      }
     }
     @media (max-width: 480px) {
       .toggle-tabs {
@@ -698,7 +715,207 @@
       .section-header:has(.toggle-tabs) .section-title {
         font-size: 1rem !important;
       }
+      /* Drop icons at the smallest breakpoint — text + count stay legible */
+      #releaseTabs .toggle-tab i { display: none; }
+      #releaseTabs .toggle-tab { gap: 4px; }
+      /* Same reasoning as the 768px override above — keep #releaseTabs
+         un-transformed so the glider's rect math stays accurate. */
+      #releaseTabs.toggle-tabs { transform: none !important; }
+      #releaseTabs .toggle-tab { padding: 0 9px; font-size: 0.62rem; height: 25px; }
+      #releaseTabs .tabs-glider { height: 25px; }
     }
+
+    /* ════════════════════════════════════════════════════════════
+       NEW RELEASES — enhanced tabs, spotlight card, badges, actions
+       (scoped to #releaseTabs / #newReleasesGrid so no other
+       section's shared classes are affected)
+       ════════════════════════════════════════════════════════════ */
+
+    /* Tabs: icon + live count pill */
+    #releaseTabs .toggle-tab { gap: 6px; }
+    #releaseTabs .toggle-tab i { font-size: 0.72em; opacity: 0.85; }
+    #releaseTabs .tab-count {
+      font-size: 0.62em;
+      font-weight: 700;
+      background: rgba(255,255,255,0.14);
+      border-radius: 20px;
+      padding: 1px 6px;
+      min-width: 16px;
+      text-align: center;
+      line-height: 1.5;
+    }
+    #releaseTabs .toggle-tab.active .tab-count {
+      background: rgba(255,255,255,0.28);
+    }
+    #releaseTabs .tab-count:empty { display: none; }
+
+    /* Section actions row: View All beside tabs */
+    .nr-header-controls { display: flex; align-items: center; gap: 10px; flex-wrap: nowrap; }
+
+    /* Keep "View All" beside the tabs on narrow screens instead of it
+       wrapping onto its own row — collapse to an icon-only circular
+       button, same footprint as the section's scroll-arrow controls. */
+    @media (max-width: 768px) {
+      #nrViewAll {
+        flex-shrink: 0;
+        width: 30px;
+        height: 30px;
+        min-width: 30px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0;
+      }
+      #nrViewAll .nr-viewall-text { display: none; }
+    }
+    @media (max-width: 480px) {
+      #nrViewAll { width: 26px; height: 26px; min-width: 26px; font-size: 0.65rem; }
+    }
+
+    /* ── Mobile PORTRAIT only: title + View All share row 1, tabs move to
+       their own centered row 2 below. Landscape mobile keeps the single-row
+       layout above (icon-only View All) since that already renders fine. ── */
+    @media (max-width: 768px) and (orientation: portrait) {
+      .section-header:has(.nr-header-controls) {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        grid-template-areas:
+          "nr-title nr-viewall"
+          "nr-tabs  nr-tabs";
+        row-gap: 12px;
+        column-gap: 10px;
+        align-items: center;
+        flex-wrap: unset;
+      }
+      .section-header:has(.nr-header-controls) .section-title {
+        grid-area: nr-title;
+      }
+      /* Let the tabs + View All join the grid directly as their own items,
+         instead of staying nested inside .nr-header-controls */
+      .nr-header-controls {
+        display: contents;
+      }
+      #releaseTabs.toggle-tabs {
+        grid-area: nr-tabs;
+        justify-self: center;
+        transform: none !important;
+      }
+      /* Restore the full "View All" pill — plenty of room now the tabs
+         have their own row */
+      #nrViewAll {
+        grid-area: nr-viewall;
+        justify-self: end;
+        width: auto;
+        height: auto;
+        min-width: 0;
+        padding: 6px 14px;
+        gap: 5px;
+      }
+      #nrViewAll .nr-viewall-text {
+        display: inline;
+      }
+    }
+
+    /* Grid fade-transition on tab switch */
+    .new-releases-grid { transition: opacity 0.18s ease; }
+    .new-releases-grid.nr-fading { opacity: 0; }
+
+    /* Type accent dot — color-coded by content type (matches site's existing token colors) */
+    .nr-type-dot { display:inline-block; width:6px; height:6px; border-radius:50%; margin-right:5px; vertical-align:middle; flex-shrink:0; }
+    .nr-type-dot.nr-anime  { background: var(--genre-tag-bg, #4c51bf); box-shadow:0 0 6px rgba(76,81,191,0.7); }
+    .nr-type-dot.nr-movie  { background: var(--accent-gold, #ecc94b); box-shadow:0 0 6px rgba(236,201,75,0.6); }
+    .nr-type-dot.nr-tv     { background: var(--accent-blue, #4299e1); box-shadow:0 0 6px rgba(66,153,225,0.6); }
+    .new-releases-grid .card-meta-sm { display:flex; align-items:center; }
+
+    /* Card lift + shadow on hover (adds depth beyond the base translateY) */
+    .new-releases-grid .show-card-grid {
+      box-shadow: 0 0 0 rgba(0,0,0,0);
+      transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+    }
+    .new-releases-grid .show-card-grid:hover {
+      box-shadow: 0 14px 34px rgba(0,0,0,0.55);
+    }
+    .new-releases-grid .card-poster { transition: filter var(--transition-fast); }
+    .new-releases-grid .show-card-grid:hover .card-poster { filter: brightness(1.05); }
+
+    /* ── Spotlight / featured card — first item in "All" view ── */
+    .new-releases-grid .nr-featured {
+      grid-column: span 2;
+      grid-row: span 2;
+    }
+    .new-releases-grid .nr-featured .card-poster {
+      border-radius: var(--radius-lg);
+    }
+    .new-releases-grid .nr-featured .card-info-grid {
+      padding: 46px 16px 18px;
+      border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+    }
+    .new-releases-grid .nr-featured .card-title {
+      font-size: clamp(1rem, 1.6vw, 1.3rem);
+      -webkit-line-clamp: 2;
+      margin-bottom: 4px;
+    }
+    .new-releases-grid .nr-featured .card-meta-sm { font-size: 0.78rem; }
+    .nr-featured-ribbon {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 3;
+      background: linear-gradient(135deg, var(--link-accent, #ed64a6), #d53f8c);
+      color: #fff;
+      font-size: 0.62rem;
+      font-weight: 800;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      padding: 4px 9px;
+      border-radius: 4px;
+      box-shadow: 0 3px 10px rgba(237,100,166,0.4);
+    }
+    .new-releases-grid .nr-featured .play-overlay svg { width: 52px; height: 52px; }
+    @media (max-width: 600px) {
+      /* Collapse spotlight to a normal card on small phones so the grid
+         rhythm and column count aren't disrupted on narrow screens */
+      .new-releases-grid .nr-featured { grid-column: span 1; grid-row: span 1; }
+      .new-releases-grid .nr-featured .card-info-grid { padding: 24px 8px 8px; }
+      .new-releases-grid .nr-featured .card-title { font-size: 0.85rem; -webkit-line-clamp:2; }
+      .new-releases-grid .nr-featured .play-overlay svg { width: 36px; height: 36px; }
+    }
+
+    /* ── Action buttons: Play = primary/filled, Heart = secondary/outline ── */
+    #newReleasesGrid .action-btn.action-watch {
+      background: var(--btn-primary);
+      border-color: var(--btn-primary);
+      width: 38px; height: 38px; font-size: 0.92rem;
+      box-shadow: 0 4px 14px rgba(43,108,176,0.5);
+    }
+    #newReleasesGrid .action-btn.action-watch:hover {
+      background: var(--btn-primary-hover);
+      border-color: var(--btn-primary-hover);
+      transform: scale(1.08);
+    }
+    #newReleasesGrid .action-btn.action-heart {
+      background: rgba(255,255,255,0.06);
+      border: 1.5px solid rgba(255,255,255,0.35);
+      width: 32px; height: 32px; font-size: 0.75rem;
+      align-self: center;
+    }
+    #newReleasesGrid .action-btn.action-heart:hover {
+      background: rgba(237,100,166,0.16);
+      border-color: var(--link-accent);
+      color: var(--link-accent);
+    }
+    #newReleasesGrid .action-btns-row { align-items: center; }
+
+    /* Empty state per tab */
+    .nr-empty-state {
+      grid-column: 1 / -1;
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-muted);
+    }
+    .nr-empty-state i { font-size: 1.8rem; opacity: 0.35; margin-bottom: 10px; display: block; }
+    .nr-empty-state span { font-size: 0.85rem; }
 
     /* sidebar - wider and improved */
     .sidebar-list-item { display:flex; gap:12px; align-items:center; padding:10px 8px; border-radius:var(--radius-sm); cursor:pointer; transition:background var(--transition-fast); margin-bottom:2px; }
@@ -1613,15 +1830,18 @@
       <section class="section">
         <div class="section-header">
           <h2 class="section-title" id="newReleasesTitle">New Releases</h2>
-          <div class="toggle-tabs" id="releaseTabs">
-            <span class="tabs-glider" id="releaseGlider"></span>
-            <button class="toggle-tab active" data-filter="all">All</button>
-            <button class="toggle-tab" data-filter="anime">Anime</button>
-            <button class="toggle-tab" data-filter="movie">Movies</button>
-            <button class="toggle-tab" data-filter="tv">Series</button>
+          <div class="nr-header-controls">
+            <div class="toggle-tabs" id="releaseTabs">
+              <span class="tabs-glider" id="releaseGlider"></span>
+              <button class="toggle-tab active" data-filter="all"><i class="fas fa-th-large"></i> All <span class="tab-count" id="nrCountAll"></span></button>
+              <button class="toggle-tab" data-filter="anime"><i class="fas fa-dragon"></i> Anime <span class="tab-count" id="nrCountAnime"></span></button>
+              <button class="toggle-tab" data-filter="movie"><i class="fas fa-film"></i> Movies <span class="tab-count" id="nrCountMovie"></span></button>
+              <button class="toggle-tab" data-filter="tv"><i class="fas fa-tv"></i> Series <span class="tab-count" id="nrCountTv"></span></button>
+            </div>
+            <a href="/new-releases" class="view-all" id="nrViewAll"><span class="nr-viewall-text">View All</span> <i class="fas fa-chevron-right"></i></a>
           </div>
         </div>
-        <div class="grid-container" id="newReleasesGrid"></div>
+        <div class="grid-container new-releases-grid" id="newReleasesGrid"></div>
       </section>
 
       <!-- NEW ON ANIOCEAN SECTION -->
@@ -2338,7 +2558,7 @@ async function loadNewAniocean() {
         .map(m => {
           const internal = anilistToInternal(m);
           return {
-            mal_id: internal.mal_id,
+            mal_id: m.idMal || m.id,
             title: internal.title,
             slug: internal.slug,
             poster: internal.poster,
@@ -2750,7 +2970,7 @@ window.showAnikotoPopupById = function(mal_id) {
           tmdb_id:        t.id,
           status_color:   '#818cf8',
           status_label:   '● Ongoing',
-          infoHref:       `/info/tv/tmdb-tv-${t.id}/${(t.name||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')}`,
+          infoHref:       `/info/tv/tmdb-tv-${t.id}/${(t.name||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')}-season-1`,
         }));
 
         // ── 4b) Map Anilist slides (already have bannerImage!) ──────────
@@ -2985,6 +3205,7 @@ window.showAnikotoPopupById = function(mal_id) {
               const internal = anilistToInternal(m);
               anime.push({
                 id:`anilist-air-${m.id}`,
+                mal_id: internal.mal_id,
                 title: internal.title,
                 poster: internal.poster,
                 type: 'Anime',
@@ -3091,6 +3312,7 @@ window.showAnikotoPopupById = function(mal_id) {
               const internal = anilistToInternal(m);
               anime.push({
                 id:`anilist-${m.id}`,
+                mal_id: internal.mal_id,
                 title: internal.title,
                 poster: internal.poster,
                 type: 'Anime',
@@ -3117,23 +3339,44 @@ window.showAnikotoPopupById = function(mal_id) {
           tv: trimToCompleteRows(allTv) 
         };
         _newReleasesCache = allReleases;
+        updateNewReleasesCounts();
         renderNewReleases('all');
         if (window.AniCache) window.AniCache.set({ cacheKey:'index:new_releases', pageSource:'index',
           section:'new_releases', data:allReleases, itemCount:allReleases.all.length }).catch(()=>{});
       }
+      function updateNewReleasesCounts() {
+        const setCount = (id, n) => { const el = document.getElementById(id); if (el) el.textContent = n > 0 ? n : ''; };
+        setCount('nrCountAll',   (allReleases.all||[]).length);
+        setCount('nrCountAnime', (allReleases.anime||[]).length);
+        setCount('nrCountMovie', (allReleases.movie||[]).length);
+        setCount('nrCountTv',    (allReleases.tv||[]).length);
+      }
       function renderNewReleases(filter) {
         const grid = document.getElementById('newReleasesGrid');
         const data = allReleases[filter] || [];
-        
-        grid.innerHTML = data.map(s => {
+
+        if (!data.length) {
+          grid.innerHTML = `<div class="nr-empty-state">
+            <i class="fas fa-inbox"></i>
+            <span>No ${filter === 'all' ? 'releases' : filter} available right now</span>
+          </div>`;
+          return;
+        }
+
+        grid.innerHTML = data.map((s, idx) => {
+          const isFeatured = idx === 0;
           // Check for valid poster - show No Image placeholder if missing
           const hasPoster = s.poster && s.poster !== '' && s.poster !== 'null' && s.poster !== 'undefined';
           const posterStyle = hasPoster ? `background-image:url('${s.poster}');` : 'background:linear-gradient(135deg, #1e293b 0%, #334155 100%);';
           const noImageClass = hasPoster ? '' : 'no-image';
           
+          const featuredCls = isFeatured ? ' nr-featured' : '';
+          const featuredRibbon = isFeatured ? `<span class="nr-featured-ribbon">New</span>` : '';
+
           if (s.type==='Anime') {
             const ratingText = RATING_EXPLAIN[s.rating] || s.rating;
-            return `<div class="show-card-grid" style="position:relative;">
+            return `<div class="show-card-grid${featuredCls}" style="position:relative;">
+              ${featuredRibbon}
               <a href="${infoUrl(s)}" class="show-card-grid" style="position:static;">
                 <div class="card-poster ${noImageClass}" style="${posterStyle}">
                   <span class="poster-status-badge">${s.status}</span>
@@ -3141,17 +3384,15 @@ window.showAnikotoPopupById = function(mal_id) {
                   <div class="play-overlay"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" fill="white"/></svg></div>
                 </div>
                 <div class="card-info-grid">
-                  <div class="card-meta-sm">${s.type} · ${s.duration==='?'?'?':s.duration} · ${ratingText || s.rating}</div>
+                  <div class="card-meta-sm"><span class="nr-type-dot nr-anime"></span>${s.type} · ${s.duration==='?'?'?':s.duration} · ${ratingText || s.rating}</div>
                   <div class="card-title">${s.title}</div>
                 </div>
               </a>
               ${generateCardButtons(s, { compact: true, showBookmark: false, showDetails: false })}
             </div>`;
           } else if (s.type==='Movie') {
-            const hasPoster = s.poster && s.poster !== '' && s.poster !== 'null';
-            const posterStyle = hasPoster ? `background-image:url('${s.poster}');` : 'background:linear-gradient(135deg, #1e293b 0%, #334155 100%);';
-            const noImageClass = hasPoster ? '' : 'no-image';
-            return `<div class="show-card-grid" style="position:relative;">
+            return `<div class="show-card-grid${featuredCls}" style="position:relative;">
+              ${featuredRibbon}
               <a href="${infoUrl(s)}" class="show-card-grid" style="position:static;">
                 <div class="card-poster ${noImageClass}" style="${posterStyle}">
                   <span class="quality-badge">${s.quality}</span>
@@ -3159,17 +3400,15 @@ window.showAnikotoPopupById = function(mal_id) {
                   <div class="play-overlay"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" fill="white"/></svg></div>
                 </div>
                 <div class="card-info-grid">
-                  <div class="card-meta-sm">${s.type} · ${s.details} · ${s.cert}</div>
+                  <div class="card-meta-sm"><span class="nr-type-dot nr-movie"></span>${s.type} · ${s.details} · ${s.cert}</div>
                   <div class="card-title">${s.title}</div>
                 </div>
               </a>
               ${generateCardButtons(s, { compact: true, showBookmark: false, showDetails: false })}
             </div>`;
           } else {
-            const hasPoster = s.poster && s.poster !== '' && s.poster !== 'null';
-            const posterStyle = hasPoster ? `background-image:url('${s.poster}');` : 'background:linear-gradient(135deg, #1e293b 0%, #334155 100%);';
-            const noImageClass = hasPoster ? '' : 'no-image';
-            return `<div class="show-card-grid" style="position:relative;">
+            return `<div class="show-card-grid${featuredCls}" style="position:relative;">
+              ${featuredRibbon}
               <a href="${infoUrl(s)}" class="show-card-grid" style="position:static;">
                 <div class="card-poster ${noImageClass}" style="${posterStyle}">
                   <span class="quality-badge">${s.quality}</span>
@@ -3177,7 +3416,7 @@ window.showAnikotoPopupById = function(mal_id) {
                   <div class="play-overlay"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" fill="white"/></svg></div>
                 </div>
                 <div class="card-info-grid">
-                  <div class="card-meta-sm">${s.type} · ${s.details} · ${s.cert}</div>
+                  <div class="card-meta-sm"><span class="nr-type-dot nr-tv"></span>${s.type} · ${s.details} · ${s.cert}</div>
                   <div class="card-title">${s.title}</div>
                 </div>
               </a>
@@ -3187,17 +3426,28 @@ window.showAnikotoPopupById = function(mal_id) {
         }).join('');
       }
       document.getElementById('releaseTabs').addEventListener('click', e => {
-        if (e.target.classList.contains('toggle-tab')) {
+        const tabBtn = e.target.closest('.toggle-tab');
+        if (tabBtn) {
           // Update active state
           document.querySelectorAll('#releaseTabs .toggle-tab').forEach(t=>t.classList.remove('active'));
-          e.target.classList.add('active');
+          tabBtn.classList.add('active');
           
           // Move glider to active tab
-          moveGlider('releaseTabs', 'releaseGlider', e.target);
+          moveGlider('releaseTabs', 'releaseGlider', tabBtn);
           
-          const filter = e.target.dataset.filter;
-          renderNewReleases(filter);
-          document.getElementById('newReleasesTitle').textContent = filter==='all' ? 'New Releases' : `Latest ${e.target.textContent}`;
+          const filter = tabBtn.dataset.filter;
+          const grid = document.getElementById('newReleasesGrid');
+          const label = tabBtn.dataset.filter === 'all' ? 'All' : tabBtn.dataset.filter === 'anime' ? 'Anime' : tabBtn.dataset.filter === 'movie' ? 'Movies' : 'Series';
+
+          // Fade out, swap content, fade in — avoids an abrupt flash on switch
+          grid.classList.add('nr-fading');
+          setTimeout(() => {
+            renderNewReleases(filter);
+            document.getElementById('newReleasesTitle').textContent = filter==='all' ? 'New Releases' : `Latest ${label}`;
+            const viewAll = document.getElementById('nrViewAll');
+            if (viewAll) viewAll.href = filter === 'all' ? '/new-releases' : `/new-releases?type=${filter}`;
+            grid.classList.remove('nr-fading');
+          }, 160);
         }
       });
 
@@ -3438,7 +3688,7 @@ window.showAnikotoPopupById = function(mal_id) {
           })
           .slice(0, 50)  // Limit to 50 TV shows
           .map(i => ({
-            id:`tmdb-up-tv-${i.id}`, title:i.name, original_title:i.original_name||i.name,
+            id:`tmdb-up-tv-${i.id}`, tmdb_id: i.id, title:i.name, original_title:i.original_name||i.name,
             type:'TV', poster:tmdbImg(i.poster_path), score:(i.vote_average||0).toFixed(1),
             genres:(i.genre_ids||[]).map(id=>GENRE_MAP[id]||id), releaseDate:i.first_air_date||'',
             synopsis:i.overview||'', certification:'PG-13',
@@ -3554,6 +3804,7 @@ window.showAnikotoPopupById = function(mal_id) {
               const internal = anilistToInternal(m);
               anilistItems.push({
                 id:`anilist-comp-${m.id}`,
+                mal_id: internal.mal_id,
                 title: internal.title,
                 poster: internal.poster,
                 type: internal.type || 'Anime',
@@ -3719,6 +3970,7 @@ window.showAnikotoPopupById = function(mal_id) {
               const internal = anilistToInternal(m);
               anilistItems.push({
                 id:`anilist-tr-${m.id}`,
+                mal_id: internal.mal_id,
                 title: internal.title,
                 poster: internal.poster,
                 type:'Anime',
@@ -3733,7 +3985,7 @@ window.showAnikotoPopupById = function(mal_id) {
         
         trendingData = [
           ...(tmdb.results||[]).slice(0,10).map(i => ({
-            id:`tmdb-tr-${i.id}`, title:i.title||i.name, poster:tmdbImg(i.poster_path,'w185'),
+            id:`tmdb-tr-${i.id}`, tmdb_id: i.id, title:i.title||i.name, poster:tmdbImg(i.poster_path,'w185'),
             type:i.media_type==='movie'?'Movie':'TV', score:(i.vote_average||0).toFixed(1),
             genres:(i.genre_ids||[]).map(id=>GENRE_MAP[id]||id),
             overview:i.overview||'',
@@ -3806,6 +4058,7 @@ window.showAnikotoPopupById = function(mal_id) {
         const tmdbItems = [
           ...allMovies.slice(0, 5).map(i => ({
             id:`tmdb-pop-${i.id}`,
+            tmdb_id: i.id,
             title: i.title||'Unknown',
             poster: tmdbImg(i.poster_path, 'w185'),
             type: 'Movie',
@@ -3819,6 +4072,7 @@ window.showAnikotoPopupById = function(mal_id) {
           })),
           ...allTV.slice(0, 5).map(i => ({
             id:`tmdb-tvpop-${i.id}`,
+            tmdb_id: i.id,
             title: i.name||'Unknown',
             poster: tmdbImg(i.poster_path, 'w185'),
             type: 'TV',
