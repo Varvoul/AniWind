@@ -1949,7 +1949,7 @@
 
         // Anime (Jikan/AniList) → /info/anime/jikan-{mal_id}/slug
         if (id.startsWith('jikan-') || id.startsWith('anilist-') || show.mal_id) {
-          const malId = show.mal_id || id.replace(/^jikan-(?:air-|up-|comp-|tr-|pop-|anilist-)?/, '').replace(/^anilist-/, '');
+          const malId = show.mal_id || id.replace(/^jikan-(?:air-|up-|comp-|tr-|pop-|anilist-)?/, '').replace(/^anilist-(?:air-|up-|comp-|tr-|pop-)?/, '');
           const base = `/info/anime/jikan-${malId}`;
           return slug ? `${base}/${slug}` : base;
         }
@@ -2009,7 +2009,7 @@
 
         // Anime (Jikan/AniList) → /watch/anime/jikan-{mal_id}/slug/episode/{episode}
         if (id.startsWith('jikan-') || id.startsWith('anilist-') || show.mal_id) {
-          const malId = show.mal_id || id.replace(/^jikan-(?:air-|up-|comp-|tr-|pop-|anilist-)?/, '').replace(/^anilist-/, '');
+          const malId = show.mal_id || id.replace(/^jikan-(?:air-|up-|comp-|tr-|pop-|anilist-)?/, '').replace(/^anilist-(?:air-|up-|comp-|tr-|pop-)?/, '');
           const base = `/watch/anime/jikan-${malId}`;
           const slugPart = slug ? `/${slug}` : '';
           return `${base}${slugPart}/episode/${episode}`;
@@ -2438,11 +2438,37 @@
          Requiring all of these avoids attaching the wrong mal_id to
          an anime (e.g. matching a same-titled remake, spin-off, or
          unrelated show with a similar name).
+
+         RATE LIMITING: this self-hosted Jikan instance scrapes MAL
+         directly, so hammering it risks getting IP-blocked/rate-limited
+         by MAL itself. A single shared throttle gate serializes every
+         request this module makes — including across concurrent
+         mapWithConcurrency workers — to a minimum spacing, regardless
+         of how many anime are being backfilled at once.
          ══════════════════════════════════════════════════════════════ */
       const JIKAN_SEARCH_BASE = 'https://jikan-api-bohb.onrender.com/v4/anime';
       const _malBackfillCache = new Map(); // session cache: "title::year" -> mal_id | null
       const MAL_BACKFILL_MAX_PAGES = 4;    // safety cap — stop paginating after this many pages
       const MAL_BACKFILL_MIN_SIMILARITY = 0.88; // title must be at least this close (0-1) to accept
+
+      // ── Shared request throttle (protects the self-hosted Jikan/MAL scraper) ──
+      const JIKAN_BACKFILL_MIN_INTERVAL_MS = 1500; // minimum gap between ANY two requests to this endpoint
+      let _lastJikanBackfillRequestTs = 0;
+      let _jikanBackfillQueue = Promise.resolve(); // serializes throttle checks across concurrent callers
+      function _throttleJikanBackfill() {
+        // Chain onto a shared promise so concurrent mapWithConcurrency workers
+        // queue up in order rather than racing each other's setTimeout — two
+        // workers reading _lastJikanBackfillRequestTs at the same instant
+        // would otherwise both think they're clear to fire immediately.
+        _jikanBackfillQueue = _jikanBackfillQueue.then(async () => {
+          const now = Date.now();
+          const elapsed = now - _lastJikanBackfillRequestTs;
+          const wait = JIKAN_BACKFILL_MIN_INTERVAL_MS - elapsed;
+          if (wait > 0) await new Promise(r => setTimeout(r, wait));
+          _lastJikanBackfillRequestTs = Date.now();
+        });
+        return _jikanBackfillQueue;
+      }
 
       // Levenshtein-based similarity, 0 (no match) to 1 (identical) —
       // standard DP implementation (initializes each row correctly,
@@ -2476,8 +2502,10 @@
       /**
        * Search the self-hosted Jikan API for a mal_id matching an AniList
        * media object. Paginates using the endpoint's own pagination info
-       * (has_next_page / last_visible_page) up to MAL_BACKFILL_MAX_PAGES.
-       * Returns a mal_id (number) on a confident match, or null.
+       * (has_next_page / last_visible_page) up to MAL_BACKFILL_MAX_PAGES,
+       * throttled to one request at a time across the whole page (see
+       * _throttleJikanBackfill above). Returns a mal_id (number) on a
+       * confident match, or null.
        */
       async function findMalIdByTitle(anilistMedia) {
         const candidateTitles = [
@@ -2502,6 +2530,7 @@
 
         try {
           for (let page = 1; page <= MAL_BACKFILL_MAX_PAGES; page++) {
+            await _throttleJikanBackfill(); // rate-limit gate — waits its turn before every request
             const res = await fetch(`${JIKAN_SEARCH_BASE}?q=${query}&page=${page}&limit=10`, {
               headers: { Accept: 'application/json' },
               signal: AbortSignal.timeout(10000)
@@ -2544,7 +2573,8 @@
               }
             }
 
-            // Very confident match — no need to keep paginating
+            // Very confident match — no need to keep paginating (and no
+            // need to burn another rate-limited request against MAL)
             if (bestScore >= 0.97) break;
 
             const pag = json.pagination;
@@ -2564,9 +2594,11 @@
         return result;
       }
 
-      /** Run an async mapper over items with a max concurrency limit —
-       *  keeps us from firing 40+ simultaneous requests at the self-hosted
-       *  Jikan instance when backfilling a whole page of missing MAL ids. */
+      /** Run an async mapper over items with a max concurrency limit.
+       *  Concurrency is now mostly a formality for pacing since the shared
+       *  throttle above serializes actual network requests either way, but
+       *  keeping it modest (3) avoids piling up dozens of queued/waiting
+       *  fetches at once when a section has many missing mal_ids. */
       async function mapWithConcurrency(items, limit, fn) {
         const results = new Array(items.length);
         let idx = 0;
@@ -3980,7 +4012,7 @@ window.showAnikotoPopupById = function(mal_id) {
         let anilistItems = [];
         if (anilistComp?.Page?.media) {
           const candidates = anilistComp.Page.media.slice(0, TARGET_SHOWS).filter(m => !m.isAdult);
-          const resolved = await mapWithConcurrency(candidates, 4, async (m) => {
+          const resolved = await mapWithConcurrency(candidates, 3, async (m) => {
             let malId = m.idMal || null;
             if (!malId) {
               malId = await findMalIdByTitle(m);
