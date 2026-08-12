@@ -435,23 +435,34 @@
     .card-poster.no-image::before { content:'No'; position:absolute; top:40%; left:50%; transform:translate(-50%,-50%); color:#94a3b8; font-size:0.75rem; font-weight:600; letter-spacing:2px; text-transform:uppercase; z-index:1; user-select:none; }
     .card-poster.no-image::after { content:'Image'; position:absolute; top:55%; left:50%; transform:translate(-50%,-50%); color:#94a3b8; font-size:0.7rem; font-weight:600; letter-spacing:1px; text-transform:uppercase; z-index:1; user-select:none; }
 
-    /* NEW ON ANIOCEAN SECTION - Horizontal Scroll Shelf (same pattern as Top Airing & Upcoming) */
+    /* NEW ON ANIOCEAN SECTION - 2-Row Horizontal Scroll Shelf (Netflix-style) */
     .new-aniocean-shelf {
-      /* Inherits display:flex, overflow-x:auto, scroll-behavior from .horizontal-scroll */
+      /* Use CSS Grid for true 2-row horizontal scroll */
+      display: grid;
+      /* Create 40 columns of 165px each (cards fill left-to-right, top-to-bottom) */
+      grid-template-columns: repeat(40, 165px);
+      /* Exactly 2 rows */
+      grid-template-rows: repeat(2, auto);
       gap: 12px;
-      /* No flex-wrap - must remain single row for horizontal scrolling */
+      /* Horizontal scroll only */
+      overflow-x: auto;
+      overflow-y: hidden;
+      scroll-behavior: smooth;
+      /* Height for 2 full rows: poster(~248px) + info(~70px) + gap */
+      height: calc((165px * 4.5 / 3) + 75px) * 2 + 12px;
+      max-height: 650px;
       /* Hide scrollbar like other sections */
       scrollbar-width: none;
       -ms-overflow-style: none;
     }
     .new-aniocean-shelf::-webkit-scrollbar { display: none; }
     
-    /* Card sizing - same as show-card-horiz for consistency */
+    /* Card sizing for grid */
     .new-aniocean-shelf .aniocean-card {
-      flex: 0 0 auto;
       width: 165px;
       min-width: 165px;
       max-width: 165px;
+      /* No flex properties needed - grid controls layout */
     }
 
     .aniocean-card {
@@ -1635,13 +1646,34 @@
       .main-layout { flex-direction:column; }
       .main-content, .sidebar-right { flex:1; max-width:100%; padding:0 16px; }
       .sidebar-right { position:static; width:100%; padding:0 16px; }
+      /* Tablet: Adjust 2-row grid for smaller screens */
+      .new-aniocean-shelf {
+        grid-template-columns: repeat(30, 150px);
+        height: calc((150px * 4.5 / 3) + 70px) * 2 + 12px;
+        max-height: 580px;
+      }
+      .new-aniocean-shelf .aniocean-card {
+        width: 150px;
+        min-width: 150px;
+        max-width: 150px;
+      }
     }
     @media (max-width:768px) {
       .horizontal-scroll { gap:10px; }
       .show-card-horiz { width:150px; }
       .grid-container { grid-template-columns:repeat(2, 1fr); gap:10px; } /* Mobile portrait: 2 per row */
-      .new-aniocean-shelf { gap:8px; }
-      .new-aniocean-shelf .aniocean-card { width:calc((100% - 8px) / 2); min-width:calc((100% - 8px) / 2); max-width:calc((100% - 8px) / 2); }
+      .new-aniocean-shelf { 
+        gap: 8px;
+        /* Mobile: Show 2 columns per row, still 2 rows = 4 cards visible */
+        grid-template-columns: repeat(20, calc((100vw - 32px - 8px) / 2));
+        height: auto;
+        max-height: none;
+      }
+      .new-aniocean-shelf .aniocean-card { 
+        width: auto;
+        min-width: auto;
+        max-width: auto;
+      }
       
       /* Schedule Widget - Mobile Responsive */
       .esw-widget { margin-top: 15px; border-radius: var(--radius-md); }
@@ -3441,32 +3473,46 @@ window.showAnikotoPopupById = function(mal_id) {
       document.getElementById('topAiringLeft').addEventListener('click',()=> document.getElementById('topAiringScroll').scrollBy({left:-400,behavior:'smooth'}));
       document.getElementById('topAiringRight').addEventListener('click',()=> document.getElementById('topAiringScroll').scrollBy({left:400,behavior:'smooth'}));
 
-      /* ── NEW ON ANIUMI - Simple Scroll (Same pattern as Top Airing & Upcoming) ── */
-      // Use the exact same scrollBy() approach that works for Top Airing and Upcoming
-      document.getElementById('newAnioceanLeft')?.addEventListener('click', () => {
-        document.getElementById('newAnioceanGrid')?.scrollBy({ left: -660, behavior: 'smooth' }); // ~4 cards width
-      });
-      document.getElementById('newAnioceanRight')?.addEventListener('click', () => {
-        document.getElementById('newAnioceanGrid')?.scrollBy({ left: 660, behavior: 'smooth' }); // ~4 cards width
-      });
-      
-      // Optional: Keyboard arrow key support when hovering over section
-      (function addKeyboardSupport() {
-        const section = document.getElementById('newOnAniumiSection');
-        const grid = document.getElementById('newAnioceanGrid');
-        if (!section || !grid) return;
+      /* ── NEW ON ANIUMI - 2-Row Horizontal Scroll ── */
+      (function initNewAnioceanScroll() {
+        const container = document.getElementById('newAnioceanGrid');
+        const leftBtn = document.getElementById('newAnioceanLeft');
+        const rightBtn = document.getElementById('newAnioceanRight');
+        if (!container || !leftBtn || !rightBtn) return;
         
-        document.addEventListener('keydown', (e) => {
-          if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && 
-              (section.matches(':hover') || grid.matches(':hover'))) {
-            e.preventDefault();
-            if (e.key === 'ArrowLeft') {
-              grid.scrollBy({ left: -660, behavior: 'smooth' });
-            } else {
-              grid.scrollBy({ left: 660, behavior: 'smooth' });
-            }
-          }
+        // Calculate how many columns are visible and scroll by that amount
+        function getScrollAmount() {
+          const cardWidth = 165; // Fixed card width
+          const gap = 12;
+          const containerWidth = container.clientWidth;
+          // Number of visible columns
+          const visibleCols = Math.floor((containerWidth + gap) / (cardWidth + gap));
+          // Scroll by visible columns minus 1 (to show overlap for context)
+          return Math.max(1, visibleCols - 1) * (cardWidth + gap);
+        }
+        
+        leftBtn.addEventListener('click', () => {
+          container.scrollBy({ left: -getScrollAmount(), behavior: 'smooth' });
         });
+        rightBtn.addEventListener('click', () => {
+          container.scrollBy({ left: getScrollAmount(), behavior: 'smooth' });
+        });
+        
+        // Keyboard arrow key support when hovering over section
+        const section = document.getElementById('newOnAniumiSection');
+        if (section) {
+          document.addEventListener('keydown', (e) => {
+            if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && 
+                (section.matches(':hover') || container.matches(':hover'))) {
+              e.preventDefault();
+              if (e.key === 'ArrowLeft') {
+                container.scrollBy({ left: -getScrollAmount(), behavior: 'smooth' });
+              } else {
+                container.scrollBy({ left: getScrollAmount(), behavior: 'smooth' });
+              }
+            }
+          });
+        }
       })();
 
       /* ── NEW RELEASES ── */
