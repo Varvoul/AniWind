@@ -1844,7 +1844,7 @@
 
   <div class="main-layout">
     <div class="main-content">
-      <section class="section">
+      <section class="section" id="topAiringSection">
         <div class="section-header">
           <h2 class="section-title">Top Airing</h2>
           <div class="section-controls">
@@ -1886,7 +1886,7 @@
         <div class="horizontal-scroll new-aniocean-shelf" id="newAnioceanGrid"></div>
       </section>
 
-      <section class="section">
+      <section class="section" id="upcomingSection">
         <div class="section-header">
           <h2 class="section-title">Upcoming Shows</h2>
           <div class="section-controls">
@@ -3470,8 +3470,30 @@ window.showAnikotoPopupById = function(mal_id) {
             ${generateCardButtons(s, { compact: true, showBookmark: false, showDetails: false })}
           </div>`).join('');
       }
-      document.getElementById('topAiringLeft').addEventListener('click',()=> document.getElementById('topAiringScroll').scrollBy({left:-400,behavior:'smooth'}));
-      document.getElementById('topAiringRight').addEventListener('click',()=> document.getElementById('topAiringScroll').scrollBy({left:400,behavior:'smooth'}));
+      /* ── Shared helper: compute a "visible width minus one card" scroll amount ── */
+      function getRowScrollAmount(container) {
+        const cardWidth = 165; // Fixed card width
+        const gap = 14;
+        const containerWidth = container.clientWidth;
+        const visibleCols = Math.floor((containerWidth + gap) / (cardWidth + gap));
+        return Math.max(1, visibleCols - 1) * (cardWidth + gap);
+      }
+      /* ── Shared helper: enable PC left/right arrow-key scrolling while hovering a section ── */
+      function enableArrowKeyScroll(sectionEl, containerEl) {
+        if (!sectionEl || !containerEl) return;
+        document.addEventListener('keydown', (e) => {
+          if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') &&
+              (sectionEl.matches(':hover') || containerEl.matches(':hover'))) {
+            e.preventDefault();
+            const amount = getRowScrollAmount(containerEl);
+            containerEl.scrollBy({ left: e.key === 'ArrowLeft' ? -amount : amount, behavior: 'smooth' });
+          }
+        });
+      }
+
+      document.getElementById('topAiringLeft').addEventListener('click',()=> document.getElementById('topAiringScroll').scrollBy({left:-getRowScrollAmount(document.getElementById('topAiringScroll')),behavior:'smooth'}));
+      document.getElementById('topAiringRight').addEventListener('click',()=> document.getElementById('topAiringScroll').scrollBy({left:getRowScrollAmount(document.getElementById('topAiringScroll')),behavior:'smooth'}));
+      enableArrowKeyScroll(document.getElementById('topAiringSection'), document.getElementById('topAiringScroll'));
 
       /* ── NEW ON ANIUMI - 2-Row Horizontal Scroll ── */
       (function initNewAnioceanScroll() {
@@ -4008,8 +4030,9 @@ window.showAnikotoPopupById = function(mal_id) {
           </div>`;
         }).join('');
       }
-      document.getElementById('upcomingLeft').addEventListener('click', ()=> document.getElementById('upcomingScroll').scrollBy({left:-400}));
-      document.getElementById('upcomingRight').addEventListener('click', ()=> document.getElementById('upcomingScroll').scrollBy({left:400}));
+      document.getElementById('upcomingLeft').addEventListener('click', ()=> document.getElementById('upcomingScroll').scrollBy({left:-getRowScrollAmount(document.getElementById('upcomingScroll')),behavior:'smooth'}));
+      document.getElementById('upcomingRight').addEventListener('click', ()=> document.getElementById('upcomingScroll').scrollBy({left:getRowScrollAmount(document.getElementById('upcomingScroll')),behavior:'smooth'}));
+      enableArrowKeyScroll(document.getElementById('upcomingSection'), document.getElementById('upcomingScroll'));
 
       /* ── COMPLETED (paginated) ── */
       let completedCurrentPage = 1;
