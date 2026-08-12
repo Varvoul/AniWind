@@ -443,14 +443,17 @@
       grid-template-columns: repeat(40, 165px);
       /* Exactly 2 rows */
       grid-template-rows: repeat(2, auto);
+      /* CRITICAL: fill column-by-column (row1,row2 pairs) instead of the default
+         row-by-row flow, which was stacking every card into row 1 only */
+      grid-auto-flow: column;
       gap: 12px;
       /* Horizontal scroll only */
       overflow-x: auto;
       overflow-y: hidden;
       scroll-behavior: smooth;
       /* Height for 2 full rows: poster(~248px) + info(~70px) + gap */
-      height: calc((165px * 4.5 / 3) + 75px) * 2 + 12px;
-      max-height: 650px;
+      height: calc(((165px * 4.5 / 3) + 75px) * 2 + 12px);
+      max-height: 670px;
       /* Hide scrollbar like other sections */
       scrollbar-width: none;
       -ms-overflow-style: none;
@@ -1649,8 +1652,8 @@
       /* Tablet: Adjust 2-row grid for smaller screens */
       .new-aniocean-shelf {
         grid-template-columns: repeat(30, 150px);
-        height: calc((150px * 4.5 / 3) + 70px) * 2 + 12px;
-        max-height: 580px;
+        height: calc(((150px * 4.5 / 3) + 70px) * 2 + 12px);
+        max-height: 600px;
       }
       .new-aniocean-shelf .aniocean-card {
         width: 150px;
