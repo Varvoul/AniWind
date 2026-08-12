@@ -435,10 +435,14 @@
     .card-poster.no-image::before { content:'No'; position:absolute; top:40%; left:50%; transform:translate(-50%,-50%); color:#94a3b8; font-size:0.75rem; font-weight:600; letter-spacing:2px; text-transform:uppercase; z-index:1; user-select:none; }
     .card-poster.no-image::after { content:'Image'; position:absolute; top:55%; left:50%; transform:translate(-50%,-50%); color:#94a3b8; font-size:0.7rem; font-weight:600; letter-spacing:1px; text-transform:uppercase; z-index:1; user-select:none; }
 
-    /* NEW ON ANIOCEAN SECTION - Horizontal Scroll with Fixed Visible Columns */
+    /* NEW ON ANIOCEAN SECTION - 2-Row Horizontal Shelf with Fixed Visible Columns */
     .new-aniocean-grid { 
-      display:flex; 
+      display:grid; 
+      grid-auto-flow: column;
+      grid-template-rows: repeat(2, auto);
+      grid-auto-columns: 165px;
       overflow-x:auto;
+      overflow-y: hidden;
       scroll-behavior:smooth;
       gap:12px;
       padding-bottom:8px;
@@ -450,38 +454,45 @@
     
     /* Fixed width cards for precise column control */
     .new-aniocean-grid .aniocean-card {
-      flex:0 0 auto;
       width:165px;
+      max-width:165px;
     }
     
     /* Column count breakpoints - each sets exact card width for that many columns */
     /* 7 columns visible on ultra-wide (1800px+ container) */
     @media (min-width: 1601px) {
-      .new-aniocean-grid .aniocean-card { width:calc((100% - 72px) / 7); }
+      .new-aniocean-grid { grid-auto-columns: calc((100% - 72px) / 7); }
+      .new-aniocean-grid .aniocean-card { width:calc((100% - 72px) / 7); max-width:calc((100% - 72px) / 7); }
     }
     /* 6 columns visible on large (1401-1600px) */
     @media (max-width: 1600px) and (min-width: 1401px) {
-      .new-aniocean-grid .aniocean-card { width:calc((100% - 60px) / 6); }
+      .new-aniocean-grid { grid-auto-columns: calc((100% - 60px) / 6); }
+      .new-aniocean-grid .aniocean-card { width:calc((100% - 60px) / 6); max-width:calc((100% - 60px) / 6); }
     }
     /* 6 columns visible on medium-large (1201-1400px) */
     @media (max-width: 1400px) and (min-width: 1201px) {
-      .new-aniocean-grid .aniocean-card { width:calc((100% - 60px) / 6); }
+      .new-aniocean-grid { grid-auto-columns: calc((100% - 60px) / 6); }
+      .new-aniocean-grid .aniocean-card { width:calc((100% - 60px) / 6); max-width:calc((100% - 60px) / 6); }
     }
     /* 5 columns visible on medium (993-1200px) */
     @media (max-width: 1200px) and (min-width: 993px) {
-      .new-aniocean-grid .aniocean-card { width:calc((100% - 48px) / 5); }
+      .new-aniocean-grid { grid-auto-columns: calc((100% - 48px) / 5); }
+      .new-aniocean-grid .aniocean-card { width:calc((100% - 48px) / 5); max-width:calc((100% - 48px) / 5); }
     }
     /* 4 columns visible on tablet-landscape (769-992px) */
     @media (max-width: 992px) and (min-width: 769px) {
-      .new-aniocean-grid .aniocean-card { width:calc((100% - 36px) / 4); }
+      .new-aniocean-grid { grid-auto-columns: calc((100% - 36px) / 4); }
+      .new-aniocean-grid .aniocean-card { width:calc((100% - 36px) / 4); max-width:calc((100% - 36px) / 4); }
     }
     /* 3 columns visible on tablet-portrait (521-768px) */
     @media (max-width: 768px) and (min-width: 521px) {
-      .new-aniocean-grid .aniocean-card { width:calc((100% - 20px) / 3); gap:10px; }
+      .new-aniocean-grid { grid-auto-columns: calc((100% - 20px) / 3); gap:10px; }
+      .new-aniocean-grid .aniocean-card { width:calc((100% - 20px) / 3); max-width:calc((100% - 20px) / 3); }
     }
     /* 2 columns visible on mobile (≤520px) */
     @media (max-width: 520px) {
-      .new-aniocean-grid .aniocean-card { width:calc((100% - 12px) / 2); gap:8px; }
+      .new-aniocean-grid { grid-auto-columns: calc((100% - 12px) / 2); gap:8px; }
+      .new-aniocean-grid .aniocean-card { width:calc((100% - 12px) / 2); max-width:calc((100% - 12px) / 2); }
     }
 
     .aniocean-card {
@@ -1872,16 +1883,16 @@
       </section>
 
       <!-- NEW ON ANIOCEAN SECTION -->
-      <section class="section">
+      <section class="section" id="newOnAniumiSection">
         <div class="section-header">
           <h2 class="section-title">New on Aniumi</h2>
           <div class="section-controls">
-            <button class="scroll-arrow" id="newAnioceanLeft">‹</button>
-            <button class="scroll-arrow" id="newAnioceanRight">›</button>
+            <button class="scroll-arrow" id="newAnioceanLeft" aria-label="Scroll left">‹</button>
+            <button class="scroll-arrow" id="newAnioceanRight" aria-label="Scroll right">›</button>
             <a href="/recent" class="view-all">View All ›</a>
           </div>
         </div>
-        <div class="new-aniocean-grid" id="newAnioceanGrid"></div>
+        <div class="new-aniocean-grid" id="newAnioceanGrid" role="region" aria-label="New on Aniumi carousel"></div>
       </section>
 
       <section class="section">
@@ -3471,13 +3482,16 @@ window.showAnikotoPopupById = function(mal_id) {
       document.getElementById('topAiringLeft').addEventListener('click',()=> document.getElementById('topAiringScroll').scrollBy({left:-400,behavior:'smooth'}));
       document.getElementById('topAiringRight').addEventListener('click',()=> document.getElementById('topAiringScroll').scrollBy({left:400,behavior:'smooth'}));
 
-      /* ── NEW ON ANIUMI - Precise Column-Based Horizontal Scroll ── */
+      /* ── NEW ON ANIUMI - Precise Column-Based Horizontal Scroll (2-Row Shelf) ── */
       (function initNewAnioceanScroll() {
         const container = document.getElementById('newAnioceanGrid');
         const leftBtn = document.getElementById('newAnioceanLeft');
         const rightBtn = document.getElementById('newAnioceanRight');
         
-        if (!container || !leftBtn || !rightBtn) return;
+        if (!container || !leftBtn || !rightBtn) {
+          console.warn('[New on Aniumi] Scroll container or buttons not found');
+          return;
+        }
         
         // Get visible column count based on viewport width
         function getVisibleColumns() {
@@ -3499,49 +3513,126 @@ window.showAnikotoPopupById = function(mal_id) {
           return 12; // default gap
         }
         
-        // Scroll to nearest column boundary (snap to prevent partial columns)
-        function snapToColumn(direction) {
+        // Scroll by exact column count (prevents partial columns)
+        function scrollByColumns(direction) {
           const cards = container.querySelectorAll('.aniocean-card');
           if (cards.length === 0) return;
           
-          const cardWidth = cards[0].offsetWidth;
+          const cardWidth = cards[0].offsetWidth || 165; // fallback to base width
           const gap = getGapSize();
           const colWidth = cardWidth + gap;
           const currentScroll = container.scrollLeft;
           
-          // Find current column index
+          // Find current approximate column position
           const currentCol = Math.round(currentScroll / colWidth);
+          const visibleCols = getVisibleColumns();
           
+          let targetScroll;
           if (direction === 'next') {
-            // Move forward by visible columns count
-            const visibleCols = getVisibleColumns();
+            // Move forward by visible columns
             const targetCol = Math.min(currentCol + visibleCols, cards.length - visibleCols);
-            const targetScroll = targetCol * colWidth;
-            container.scrollTo({ left: targetScroll, behavior: 'smooth' });
+            targetScroll = Math.max(0, targetCol * colWidth);
           } else {
-            // Move backward by visible columns count
-            const visibleCols = getVisibleColumns();
+            // Move backward by visible columns
             const targetCol = Math.max(currentCol - visibleCols, 0);
-            const targetScroll = targetCol * colWidth;
-            container.scrollTo({ left: targetScroll, behavior: 'smooth' });
+            targetScroll = targetCol * colWidth;
           }
+          
+          // Execute smooth scroll
+          container.scrollTo({ 
+            left: targetScroll, 
+            behavior: 'smooth' 
+          });
         }
         
         // Update button visibility based on scroll position
         function updateButtonVisibility() {
           const maxScroll = container.scrollWidth - container.clientWidth;
           const atStart = container.scrollLeft <= 5;
-          const atEnd = container.scrollLeft >= maxScroll - 5;
+          const atEnd = maxScroll <= 0 || container.scrollLeft >= maxScroll - 5;
           
+          // Update left button state
           leftBtn.style.opacity = atStart ? '0.3' : '1';
           leftBtn.style.pointerEvents = atStart ? 'none' : 'auto';
+          leftBtn.style.cursor = atStart ? 'not-allowed' : 'pointer';
+          
+          // Update right button state
           rightBtn.style.opacity = atEnd ? '0.3' : '1';
           rightBtn.style.pointerEvents = atEnd ? 'none' : 'auto';
+          rightBtn.style.cursor = atEnd ? 'not-allowed' : 'pointer';
         }
         
-        // Event listeners for arrow buttons
-        leftBtn.addEventListener('click', () => snapToColumn('prev'));
-        rightBtn.addEventListener('click', () => snapToColumn('next'));
+        // ════════════════════════════════════════════════════════
+        // KEYBOARD ARROW KEY SUPPORT
+        // User can use ← → arrow keys when hovering over section
+        // ════════════════════════════════════════════════════════
+        function handleKeyboard(e) {
+          // Only respond when the New on Aniumi section is in viewport/hovered
+          const section = document.getElementById('newOnAniumiSection') || container.parentElement;
+          if (!section) return;
+          
+          const rect = section.getBoundingClientRect();
+          const isInViewport = rect.top < window.innerHeight && rect.bottom > 0;
+          
+          if (!isInViewport) return;
+          
+          // Check if user is interacting with this section (hovering or focused)
+          const isHovering = container.matches(':hover') || 
+                             leftBtn.matches(':hover') || 
+                             rightBtn.matches(':hover') ||
+                             section.matches(':hover');
+          
+          // Only capture Left/Right arrows when hovering over the section
+          if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && isHovering) {
+            e.preventDefault(); // Prevent browser default horizontal scroll
+            
+            if (e.key === 'ArrowLeft') {
+              scrollByColumns('prev');
+            } else if (e.key === 'ArrowRight') {
+              scrollByColumns('next');
+            }
+          }
+        }
+        
+        // Event listeners for chevron arrow buttons
+        leftBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          scrollByColumns('prev');
+        });
+        
+        rightBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          scrollByColumns('next');
+        });
+        
+        // Keyboard event listener for arrow key support
+        document.addEventListener('keydown', handleKeyboard);
+        
+        // Touch/Swipe support for mobile devices
+        let touchStartX = 0;
+        let touchEndX = 0;
+        
+        container.addEventListener('touchstart', (e) => {
+          touchStartX = e.changedTouches[0].screenX;
+        }, { passive: true });
+        
+        container.addEventListener('touchend', (e) => {
+          touchEndX = e.changedTouches[0].screenX;
+          handleSwipe();
+        }, { passive: true });
+        
+        function handleSwipe() {
+          const swipeThreshold = 50; // minimum swipe distance
+          const diff = touchStartX - touchEndX;
+          
+          if (Math.abs(diff) > swipeThreshold) {
+            if (diff > 0) {
+              scrollByColumns('next'); // Swipe left = scroll right
+            } else {
+              scrollByColumns('prev'); // Swipe right = scroll left
+            }
+          }
+        }
         
         // Update visibility on scroll
         container.addEventListener('scroll', updateButtonVisibility);
@@ -3549,8 +3640,11 @@ window.showAnikotoPopupById = function(mal_id) {
         // Initial state and resize handler
         updateButtonVisibility();
         window.addEventListener('resize', () => {
-          setTimeout(updateButtonVisibility, 100);
+          setTimeout(updateButtonVisibility, 150);
         });
+        
+        // Log initialization success
+        console.log('[New on Aniumi] ✓ Horizontal scroll initialized with keyboard & touch support');
       })();
 
       /* ── NEW RELEASES ── */
