@@ -435,22 +435,18 @@
     .card-poster.no-image::before { content:'No'; position:absolute; top:40%; left:50%; transform:translate(-50%,-50%); color:#94a3b8; font-size:0.75rem; font-weight:600; letter-spacing:2px; text-transform:uppercase; z-index:1; user-select:none; }
     .card-poster.no-image::after { content:'Image'; position:absolute; top:55%; left:50%; transform:translate(-50%,-50%); color:#94a3b8; font-size:0.7rem; font-weight:600; letter-spacing:1px; text-transform:uppercase; z-index:1; user-select:none; }
 
-    /* NEW ON ANIOCEAN SECTION - 2-Row Shelf (extends .horizontal-scroll) */
+    /* NEW ON ANIOCEAN SECTION - Horizontal Scroll Shelf (same pattern as Top Airing & Upcoming) */
     .new-aniocean-shelf {
-      /* Inherit from .horizontal-scroll: display:flex, overflow-x:auto, etc. */
-      flex-wrap: wrap;
-      align-content: flex-start;
+      /* Inherits display:flex, overflow-x:auto, scroll-behavior from .horizontal-scroll */
       gap: 12px;
-      /* Height for exactly 2 complete rows of cards + padding */
-      height: calc((165px * 4.5 / 3) * 2 + 70px);
-      max-height: 520px;
+      /* No flex-wrap - must remain single row for horizontal scrolling */
       /* Hide scrollbar like other sections */
       scrollbar-width: none;
       -ms-overflow-style: none;
     }
     .new-aniocean-shelf::-webkit-scrollbar { display: none; }
     
-    /* Fixed card width to match original design */
+    /* Card sizing - same as show-card-horiz for consistency */
     .new-aniocean-shelf .aniocean-card {
       flex: 0 0 auto;
       width: 165px;
