@@ -457,7 +457,31 @@
     @media (max-width: 520px) {
       .new-aniocean-grid { grid-template-columns:repeat(2, 1fr); }
     }
-    
+
+    /* ── DESKTOP ONLY (≥1025px): horizontal 2-row scrolling "shelf" ──
+       Same card size/gap as the wrapping grid above — items just flow
+       into columns (2 rows tall) and scroll sideways instead of
+       wrapping into more rows. Placed after the max-width blocks above
+       so it wins the cascade in the 1025-1600px range where both would
+       otherwise match. Left untouched below 1025px (tablet/mobile keep
+       the original wrapping grid). */
+    @media (min-width: 1025px) {
+      .new-aniocean-grid {
+        grid-template-columns: none;
+        grid-auto-flow: column;
+        grid-template-rows: repeat(2, auto);
+        grid-auto-columns: 170px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scroll-behavior: smooth;
+        scrollbar-width: none;       /* Firefox */
+        -ms-overflow-style: none;    /* old Edge/IE */
+        padding-top: 4px;            /* keeps hover-lift/shadow from clipping */
+        padding-bottom: 2px;
+      }
+      .new-aniocean-grid::-webkit-scrollbar { display: none; height: 0; }
+    }
+
     .aniocean-card {
       position: relative;
       cursor: pointer;
@@ -1848,7 +1872,11 @@
       <section class="section">
         <div class="section-header">
           <h2 class="section-title">New on Aniumi</h2>
-          <a href="/recent" class="view-all">View All ›</a>
+          <div class="section-controls">
+            <button class="scroll-arrow" id="newAnioceanLeft">‹</button>
+            <button class="scroll-arrow" id="newAnioceanRight">›</button>
+            <a href="/recent" class="view-all">View All ›</a>
+          </div>
         </div>
         <div class="new-aniocean-grid" id="newAnioceanGrid"></div>
       </section>
@@ -2639,9 +2667,16 @@ async function loadNewAniocean() {
     }
     const TARGET_ROWS = 6;  // FIXED: Always show exactly 6 rows
     const cols = calcColsForGrid();
-    const TARGET_SHOWS = TARGET_ROWS * cols; // Max shows for 6 rows
-    
-    // Trim to exactly 6 rows (no more, no less)
+    // Desktop (≥1025px) uses the horizontal-scrolling 2-row "shelf" layout
+    // (see the min-width:1025px CSS block) instead of the wrapping grid, so
+    // it needs far more items available to scroll through — not just
+    // enough to fill 6 stacked rows.
+    const isDesktopShelf = window.innerWidth >= 1025;
+    const TARGET_SHOWS = isDesktopShelf
+      ? Math.min(animeList.length, 40)
+      : TARGET_ROWS * cols; // Max shows for 6 rows
+
+    // Trim to exactly 6 rows (wrapping-grid mode) or up to 40 items (shelf mode)
     const displayList = animeList.slice(0, TARGET_SHOWS);
 
     grid.innerHTML = displayList.map(anime => {
@@ -3452,6 +3487,18 @@ window.showAnikotoPopupById = function(mal_id) {
       }
       document.getElementById('topAiringLeft').addEventListener('click',()=> document.getElementById('topAiringScroll').scrollBy({left:-400,behavior:'smooth'}));
       document.getElementById('topAiringRight').addEventListener('click',()=> document.getElementById('topAiringScroll').scrollBy({left:400,behavior:'smooth'}));
+
+      // New on Aniumi — desktop 2-row horizontal "shelf". Scrolls by a
+      // batch (~80% of the visible width) per click instead of one column,
+      // so a couple of clicks is enough to page through the whole shelf.
+      document.getElementById('newAnioceanLeft')?.addEventListener('click', () => {
+        const grid = document.getElementById('newAnioceanGrid');
+        if (grid) grid.scrollBy({ left: -grid.clientWidth * 0.8, behavior: 'smooth' });
+      });
+      document.getElementById('newAnioceanRight')?.addEventListener('click', () => {
+        const grid = document.getElementById('newAnioceanGrid');
+        if (grid) grid.scrollBy({ left: grid.clientWidth * 0.8, behavior: 'smooth' });
+      });
 
       /* ── NEW RELEASES ── */
       let allReleases = {all:[], anime:[], movie:[], tv:[]};
