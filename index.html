@@ -478,8 +478,16 @@
         -ms-overflow-style: none;    /* old Edge/IE */
         padding-top: 4px;            /* keeps hover-lift/shadow from clipping */
         padding-bottom: 2px;
+        /* Snap to a column boundary after ANY scroll — button click,
+           trackpad, or drag — so a column can never end up half-visible
+           at either edge of the viewport. */
+        scroll-snap-type: x mandatory;
       }
       .new-aniocean-grid::-webkit-scrollbar { display: none; height: 0; }
+      .new-aniocean-grid .aniocean-card {
+        scroll-snap-align: start;
+        scroll-snap-stop: always; /* don't let a fast flick skip past a snap point */
+      }
     }
 
     .aniocean-card {
@@ -3489,16 +3497,25 @@ window.showAnikotoPopupById = function(mal_id) {
       document.getElementById('topAiringRight').addEventListener('click',()=> document.getElementById('topAiringScroll').scrollBy({left:400,behavior:'smooth'}));
 
       // New on Aniumi — desktop 2-row horizontal "shelf". Scrolls by a
-      // batch (~80% of the visible width) per click instead of one column,
-      // so a couple of clicks is enough to page through the whole shelf.
-      document.getElementById('newAnioceanLeft')?.addEventListener('click', () => {
+      // whole number of columns (not a fraction of the width), computed
+      // from the actual rendered card size — so however many columns
+      // fully fit the visible width is exactly how many move per click,
+      // and none end up half-cut-off at either edge. Combined with the
+      // CSS scroll-snap-align above, this also self-corrects on the
+      // final "short" page near the end where a full batch doesn't fit.
+      function aniooceanScrollBatch(direction) {
         const grid = document.getElementById('newAnioceanGrid');
-        if (grid) grid.scrollBy({ left: -grid.clientWidth * 0.8, behavior: 'smooth' });
-      });
-      document.getElementById('newAnioceanRight')?.addEventListener('click', () => {
-        const grid = document.getElementById('newAnioceanGrid');
-        if (grid) grid.scrollBy({ left: grid.clientWidth * 0.8, behavior: 'smooth' });
-      });
+        if (!grid) return;
+        const firstCard = grid.querySelector('.aniocean-card');
+        if (!firstCard) return;
+        const cardWidth = firstCard.getBoundingClientRect().width;
+        const gap = parseFloat(getComputedStyle(grid).columnGap) || 12;
+        const step = cardWidth + gap;
+        const visibleCols = Math.max(1, Math.floor(grid.clientWidth / step));
+        grid.scrollBy({ left: direction * visibleCols * step, behavior: 'smooth' });
+      }
+      document.getElementById('newAnioceanLeft')?.addEventListener('click', () => aniooceanScrollBatch(-1));
+      document.getElementById('newAnioceanRight')?.addEventListener('click', () => aniooceanScrollBatch(1));
 
       /* ── NEW RELEASES ── */
       let allReleases = {all:[], anime:[], movie:[], tv:[]};
