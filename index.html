@@ -435,64 +435,90 @@
     .card-poster.no-image::before { content:'No'; position:absolute; top:40%; left:50%; transform:translate(-50%,-50%); color:#94a3b8; font-size:0.75rem; font-weight:600; letter-spacing:2px; text-transform:uppercase; z-index:1; user-select:none; }
     .card-poster.no-image::after { content:'Image'; position:absolute; top:55%; left:50%; transform:translate(-50%,-50%); color:#94a3b8; font-size:0.7rem; font-weight:600; letter-spacing:1px; text-transform:uppercase; z-index:1; user-select:none; }
 
-    /* NEW ON ANIOCEAN SECTION - 2-Row Horizontal Shelf with Fixed Visible Columns */
+    /* NEW ON ANIOCEAN SECTION - 2-Row Horizontal Shelf Layout */
     .new-aniocean-grid { 
-      display:grid; 
-      grid-auto-flow: column;
-      grid-template-rows: repeat(2, auto);
-      grid-auto-columns: 165px;
+      display:flex;
+      flex-wrap:wrap;
+      align-content:flex-start;
       overflow-x:auto;
-      overflow-y: hidden;
+      overflow-y:hidden;
       scroll-behavior:smooth;
       gap:12px;
       padding-bottom:8px;
-      /* Hide scrollbar - clean look like Netflix/Crunchyroll */
+      /* Fixed height for exactly 2 rows of cards */
+      height:520px;
+      /* Hide scrollbar - clean Netflix/Crunchyroll look */
       scrollbar-width:none;
       -ms-overflow-style:none;
     }
     .new-aniocean-grid::-webkit-scrollbar { display:none; }
     
-    /* Fixed width cards for precise column control */
+    /* Cards in the shelf - fixed width to prevent collapsing */
     .new-aniocean-grid .aniocean-card {
+      flex:0 0 auto;
       width:165px;
+      min-width:165px;
       max-width:165px;
     }
     
-    /* Column count breakpoints - each sets exact card width for that many columns */
-    /* 7 columns visible on ultra-wide (1800px+ container) */
+    /* Responsive card widths based on viewport */
+    /* 7 columns visible on ultra-wide (>1600px) */
     @media (min-width: 1601px) {
-      .new-aniocean-grid { grid-auto-columns: calc((100% - 72px) / 7); }
-      .new-aniocean-grid .aniocean-card { width:calc((100% - 72px) / 7); max-width:calc((100% - 72px) / 7); }
+      .new-aniocean-grid .aniocean-card { 
+        width:calc((100% - 72px) / 7); 
+        min-width:calc((100% - 72px) / 7); 
+        max-width:calc((100% - 72px) / 7); 
+      }
     }
     /* 6 columns visible on large (1401-1600px) */
     @media (max-width: 1600px) and (min-width: 1401px) {
-      .new-aniocean-grid { grid-auto-columns: calc((100% - 60px) / 6); }
-      .new-aniocean-grid .aniocean-card { width:calc((100% - 60px) / 6); max-width:calc((100% - 60px) / 6); }
+      .new-aniocean-grid .aniocean-card { 
+        width:calc((100% - 60px) / 6); 
+        min-width:calc((100% - 60px) / 6); 
+        max-width:calc((100% - 60px) / 6); 
+      }
     }
     /* 6 columns visible on medium-large (1201-1400px) */
     @media (max-width: 1400px) and (min-width: 1201px) {
-      .new-aniocean-grid { grid-auto-columns: calc((100% - 60px) / 6); }
-      .new-aniocean-grid .aniocean-card { width:calc((100% - 60px) / 6); max-width:calc((100% - 60px) / 6); }
+      .new-aniocean-grid .aniocean-card { 
+        width:calc((100% - 60px) / 6); 
+        min-width:calc((100% - 60px) / 6); 
+        max-width:calc((100% - 60px) / 6); 
+      }
     }
     /* 5 columns visible on medium (993-1200px) */
     @media (max-width: 1200px) and (min-width: 993px) {
-      .new-aniocean-grid { grid-auto-columns: calc((100% - 48px) / 5); }
-      .new-aniocean-grid .aniocean-card { width:calc((100% - 48px) / 5); max-width:calc((100% - 48px) / 5); }
+      .new-aniocean-grid .aniocean-card { 
+        width:calc((100% - 48px) / 5); 
+        min-width:calc((100% - 48px) / 5); 
+        max-width:calc((100% - 48px) / 5); 
+      }
     }
     /* 4 columns visible on tablet-landscape (769-992px) */
     @media (max-width: 992px) and (min-width: 769px) {
-      .new-aniocean-grid { grid-auto-columns: calc((100% - 36px) / 4); }
-      .new-aniocean-grid .aniocean-card { width:calc((100% - 36px) / 4); max-width:calc((100% - 36px) / 4); }
+      .new-aniocean-grid .aniocean-card { 
+        width:calc((100% - 36px) / 4); 
+        min-width:calc((100% - 36px) / 4); 
+        max-width:calc((100% - 36px) / 4); 
+      }
     }
     /* 3 columns visible on tablet-portrait (521-768px) */
     @media (max-width: 768px) and (min-width: 521px) {
-      .new-aniocean-grid { grid-auto-columns: calc((100% - 20px) / 3); gap:10px; }
-      .new-aniocean-grid .aniocean-card { width:calc((100% - 20px) / 3); max-width:calc((100% - 20px) / 3); }
+      .new-aniocean-grid { gap:10px; height:450px; }
+      .new-aniocean-grid .aniocean-card { 
+        width:calc((100% - 20px) / 3); 
+        min-width:calc((100% - 20px) / 3); 
+        max-width:calc((100% - 20px) / 3); 
+      }
     }
     /* 2 columns visible on mobile (≤520px) */
     @media (max-width: 520px) {
-      .new-aniocean-grid { grid-auto-columns: calc((100% - 12px) / 2); gap:8px; }
-      .new-aniocean-grid .aniocean-card { width:calc((100% - 12px) / 2); max-width:calc((100% - 12px) / 2); }
+      .new-aniocean-grid { gap:8px; height:400px; }
+      .new-aniocean-grid .aniocean-card { 
+        width:calc((100% - 12px) / 2); 
+        min-width:calc((100% - 12px) / 2); 
+        max-width:calc((100% - 12px) / 2); 
+      }
     }
 
     .aniocean-card {
