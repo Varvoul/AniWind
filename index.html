@@ -917,6 +917,31 @@
     }
     #newReleasesGrid .action-btns-row { align-items: center; }
 
+    /* ── Upcoming Shows: match New Releases' play/heart button styling ── */
+    #upcomingScroll .action-btn.action-watch {
+      background: var(--btn-primary);
+      border-color: var(--btn-primary);
+      width: 38px; height: 38px; font-size: 0.92rem;
+      box-shadow: 0 4px 14px rgba(43,108,176,0.5);
+    }
+    #upcomingScroll .action-btn.action-watch:hover {
+      background: var(--btn-primary-hover);
+      border-color: var(--btn-primary-hover);
+      transform: scale(1.08);
+    }
+    #upcomingScroll .action-btn.action-heart {
+      background: rgba(255,255,255,0.06);
+      border: 1.5px solid rgba(255,255,255,0.35);
+      width: 32px; height: 32px; font-size: 0.75rem;
+      align-self: center;
+    }
+    #upcomingScroll .action-btn.action-heart:hover {
+      background: rgba(237,100,166,0.16);
+      border-color: var(--link-accent);
+      color: var(--link-accent);
+    }
+    #upcomingScroll .action-btns-row { align-items: center; }
+
     /* Empty state per tab */
     .nr-empty-state {
       grid-column: 1 / -1;
@@ -4029,7 +4054,7 @@ window.showAnikotoPopupById = function(mal_id) {
               <h3 class="card-title">${s.title}</h3>
               <div class="card-meta-sm"><i class="fas fa-star"></i> ${s.score} · ${s.type} · ${s.releaseDate||'TBA'}</div>
             </a>
-            ${generateCardButtons(s, { compact: true })}
+            ${generateCardButtons(s, { compact: true, showBookmark: false, showDetails: false })}
           </div>`;
         }).join('');
       }
