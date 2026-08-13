@@ -435,27 +435,34 @@
     .card-poster.no-image::before { content:'No'; position:absolute; top:40%; left:50%; transform:translate(-50%,-50%); color:#94a3b8; font-size:0.75rem; font-weight:600; letter-spacing:2px; text-transform:uppercase; z-index:1; user-select:none; }
     .card-poster.no-image::after { content:'Image'; position:absolute; top:55%; left:50%; transform:translate(-50%,-50%); color:#94a3b8; font-size:0.7rem; font-weight:600; letter-spacing:1px; text-transform:uppercase; z-index:1; user-select:none; }
 
-    /* NEW ON ANIOCEAN SECTION - 2-Row Shelf (extends .horizontal-scroll) */
+    /* NEW ON ANIOCEAN SECTION - 2-Row Horizontal Scroll Shelf (Netflix-style) */
     .new-aniocean-shelf {
-      /* Inherit from .horizontal-scroll: display:flex, overflow-x:auto, etc. */
-      flex-wrap: wrap;
-      align-content: flex-start;
+      /* Use CSS Grid for true 2-row horizontal scroll */
+      display: grid;
+      /* Create 40 columns of 165px each (cards fill left-to-right, top-to-bottom) */
+      grid-template-columns: repeat(40, 165px);
+      /* Exactly 2 rows */
+      grid-template-rows: repeat(2, auto);
       gap: 12px;
-      /* Height for exactly 2 complete rows of cards + padding */
-      height: calc((165px * 4.5 / 3) * 2 + 70px);
-      max-height: 520px;
+      /* Horizontal scroll only */
+      overflow-x: auto;
+      overflow-y: hidden;
+      scroll-behavior: smooth;
+      /* Height for 2 full rows: poster(~248px) + info(~70px) + gap */
+      height: calc((165px * 4.5 / 3) + 75px) * 2 + 12px;
+      max-height: 650px;
       /* Hide scrollbar like other sections */
       scrollbar-width: none;
       -ms-overflow-style: none;
     }
     .new-aniocean-shelf::-webkit-scrollbar { display: none; }
     
-    /* Fixed card width to match original design */
+    /* Card sizing for grid */
     .new-aniocean-shelf .aniocean-card {
-      flex: 0 0 auto;
       width: 165px;
       min-width: 165px;
       max-width: 165px;
+      /* No flex properties needed - grid controls layout */
     }
 
     .aniocean-card {
@@ -1639,13 +1646,34 @@
       .main-layout { flex-direction:column; }
       .main-content, .sidebar-right { flex:1; max-width:100%; padding:0 16px; }
       .sidebar-right { position:static; width:100%; padding:0 16px; }
+      /* Tablet: Adjust 2-row grid for smaller screens */
+      .new-aniocean-shelf {
+        grid-template-columns: repeat(30, 150px);
+        height: calc((150px * 4.5 / 3) + 70px) * 2 + 12px;
+        max-height: 580px;
+      }
+      .new-aniocean-shelf .aniocean-card {
+        width: 150px;
+        min-width: 150px;
+        max-width: 150px;
+      }
     }
     @media (max-width:768px) {
       .horizontal-scroll { gap:10px; }
       .show-card-horiz { width:150px; }
       .grid-container { grid-template-columns:repeat(2, 1fr); gap:10px; } /* Mobile portrait: 2 per row */
-      .new-aniocean-shelf { gap:8px; }
-      .new-aniocean-shelf .aniocean-card { width:calc((100% - 8px) / 2); min-width:calc((100% - 8px) / 2); max-width:calc((100% - 8px) / 2); }
+      .new-aniocean-shelf { 
+        gap: 8px;
+        /* Mobile: Show 2 columns per row, still 2 rows = 4 cards visible */
+        grid-template-columns: repeat(20, calc((100vw - 32px - 8px) / 2));
+        height: auto;
+        max-height: none;
+      }
+      .new-aniocean-shelf .aniocean-card { 
+        width: auto;
+        min-width: auto;
+        max-width: auto;
+      }
       
       /* Schedule Widget - Mobile Responsive */
       .esw-widget { margin-top: 15px; border-radius: var(--radius-md); }
@@ -1976,13 +2004,13 @@
         }
 
         // Fallback: id-prefix guessing (only used when show.type is missing)
-        if (id.startsWith('tmdb-mv-') || id.startsWith('tmdb-movie-') || id.startsWith('tmdb-up-')) {
-          const numeric = show.tmdb_id || id.replace(/^tmdb-(?:mv|movie|up)-/, '');
+        if (id.startsWith('tmdb-mv-') || id.startsWith('tmdb-movie-') || id.startsWith('tmdb-up-') || id.startsWith('tmdb-comp-movie-')) {
+          const numeric = show.tmdb_id || id.replace(/^tmdb-(?:mv|movie|up|comp-movie)-/, '');
           const base = `/info/movie/tmdb-movie-${numeric}`;
           return slug ? `${base}/${slug}` : base;
         }
 
-        if (id.startsWith('tmdb-tv-') || id.startsWith('tmdb-tvpop-') || id.startsWith('tmdb-comp-') || id.startsWith('tmdb-uptv-')) {
+        if (id.startsWith('tmdb-tv-') || id.startsWith('tmdb-tvpop-') || id.startsWith('tmdb-comp-tv-') || id.startsWith('tmdb-comp-') || id.startsWith('tmdb-uptv-')) {
           const numeric = show.tmdb_id || id.replace(/^tmdb-(?:tv|tvpop|comp|uptv)-/, '');
           const base = `/info/tv/tmdb-tv-${numeric}`;
           const seasonSuffix = season ? `-season-${season}` : '';
@@ -2622,6 +2650,13 @@
 window.anioceanData = {};
 
 async function loadNewAniocean() {
+  const container = document.getElementById('newAnioceanGrid');
+  
+  // ── Show skeleton immediately while fetching ──
+  if (container) {
+    container.innerHTML = generateAnioceanSkeleton(14); // 2 rows × 7 columns
+  }
+  
   // Helper to render the horizontal scroll list from an array of anime objects
   // Container is now a flex horizontal scroll - works on all screen sizes
   function renderAnimeList(animeList) {
@@ -3445,32 +3480,46 @@ window.showAnikotoPopupById = function(mal_id) {
       document.getElementById('topAiringLeft').addEventListener('click',()=> document.getElementById('topAiringScroll').scrollBy({left:-400,behavior:'smooth'}));
       document.getElementById('topAiringRight').addEventListener('click',()=> document.getElementById('topAiringScroll').scrollBy({left:400,behavior:'smooth'}));
 
-      /* ── NEW ON ANIUMI - Simple Scroll (Same pattern as Top Airing & Upcoming) ── */
-      // Use the exact same scrollBy() approach that works for Top Airing and Upcoming
-      document.getElementById('newAnioceanLeft')?.addEventListener('click', () => {
-        document.getElementById('newAnioceanGrid')?.scrollBy({ left: -660, behavior: 'smooth' }); // ~4 cards width
-      });
-      document.getElementById('newAnioceanRight')?.addEventListener('click', () => {
-        document.getElementById('newAnioceanGrid')?.scrollBy({ left: 660, behavior: 'smooth' }); // ~4 cards width
-      });
-      
-      // Optional: Keyboard arrow key support when hovering over section
-      (function addKeyboardSupport() {
-        const section = document.getElementById('newOnAniumiSection');
-        const grid = document.getElementById('newAnioceanGrid');
-        if (!section || !grid) return;
+      /* ── NEW ON ANIUMI - 2-Row Horizontal Scroll ── */
+      (function initNewAnioceanScroll() {
+        const container = document.getElementById('newAnioceanGrid');
+        const leftBtn = document.getElementById('newAnioceanLeft');
+        const rightBtn = document.getElementById('newAnioceanRight');
+        if (!container || !leftBtn || !rightBtn) return;
         
-        document.addEventListener('keydown', (e) => {
-          if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && 
-              (section.matches(':hover') || grid.matches(':hover'))) {
-            e.preventDefault();
-            if (e.key === 'ArrowLeft') {
-              grid.scrollBy({ left: -660, behavior: 'smooth' });
-            } else {
-              grid.scrollBy({ left: 660, behavior: 'smooth' });
-            }
-          }
+        // Calculate how many columns are visible and scroll by that amount
+        function getScrollAmount() {
+          const cardWidth = 165; // Fixed card width
+          const gap = 12;
+          const containerWidth = container.clientWidth;
+          // Number of visible columns
+          const visibleCols = Math.floor((containerWidth + gap) / (cardWidth + gap));
+          // Scroll by visible columns minus 1 (to show overlap for context)
+          return Math.max(1, visibleCols - 1) * (cardWidth + gap);
+        }
+        
+        leftBtn.addEventListener('click', () => {
+          container.scrollBy({ left: -getScrollAmount(), behavior: 'smooth' });
         });
+        rightBtn.addEventListener('click', () => {
+          container.scrollBy({ left: getScrollAmount(), behavior: 'smooth' });
+        });
+        
+        // Keyboard arrow key support when hovering over section
+        const section = document.getElementById('newOnAniumiSection');
+        if (section) {
+          document.addEventListener('keydown', (e) => {
+            if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && 
+                (section.matches(':hover') || container.matches(':hover'))) {
+              e.preventDefault();
+              if (e.key === 'ArrowLeft') {
+                container.scrollBy({ left: -getScrollAmount(), behavior: 'smooth' });
+              } else {
+                container.scrollBy({ left: getScrollAmount(), behavior: 'smooth' });
+              }
+            }
+          });
+        }
       })();
 
       /* ── NEW RELEASES ── */
@@ -3973,134 +4022,226 @@ window.showAnikotoPopupById = function(mal_id) {
       let completedCurrentPage = 1;
       const _compSeenIds = new Set();
       let _completedPagesCache = {};
-      async function loadCompleted(page=1) {
-        if (window.AniCache && !_completedPagesCache[page]) {
-          const cached = await window.AniCache.get('index:recently_completed').catch(()=>null);
-          if (cached && cached.pages) _completedPagesCache = { ..._completedPagesCache, ...cached.pages };
+      let _isFetchingCompleted = false; // Prevent duplicate fetches
+      
+      async function loadCompleted(page = 1) {
+        // ── INSTANT UI FEEDBACK: Show active page & loading state immediately ──
+        completedCurrentPage = page;
+        renderPagination(page); // Update buttons instantly
+        
+        // Show skeleton loading grid while fetching
+        const gridEl = document.getElementById('completedGrid');
+        if (gridEl) {
+          function calcCols() {
+            const w = window.innerWidth;
+            if (w <= 520) return 2;
+            if (w <= 600 && window.matchMedia('(orientation: landscape)').matches) return 3;
+            if (w <= 768) return 4;
+            if (w <= 992) return 5;
+            if (w <= 1400) return 6;
+            if (w <= 1800) return 7;
+            return 8;
+          }
+          gridEl.innerHTML = generateCompletedSkeleton(6, calcCols());
         }
-        if (_completedPagesCache[page] && _completedPagesCache[page].length) {
-          const el = document.getElementById('completedGrid');
-          if (el) el.innerHTML = _completedPagesCache[page].map(s => renderCompletedCard(s)).join('');
-          renderPagination(page);
+        
+        // Prevent duplicate concurrent fetches
+        if (_isFetchingCompleted) {
+          console.log(`[Completed] Already fetching, skipping duplicate request for page ${page}`);
           return;
         }
-        completedCurrentPage = page;
+        _isFetchingCompleted = true;
         
-        // Grid col count - must match CSS grid-template-columns!
-        function calcCols() {
-          const w = window.innerWidth;
-          if (w <= 520) return 2;
-          if (w <= 600 && window.matchMedia('(orientation: landscape)').matches) return 3;
-          if (w <= 768) return 4;
-          if (w <= 992) return 5;
-          if (w <= 1400) return 6;
-          if (w <= 1800) return 7;
-          return 8;
-        }
-        
-        // Calculate target: 6 COMPLETE rows × columns
-        const TARGET_ROWS = 6;
-        const cols = calcCols();
-        const TARGET_SHOWS = TARGET_ROWS * cols;  // e.g., 6×7=42, 6×8=48
-        
-        // Fetch MULTIPLE pages to ensure enough data for 6 rows
-        // Using NEW t-umi proxy + AniList (replacing Jikan)
-        // TMDB in ASCENDING order (user request!)
-        
-        const [tv, tv2, tv3, anilistComp] = await Promise.all([
-          fetchTMDB('/discover/tv', `sort_by=first_air_date.asc&page=${page}`),       // ASCENDING order!
-          fetchTMDB('/discover/tv', `sort_by=first_air_date.asc&page=${page+1}`),     // ASCENDING order!
-          fetchTMDB('/discover/tv', `sort_by=first_air_date.asc&page=${page+2}`),     // ASCENDING order!
-          // AniList: Recently completed anime (replacing Jikan status=complete)
-          fetchAniList(`
-            query ($page: Int, $perPage: Int) {
-              Page(page: $page, perPage: $perPage) {
-                media(type: ANIME, status: FINISHED, isAdult: false, sort: [END_DATE_DESC]) {
-                  ${ANILIST_ANIME_FIELDS}
+        try {
+          // ── Check cache FIRST for instant display (if available) ──
+          if (window.AniCache && !_completedPagesCache[page]) {
+            const cached = await window.AniCache.get('index:recently_completed').catch(() => null);
+            if (cached && cached.pages) _completedPagesCache = { ..._completedPagesCache, ...cached.pages };
+          }
+          
+          // If we have cached data for this page, show it immediately but still refresh in background
+          if (_completedPagesCache[page] && _completedPagesCache[page].length) {
+            const el = document.getElementById('completedGrid');
+            if (el) el.innerHTML = _completedPagesCache[page].map(s => renderCompletedCard(s)).join('');
+            // Don't return here - continue to fetch fresh data to update cache
+          }
+          
+          // Grid col count - must match CSS grid-template-columns!
+          function calcCols() {
+            const w = window.innerWidth;
+            if (w <= 520) return 2;
+            if (w <= 600 && window.matchMedia('(orientation: landscape)').matches) return 3;
+            if (w <= 768) return 4;
+            if (w <= 992) return 5;
+            if (w <= 1400) return 6;
+            if (w <= 1800) return 7;
+            return 8;
+          }
+          
+          // Calculate target: 6 COMPLETE rows × columns
+          const TARGET_ROWS = 6;
+          const cols = calcCols();
+          const TARGET_SHOWS = TARGET_ROWS * cols;  // e.g., 6×7=42, 6×8=48
+          
+          // Fetch MULTIPLE sources to ensure enough data for 6 rows
+          // Using NEW t-umi proxy + AniList (replacing Jikan)
+          // TMDB in ASCENDING order + TMDB MOVIES (user request!)
+          
+          const [tv, tv2, tv3, movie, movie2, movie3, anilistComp] = await Promise.all([
+            fetchTMDB('/discover/tv', `sort_by=first_air_date.asc&page=${page}`),           // ASCENDING order!
+            fetchTMDB('/discover/tv', `sort_by=first_air_date.asc&page=${page+1}`),         // ASCENDING order!
+            fetchTMDB('/discover/tv', `sort_by=first_air_date.asc&page=${page+2}`),         // ASCENDING order!
+            // TMDB MOVIES: Recently released/completed movies (NEW!)
+            fetchTMDB('/discover/movie', `sort_by=release_date.desc&page=${page}&with_release_type=2|3&release_date.lte=${new Date().toISOString().split('T')[0]}`),
+            fetchTMDB('/discover/movie', `sort_by=release_date.desc&page=${page+1}&with_release_type=2|3&release_date.lte=${new Date().toISOString().split('T')[0]}`),
+            fetchTMDB('/discover/movie', `sort_by=release_date.desc&page=${page+2}&with_release_type=2|3&release_date.lte=${new Date().toISOString().split('T')[0]}`),
+            // AniList: Recently completed anime (replacing Jikan status=complete)
+            fetchAniList(`
+              query ($page: Int, $perPage: Int) {
+                Page(page: $page, perPage: $perPage) {
+                  media(type: ANIME, status: FINISHED, isAdult: false, sort: [END_DATE_DESC]) {
+                    ${ANILIST_ANIME_FIELDS}
+                  }
                 }
               }
-            }
-          `, { page: page, perPage: 50 })
-        ]);
-        
-        // Merge multiple TMDB pages (ascending order - oldest first)
-        const allTmdbResults = [...(tv.results||[]), ...(tv2.results||[]), ...(tv3.results||[])];
-        
-        // Convert AniList completed anime — backfill missing MAL ids via
-        // title search instead of dropping the anime outright, so grid
-        // density isn't lost just because AniList lacks a MAL mapping.
-        let anilistItems = [];
-        if (anilistComp?.Page?.media) {
-          const candidates = anilistComp.Page.media.slice(0, TARGET_SHOWS).filter(m => !m.isAdult);
-          const resolved = await mapWithConcurrency(candidates, 3, async (m) => {
-            let malId = m.idMal || null;
-            if (!malId) {
-              malId = await findMalIdByTitle(m);
-            }
-            // Still no confident mal_id after backfill attempt — skip this
-            // one rather than risk a broken or (worse) wrong-anime link.
-            if (!malId) return null;
-            const internal = anilistToInternal(m);
-            return {
-              id:`anilist-comp-${m.id}`,
-              mal_id: malId,
-              title: internal.title,
-              poster: internal.poster,
-              type: internal.type || 'Anime',
-              year: String(internal.year),
-              score: internal.score,
-              quality: 'HD'
-            };
-          });
-          anilistItems = resolved.filter(Boolean);
-        }
-        
-        // Create items arrays - take enough to fill 6 rows
-        // FILTER: Remove items without valid poster!
-        const tmdbItems = allTmdbResults
-          .filter(i => {
-            const hasPoster = i.poster_path && i.poster_path !== '' && i.poster_path !== null && i.poster_path !== 'undefined';
+            `, { page: page, perPage: 50 })
+          ]);
+          
+          // Merge multiple TMDB TV pages (ascending order - oldest first)
+          const allTmdbTvResults = [...(tv.results||[]), ...(tv2.results||[]), ...(tv3.results||[])];
+          
+          // Merge TMDB Movie pages (descending order - newest first)
+          const allTmdbMovieResults = [...(movie.results||[]), ...(movie2.results||[]), ...(movie3.results||[])];
+          
+          // Convert AniList completed anime — backfill missing MAL ids via
+          // title search instead of dropping the anime outright, so grid
+          // density isn't lost just because AniList lacks a MAL mapping.
+          let anilistItems = [];
+          if (anilistComp?.Page?.media) {
+            const candidates = anilistComp.Page.media.slice(0, TARGET_SHOWS).filter(m => !m.isAdult);
+            const resolved = await mapWithConcurrency(candidates, 3, async (m) => {
+              let malId = m.idMal || null;
+              if (!malId) {
+                malId = await findMalIdByTitle(m);
+              }
+              // Still no confident mal_id after backfill attempt — skip this
+              // one rather than risk a broken or (worse) wrong-anime link.
+              if (!malId) return null;
+              const internal = anilistToInternal(m);
+              return {
+                id:`anilist-comp-${m.id}`,
+                mal_id: malId,
+                title: internal.title,
+                poster: internal.poster,
+                type: internal.type || 'Anime',
+                year: String(internal.year),
+                score: internal.score,
+                quality: 'HD'
+              };
+            });
+            anilistItems = resolved.filter(Boolean);
+          }
+          
+          // Create items arrays - take enough to fill 6 rows
+          // FILTER: Remove items without valid poster!
+          const tmdbTvItems = allTmdbTvResults
+            .filter(i => {
+              const hasPoster = i.poster_path && i.poster_path !== '' && i.poster_path !== null && i.poster_path !== 'undefined';
+              if (!hasPoster) {
+                console.log(`[Completed Filter] ❌ TV dropped: "${i?.name}" - no poster`);
+              }
+              return hasPoster;
+            })
+            .map(i => ({
+              id:`tmdb-comp-tv-${i.id}`,
+              title:i.name,
+              poster:tmdbImg(i.poster_path),
+              type:'TV',
+              year:(i.first_air_date||'').slice(0,4),
+              score:(i.vote_average||0).toFixed(1),
+              quality:'HD',
+              tmdb_id: i.id
+            }))
+            .slice(0, TARGET_SHOWS * 1.5);  // Fetch extra to compensate for filtered items
+          
+          // NEW: TMDB Movies for Recently Completed section
+          const tmdbMovieItems = allTmdbMovieResults
+            .filter(i => {
+              const hasPoster = i.poster_path && i.poster_path !== '' && i.poster_path !== null && i.poster_path !== 'undefined';
+              if (!hasPoster) {
+                console.log(`[Completed Filter] ❌ Movie dropped: "${i?.title}" - no poster`);
+              }
+              return hasPoster;
+            })
+            .map(i => ({
+              id:`tmdb-comp-movie-${i.id}`,
+              title:i.title,
+              poster:tmdbImg(i.poster_path),
+              type:'Movie',
+              year:(i.release_date||'').slice(0,4),
+              score:(i.vote_average||0).toFixed(1),
+              quality:'HD',
+              tmdb_id: i.id,
+              slug: (i.title||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')
+            }))
+            .slice(0, Math.floor(TARGET_SHOWS * 0.5));  // Fewer movies than TV shows
+          
+          // Also filter Anilist completed anime without posters
+          const anilistItemsFiltered = anilistItems.filter(a => {
+            const hasPoster = a.poster && a.poster !== '' && a.poster !== 'null' && a.poster !== 'undefined';
             if (!hasPoster) {
-              console.log(`[Completed Filter] ❌ TV dropped: "${i?.name}" - no poster`);
+              console.log(`[Completed Filter] ❌ Anime dropped: "${a?.title}" - no poster`);
             }
             return hasPoster;
-          })
-          .map(i=>({
-            id:`tmdb-comp-${i.id}`,title:i.name,poster:tmdbImg(i.poster_path),
-            type:'TV',year:(i.first_air_date||'').slice(0,4),
-            score:(i.vote_average||0).toFixed(1),quality:'HD'
-          }))
-          .slice(0, TARGET_SHOWS * 1.5);  // Fetch extra to compensate for filtered items
-        
-        // Also filter Anilist completed anime without posters
-        const anilistItemsFiltered = anilistItems.filter(a => {
-          const hasPoster = a.poster && a.poster !== '' && a.poster !== 'null' && a.poster !== 'undefined';
-          if (!hasPoster) {
-            console.log(`[Completed Filter] ❌ Anime dropped: "${a?.title}" - no poster`);
+          });
+          
+          console.log(`[Completed Filter] ✅ After filtering: ${tmdbTvItems.length} TV + ${tmdbMovieItems.length} Movies + ${anilistItemsFiltered.length} anime`);
+          
+          // Interleave all three sources: Anime, TV, Movies
+          const interleaved = [];
+          const maxLen = Math.max(anilistItemsFiltered.length, tmdbTvItems.length, tmdbMovieItems.length);
+          for (let i = 0; i < maxLen; i++) {
+            if (i < anilistItemsFiltered.length) interleaved.push(anilistItemsFiltered[i]);
+            if (i < tmdbTvItems.length) interleaved.push(tmdbTvItems[i]);
+            if (i < tmdbMovieItems.length) interleaved.push(tmdbMovieItems[i]);
           }
-          return hasPoster;
-        });
-        
-        console.log(`[Completed Filter] ✅ After filtering: ${tmdbItems.length} TV + ${anilistItemsFiltered.length} anime`);
-        
-        const interleaved = [];
-        for (let i=0; i<Math.max(anilistItemsFiltered.length,tmdbItems.length); i++) {
-          if (i<anilistItemsFiltered.length) interleaved.push(anilistItemsFiltered[i]);
-          if (i<tmdbItems.length)  interleaved.push(tmdbItems[i]);
+          
+          // Trim to exactly 6 complete rows (no incomplete last row!)
+          const trimTo = Math.min(Math.floor(interleaved.length / cols) * cols, TARGET_SHOWS);
+          const list = interleaved.slice(0, trimTo || TARGET_SHOWS);
+          
+          // Render actual data (replaces skeleton)
+          const gridEl = document.getElementById('completedGrid');
+          if (gridEl) {
+            gridEl.innerHTML = list.map(s => renderCompletedCard(s)).join('');
+          }
+          
+          _completedPagesCache[page] = list;
+          
+          // Save pages 1 & 2 globally — 5h TTL
+          if (window.AniCache && list.length && page <= 2) {
+            const existing = await window.AniCache.get('index:recently_completed').catch(() => null);
+            const mergedPages = { ...((existing && existing.pages) || {}), [page]: list };
+            window.AniCache.set({ cacheKey:'index:recently_completed', pageSource:'index',
+              section:'recently_completed', data:{ pages: mergedPages }, itemCount: list.length }).catch(() => {});
+          }
+          
+          // Re-render pagination to ensure correct state
+          renderPagination(page);
+          
+        } catch (error) {
+          console.error('[Completed] Error loading page:', page, error);
+          // Show error state in grid
+          const gridEl = document.getElementById('completedGrid');
+          if (gridEl) {
+            gridEl.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-muted);">
+              <div style="font-size:1.2rem;margin-bottom:8px;">⚠️</div>
+              Failed to load content. <button onclick="loadCompleted(${page})" style="margin-top:10px;padding:8px 16px;background:var(--btn-primary);color:#fff;border:none;border-radius:6px;cursor:pointer;">Retry</button>
+            </div>`;
+          }
+        } finally {
+          _isFetchingCompleted = false;
         }
-        // Trim to exactly 6 complete rows (no incomplete last row!)
-        const trimTo = Math.min(Math.floor(interleaved.length/cols)*cols, TARGET_SHOWS);
-        const list = interleaved.slice(0, trimTo || TARGET_SHOWS);
-        document.getElementById('completedGrid').innerHTML = list.map(s => renderCompletedCard(s)).join('');
-        _completedPagesCache[page] = list;
-        // Save pages 1 & 2 globally — 5h TTL
-        if (window.AniCache && list.length && page <= 2) {
-          const existing = await window.AniCache.get('index:recently_completed').catch(()=>null);
-          const mergedPages = { ...((existing && existing.pages) || {}), [page]: list };
-          window.AniCache.set({ cacheKey:'index:recently_completed', pageSource:'index',
-            section:'recently_completed', data:{ pages: mergedPages }, itemCount: list.length }).catch(()=>{});
-        }
-        renderPagination(page);
       }
       function renderPagination(page) {
         const total = Math.ceil(1000/20);
@@ -4616,6 +4757,40 @@ window.showAnikotoPopupById = function(mal_id) {
             <div class="skeleton sk-poster"></div>
             <div class="skeleton sk-line w80"></div>
             <div class="skeleton sk-line w60"></div>
+          </div>`).join('');
+      }
+      
+      // Skeleton for New on Aniumi 2-row horizontal scroll section
+      function generateAnioceanSkeleton(count = 14) {
+        // Match the aniocean-card dimensions (165px width, aspect-ratio 3/4.5 for poster)
+        return Array.from({length: count}, () => `
+          <div class="aniocean-card skeleton-card" style="width:165px;min-width:165px;max-width:165px;">
+            <div class="aniocean-poster">
+              <div class="skeleton" style="width:100%;aspect-ratio:3/4.5;border-radius:var(--radius-md);"></div>
+              <!-- Placeholder for badges -->
+              <div class="skeleton" style="position:absolute;top:6px;right:6px;width:40px;height:18px;border-radius:4px;"></div>
+              <div class="skeleton" style="position:absolute;top:6px;left:6px;width:45px;height:18px;border-radius:3px;"></div>
+            </div>
+            <div class="aniocean-title-section">
+              <div class="skeleton" style="height:8px;margin:6px 0 4px;border-radius:4px;width:70%;"></div>
+              <div class="skeleton" style="height:10px;margin-bottom:6px;border-radius:4px;width:90%;"></div>
+            </div>
+          </div>`).join('');
+      }
+      
+      // Skeleton for Recently Completed grid (loading state during pagination)
+      function generateCompletedSkeleton(rows = 6, cols = 7) {
+        const total = rows * cols;
+        return Array.from({length: total }, () => `
+          <div class="show-card-grid skeleton-card">
+            <div class="card-poster" style="background:linear-gradient(135deg, #1e293b 0%, #334155 100%);">
+              <div class="skeleton" style="position:absolute;inset:0;border-radius:var(--radius-md);"></div>
+              <span class="quality-badge skeleton" style="background:rgba(255,255,255,0.1);color:transparent;">HD</span>
+            </div>
+            <div class="card-info-grid">
+              <div class="skeleton card-meta-sm" style="height:10px;width:80%;margin-bottom:6px;"></div>
+              <div class="skeleton card-title" style="height:12px;width:90%;"></div>
+            </div>
           </div>`).join('');
       }
       function skPaRows(n=8) {
