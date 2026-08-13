@@ -3016,7 +3016,11 @@ window.showAnikotoPopupById = function(mal_id) {
   if (!anime) return;
   
   const starIcon = '<i class="fas fa-star" style="color:var(--accent-gold)"></i>';
-  const genresHtml = anime.genres.map(g => `<a href="/anime/genre/${encodeURIComponent(g)}" class="genre-pill">${g}</a>`).join('');
+  const genreSlug = g => g.trim().toLowerCase().replace(/\s+/g, '+');
+  const genresHtml = anime.genres
+    .flatMap(g => g.split('&').map(part => part.trim()).filter(Boolean))
+    .map(g => `<a href="/anime/genre/${genreSlug(g)}" class="genre-pill">${g}</a>`)
+    .join('');
   
   document.getElementById('popupContent').innerHTML = `
     <div class="anikoto-popup">
@@ -4814,9 +4818,17 @@ window.showAnikotoPopupById = function(mal_id) {
   `;
   // Map internal type label to the URL path segment used for genre links
   const genreTypeSegment = show.type === 'Anime' ? 'anime' : (show.type === 'Movie' ? 'movie' : 'tv');
-  const genresHtml = (show.genres || []).filter(Boolean).map(g =>
-    `<a href="/${genreTypeSegment}/genre/${encodeURIComponent(g)}" class="genre-pill">${g}</a>`
-  ).join('');
+  // TMDB sometimes bundles two concepts into one genre string with "&"
+  // (e.g. "War & Politics", "Sci-Fi & Fantasy"). Split those into separate,
+  // independently-linkable pills rather than encoding the "&" into the URL.
+  // Multi-word single genres (e.g. "Science Fiction") use "+" for spaces,
+  // and the URL segment itself is always lowercased.
+  const genreSlug = g => g.trim().toLowerCase().replace(/\s+/g, '+');
+  const genresHtml = (show.genres || [])
+    .filter(Boolean)
+    .flatMap(g => g.split('&').map(part => part.trim()).filter(Boolean))
+    .map(g => `<a href="/${genreTypeSegment}/genre/${genreSlug(g)}" class="genre-pill">${g}</a>`)
+    .join('');
 
   const synopsis = show.synopsis || show.overview || 'No description available.';
 
