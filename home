@@ -466,23 +466,24 @@
        explicitly per-card in JS (grid-row 1/2) instead of relying on
        auto-flow, since the two rows hold different content types rather
        than an even split of one list. */
-    .upcoming-two-row {
-      display: grid;
-      grid-auto-flow: column;
-      grid-auto-columns: 165px;
-      grid-template-rows: repeat(2, auto);
+    /* Upcoming section - single interleaved row [TV] [Anime] [Movie] */
+    #upcomingScroll {
+      display: flex;
+      flex-direction: row;
+      flex-wrap: nowrap;
       gap: 12px;
       overflow-x: auto;
       overflow-y: hidden;
       scroll-behavior: smooth;
-      height: calc(((165px * 4.5 / 3) + 75px) * 2 + 12px);
-      max-height: 700px;
       scrollbar-width: none;
       -ms-overflow-style: none;
       padding-bottom: 8px;
     }
-    .upcoming-two-row::-webkit-scrollbar { display: none; }
-    .upcoming-two-row .show-card-horiz { width: 165px; }
+    #upcomingScroll::-webkit-scrollbar { display: none; }
+    #upcomingScroll .show-card-horiz { 
+      flex: 0 0 auto; 
+      width: 165px; 
+    }
     
     /* Card sizing for grid */
     .new-aniocean-shelf .aniocean-card {
@@ -4113,6 +4114,7 @@ window.showAnikotoPopupById = function(mal_id) {
           fetchTMDB('/tv/on_the_air', `page=29`),
           fetchTMDB('/tv/on_the_air', `page=30`),
           // AniList: Upcoming anime (replacing Jikan top/anime filter=upcoming)
+          // INCREASED to 60 to match TMDB row length (user request!)
           fetchAniList(`
             query ($perPage: Int) {
               Page(page: 1, perPage: $perPage) {
@@ -4121,7 +4123,7 @@ window.showAnikotoPopupById = function(mal_id) {
                 }
               }
             }
-          `, { perPage: 40 })
+          `, { perPage: 60 })
         ]);
         
         // Merge TMDB movie pages (30 pages = up to 600 results)
@@ -4281,7 +4283,7 @@ window.showAnikotoPopupById = function(mal_id) {
         upcomingShows = dedupById([
           ...tmdbMovieShows,
           ...tmdbTVShows,
-          ...anilistFiltered.slice(0, 50)
+          ...anilistFiltered.slice(0, 60)  // Increased to 60 to match TMDB row length
         ], 'id').slice(0,120);
         renderUpcoming();
       }
@@ -4310,22 +4312,24 @@ window.showAnikotoPopupById = function(mal_id) {
         const container = document.getElementById('upcomingScroll');
         const isDesktop = window.innerWidth > 1100;
         _upcomingWasDesktop = isDesktop;
-        if (isDesktop) {
-          // Desktop only: row 1 = anime, row 2 = movies + TV combined.
-          container.classList.add('upcoming-two-row');
-          const animeList = upcomingShows.filter(s => s.type === 'Anime');
-          const otherList = upcomingShows.filter(s => s.type !== 'Anime');
-          const cols = Math.max(animeList.length, otherList.length);
-          let html = '';
-          for (let i = 0; i < cols; i++) {
-            if (animeList[i]) html += upcomingCardHtml(animeList[i], 1);
-            if (otherList[i]) html += upcomingCardHtml(otherList[i], 2);
-          }
-          container.innerHTML = html;
-        } else {
-          container.classList.remove('upcoming-two-row');
-          container.innerHTML = upcomingShows.map(s => upcomingCardHtml(s, null)).join('');
+        
+        // Separate by type for interleaving
+        const tvList = upcomingShows.filter(s => s.type === 'TV');
+        const animeList = upcomingShows.filter(s => s.type === 'Anime');
+        const movieList = upcomingShows.filter(s => s.type === 'Movie');
+        
+        // Interleave in pattern: [TV] [Anime] [Movie] [TV] [Anime] [Movie]...
+        const maxLen = Math.max(tvList.length, animeList.length, movieList.length);
+        const interleaved = [];
+        for (let i = 0; i < maxLen; i++) {
+          if (tvList[i]) interleaved.push({ item: tvList[i], type: 'tv' });
+          if (animeList[i]) interleaved.push({ item: animeList[i], type: 'anime' });
+          if (movieList[i]) interleaved.push({ item: movieList[i], type: 'movie' });
         }
+        
+        // Single row layout - no more two-row grid!
+        container.classList.remove('upcoming-two-row');
+        container.innerHTML = interleaved.map(({ item }) => upcomingCardHtml(item, null)).join('');
       }
       // Re-render (not just re-layout) when crossing the desktop breakpoint,
       // since mobile/desktop use different DOM structures.
