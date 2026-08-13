@@ -4761,16 +4761,26 @@ async function loadNewAniocean() {
        hideTimer: null,
        showTimer: null,
        anchorEl: null,           // The card element we're anchored to
+       mouseX: 0,                // Track mouse position for gap detection
+       mouseY: 0,
+       lastMoveDate: 0,          // For detecting mouse movement
        
-       // Timing config (tuned for anchored popup - shorter delays work better)
+       // Timing config (tuned for anchored popup with mouse tracking)
        SHOW_DELAY: 80,           // Very small delay before showing (prevents flicker)
-       HIDE_DELAY: 350,          // Shorter delay since popup is RIGHT next to card
+       HIDE_DELAY: 500,          // Generous delay - we have mouse tracking now
        POPUP_WIDTH: 340,         // Match CSS width
        MARGIN: 10,               // Gap between card and popup
+       GAP_BRIDGE: 50,           // Extra pixels of \"invisible bridge\" toward card
        
        // Initialize
        init: function() {
          this.setupPopupEvents();
+         // Track mouse position globally for gap detection
+         document.addEventListener('mousemove', (e) => {
+           this.mouseX = e.clientX;
+           this.mouseY = e.clientY;
+           this.lastMoveDate = Date.now();
+         }, { passive: true });
          // Reposition on scroll/resize if visible
          window.addEventListener('scroll', () => { if (this.isVisible) this.position(); }, { passive: true });
          window.addEventListener('resize', () => { if (this.isVisible) this.position(); }, { passive: true });
@@ -4885,16 +4895,42 @@ async function loadNewAniocean() {
          popup.style.top = top + 'px';
        },
        
-       // Schedule hide with delay
-       scheduleHide: function() {
-         this.cancelHide();
-         
-         this.hideTimer = setTimeout(() => {
-           // Final check before hiding
-           if (!this.isVisible) return;
-           this.hideImmediately();
-         }, this.HIDE_DELAY);
-       },
+       // Check if mouse is in the "bridge zone" between card and popup
+      isInBridgeZone: function() {
+        const popup = document.getElementById('popupCard');
+        if (!popup || !this.anchorEl || !this.isVisible) return false;
+        
+        const cardRect = this.anchorEl.getBoundingClientRect();
+        const popupRect = popup.getBoundingClientRect();
+        const mx = this.mouseX;
+        const my = this.mouseY;
+        
+        // Create an expanded rectangle that bridges card and popup
+        const bridgeLeft = Math.min(cardRect.left, popupRect.left) - this.GAP_BRIDGE;
+        const bridgeRight = Math.max(cardRect.right, popupRect.right) + this.GAP_BRIDGE;
+        const bridgeTop = Math.min(cardRect.top, popupRect.top) - this.GAP_BRIDGE;
+        const bridgeBottom = Math.max(cardRect.bottom, popupRect.bottom) + this.GAP_BRIDGE;
+        
+        return mx >= bridgeLeft && mx <= bridgeRight && my >= bridgeTop && my <= bridgeBottom;
+      },
+      
+      // Schedule hide with delay and mouse-position safety check
+      scheduleHide: function() {
+        this.cancelHide();
+        
+        const attemptHide = () => {
+          // CRITICAL: Check if mouse is in bridge zone before hiding
+          if (this.isInBridgeZone()) {
+            // Mouse is still in the gap area - reschedule and check again
+            this.hideTimer = setTimeout(attemptHide, 100);
+            return;
+          }
+          if (!this.isVisible) return;
+          this.hideImmediately();
+        };
+        
+        this.hideTimer = setTimeout(attemptHide, this.HIDE_DELAY);
+      },
        
        // Cancel pending hide
        cancelHide: function() {
