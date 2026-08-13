@@ -2322,31 +2322,45 @@
         const qs = params ? `?${params}` : '';
         let lastError = null;
         
-        // 1) NEW PRIMARY: t-umi proxy — optimized TMDB proxy
-        try {
-          const res = await fetch(`${TMDB_PROXY}${endpoint}${qs}`, {
-            headers: { Accept: 'application/json' },
-            signal: AbortSignal.timeout(10000)
-          });
-          if (res.ok) {
-            console.log(`[TMDB] ✅ t-umi proxy success: ${endpoint}`);
-            return await res.json();
+        // DETECT if this is a PAGINATED request (has page parameter)
+        const requestedPage = new URLSearchParams(params).get('page');
+        const isPaginated = requestedPage && parseInt(requestedPage) > 1;
+        
+        // 1) t-umi proxy — WORKS for page=1, but BROKEN for pagination (caching bug ignores query params)
+        //    Skip t-umi entirely for paginated requests to avoid stale cached data!
+        if (!isPaginated) {
+          try {
+            const res = await fetch(`${TMDB_PROXY}${endpoint}${qs}`, {
+              headers: { Accept: 'application/json' },
+              signal: AbortSignal.timeout(10000)
+            });
+            if (res.ok) {
+              console.log(`[TMDB] ✅ t-umi proxy success: ${endpoint}`);
+              return await res.json();
+            }
+            lastError = `t-umi returned ${res.status}`;
+          } catch(e) {
+            lastError = `t-umi: ${e.message || 'CORS blocked or network error'}`;
+            console.warn(`[TMDB] ⚠️ t-umi failed: ${lastError}`);
           }
-          lastError = `t-umi returned ${res.status}`;
-        } catch(e) {
-          lastError = `t-umi: ${e.message || 'CORS blocked or network error'}`;
-          console.warn(`[TMDB] ⚠️ t-umi failed: ${lastError}`);
+        } else {
+          console.log(`[TMDB] ⏭️ Skipping t-umi for paginated request (page=${requestedPage}) - known caching bug`);
         }
         
-        // 2) Legacy aniocen worker — confirmed working, handles TMDB auth server-side
+        // 2) Legacy aniocen worker — CONFIRMED WORKING for pagination, handles TMDB auth server-side
         try {
           const res = await fetch(`${TMDB_LEGACY}/3${endpoint}${qs}`, {
             headers: { Accept: 'application/json' },
             signal: AbortSignal.timeout(10000)
           });
           if (res.ok) {
-            console.log(`[TMDB] ✅ Legacy proxy success: ${endpoint}`);
-            return await res.json();
+            const data = await res.json();
+            // VALIDATION: Ensure returned page matches requested (catches caching bugs)
+            if (isPaginated && data.page && data.page !== parseInt(requestedPage)) {
+              console.warn(`[TMDB] ⚠️ Legacy proxy returned page ${data.page} but requested page ${requestedPage} - might be cached!`);
+            }
+            console.log(`[TMDB] ✅ Legacy proxy success: ${endpoint} (returned page: ${data.page || 'N/A'})`);
+            return data;
           }
           lastError = `legacy returned ${res.status}`;
         } catch(e) {
@@ -2354,7 +2368,7 @@
           console.warn(`[TMDB] ⚠️ Legacy failed: ${lastError}`);
         }
         
-        // 3) Direct TMDB API — guaranteed fallback with Bearer token
+        // 3) Direct TMDB API — guaranteed fallback with Bearer token, always fresh
         try {
           const res = await fetch(`https://api.themoviedb.org/3${endpoint}${qs}`, {
             headers: {
@@ -2364,8 +2378,9 @@
             signal: AbortSignal.timeout(10000)
           });
           if (res.ok) {
-            console.log(`[TMDB] ✅ Direct API success: ${endpoint}`);
-            return await res.json();
+            const data = await res.json();
+            console.log(`[TMDB] ✅ Direct API success: ${endpoint} (page: ${data.page || 'N/A'})`);
+            return data;
           }
           lastError = `direct API returned ${res.status}`;
         } catch(e) {
@@ -4315,15 +4330,12 @@ window.showAnikotoPopupById = function(mal_id) {
         const TARGET_SHOWS = TARGET_ROWS * cols;  // e.g., 9×8=72 on wide desktop
         const tmdbPagesNeeded = Math.max(2, Math.ceil(TARGET_SHOWS / 20));
 
-        // CACHE-BUSTING: Add unique timestamp to EVERY TMDB call to prevent 
-        // proxy/browser caching that causes same data on different pages!
-        const _cacheBust = Date.now();
-        console.log(`[Completed] 📄 Loading page ${page} (cache-bust: ${_cacheBust}, tmdbPages: ${tmdbPagesNeeded})`);
+        console.log(`[Completed] 📄 Loading page ${page} (tmdbPages: ${tmdbPagesNeeded}) - using legacy proxy (t-umi has pagination bug)`);
 
         const tvFetches = Array.from({length: tmdbPagesNeeded}, (_, i) =>
-          fetchTMDB('/discover/tv', `sort_by=first_air_date.asc&page=${page+i}&_t=${_cacheBust}&_p=${i}`));   // ASCENDING order!
+          fetchTMDB('/discover/tv', `sort_by=first_air_date.asc&page=${page+i}`));   // ASCENDING order!
         const movieFetches = Array.from({length: tmdbPagesNeeded}, (_, i) =>
-          fetchTMDB('/discover/movie', `sort_by=release_date.asc&page=${page+i}&_t=${_cacheBust}&_p=${i}`));
+          fetchTMDB('/discover/movie', `sort_by=release_date.asc&page=${page+i}`));
 
         const [tvResults, movieResults, anilistComp] = await Promise.all([
           Promise.all(tvFetches),
