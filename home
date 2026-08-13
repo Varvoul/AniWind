@@ -1098,15 +1098,17 @@
     /* ── POPULAR ANIME LIST (Miruro-style improved) ── */
     .pa-list {
       display:flex; flex-direction:column; gap:5px;
-      /* Fixed height showing exactly 5 rows, vertical scroll for the rest */
-      height: calc((88px + 5px) * 5 - 5px);
-      max-height: calc((88px + 5px) * 5 - 5px);
-      overflow-y: auto;
+      /* Fixed height showing more rows - NO SCROLLBAR */
+      height: calc((88px + 5px) * 10 - 5px);
+      max-height: calc((88px + 5px) * 10 - 5px);
+      overflow-y: hidden;
       overflow-x: hidden;
       scroll-behavior: smooth;
       scroll-snap-type: y mandatory;
-      scrollbar-width: thin;
+      scrollbar-width: none; /* Firefox */
+      -ms-overflow-style: none; /* IE/Edge */
     }
+    .pa-list::-webkit-scrollbar { display: none; } /* Chrome/Safari */
     .pa-list .pa-row { scroll-snap-align: start; }
     .pa-row {
       display:flex; align-items:center; gap:0;
@@ -2320,31 +2322,45 @@
         const qs = params ? `?${params}` : '';
         let lastError = null;
         
-        // 1) NEW PRIMARY: t-umi proxy — optimized TMDB proxy
-        try {
-          const res = await fetch(`${TMDB_PROXY}${endpoint}${qs}`, {
-            headers: { Accept: 'application/json' },
-            signal: AbortSignal.timeout(10000)
-          });
-          if (res.ok) {
-            console.log(`[TMDB] ✅ t-umi proxy success: ${endpoint}`);
-            return await res.json();
+        // DETECT if this is a PAGINATED request (has page parameter)
+        const requestedPage = new URLSearchParams(params).get('page');
+        const isPaginated = requestedPage && parseInt(requestedPage) > 1;
+        
+        // 1) t-umi proxy — WORKS for page=1, but BROKEN for pagination (caching bug ignores query params)
+        //    Skip t-umi entirely for paginated requests to avoid stale cached data!
+        if (!isPaginated) {
+          try {
+            const res = await fetch(`${TMDB_PROXY}${endpoint}${qs}`, {
+              headers: { Accept: 'application/json' },
+              signal: AbortSignal.timeout(10000)
+            });
+            if (res.ok) {
+              console.log(`[TMDB] ✅ t-umi proxy success: ${endpoint}`);
+              return await res.json();
+            }
+            lastError = `t-umi returned ${res.status}`;
+          } catch(e) {
+            lastError = `t-umi: ${e.message || 'CORS blocked or network error'}`;
+            console.warn(`[TMDB] ⚠️ t-umi failed: ${lastError}`);
           }
-          lastError = `t-umi returned ${res.status}`;
-        } catch(e) {
-          lastError = `t-umi: ${e.message || 'CORS blocked or network error'}`;
-          console.warn(`[TMDB] ⚠️ t-umi failed: ${lastError}`);
+        } else {
+          console.log(`[TMDB] ⏭️ Skipping t-umi for paginated request (page=${requestedPage}) - known caching bug`);
         }
         
-        // 2) Legacy aniocen worker — confirmed working, handles TMDB auth server-side
+        // 2) Legacy aniocen worker — CONFIRMED WORKING for pagination, handles TMDB auth server-side
         try {
           const res = await fetch(`${TMDB_LEGACY}/3${endpoint}${qs}`, {
             headers: { Accept: 'application/json' },
             signal: AbortSignal.timeout(10000)
           });
           if (res.ok) {
-            console.log(`[TMDB] ✅ Legacy proxy success: ${endpoint}`);
-            return await res.json();
+            const data = await res.json();
+            // VALIDATION: Ensure returned page matches requested (catches caching bugs)
+            if (isPaginated && data.page && data.page !== parseInt(requestedPage)) {
+              console.warn(`[TMDB] ⚠️ Legacy proxy returned page ${data.page} but requested page ${requestedPage} - might be cached!`);
+            }
+            console.log(`[TMDB] ✅ Legacy proxy success: ${endpoint} (returned page: ${data.page || 'N/A'})`);
+            return data;
           }
           lastError = `legacy returned ${res.status}`;
         } catch(e) {
@@ -2352,7 +2368,7 @@
           console.warn(`[TMDB] ⚠️ Legacy failed: ${lastError}`);
         }
         
-        // 3) Direct TMDB API — guaranteed fallback with Bearer token
+        // 3) Direct TMDB API — guaranteed fallback with Bearer token, always fresh
         try {
           const res = await fetch(`https://api.themoviedb.org/3${endpoint}${qs}`, {
             headers: {
@@ -2362,8 +2378,9 @@
             signal: AbortSignal.timeout(10000)
           });
           if (res.ok) {
-            console.log(`[TMDB] ✅ Direct API success: ${endpoint}`);
-            return await res.json();
+            const data = await res.json();
+            console.log(`[TMDB] ✅ Direct API success: ${endpoint} (page: ${data.page || 'N/A'})`);
+            return data;
           }
           lastError = `direct API returned ${res.status}`;
         } catch(e) {
@@ -4312,11 +4329,21 @@ window.showAnikotoPopupById = function(mal_id) {
         // for both TV and movies — scales up automatically as rows/cols grow.
         const TARGET_SHOWS = TARGET_ROWS * cols;  // e.g., 9×8=72 on wide desktop
         const tmdbPagesNeeded = Math.max(2, Math.ceil(TARGET_SHOWS / 20));
+        
+        // Date range: Last 6 months for "recently completed" content
+        const today = new Date().toISOString().split('T')[0]; // "2026-08-13"
+        const sixMonthsAgo = new Date(Date.now() - 6*30*24*60*60*1000).toISOString().split('T')[0];
 
+        console.log(`[Completed] 📄 Loading page ${page} (tmdbPages: ${tmdbPagesNeeded}, range: ${sixMonthsAgo} to ${today})`);
+
+        // TV: Recently COMPLETED/ENDED shows (not currently airing) sorted by newest first
+        // with_status=ended ensures we only get finished series, not ongoing ones
         const tvFetches = Array.from({length: tmdbPagesNeeded}, (_, i) =>
-          fetchTMDB('/discover/tv', `sort_by=first_air_date.asc&page=${page+i}`));   // ASCENDING order!
+          fetchTMDB('/discover/tv', `sort_by=first_air_date.desc&with_status=ended&first_air_date.gte=${sixMonthsAgo}&first_air_date.lte=${today}&page=${page+i}`));
+        
+        // Movies: Recently released movies (theatrical/Digital/TV movie) sorted by newest first
         const movieFetches = Array.from({length: tmdbPagesNeeded}, (_, i) =>
-          fetchTMDB('/discover/movie', `sort_by=release_date.asc&page=${page+i}`));
+          fetchTMDB('/discover/movie', `sort_by=release_date.desc&with_release_type=2|3&release_date.gte=${sixMonthsAgo}&release_date.lte=${today}&page=${page+i}`));
 
         const [tvResults, movieResults, anilistComp] = await Promise.all([
           Promise.all(tvFetches),
@@ -4336,6 +4363,14 @@ window.showAnikotoPopupById = function(mal_id) {
             }
           `, { page: page, perPage: 100 })
         ]);
+
+        // DEBUG: Log first item from each TMDB page to verify pagination works
+        tvResults.forEach((r, i) => {
+          console.log(`[Completed] 📺 TV page ${page+i}: ${(r.results||[]).length} results | First: "${r.results?.[0]?.name}" (id:${r.results?.[0]?.id})`);
+        });
+        movieResults.forEach((r, i) => {
+          console.log(`[Completed] 🎬 Movie page ${page+i}: ${(r.results||[]).length} results | First: "${r.results?.[0]?.title}" (id:${r.results?.[0]?.id})`);
+        });
 
         // A newer page click landed after this one started — drop this
         // response so a slow page 2 fetch can't clobber page 5's grid.
@@ -4910,7 +4945,7 @@ window.showAnikotoPopupById = function(mal_id) {
          ['trendingList',8],['newAnioceanList',8],['completedGrid',10]
         ].forEach(([id,n]) => { const el=$(id); if(el) el.innerHTML=`<div style="display:flex;gap:10px;overflow:hidden;">${skCards(n)}</div>`; });
         // Popular Anime list
-        const pa = $('popularAnimeList'); if(pa) pa.innerHTML = skPaRows(8);
+        const pa = $('popularAnimeList'); if(pa) pa.innerHTML = skPaRows(12);
         // Sidebar (Most Popular)
         const pop = $('popularList'); if(pop) pop.innerHTML = skSideRows(10);
         // Schedule tabs
