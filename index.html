@@ -416,6 +416,7 @@
     .view-all { font-size:0.75rem; font-weight:600; color:var(--link-accent); border:1px solid var(--link-accent); border-radius:var(--radius-pill); padding:5px 12px; white-space:nowrap; transition:all var(--transition-fast); }
     .view-all:hover { background:rgba(237,100,166,0.15); }
     .scroll-arrow { width:32px; height:32px; border-radius:50%; background:rgba(255,255,255,0.06); border:1px solid var(--border-medium); display:flex; align-items:center; justify-content:center; cursor:pointer; color:#fff; font-size:1rem; }
+    .scroll-arrow-disabled, .scroll-arrow:disabled { opacity:0.3; cursor:default; pointer-events:none; }
     .scroll-arrow:hover { background:rgba(255,255,255,0.14); }
     @media (max-width:1024px) { .scroll-arrow { display:none; } }
 
@@ -2794,16 +2795,6 @@ async function loadNewAniocean() {
   }
 
   // ── Serve from DB cache if available ──
-  if (window.AniCache) {
-    try {
-      const cached = await window.AniCache.get('index:new_on_aniumi');
-      if (cached && Array.isArray(cached) && cached.length) {
-        cached.forEach(anime => { if (anime.mal_id) window.anioceanData[anime.mal_id] = anime; });
-        renderAnimeList(cached);
-        return;
-      }
-    } catch(e) {}
-  }
 
   // ----- PRIMARY: Anikoto proxy (100 items for 6 complete rows) -----
   try {
@@ -2853,8 +2844,6 @@ async function loadNewAniocean() {
       // Use exactly 6 rows (fixed limit)
       if (renderAnimeList(unique)) {
         console.log(`✓ Loaded ${unique.length} anime from Anikoto proxy for "New on Aniocean"`);
-        if (window.AniCache) window.AniCache.set({ cacheKey:'index:new_on_aniumi', pageSource:'index',
-          section:'new_on_aniumi', data: unique, itemCount: unique.length }).catch(()=>{});
         return;
       }
     }
@@ -2913,8 +2902,6 @@ async function loadNewAniocean() {
     // Use exactly 6 rows (fixed limit)
     if (renderAnimeList(unique)) {
       console.log(`✓ Loaded ${unique.length} anime from AniList (fallback) for "New on Aniocean"`);
-      if (window.AniCache) window.AniCache.set({ cacheKey:'index:new_on_aniumi', pageSource:'index',
-        section:'new_on_aniumi', data: unique, itemCount: unique.length }).catch(()=>{});
       return;
     }
     }
@@ -2973,34 +2960,9 @@ window.showAnikotoPopupById = function(mal_id) {
       // Hero shows 13 TMDB ongoing TV + ~70% Anilist airing anime = 35-40 total slides
       // Anilist anime use bannerImage for hero slider background
       let heroData=[], currentSlide=0, _heroRendered=false, _heroInterval=null;
-      const HERO_CACHE_KEY   = 'aniumi_hero_airing_tv';
-      const HERO_CACHE_TTL   = 6 * 60 * 60 * 1000; // 6 hours
 
       async function loadHero() {
-        // ── 1) Try Supabase global cache first ───────────────────────────
-        const _heroCacheKey = 'index:hero_slider';
-        if (window.AniCache) {
-          const cached = await window.AniCache.get(_heroCacheKey);
-          if (cached && Array.isArray(cached) && cached.length > 0) {
-            heroData = cached;
-            renderHero();
-            return;
-          }
-        }
-        // ── 1b) sessionStorage fallback ──────────────────────────────────
-        try {
-          const raw = sessionStorage.getItem(HERO_CACHE_KEY);
-          if (raw) {
-            const { data, ts } = JSON.parse(raw);
-            if (Array.isArray(data) && data.length > 0 && (Date.now() - ts) < HERO_CACHE_TTL) {
-              heroData = data;
-              renderHero();
-              return;
-            }
-          }
-        } catch(e) { /* corrupt cache — fetch fresh */ }
-
-        // ── 2) Fetch 13 TMDB ongoing TV + Anilist 70% airing anime ────
+        // ── Fetch 13 TMDB ongoing TV + Anilist 70% airing anime ────
         const JIKAN_BASE = 'https://jikan-api-bohb.onrender.com/v4';
         const [tmdbResults, anilistResults] = await Promise.allSettled([
           // TMDB: 13 ongoing TV shows with popularity sort
@@ -3377,32 +3339,8 @@ window.showAnikotoPopupById = function(mal_id) {
         
         heroData = merged.slice(0, 40); // Max 40 slides total
 
-        // ── 6) Cache in sessionStorage for 5 hours ────────────────────
-        try {
-          sessionStorage.setItem(HERO_CACHE_KEY, JSON.stringify({ data: heroData, ts: Date.now() }));
-        } catch(e) {}
-
         console.log(`[Hero] ${tmdbSlides.length} TMDB + ${jikanSlides.length} Jikan = ${heroData.length} total slides`);
         renderHero();
-        if (window.AniCache && heroData.length > 0) {
-          // Trim to essential fields only — keep payload small for DB storage
-          const heroForDB = heroData.map(s => ({
-            id: s.id, title: s.title,
-            source: s.source, type: s.type,
-            genres: s.genres || [], themes: s.themes || [],
-            score: s.score, year: s.year, duration: s.duration,
-            episodes: s.episodes, synopsis: s.synopsis,
-            backdrop: s.backdrop, backdrop_orig: s.backdrop_orig || s.backdrop,
-            backdrop_mobile: s.backdrop_mobile || s.backdrop,
-            poster: s.poster, certification: s.certification,
-            studio: s.studio || '', mal_id: s.mal_id || null,
-            tmdb_id: s.tmdb_id || null, anilist_id: s.anilist_id || null,
-            infoHref: s.infoHref || null,
-            status_color: s.status_color, status_label: s.status_label,
-          }));
-          window.AniCache.set({ cacheKey:'index:hero_slider', pageSource:'index',
-            section:'hero_slider', data: heroForDB, itemCount: heroForDB.length }).catch(()=>{});
-        }
       }
       function renderHero() {
         const container = document.getElementById('slidesContainer');
@@ -3499,10 +3437,6 @@ window.showAnikotoPopupById = function(mal_id) {
 
       /* ── TOP AIRING ── */
       async function loadTopAiring() {
-        if (window.AniCache) {
-          const cached = await window.AniCache.get('index:top_airing');
-          if (cached) { renderTopAiring(cached); return; }
-        }
         
         // Fetch TMDB TV + AniList airing anime (replacing Jikan)
         const [tvOnAir, anilistAir] = await Promise.all([
@@ -3551,8 +3485,6 @@ window.showAnikotoPopupById = function(mal_id) {
         // Deduplicate combined list by id
         const combined = dedupById([...tv, ...anime], 'id').slice(0,60);
         renderTopAiring(combined);
-        if (window.AniCache && combined.length) window.AniCache.set({ cacheKey:'index:top_airing',
-          pageSource:'index', section:'top_airing', data:combined, itemCount:combined.length }).catch(()=>{});
       }
       function renderTopAiring(shows) {
         const container = document.getElementById('topAiringScroll');
@@ -3621,11 +3553,30 @@ window.showAnikotoPopupById = function(mal_id) {
           // Scroll by visible columns minus 1 (to show overlap for context)
           return Math.max(1, visibleCols - 1) * (cardWidth + gap);
         }
+
+        // Once the last column is fully, clearly visible there's nothing
+        // left to scroll to — disable the right chevron and the right
+        // arrow key so the user isn't invited to keep scrolling nowhere.
+        // A small buffer accounts for sub-pixel rounding on some browsers.
+        function isAtEnd() {
+          return container.scrollLeft + container.clientWidth >= container.scrollWidth - 2;
+        }
+        function updateEndState() {
+          const atEnd = isAtEnd();
+          rightBtn.disabled = atEnd;
+          rightBtn.classList.toggle('scroll-arrow-disabled', atEnd);
+        }
+        updateEndState();
+        container.addEventListener('scroll', updateEndState);
+        window.addEventListener('resize', updateEndState);
+        // New data lands after an async fetch — re-check once it's rendered.
+        new MutationObserver(updateEndState).observe(container, { childList: true });
         
         leftBtn.addEventListener('click', () => {
           container.scrollBy({ left: -getScrollAmount(), behavior: 'smooth' });
         });
         rightBtn.addEventListener('click', () => {
+          if (isAtEnd()) return;
           container.scrollBy({ left: getScrollAmount(), behavior: 'smooth' });
         });
         
@@ -3635,6 +3586,7 @@ window.showAnikotoPopupById = function(mal_id) {
           document.addEventListener('keydown', (e) => {
             if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && 
                 (section.matches(':hover') || container.matches(':hover'))) {
+              if (e.key === 'ArrowRight' && isAtEnd()) return; // no more to scroll — let the key do nothing
               e.preventDefault();
               if (e.key === 'ArrowLeft') {
                 container.scrollBy({ left: -getScrollAmount(), behavior: 'smooth' });
@@ -3652,16 +3604,6 @@ window.showAnikotoPopupById = function(mal_id) {
       let currentNewReleasesFilter = 'all'; // tracks active tab (all/anime/movie/tv)
 
       async function loadNewReleases() {
-        if (window.AniCache && !_newReleasesCache) {
-          const cached = await window.AniCache.get('index:new_releases').catch(()=>null);
-          if (cached && cached.all && cached.all.length) {
-            _newReleasesCache = cached;
-            allReleases = cached;
-            if (!currentNewReleasesFilter) currentNewReleasesFilter = 'all';
-            renderNewReleases(currentNewReleasesFilter);
-            return;
-          }
-        }
         
         // Calculate target shows for 6 complete rows
         function calcColsForGrid() {
@@ -3744,8 +3686,6 @@ window.showAnikotoPopupById = function(mal_id) {
         _newReleasesCache = allReleases;
         updateNewReleasesCounts();
         renderNewReleases('all');
-        if (window.AniCache) window.AniCache.set({ cacheKey:'index:new_releases', pageSource:'index',
-          section:'new_releases', data:allReleases, itemCount:allReleases.all.length }).catch(()=>{});
       }
       function updateNewReleasesCounts() {
         const setCount = (id, n) => { const el = document.getElementById(id); if (el) el.textContent = n > 0 ? n : ''; };
@@ -3964,16 +3904,6 @@ window.showAnikotoPopupById = function(mal_id) {
       /* ── UPCOMING ── */
       let upcomingShows=[];
       async function loadUpcoming() {
-        if (window.AniCache) {
-          const cached = await window.AniCache.get('index:upcoming').catch(()=>null);
-          if (cached && Array.isArray(cached) && cached.length) {
-            upcomingShows = cached;
-            // Restore popup data
-            cached.forEach(s => { if (s.id) window._popupData = window._popupData || {}; });
-            renderUpcoming();
-            return;
-          }
-        }
         
         // Using NEW t-umi proxy + AniList (replacing Jikan)
         // INCREASED to 30 pages each (user request!) - /tv/on_the_air is primary TV source now
@@ -4222,8 +4152,6 @@ window.showAnikotoPopupById = function(mal_id) {
           ...anilistFiltered.slice(0, 50)
         ], 'id').slice(0,120);
         renderUpcoming();
-        if (window.AniCache && upcomingShows.length) window.AniCache.set({ cacheKey:'index:upcoming',
-          pageSource:'index', section:'upcoming', data:upcomingShows, itemCount:upcomingShows.length }).catch(()=>{});
       }
       function renderUpcoming() {
         document.getElementById('upcomingScroll').innerHTML = upcomingShows.map(s => {
@@ -4252,46 +4180,42 @@ window.showAnikotoPopupById = function(mal_id) {
 
       /* ── COMPLETED (paginated) ── */
       let completedCurrentPage = 1;
-      const _compSeenIds = new Set();
-      let _completedPagesCache = {};
+      // Grid col count - must match CSS grid-template-columns!
+      function calcCompletedCols() {
+        const w = window.innerWidth;
+        if (w <= 520) return 2;
+        if (w <= 600 && window.matchMedia('(orientation: landscape)').matches) return 3;
+        if (w <= 768) return 4;
+        if (w <= 992) return 5;
+        if (w <= 1400) return 6;
+        if (w <= 1800) return 7;
+        return 8;
+      }
+
+      let _completedRequestId = 0; // guards against out-of-order responses when clicking pages fast
+
       async function loadCompleted(page=1) {
-        if (window.AniCache && !_completedPagesCache[page]) {
-          const cached = await window.AniCache.get('index:recently_completed').catch(()=>null);
-          if (cached && cached.pages) _completedPagesCache = { ..._completedPagesCache, ...cached.pages };
-        }
-        if (_completedPagesCache[page] && _completedPagesCache[page].length) {
-          const el = document.getElementById('completedGrid');
-          if (el) el.innerHTML = _completedPagesCache[page].map(s => renderCompletedCard(s)).join('');
-          renderPagination(page);
-          return;
-        }
         completedCurrentPage = page;
-        
-        // Grid col count - must match CSS grid-template-columns!
-        function calcCols() {
-          const w = window.innerWidth;
-          if (w <= 520) return 2;
-          if (w <= 600 && window.matchMedia('(orientation: landscape)').matches) return 3;
-          if (w <= 768) return 4;
-          if (w <= 992) return 5;
-          if (w <= 1400) return 6;
-          if (w <= 1800) return 7;
-          return 8;
-        }
-        
-        // Calculate target: 6 COMPLETE rows × columns
-        const TARGET_ROWS = 6;
-        const cols = calcCols();
-        const TARGET_SHOWS = TARGET_ROWS * cols;  // e.g., 6×7=42, 6×8=48
-        
+        const requestId = ++_completedRequestId;
+
+        // Respond INSTANTLY: show skeleton immediately, disable pagination
+        // controls while this page loads so clicks feel instant instead of
+        // waiting on the network.
+        const cols = calcCompletedCols();
+        renderCompletedSkeleton(cols * 6);
+        renderPagination(page, true);
+
         // Fetch MULTIPLE pages to ensure enough data for 6 rows
-        // Using NEW t-umi proxy + AniList (replacing Jikan)
+        // Using t-umi proxy + AniList for anime, TMDB for TV and movies.
         // TMDB in ASCENDING order (user request!)
-        
-        const [tv, tv2, tv3, anilistComp] = await Promise.all([
+        const TARGET_ROWS = 6;
+        const TARGET_SHOWS = TARGET_ROWS * cols;  // e.g., 6×7=42, 6×8=48
+
+        const [tv, tv2, movie, movie2, anilistComp] = await Promise.all([
           fetchTMDB('/discover/tv', `sort_by=first_air_date.asc&page=${page}`),       // ASCENDING order!
           fetchTMDB('/discover/tv', `sort_by=first_air_date.asc&page=${page+1}`),     // ASCENDING order!
-          fetchTMDB('/discover/tv', `sort_by=first_air_date.asc&page=${page+2}`),     // ASCENDING order!
+          fetchTMDB('/discover/movie', `sort_by=release_date.asc&page=${page}`),      // Movies too
+          fetchTMDB('/discover/movie', `sort_by=release_date.asc&page=${page+1}`),
           // AniList: Recently completed anime (replacing Jikan status=complete)
           // perPage bumped 50→100 so there's a bigger pool of candidates to
           // draw from — more raw anime for the MAL-ID backfill step below to
@@ -4307,10 +4231,15 @@ window.showAnikotoPopupById = function(mal_id) {
             }
           `, { page: page, perPage: 100 })
         ]);
-        
+
+        // A newer page click landed after this one started — drop this
+        // response so a slow page 2 fetch can't clobber page 5's grid.
+        if (requestId !== _completedRequestId) return;
+
         // Merge multiple TMDB pages (ascending order - oldest first)
-        const allTmdbResults = [...(tv.results||[]), ...(tv2.results||[]), ...(tv3.results||[])];
-        
+        const allTmdbTv = [...(tv.results||[]), ...(tv2.results||[])];
+        const allTmdbMovies = [...(movie.results||[]), ...(movie2.results||[])];
+
         // Convert AniList completed anime — backfill missing MAL ids via
         // title search instead of dropping the anime outright, so grid
         // density isn't lost just because AniList lacks a MAL mapping.
@@ -4347,55 +4276,49 @@ window.showAnikotoPopupById = function(mal_id) {
           });
           anilistItems = resolved.filter(Boolean);
         }
-        
+
+        if (requestId !== _completedRequestId) return;
+
         // Create items arrays - take enough to fill 6 rows
         // FILTER: Remove items without valid poster!
-        const tmdbItems = allTmdbResults
-          .filter(i => {
-            const hasPoster = i.poster_path && i.poster_path !== '' && i.poster_path !== null && i.poster_path !== 'undefined';
-            if (!hasPoster) {
-              console.log(`[Completed Filter] ❌ TV dropped: "${i?.name}" - no poster`);
-            }
-            return hasPoster;
-          })
+        const tmdbTvItems = allTmdbTv
+          .filter(i => i.poster_path && i.poster_path !== 'null' && i.poster_path !== 'undefined')
           .map(i=>({
             id:`tmdb-comp-${i.id}`,title:i.name,poster:tmdbImg(i.poster_path),
             type:'TV',year:(i.first_air_date||'').slice(0,4),
             score:(i.vote_average||0).toFixed(1),quality:'HD'
           }))
-          .slice(0, TARGET_SHOWS * 1.5);  // Fetch extra to compensate for filtered items
-        
+          .slice(0, TARGET_SHOWS);
+
+        const tmdbMovieItems = allTmdbMovies
+          .filter(i => i.poster_path && i.poster_path !== 'null' && i.poster_path !== 'undefined')
+          .map(i=>({
+            id:`tmdb-movie-comp-${i.id}`,title:i.title,poster:tmdbImg(i.poster_path),
+            type:'Movie',year:(i.release_date||'').slice(0,4),
+            score:(i.vote_average||0).toFixed(1),quality:'HD'
+          }))
+          .slice(0, TARGET_SHOWS);
+
         // Also filter Anilist completed anime without posters
-        const anilistItemsFiltered = anilistItems.filter(a => {
-          const hasPoster = a.poster && a.poster !== '' && a.poster !== 'null' && a.poster !== 'undefined';
-          if (!hasPoster) {
-            console.log(`[Completed Filter] ❌ Anime dropped: "${a?.title}" - no poster`);
-          }
-          return hasPoster;
-        });
-        
-        console.log(`[Completed Filter] ✅ After filtering: ${tmdbItems.length} TV + ${anilistItemsFiltered.length} anime`);
-        
+        const anilistItemsFiltered = anilistItems.filter(a =>
+          a.poster && a.poster !== '' && a.poster !== 'null' && a.poster !== 'undefined'
+        );
+
+        // Interleave in [Anime][TV][Movie] ratio, repeating.
         const interleaved = [];
-        for (let i=0; i<Math.max(anilistItemsFiltered.length,tmdbItems.length); i++) {
-          if (i<anilistItemsFiltered.length) interleaved.push(anilistItemsFiltered[i]);
-          if (i<tmdbItems.length)  interleaved.push(tmdbItems[i]);
+        const maxLen = Math.max(anilistItemsFiltered.length, tmdbTvItems.length, tmdbMovieItems.length);
+        for (let i = 0; i < maxLen; i++) {
+          if (i < anilistItemsFiltered.length) interleaved.push(anilistItemsFiltered[i]);
+          if (i < tmdbTvItems.length)          interleaved.push(tmdbTvItems[i]);
+          if (i < tmdbMovieItems.length)        interleaved.push(tmdbMovieItems[i]);
         }
         // Trim to exactly 6 complete rows (no incomplete last row!)
         const trimTo = Math.min(Math.floor(interleaved.length/cols)*cols, TARGET_SHOWS);
         const list = interleaved.slice(0, trimTo || TARGET_SHOWS);
         document.getElementById('completedGrid').innerHTML = list.map(s => renderCompletedCard(s)).join('');
-        _completedPagesCache[page] = list;
-        // Save pages 1 & 2 globally — 5h TTL
-        if (window.AniCache && list.length && page <= 2) {
-          const existing = await window.AniCache.get('index:recently_completed').catch(()=>null);
-          const mergedPages = { ...((existing && existing.pages) || {}), [page]: list };
-          window.AniCache.set({ cacheKey:'index:recently_completed', pageSource:'index',
-            section:'recently_completed', data:{ pages: mergedPages }, itemCount: list.length }).catch(()=>{});
-        }
-        renderPagination(page);
+        renderPagination(page, false);
       }
-      function renderPagination(page) {
+      function renderPagination(page, isLoading=false) {
         const total = Math.ceil(1000/20);
         const nav = document.getElementById('completedPagination');
         
@@ -4403,7 +4326,7 @@ window.showAnikotoPopupById = function(mal_id) {
         const isMobile = window.innerWidth <= 768;
         const visiblePages = isMobile ? 4 : 6;
         
-        let html = `<button ${page===1?'disabled':''} id="compPrev">Previous</button><div style="display:flex;gap:4px;flex-wrap:wrap;">`;
+        let html = `<button ${(page===1||isLoading)?'disabled':''} id="compPrev">Previous</button><div style="display:flex;gap:4px;flex-wrap:wrap;">`;
         
         // Calculate visible range centered on current page
         const halfRange = Math.floor(visiblePages / 2);
@@ -4416,10 +4339,12 @@ window.showAnikotoPopupById = function(mal_id) {
         }
         
         for (let i=start; i<=end; i++) {
-          html += `<button class="${i===page?'active':''}" data-page="${i}">${i}</button>`;
+          html += `<button class="${i===page?'active':''}" data-page="${i}" ${isLoading?'disabled':''}>${i}</button>`;
         }
-        html += `</div><button ${page>=total?'disabled':''} id="compNext">Next</button>`;
+        html += `</div><button ${(page>=total||isLoading)?'disabled':''} id="compNext">Next</button>`;
         nav.innerHTML = html;
+        nav.classList.toggle('pagination-loading', isLoading);
+        if (isLoading) return; // buttons are disabled; skip attaching new handlers until data lands
         document.getElementById('compPrev')?.addEventListener('click', ()=>loadCompleted(page-1));
         document.getElementById('compNext')?.addEventListener('click', ()=>loadCompleted(page+1));
         nav.querySelectorAll('button[data-page]').forEach(b => {
@@ -4463,12 +4388,6 @@ window.showAnikotoPopupById = function(mal_id) {
       let _trendingCache = {};
       async function loadTrending(period='today') {
         const periodKey = period === 'today' ? 'day' : period;
-        if (window.AniCache && !_trendingCache[periodKey]) {
-          const cached = await window.AniCache.get('index:trending_now').catch(()=>null);
-          if (cached && cached[periodKey] && cached[periodKey].length) {
-            _trendingCache = cached;
-          }
-        }
         if (_trendingCache[periodKey] && _trendingCache[periodKey].length) {
           trendingData = _trendingCache[periodKey];
           trendingData.forEach((item, i) => item.rank = i + 1);
@@ -4529,13 +4448,6 @@ window.showAnikotoPopupById = function(mal_id) {
         trendingData.forEach((item,i)=>item.rank=i+1);
         document.getElementById('trendingList').innerHTML = trendingData.map(s => renderShowCard(s)).join('');
         // Merge all periods and save — 5h TTL
-        if (window.AniCache && trendingData.length) {
-          const existing = await window.AniCache.get('index:trending_now').catch(()=>null) || {};
-          const merged = { ...existing, [periodKey]: trendingData };
-          _trendingCache = merged;
-          window.AniCache.set({ cacheKey:'index:trending_now', pageSource:'index',
-            section:'trending_now', data:merged, itemCount:trendingData.length }).catch(()=>{});
-        }
       }
       document.getElementById('trendingTabs').addEventListener('click', e => {
         if(e.target.classList.contains('toggle-tab')) {
@@ -4552,20 +4464,6 @@ window.showAnikotoPopupById = function(mal_id) {
       /* ── POPULAR (sidebar) — Mix of TMDB + AniList popular ── */
       let popularData = [];
       async function loadPopular() {
-        if (window.AniCache) {
-          const cached = await window.AniCache.get('index:most_popular').catch(()=>null);
-          if (cached && Array.isArray(cached) && cached.length) {
-            popularData = cached;
-            document.getElementById('popularList').innerHTML = cached.map(s => `
-              <a href="${infoUrl(s)}" class="sidebar-list-item" onmouseenter="showPopup(event,'${s.id}')" onmouseleave="window.popupTimer=setTimeout(hidePopup,500)">
-                <span class="sidebar-rank">${s.rank}</span>
-                <img class="sidebar-poster" src="${s.poster}" onerror="this.style.display='none'">
-                <div class="sidebar-info"><h4>${s.title}</h4>
-                <div class="side-meta"><i class="fas fa-star" style="color:var(--accent-gold)"></i> ${s.score} &nbsp;·&nbsp;${s.type} &nbsp;·&nbsp;${s.year}</div></div>
-              </a>`).join('');
-            return;
-          }
-        }
         
         // Fetch BOTH TMDB and AniList for mixed results
         const [tmdbMovies, tmdbTV, anilistPop] = await Promise.all([
@@ -4677,10 +4575,6 @@ window.showAnikotoPopupById = function(mal_id) {
               </div>
             </div>
           </a>`).join('');
-        if (window.AniCache && data.length > 0) {
-          window.AniCache.set({ cacheKey:'index:most_popular', pageSource:'index',
-            section:'most_popular', data, itemCount:data.length }).catch(()=>{});
-        }
       }
 
       /* ── POPUP (FIXED) ── */
@@ -4688,8 +4582,6 @@ window.showAnikotoPopupById = function(mal_id) {
   clearTimeout(window.popupTimer);
   const show = [...upcomingShows, ...trendingData, ...popularData].find(s => s.id === id);
   if (!show) return;
-  // Save to media_cache (dedup prevents duplicates)
-  if (window.AniCache) window.AniCache.save([show]).catch(()=>{});
 
   // Check if this is an upcoming show
   const isUpcoming = upcomingShows.some(s => s.id === id);
@@ -4759,40 +4651,6 @@ window.showAnikotoPopupById = function(mal_id) {
       /* ── POPULAR ANIME (Miruro-style list, sorted by score+popularity+rank) ── */
       async function loadPopularAnime() {
         try {
-          if (window.AniCache) {
-            const cached = await window.AniCache.get('index:popular_anime').catch(()=>null);
-            if (cached && Array.isArray(cached) && cached.length > 0) {
-              const el = document.getElementById('popularAnimeList');
-              if (el) {
-                const slugify = t => (t||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
-                el.innerHTML = cached.map((a, idx) => {
-                  const rank = a.rank || idx+1;
-                  const rankCls = rank <= 3 ? ` rank-${rank}` : '';
-                  const title = a.title || 'Unknown';
-                  const href = a.mal_id 
-                    ? `/info/anime/jikan-${a.mal_id}/${slugify(title)}`
-                    : (a.anilist_id ? `/info/anime/jikan-${a.anilist_id}/${slugify(title)}` : '#');
-                  const poster = a.poster || '';
-                  const genres = Array.isArray(a.genres) ? a.genres : (typeof a.genres === 'string' ? JSON.parse(a.genres || '[]') : []);
-                  return `<a href="${href}" class="pa-row${rankCls}" style="--pa-bg:url('${poster}')">
-                    <span class="pa-rank">${rank}</span>
-                    <img class="pa-poster" src="${poster}" alt="${(title||'').replace(/"/g,'&quot;')}" loading="lazy" onerror="this.style.opacity='0'">
-                    <div class="pa-info">
-                      <div class="pa-title">${title}</div>
-                      <div class="pa-meta">
-                        <span class="pa-tag">${a.type||'TV'}</span>
-                        <span class="pa-tag"><i class="fas fa-play" style="font-size:.5rem"></i> ${a.episodes||'?'} eps</span>
-                        <span class="pa-score"><i class="fas fa-star"></i> ${a.score ? Number(a.score).toFixed(1) : 'N/A'}</span>
-                        ${a.studio && a.studio !== '—' ? `<span class="pa-tag">${a.studio}</span>` : ''}
-                        ${genres.slice(0,4).map(g=>`<span class="pa-tag">${g}</span>`).join('')}
-                      </div>
-                    </div>
-                  </a>`;
-                }).join('');
-              }
-              return;
-            }
-          }
           
           // Fetch popular anime using AniList (replacing Jikan!)
           const [anilistPop, anilistTop] = await Promise.all([
@@ -4878,25 +4736,6 @@ window.showAnikotoPopupById = function(mal_id) {
           }).join('');
           
           // Save to DB — 5h TTL
-          if (window.AniCache && top25.length) {
-            const rows = top25.map((m, idx) => {
-              const internal = anilistToInternal(m);
-              return {
-                mal_id: internal.mal_id,
-                anilist_id: m.id,
-                title: internal.title,
-                poster: internal.poster,
-                score: parseFloat(internal.score) || 0,
-                type: internal.type || 'TV',
-                genres: internal.genres || [],
-                studio: internal.studio || '',
-                rank: idx + 1,
-                episodes: internal.episodes || '?',
-              };
-            });
-            window.AniCache.set({ cacheKey:'index:popular_anime', pageSource:'index',
-              section:'popular_anime', data: rows, itemCount: rows.length }).catch(()=>{});
-          }
         } catch(err) {
           console.warn('[loadPopularAnime] failed:', err);
         }
@@ -4962,6 +4801,22 @@ window.showAnikotoPopupById = function(mal_id) {
         document.querySelectorAll('.schedule-day-content,.sched-content,[id^="sched-"]').forEach(el => {
           el.innerHTML = skSchedRows(8);
         });
+      }
+
+      // Grid-shaped skeleton used when paginating "Recently Completed" — shows
+      // the same column/row layout the real grid will use, so the swap-in
+      // feels seamless instead of a layout jump.
+      function renderCompletedSkeleton(n=42) {
+        const el = document.getElementById('completedGrid');
+        if (!el) return;
+        el.innerHTML = Array.from({length:n}, () => `
+          <div class="show-card-grid skeleton-card" style="position:relative;">
+            <div class="skeleton sk-poster" style="aspect-ratio:3/4.5;border-radius:var(--radius-md);"></div>
+            <div class="card-info-grid">
+              <div class="skeleton sk-line w60" style="height:9px;margin-top:8px;"></div>
+              <div class="skeleton sk-line w80" style="height:11px;margin-top:6px;"></div>
+            </div>
+          </div>`).join('');
       }
 
       /* ════════════════════════════════════════════════════════════
@@ -5277,25 +5132,8 @@ window.showAnikotoPopupById = function(mal_id) {
         renderScheduleForDay(currentDay);
       }
 
-      // ---------- Main loader (sequential fetch, localStorage) ----------
+      // ---------- Main loader ----------
       async function loadSchedule() {
-        if (window.AniCache) {
-          try {
-            const cached = await window.AniCache.get('index:schedule');
-            if (cached && typeof cached === 'object' && Object.keys(cached).length > 0) {
-              scheduleData = cached;
-              window.scheduleData = cached;
-              const now2 = new Date();
-              let di = now2.getDay(); if (di===0) di=7;
-              const DAYS2=['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
-              setCurrentDay(DAYS2[di-1]);
-              updateClock(); setInterval(updateClock,1000);
-              return;
-            }
-          } catch(e) {}
-        }
-        let needFetch = true;
-
         // Show a loading indicator immediately so the user never sees
         // "No episodes scheduled" while we're still fetching.
         const loadingHtml = '<div style="text-align:center;padding:30px 10px;color:var(--text-muted);font-size:0.85rem;">'
@@ -5307,58 +5145,11 @@ window.showAnikotoPopupById = function(mal_id) {
         const body0 = document.getElementById('eswBody');
         if (body0) body0.innerHTML = loadingHtml;
 
-        // ── Try DB cache first (global 6h, all users, no localStorage) ──
-        if (window.AniCache) {
-          try {
-            const dbCached = await window.AniCache.get('index:schedule');
-            if (dbCached && typeof dbCached === 'object') {
-              const hasData = Object.values(dbCached).some(arr => Array.isArray(arr) && arr.length > 0);
-              if (hasData) {
-                scheduleData = dbCached;
-                window.scheduleData = dbCached;
-                needFetch = false;
-                console.log('[Schedule] Served from DB cache');
-              }
-            }
-          } catch(e) {}
-        }
-
-        if (needFetch) {
-          console.log('[Schedule] 🚀 Fetching all 7 days in parallel...');
-          scheduleData = await fetchAllDaysParallel();
-          const fetchedAny = Object.values(scheduleData).some(arr => arr.length > 0);
-          // BUGFIX (v2): only persist the cache if we actually got data.
-          // Otherwise a transient Jikan outage would poison the cache
-          // for 24 hours and the user would see "No episodes scheduled"
-          // even after Jikan recovers.
-          if (fetchedAny) {
-            if (window.AniCache) {
-              const total = Object.values(scheduleData).reduce((n, a) => n + (a?.length || 0), 0);
-              window.AniCache.set({
-                cacheKey: 'index:schedule', pageSource: 'index',
-                section: 'schedule', data: scheduleData, itemCount: total
-              }).catch(() => {});
-              window.scheduleData = scheduleData;
-              console.log('[Schedule] Fetched and saved to DB');
-            }
-          } else {
-            console.warn('[Schedule] No data fetched — not caching');
-          }
-        }
+        console.log('[Schedule] 🚀 Fetching all 7 days in parallel...');
+        scheduleData = await fetchAllDaysParallel();
 
         // Expose scheduleData globally for debugging
         window.scheduleData = scheduleData;
-        if (window.AniCache && scheduleData) {
-          for (const [, list] of Object.entries(scheduleData)) {
-            if (list?.length) await window.AniCache.saveSchedule(list);
-          }
-          // Save scheduleData to media_cache so ensureHomepageComplete can verify it
-          window.AniCache.set({ cacheKey:'index:schedule', pageSource:'index',
-            section:'schedule', data: scheduleData,
-            itemCount: Object.values(scheduleData).reduce((n,a)=>n+(a?.length||0),0)
-          }).catch(()=>{});
-          await window.AniCache.stampSection('schedule');
-        }
 
         // Determine current day (Monday‑Sunday)
         const now = new Date();
@@ -5410,73 +5201,6 @@ window.showAnikotoPopupById = function(mal_id) {
         });
       }
       
-
-      // ── COMPLETION TRACKER ─────────────────────────────────────────────────
-      // Tracks which sections have been fully fetched and saved to DB this session.
-      // On slow/disrupted networks a section may load partially — the retry loop
-      // keeps calling the loader until every section is confirmed stored in DB.
-      const _SECTION_KEYS = [
-        'index:hero_slider', 'index:top_airing', 'index:new_releases',
-        'index:new_on_aniumi', 'index:upcoming', 'index:recently_completed',
-        'index:trending_now', 'index:most_popular', 'index:popular_anime',
-        'index:schedule',
-      ];
-      const _sectionLoaders = {
-        'index:hero_slider':         () => loadHero(),
-        'index:top_airing':          () => loadTopAiring(),
-        'index:new_releases':        () => loadNewReleases(),
-        'index:new_on_aniumi':       () => loadNewAniocean(),
-        'index:upcoming':            () => loadUpcoming(),
-        'index:recently_completed':  () => loadCompleted(1),
-        'index:trending_now':        () => loadTrending('today'),
-        'index:most_popular':        () => loadPopular(),
-        'index:popular_anime':       () => loadPopularAnime(),
-        'index:schedule':            () => loadSchedule(),
-      };
-
-      // Check DB for a cache entry (non-null, non-empty)
-      async function _isCachedInDB(key) {
-        if (!window.AniCache) return false;
-        try {
-          const v = await window.AniCache.get(key);
-          if (v === null || v === undefined) return false;
-          if (Array.isArray(v)) return v.length > 0;
-          if (typeof v === 'object') {
-            // recently_completed stores {pages:{1:[...],2:[...]}}
-            if (v.pages) return Object.values(v.pages).some(p => Array.isArray(p) && p.length > 0);
-            // new_releases stores {all:[],anime:[],movie:[],tv:[]}
-            if (v.all) return v.all.length > 0;
-            // trending stores {today:[],week:[],month:[]}
-            return Object.values(v).some(arr => Array.isArray(arr) && arr.length > 0);
-          }
-          return !!v;
-        } catch(e) { return false; }
-      }
-
-      // Run after all sections have had a chance to load.
-      // Checks DB for each section — any missing ones get retried.
-      // Repeats up to 4 times with increasing delays (10s, 30s, 60s, 120s).
-      async function ensureHomepageComplete() {
-        const delays = [10000, 30000, 60000, 120000];
-        for (const delay of delays) {
-          await new Promise(r => setTimeout(r, delay));
-          if (!window.AniCache) continue;
-          const missing = [];
-          for (const key of _SECTION_KEYS) {
-            const ok = await _isCachedInDB(key);
-            if (!ok) missing.push(key);
-          }
-          if (missing.length === 0) {
-            console.log('[Cache] ✅ All homepage sections fully cached in DB');
-            break;
-          }
-          console.log(`[Cache] ⚠ Missing sections: ${missing.join(', ')} — retrying...`);
-          for (const key of missing) {
-            try { await _sectionLoaders[key](); } catch(e) { /* ignore — will retry */ }
-            await new Promise(r => setTimeout(r, 800)); // stagger retries
-          }
-        }
-      }
 
       /* ── SLIDING TAB GLIDER FUNCTIONALITY ── */
       function moveGlider(tabsContainerId, gliderId, activeTab) {
@@ -5530,8 +5254,6 @@ window.showAnikotoPopupById = function(mal_id) {
         loadSchedule();
         // Initialize sliding tab gliders
         initGliders();
-        // After initial loads settle, verify everything is in DB and retry any gaps
-        setTimeout(ensureHomepageComplete, 5000);
       }
       window.addEventListener('DOMContentLoaded', init);
     })();
