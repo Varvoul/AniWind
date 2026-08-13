@@ -4329,13 +4329,21 @@ window.showAnikotoPopupById = function(mal_id) {
         // for both TV and movies — scales up automatically as rows/cols grow.
         const TARGET_SHOWS = TARGET_ROWS * cols;  // e.g., 9×8=72 on wide desktop
         const tmdbPagesNeeded = Math.max(2, Math.ceil(TARGET_SHOWS / 20));
+        
+        // Date range: Last 6 months for "recently completed" content
+        const today = new Date().toISOString().split('T')[0]; // "2026-08-13"
+        const sixMonthsAgo = new Date(Date.now() - 6*30*24*60*60*1000).toISOString().split('T')[0];
 
-        console.log(`[Completed] 📄 Loading page ${page} (tmdbPages: ${tmdbPagesNeeded}) - using legacy proxy (t-umi has pagination bug)`);
+        console.log(`[Completed] 📄 Loading page ${page} (tmdbPages: ${tmdbPagesNeeded}, range: ${sixMonthsAgo} to ${today})`);
 
+        // TV: Recently COMPLETED/ENDED shows (not currently airing) sorted by newest first
+        // with_status=ended ensures we only get finished series, not ongoing ones
         const tvFetches = Array.from({length: tmdbPagesNeeded}, (_, i) =>
-          fetchTMDB('/discover/tv', `sort_by=first_air_date.asc&page=${page+i}`));   // ASCENDING order!
+          fetchTMDB('/discover/tv', `sort_by=first_air_date.desc&with_status=ended&first_air_date.gte=${sixMonthsAgo}&first_air_date.lte=${today}&page=${page+i}`));
+        
+        // Movies: Recently released movies (theatrical/Digital/TV movie) sorted by newest first
         const movieFetches = Array.from({length: tmdbPagesNeeded}, (_, i) =>
-          fetchTMDB('/discover/movie', `sort_by=release_date.asc&page=${page+i}`));
+          fetchTMDB('/discover/movie', `sort_by=release_date.desc&with_release_type=2|3&release_date.gte=${sixMonthsAgo}&release_date.lte=${today}&page=${page+i}`));
 
         const [tvResults, movieResults, anilistComp] = await Promise.all([
           Promise.all(tvFetches),
