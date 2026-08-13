@@ -941,6 +941,31 @@
     }
     #newReleasesGrid .action-btns-row { align-items: center; }
 
+    /* ── Recently Completed: match New Releases play/heart button colors ── */
+    #completedGrid .action-btn.action-watch {
+      background: var(--btn-primary);
+      border-color: var(--btn-primary);
+      width: 38px; height: 38px; font-size: 0.92rem;
+      box-shadow: 0 4px 14px rgba(43,108,176,0.5);
+    }
+    #completedGrid .action-btn.action-watch:hover {
+      background: var(--btn-primary-hover);
+      border-color: var(--btn-primary-hover);
+      transform: scale(1.08);
+    }
+    #completedGrid .action-btn.action-heart {
+      background: rgba(255,255,255,0.06);
+      border: 1.5px solid rgba(255,255,255,0.35);
+      width: 32px; height: 32px; font-size: 0.75rem;
+      align-self: center;
+    }
+    #completedGrid .action-btn.action-heart:hover {
+      background: rgba(237,100,166,0.16);
+      border-color: var(--link-accent);
+      color: var(--link-accent);
+    }
+    #completedGrid .action-btns-row { align-items: center; }
+
     /* ════════════════════════════════════════════════════════════
        NEW RELEASES — "All" tab, desktop-only 3-row horizontal layout
        Row 1: anime · Row 2: TMDB TV · Row 3: TMDB movies. Column count
@@ -1098,9 +1123,9 @@
     /* ── POPULAR ANIME LIST (Miruro-style improved) ── */
     .pa-list {
       display:flex; flex-direction:column; gap:5px;
-      /* Fixed height showing more rows - NO SCROLLBAR */
-      height: calc((88px + 5px) * 10 - 5px);
-      max-height: calc((88px + 5px) * 10 - 5px);
+      /* Fixed height showing 7 rows by default - NO SCROLLBAR */
+      height: calc((88px + 5px) * 7 - 5px);
+      max-height: calc((88px + 5px) * 7 - 5px);
       overflow-y: hidden;
       overflow-x: hidden;
       scroll-behavior: smooth;
@@ -1116,7 +1141,7 @@
       border-radius:10px;
       cursor:pointer; text-decoration:none; color:#fff;
       min-height:88px;
-      transition:transform .2s ease, box-shadow .2s ease;
+      transition:transform .2s ease, box-shadow .2s ease, z-index 0s;
       background-color: var(--bg-card, #0f1923);
     }
     /* RIGHT SIDE: actual bg image — visible on right, fades left */
@@ -1141,7 +1166,14 @@
     }
     .pa-row:hover::before { filter:blur(1px) brightness(0.48) saturate(1.6); }
     .pa-row:hover::after  { opacity:0.82; }
-    .pa-row:hover { transform:translateY(-2px); box-shadow:0 8px 28px rgba(0,0,0,.6); }
+    /* "Pop" hover: card lifts + scales up above its neighbors, title enlarges */
+    .pa-row:hover {
+      transform:translateY(-2px) scale(1.035);
+      box-shadow:0 10px 32px rgba(0,0,0,.65);
+      z-index:5;
+    }
+    .pa-title { transition:font-size .2s ease, color .2s ease; }
+    .pa-row:hover .pa-title { font-size:0.88rem; color:#fff; }
     /* Rank number */
     .pa-rank {
       position:relative; z-index:2;
@@ -2984,7 +3016,7 @@ window.showAnikotoPopupById = function(mal_id) {
   if (!anime) return;
   
   const starIcon = '<i class="fas fa-star" style="color:var(--accent-gold)"></i>';
-  const genresHtml = anime.genres.map(g => `<a href="/genre/${encodeURIComponent(g)}" class="genre-pill">${g}</a>`).join('');
+  const genresHtml = anime.genres.map(g => `<a href="/anime/genre/${encodeURIComponent(g)}" class="genre-pill">${g}</a>`).join('');
   
   document.getElementById('popupContent').innerHTML = `
     <div class="anikoto-popup">
@@ -3604,19 +3636,24 @@ window.showAnikotoPopupById = function(mal_id) {
         const downBtn    = document.getElementById('popularAnimeDown');
         if (!section || !container || !upBtn || !downBtn) return;
 
+        const ROWS_PER_PAGE = 7; // matches the 7-row visible viewport
         function rowHeight() {
           const row = container.querySelector('.pa-row');
           const h = row ? row.getBoundingClientRect().height : 88;
           return h + 5; // + gap
         }
-        upBtn.addEventListener('click', () => container.scrollBy({ top: -rowHeight(), behavior: 'smooth' }));
-        downBtn.addEventListener('click', () => container.scrollBy({ top: rowHeight(), behavior: 'smooth' }));
+        // Move a full page (7 rows) per click/keypress instead of one row at a
+        // time, so with 28 items loaded (28/7=4) it takes only 4 clicks to
+        // reach the end.
+        function pageHeight() { return rowHeight() * ROWS_PER_PAGE; }
+        upBtn.addEventListener('click', () => container.scrollBy({ top: -pageHeight(), behavior: 'smooth' }));
+        downBtn.addEventListener('click', () => container.scrollBy({ top: pageHeight(), behavior: 'smooth' }));
 
         document.addEventListener('keydown', (e) => {
           if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') &&
               (section.matches(':hover') || container.matches(':hover'))) {
             e.preventDefault();
-            container.scrollBy({ top: e.key === 'ArrowUp' ? -rowHeight() : rowHeight(), behavior: 'smooth' });
+            container.scrollBy({ top: e.key === 'ArrowUp' ? -pageHeight() : pageHeight(), behavior: 'smooth' });
           }
         });
         // Mouse wheel scrolling works natively via overflow-y:auto — no extra JS needed.
@@ -4775,8 +4812,10 @@ window.showAnikotoPopupById = function(mal_id) {
     ${safeYear && safeYear !== '?' ? `<span class="meta-pill"><i class="fas fa-calendar-alt" style="opacity:.7"></i> ${safeYear}</span>` : ''}
     ${safeStudio ? `<span class="meta-pill">${safeStudio}</span>` : ''}
   `;
+  // Map internal type label to the URL path segment used for genre links
+  const genreTypeSegment = show.type === 'Anime' ? 'anime' : (show.type === 'Movie' ? 'movie' : 'tv');
   const genresHtml = (show.genres || []).filter(Boolean).map(g =>
-    `<a href="/genre/${encodeURIComponent(g)}" class="genre-pill">${g}</a>`
+    `<a href="/${genreTypeSegment}/genre/${encodeURIComponent(g)}" class="genre-pill">${g}</a>`
   ).join('');
 
   const synopsis = show.synopsis || show.overview || 'No description available.';
@@ -4851,14 +4890,14 @@ window.showAnikotoPopupById = function(mal_id) {
             return { ...m, _w: avgScore * 0.7 + popBonus + trendBonus };
           });
           scored.sort((a, b) => b._w - a._w);
-          const top25 = scored.slice(0, 25);
+          const top28 = scored.slice(0, 28);
 
           const slugify = t => (t||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
 
           const el = document.getElementById('popularAnimeList');
           if (!el) return;
 
-          el.innerHTML = top25.map((m, idx) => {
+          el.innerHTML = top28.map((m, idx) => {
             const internal = anilistToInternal(m);
             const rank     = idx + 1;
             const rankCls  = rank <= 3 ? ` rank-${rank}` : '';
