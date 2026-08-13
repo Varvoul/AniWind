@@ -460,6 +460,29 @@
       -ms-overflow-style: none;
     }
     .new-aniocean-shelf::-webkit-scrollbar { display: none; }
+
+    /* Upcoming Shows — desktop-only 2-row grid: row 1 = anime, row 2 = movies+TV.
+       Same column-flow pattern as .new-aniocean-shelf but rows are assigned
+       explicitly per-card in JS (grid-row 1/2) instead of relying on
+       auto-flow, since the two rows hold different content types rather
+       than an even split of one list. */
+    .upcoming-two-row {
+      display: grid;
+      grid-auto-flow: column;
+      grid-auto-columns: 165px;
+      grid-template-rows: repeat(2, auto);
+      gap: 12px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      scroll-behavior: smooth;
+      height: calc(((165px * 4.5 / 3) + 75px) * 2 + 12px);
+      max-height: 700px;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+      padding-bottom: 8px;
+    }
+    .upcoming-two-row::-webkit-scrollbar { display: none; }
+    .upcoming-two-row .show-card-horiz { width: 165px; }
     
     /* Card sizing for grid */
     .new-aniocean-shelf .aniocean-card {
@@ -1073,7 +1096,18 @@
     .sk-sched-m    { height:9px; width:45%; border-radius:3px; }
 
     /* ── POPULAR ANIME LIST (Miruro-style improved) ── */
-    .pa-list { display:flex; flex-direction:column; gap:5px; }
+    .pa-list {
+      display:flex; flex-direction:column; gap:5px;
+      /* Fixed height showing exactly 5 rows, vertical scroll for the rest */
+      height: calc((88px + 5px) * 5 - 5px);
+      max-height: calc((88px + 5px) * 5 - 5px);
+      overflow-y: auto;
+      overflow-x: hidden;
+      scroll-behavior: smooth;
+      scroll-snap-type: y mandatory;
+      scrollbar-width: thin;
+    }
+    .pa-list .pa-row { scroll-snap-align: start; }
     .pa-row {
       display:flex; align-items:center; gap:0;
       position:relative; overflow:hidden;
@@ -1998,7 +2032,13 @@
         <div id="popularList"></div>
       </section>
       <section class="section" id="popularAnimeSec">
-        <div class="section-header"><h2 class="section-title">Popular Anime</h2></div>
+        <div class="section-header">
+          <h2 class="section-title">Popular Anime</h2>
+          <div class="section-controls">
+            <button class="scroll-arrow" id="popularAnimeUp" title="Scroll up" style="transform:rotate(90deg);">‹</button>
+            <button class="scroll-arrow" id="popularAnimeDown" title="Scroll down" style="transform:rotate(-90deg);">‹</button>
+          </div>
+        </div>
         <div id="popularAnimeList" class="pa-list"></div>
       </section>
       <div class="esw-widget" id="eswWidget">
@@ -3532,6 +3572,35 @@ window.showAnikotoPopupById = function(mal_id) {
         });
       }
 
+      /* ── Popular Anime sidebar: vertical scroll nav (5 rows visible) ──
+         Up chevron / ArrowUp = scroll up (bottom-to-top).
+         Down chevron / ArrowRight = scroll down (top-to-bottom). */
+      function initPopularAnimeScroll() {
+        const section   = document.getElementById('popularAnimeSec');
+        const container = document.getElementById('popularAnimeList');
+        const upBtn      = document.getElementById('popularAnimeUp');
+        const downBtn    = document.getElementById('popularAnimeDown');
+        if (!section || !container || !upBtn || !downBtn) return;
+
+        function rowHeight() {
+          const row = container.querySelector('.pa-row');
+          const h = row ? row.getBoundingClientRect().height : 88;
+          return h + 5; // + gap
+        }
+        upBtn.addEventListener('click', () => container.scrollBy({ top: -rowHeight(), behavior: 'smooth' }));
+        downBtn.addEventListener('click', () => container.scrollBy({ top: rowHeight(), behavior: 'smooth' }));
+
+        document.addEventListener('keydown', (e) => {
+          if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') &&
+              (section.matches(':hover') || container.matches(':hover'))) {
+            e.preventDefault();
+            container.scrollBy({ top: e.key === 'ArrowUp' ? -rowHeight() : rowHeight(), behavior: 'smooth' });
+          }
+        });
+        // Mouse wheel scrolling works natively via overflow-y:auto — no extra JS needed.
+      }
+      initPopularAnimeScroll();
+
       document.getElementById('topAiringLeft').addEventListener('click',()=> document.getElementById('topAiringScroll').scrollBy({left:-getRowScrollAmount(document.getElementById('topAiringScroll')),behavior:'smooth'}));
       document.getElementById('topAiringRight').addEventListener('click',()=> document.getElementById('topAiringScroll').scrollBy({left:getRowScrollAmount(document.getElementById('topAiringScroll')),behavior:'smooth'}));
       enableArrowKeyScroll(document.getElementById('topAiringSection'), document.getElementById('topAiringScroll'));
@@ -4153,27 +4222,54 @@ window.showAnikotoPopupById = function(mal_id) {
         ], 'id').slice(0,120);
         renderUpcoming();
       }
-      function renderUpcoming() {
-        document.getElementById('upcomingScroll').innerHTML = upcomingShows.map(s => {
-          // Check for valid poster - show No Image placeholder if missing
-          const hasPoster = s.poster && s.poster !== '' && s.poster !== 'null' && s.poster !== 'undefined';
-          const posterStyle = hasPoster ? `background-image:url('${s.poster}');` : 'background:linear-gradient(135deg, #1e293b 0%, #334155 100%);';
-          const noImageClass = hasPoster ? '' : 'no-image';
-          
-          return `<div class="show-card-horiz" style="position:relative;">
-            <a href="${infoUrl(s)}" class="show-card-horiz" style="position:static;" onmouseenter="showPopup(event,'${s.id}')" onmouseleave="window.popupTimer=setTimeout(hidePopup,500)">
-              <div class="card-poster ${noImageClass}" style="${posterStyle}">
-                <span class="poster-status-badge">${s.type || 'HD'}</span>
-                <span class="poster-rating-badge"><i class="fas fa-star"></i> ${s.score}</span>
-                <div class="play-overlay"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" fill="white"/></svg></div>
-              </div>
-              <h3 class="card-title">${s.title}</h3>
-              <div class="card-meta-sm"><i class="fas fa-star"></i> ${s.score} · ${s.type} · ${s.releaseDate||'TBA'}</div>
-            </a>
-            ${generateCardButtons(s, { compact: true, showBookmark: false, showDetails: false })}
-          </div>`;
-        }).join('');
+      function upcomingCardHtml(s, gridRow) {
+        // Check for valid poster - show No Image placeholder if missing
+        const hasPoster = s.poster && s.poster !== '' && s.poster !== 'null' && s.poster !== 'undefined';
+        const posterStyle = hasPoster ? `background-image:url('${s.poster}');` : 'background:linear-gradient(135deg, #1e293b 0%, #334155 100%);';
+        const noImageClass = hasPoster ? '' : 'no-image';
+        const rowStyle = gridRow ? `grid-row:${gridRow};` : '';
+
+        return `<div class="show-card-horiz" style="position:relative;${rowStyle}">
+          <a href="${infoUrl(s)}" class="show-card-horiz" style="position:static;${rowStyle}" onmouseenter="showPopup(event,'${s.id}')" onmouseleave="window.popupTimer=setTimeout(hidePopup,500)">
+            <div class="card-poster ${noImageClass}" style="${posterStyle}">
+              <span class="poster-status-badge">${s.type || 'HD'}</span>
+              <span class="poster-rating-badge"><i class="fas fa-star"></i> ${s.score}</span>
+              <div class="play-overlay"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" fill="white"/></svg></div>
+            </div>
+            <h3 class="card-title">${s.title}</h3>
+            <div class="card-meta-sm"><i class="fas fa-star"></i> ${s.score} · ${s.type} · ${s.releaseDate||'TBA'}</div>
+          </a>
+          ${generateCardButtons(s, { compact: true, showBookmark: false, showDetails: false })}
+        </div>`;
       }
+      let _upcomingWasDesktop = null;
+      function renderUpcoming() {
+        const container = document.getElementById('upcomingScroll');
+        const isDesktop = window.innerWidth > 1100;
+        _upcomingWasDesktop = isDesktop;
+        if (isDesktop) {
+          // Desktop only: row 1 = anime, row 2 = movies + TV combined.
+          container.classList.add('upcoming-two-row');
+          const animeList = upcomingShows.filter(s => s.type === 'Anime');
+          const otherList = upcomingShows.filter(s => s.type !== 'Anime');
+          const cols = Math.max(animeList.length, otherList.length);
+          let html = '';
+          for (let i = 0; i < cols; i++) {
+            if (animeList[i]) html += upcomingCardHtml(animeList[i], 1);
+            if (otherList[i]) html += upcomingCardHtml(otherList[i], 2);
+          }
+          container.innerHTML = html;
+        } else {
+          container.classList.remove('upcoming-two-row');
+          container.innerHTML = upcomingShows.map(s => upcomingCardHtml(s, null)).join('');
+        }
+      }
+      // Re-render (not just re-layout) when crossing the desktop breakpoint,
+      // since mobile/desktop use different DOM structures.
+      window.addEventListener('resize', () => {
+        const isDesktop = window.innerWidth > 1100;
+        if (isDesktop !== _upcomingWasDesktop && upcomingShows.length) renderUpcoming();
+      });
       document.getElementById('upcomingLeft').addEventListener('click', ()=> document.getElementById('upcomingScroll').scrollBy({left:-getRowScrollAmount(document.getElementById('upcomingScroll')),behavior:'smooth'}));
       document.getElementById('upcomingRight').addEventListener('click', ()=> document.getElementById('upcomingScroll').scrollBy({left:getRowScrollAmount(document.getElementById('upcomingScroll')),behavior:'smooth'}));
       enableArrowKeyScroll(document.getElementById('upcomingSection'), document.getElementById('upcomingScroll'));
@@ -4194,6 +4290,12 @@ window.showAnikotoPopupById = function(mal_id) {
 
       let _completedRequestId = 0; // guards against out-of-order responses when clicking pages fast
 
+      // Desktop gets more rows (computer-only, per request); mobile/tablet
+      // keeps the original 6 rows so cards don't shrink on small screens.
+      function completedRowsForViewport() {
+        return window.innerWidth > 1100 ? 9 : 6;
+      }
+
       async function loadCompleted(page=1) {
         completedCurrentPage = page;
         const requestId = ++_completedRequestId;
@@ -4202,20 +4304,23 @@ window.showAnikotoPopupById = function(mal_id) {
         // controls while this page loads so clicks feel instant instead of
         // waiting on the network.
         const cols = calcCompletedCols();
-        renderCompletedSkeleton(cols * 6);
+        const TARGET_ROWS = completedRowsForViewport();
+        renderCompletedSkeleton(cols * TARGET_ROWS);
         renderPagination(page, true);
 
-        // Fetch MULTIPLE pages to ensure enough data for 6 rows
-        // Using t-umi proxy + AniList for anime, TMDB for TV and movies.
-        // TMDB in ASCENDING order (user request!)
-        const TARGET_ROWS = 6;
-        const TARGET_SHOWS = TARGET_ROWS * cols;  // e.g., 6×7=42, 6×8=48
+        // Fetch enough TMDB pages (20 results/page) to cover TARGET_SHOWS
+        // for both TV and movies — scales up automatically as rows/cols grow.
+        const TARGET_SHOWS = TARGET_ROWS * cols;  // e.g., 9×8=72 on wide desktop
+        const tmdbPagesNeeded = Math.max(2, Math.ceil(TARGET_SHOWS / 20));
 
-        const [tv, tv2, movie, movie2, anilistComp] = await Promise.all([
-          fetchTMDB('/discover/tv', `sort_by=first_air_date.asc&page=${page}`),       // ASCENDING order!
-          fetchTMDB('/discover/tv', `sort_by=first_air_date.asc&page=${page+1}`),     // ASCENDING order!
-          fetchTMDB('/discover/movie', `sort_by=release_date.asc&page=${page}`),      // Movies too
-          fetchTMDB('/discover/movie', `sort_by=release_date.asc&page=${page+1}`),
+        const tvFetches = Array.from({length: tmdbPagesNeeded}, (_, i) =>
+          fetchTMDB('/discover/tv', `sort_by=first_air_date.asc&page=${page+i}`));   // ASCENDING order!
+        const movieFetches = Array.from({length: tmdbPagesNeeded}, (_, i) =>
+          fetchTMDB('/discover/movie', `sort_by=release_date.asc&page=${page+i}`));
+
+        const [tvResults, movieResults, anilistComp] = await Promise.all([
+          Promise.all(tvFetches),
+          Promise.all(movieFetches),
           // AniList: Recently completed anime (replacing Jikan status=complete)
           // perPage bumped 50→100 so there's a bigger pool of candidates to
           // draw from — more raw anime for the MAL-ID backfill step below to
@@ -4237,8 +4342,8 @@ window.showAnikotoPopupById = function(mal_id) {
         if (requestId !== _completedRequestId) return;
 
         // Merge multiple TMDB pages (ascending order - oldest first)
-        const allTmdbTv = [...(tv.results||[]), ...(tv2.results||[])];
-        const allTmdbMovies = [...(movie.results||[]), ...(movie2.results||[])];
+        const allTmdbTv = tvResults.flatMap(r => r.results || []);
+        const allTmdbMovies = movieResults.flatMap(r => r.results || []);
 
         // Convert AniList completed anime — backfill missing MAL ids via
         // title search instead of dropping the anime outright, so grid
@@ -4351,6 +4456,17 @@ window.showAnikotoPopupById = function(mal_id) {
           b.addEventListener('click', ()=>loadCompleted(parseInt(b.dataset.page)));
         });
       }
+
+      // Re-fetch when crossing the desktop breakpoint so the row count
+      // (6 vs 9) and grid density stay correct after a resize.
+      let _completedWasDesktop = window.innerWidth > 1100;
+      window.addEventListener('resize', () => {
+        const isDesktop = window.innerWidth > 1100;
+        if (isDesktop !== _completedWasDesktop) {
+          _completedWasDesktop = isDesktop;
+          loadCompleted(completedCurrentPage);
+        }
+      });
 
       /* ── SHARED CARD RENDERERS ── */
       function renderCompletedCard(s) {
