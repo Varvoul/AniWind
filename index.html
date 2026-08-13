@@ -2100,7 +2100,7 @@
 
   <!-- POPUP CARD -->
   <div class="popup-overlay" id="popupOverlay">
-    <div class="popup-card" id="popupCard" onmouseenter="clearTimeout(window.popupTimer)" onmouseleave="hidePopupDelayed()">
+    <div class="popup-card" id="popupCard" onmouseenter="_onCardHover()" onmouseleave="hidePopupDelayed()">
       <span class="popup-close" id="popupClose">&times;</span>
       <div id="popupContent"></div>
     </div>
@@ -2864,7 +2864,7 @@ async function loadNewAniocean() {
            class="aniocean-card" 
            data-mal-id="${mal_id}"
            onmouseenter="showAnikotoPopupById('${mal_id}')" 
-           onmouseleave="window.popupTimer=setTimeout(hidePopup,500)">
+           onmouseleave="_onCardLeave()">
           <div class="aniocean-poster">
             <img src="${anime.poster}" alt="${anime.title}" 
                  onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22300%22%3E%3Crect fill=%22%23132f4c%22 width=%22200%22 height=%22300%22/%3E%3Ctext fill=%22%2394a3b8%22 font-family=%22sans-serif%22 font-size=%2214%22 x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22%3ENo Image%3C/text%3E%3C/svg%3E'">
@@ -3012,8 +3012,12 @@ async function loadNewAniocean() {
       /* ── ANIKOTO STYLE POPUP ── */
      /* Popup triggered by mal_id lookup */
 window.showAnikotoPopupById = function(mal_id) {
-  clearTimeout(window.popupTimer);
-  const anime = window.anioceanData[mal_id];
+      // Anti-flicker: clear timer and set keepAlive
+      window._clearPopupTimer();
+      window._popupState.isActive = true;
+      window._popupState.keepAlive = true;
+      
+      const anime = window.anioceanData[mal_id];
   if (!anime) return;
   
   const starIcon = '<i class="fas fa-star" style="color:var(--accent-gold)"></i>';
@@ -4295,7 +4299,7 @@ window.showAnikotoPopupById = function(mal_id) {
         const rowStyle = gridRow ? `grid-row:${gridRow};` : '';
 
         return `<div class="show-card-horiz" style="position:relative;${rowStyle}">
-          <a href="${infoUrl(s)}" class="show-card-horiz" style="position:static;${rowStyle}" onmouseenter="showPopup(event,'${s.id}')" onmouseleave="window.popupTimer=setTimeout(hidePopup,500)">
+          <a href="${infoUrl(s)}" class="show-card-horiz" style="position:static;${rowStyle}" onmouseenter="showPopup(event,'${s.id}')" onmouseleave="_onCardLeave()">
             <div class="card-poster ${noImageClass}" style="${posterStyle}">
               <span class="poster-status-badge">${s.type || 'HD'}</span>
               <span class="poster-rating-badge"><i class="fas fa-star"></i> ${s.score}</span>
@@ -4575,7 +4579,7 @@ window.showAnikotoPopupById = function(mal_id) {
       }
       function renderShowCard(s) {
         return `<div class="sidebar-list-item" style="position:relative;">
-          <a href="${infoUrl(s)}" class="sidebar-list-item" style="position:static;" onmouseenter="showPopup(event,'${s.id}')" onmouseleave="window.popupTimer=setTimeout(hidePopup,500)">
+          <a href="${infoUrl(s)}" class="sidebar-list-item" style="position:static;" onmouseenter="showPopup(event,'${s.id}')" onmouseleave="_onCardLeave()">
             <span class="sidebar-rank">${s.rank||''}</span>
             <img class="sidebar-poster" src="${s.poster}" onerror="this.style.display='none'">
             <div class="sidebar-info"><h4>${s.title}</h4><div class="side-meta"><i class="fas fa-star"></i> ${s.score} · ${s.type}</div></div>
@@ -4764,7 +4768,7 @@ window.showAnikotoPopupById = function(mal_id) {
         popularData = data;
 
         document.getElementById('popularList').innerHTML = data.map(s => `
-          <a href="${infoUrl(s)}" class="sidebar-list-item" onmouseenter="showPopup(event,'${s.id}')" onmouseleave="window.popupTimer=setTimeout(hidePopup,500)">
+          <a href="${infoUrl(s)}" class="sidebar-list-item" onmouseenter="showPopup(event,'${s.id}')" onmouseleave="_onCardLeave()">
             <span class="sidebar-rank">${s.rank}</span>
             <img class="sidebar-poster" src="${s.poster}" onerror="this.style.display='none'">
             <div class="sidebar-info">
@@ -4778,84 +4782,135 @@ window.showAnikotoPopupById = function(mal_id) {
           </a>`).join('');
       }
 
-      /* ── POPUP (FIXED) ── */
+      /* ── POPUP (FIXED) - Anti-flicker implementation ── */
+     
+     // Global popup state tracking - prevents flickering!
+     window._popupState = {
+       isActive: false,           // Is popup currently visible?
+       keepAlive: false,          // Should popup stay visible?
+       hideTimer: null,           // Current hide timeout ID
+       HIDE_DELAY: 800            // Increased from 500ms to 800ms for smoother experience
+     };
+
      window.showPopup = function(e, id) {
-  clearTimeout(window.popupTimer);
-  const show = [...upcomingShows, ...trendingData, ...popularData].find(s => s.id === id);
-  if (!show) return;
+      // Clear any pending hide timer immediately
+      window._clearPopupTimer();
+      
+      // Set active state - popup should stay visible
+      window._popupState.isActive = true;
+      window._popupState.keepAlive = true;
+      
+      const show = [...upcomingShows, ...trendingData, ...popularData].find(s => s.id === id);
+      if (!show) return;
 
-  // Check if this is an upcoming show
-  const isUpcoming = upcomingShows.some(s => s.id === id);
+      // Check if this is an upcoming show
+      const isUpcoming = upcomingShows.some(s => s.id === id);
 
-  let buttonHtml = '';
-  if (isUpcoming) {
-    // Bookmark button – link to the info page (generates correct URL with slug)
-    buttonHtml = `<a class="watch-btn" href="${infoUrl(show)}"><i class="fas fa-bookmark"></i> Bookmark</a>`;
-  } else {
-    // Regular watch button - use SEO-friendly watchUrl function
-    buttonHtml = `<a class="watch-btn" href="${watchUrl(show)}"><i class="fas fa-play"></i> Watch Now</a>`;
-  }
+      let buttonHtml = '';
+      if (isUpcoming) {
+        // Bookmark button – link to the info page (generates correct URL with slug)
+        buttonHtml = `<a class="watch-btn" href="${infoUrl(show)}"><i class="fas fa-bookmark"></i> Bookmark</a>`;
+      } else {
+        // Regular watch button - use SEO-friendly watchUrl function
+        buttonHtml = `<a class="watch-btn" href="${watchUrl(show)}"><i class="fas fa-play"></i> Watch Now</a>`;
+      }
 
-  const scoreLabel = show.type === 'Anime' ? 'MAL' : 'TMDB';
-  const starIcon = '<i class="fas fa-star" style="color:var(--accent-gold)"></i>';
+      const scoreLabel = show.type === 'Anime' ? 'MAL' : 'TMDB';
+      const starIcon = '<i class="fas fa-star" style="color:var(--accent-gold)"></i>';
 
-  // Build duration safely — never produce "undefinedm" or "?"
-  const rawDuration = (show.duration && show.duration !== '?' && show.duration !== 'undefined') 
-    ? show.duration 
-    : (show.episode_run_time?.length ? show.episode_run_time[0] + 'm/ep' : null);
-  // Safe year extraction with fallbacks
-  let safeYear = show.year || (show.release_date||show.first_air_date||'').slice(0,4) || '';
-  if (!safeYear || safeYear === '?') safeYear = show.releaseDate || 'TBA';
-  if (safeYear === '?') safeYear = 'TBA';
-  const safeCert    = show.certification || (show.type === 'TV' ? 'TV-14' : 'PG-13');
-  
-  // Studio: filter out "?", "—", and empty values
-  const safeStudio = show.studio && show.studio !== '?' && show.studio !== '—' && show.studio !== 'undefined' ? show.studio : null;
+      // Build duration safely — never produce "undefinedm" or "?"
+      const rawDuration = (show.duration && show.duration !== '?' && show.duration !== 'undefined') 
+        ? show.duration 
+        : (show.episode_run_time?.length ? show.episode_run_time[0] + 'm/ep' : null);
+      // Safe year extraction with fallbacks
+      let safeYear = show.year || (show.release_date||show.first_air_date||'').slice(0,4) || '';
+      if (!safeYear || safeYear === '?') safeYear = show.releaseDate || 'TBA';
+      if (safeYear === '?') safeYear = 'TBA';
+      const safeCert    = show.certification || (show.type === 'TV' ? 'TV-14' : 'PG-13');
+      
+      // Studio: filter out "?", "—", and empty values
+      const safeStudio = show.studio && show.studio !== '?' && show.studio !== '—' && show.studio !== 'undefined' ? show.studio : null;
 
-  const metaHtml = `
-    <span class="meta-pill">${show.type || 'Unknown'}</span>
-    <span class="meta-pill">${safeCert}</span>
-    <span class="meta-pill">${scoreLabel} ${starIcon} ${show.score || 'N/A'}</span>
-    ${rawDuration ? `<span class="meta-pill"><i class="fas fa-clock" style="opacity:.7"></i> ${rawDuration}</span>` : ''}
-    ${safeYear && safeYear !== '?' ? `<span class="meta-pill"><i class="fas fa-calendar-alt" style="opacity:.7"></i> ${safeYear}</span>` : ''}
-    ${safeStudio ? `<span class="meta-pill">${safeStudio}</span>` : ''}
-  `;
-  // Map internal type label to the URL path segment used for genre links
-  const genreTypeSegment = show.type === 'Anime' ? 'anime' : (show.type === 'Movie' ? 'movie' : 'tv');
-  // TMDB sometimes bundles two concepts into one genre string with "&"
-  // (e.g. "War & Politics", "Sci-Fi & Fantasy"). Split those into separate,
-  // independently-linkable pills rather than encoding the "&" into the URL.
-  // Multi-word single genres (e.g. "Science Fiction") use "+" for spaces,
-  // and the URL segment itself is always lowercased.
-  const genreSlug = g => g.trim().toLowerCase().replace(/\s+/g, '+');
-  const genresHtml = (show.genres || [])
-    .filter(Boolean)
-    .flatMap(g => g.split('&').map(part => part.trim()).filter(Boolean))
-    .map(g => `<a href="/${genreTypeSegment}/genre/${genreSlug(g)}" class="genre-pill">${g}</a>`)
-    .join('');
+      const metaHtml = `
+        <span class="meta-pill">${show.type || 'Unknown'}</span>
+        <span class="meta-pill">${safeCert}</span>
+        <span class="meta-pill">${scoreLabel} ${starIcon} ${show.score || 'N/A'}</span>
+        ${rawDuration ? `<span class="meta-pill"><i class="fas fa-clock" style="opacity:.7"></i> ${rawDuration}</span>` : ''}
+        ${safeYear && safeYear !== '?' ? `<span class="meta-pill"><i class="fas fa-calendar-alt" style="opacity:.7"></i> ${safeYear}</span>` : ''}
+        ${safeStudio ? `<span class="meta-pill">${safeStudio}</span>` : ''}
+      `;
+      // Map internal type label to the URL path segment used for genre links
+      const genreTypeSegment = show.type === 'Anime' ? 'anime' : (show.type === 'Movie' ? 'movie' : 'tv');
+      // TMDB sometimes bundles two concepts into one genre string with "&"
+      // (e.g. "War & Politics", "Sci-Fi & Fantasy"). Split those into separate,
+      // independently-linkable pills rather than encoding the "&" into the URL.
+      // Multi-word single genres (e.g. "Science Fiction") use "+" for spaces,
+      // and the URL segment itself is always lowercased.
+      const genreSlug = g => g.trim().toLowerCase().replace(/\s+/g, '+');
+      const genresHtml = (show.genres || [])
+        .filter(Boolean)
+        .flatMap(g => g.split('&').map(part => part.trim()).filter(Boolean))
+        .map(g => `<a href="/${genreTypeSegment}/genre/${genreSlug(g)}" class="genre-pill">${g}</a>`)
+        .join('');
 
-  const synopsis = show.synopsis || show.overview || 'No description available.';
+      const synopsis = show.synopsis || show.overview || 'No description available.';
 
-  document.getElementById('popupContent').innerHTML = `
-    <div class="modal-poster-wrap">${show.poster ? `<img src="${show.poster}" alt="${show.title}">` : ''}</div>
-    <div class="modal-title">${show.title || ''}</div>
-    <div class="modal-subtitle">${show.original_title || show.title || ''}</div>
-    <div class="meta-pills-row">${metaHtml}</div>
-    <div class="genre-pills-row">${genresHtml}</div>
-    ${buttonHtml}
-    <div class="modal-synopsis">${synopsis}</div>
-  `;
+      document.getElementById('popupContent').innerHTML = `
+        <div class="modal-poster-wrap">${show.poster ? `<img src="${show.poster}" alt="${show.title}">` : ''}</div>
+        <div class="modal-title">${show.title || ''}</div>
+        <div class="modal-subtitle">${show.original_title || show.title || ''}</div>
+        <div class="meta-pills-row">${metaHtml}</div>
+        <div class="genre-pills-row">${genresHtml}</div>
+        ${buttonHtml}
+        <div class="modal-synopsis">${synopsis}</div>
+      `;
 
-  document.getElementById('popupCard').classList.add('active');
-  document.getElementById('popupOverlay').style.pointerEvents = 'auto';
-};
-      window.hidePopup = ()=>{
-        document.getElementById('popupCard').classList.remove('active');
-        document.getElementById('popupOverlay').style.pointerEvents='none';
-      };
-      window.hidePopupDelayed = () => {
-        window.popupTimer = setTimeout(window.hidePopup, 500);
-      };
+      document.getElementById('popupCard').classList.add('active');
+      document.getElementById('popupOverlay').style.pointerEvents = 'auto';
+    };
+
+     // Helper: Clear any pending hide timer
+     window._clearPopupTimer = function() {
+       if (window._popupState.hideTimer) {
+         clearTimeout(window._popupState.hideTimer);
+         window._popupState.hideTimer = null;
+       }
+     };
+
+     // Schedule popup to hide after delay (only if keepAlive is not set)
+     window.hidePopup = ()=>{
+       window._popupState.isActive = false;
+       window._popupState.keepAlive = false;
+       document.getElementById('popupCard').classList.remove('active');
+       document.getElementById('popupOverlay').style.pointerEvents='none';
+     };
+
+     // Delayed hide with keep-alive check - prevents flickering!
+     window.hidePopupDelayed = function() {
+       // Don't schedule hide if popup should stay alive
+       if (window._popupState.keepAlive) return;
+       
+       window._clearPopupTimer();
+       window._popupState.hideTimer = setTimeout(() => {
+         // Double-check before hiding (user might have hovered over another card)
+         if (!window._popupState.keepAlive) {
+           window.hidePopup();
+         }
+       }, window._popupState.HIDE_DELAY);
+     };
+
+     // Called when mouse enters ANY card - sets keepAlive to prevent hiding
+     window._onCardHover = function() {
+       window._popupState.keepAlive = true;
+       window._clearPopupTimer();
+     };
+
+     // Called when mouse leaves ANY card - schedules delayed hide
+     window._onCardLeave = function() {
+       window._popupState.keepAlive = false;
+       window.hidePopupDelayed();
+     };
+
       document.getElementById('popupClose').addEventListener('click', window.hidePopup);
       document.getElementById('popupOverlay').addEventListener('click', function(e){ if(e.target===this) window.hidePopup(); });
 
