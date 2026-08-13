@@ -1214,10 +1214,28 @@
     }
     .pa-score i { font-size:0.54rem; }
 
-    /* popup */
-    .popup-overlay { position:fixed; inset:0; z-index:500; display:flex; align-items:center; justify-content:center; pointer-events:none; }
-    .popup-card { background:var(--bg-popup); border:1px solid var(--border-medium); border-radius:var(--radius-lg); padding:20px; max-width:520px; width:94%; max-height:85vh; overflow-y:auto; box-shadow:var(--shadow-lg); pointer-events:auto; display:none; position:relative; color:#fff; opacity:0; transform:scale(0.95) translateY(10px); transition:opacity 0.2s ease, transform 0.2s ease; }
-    .popup-card.active { display:block; opacity:1; transform:scale(1) translateY(0); }
+    /* popup - Anchored next to card (Netflix/Anikoto style) */
+    .popup-overlay { position:fixed; inset:0; z-index:500; pointer-events:none; }
+    .popup-card { 
+      position:fixed; /* JS sets top/left based on anchor element */
+      background:var(--bg-popup); 
+      border:1px solid var(--border-medium);
+      border-radius:var(--radius-lg); 
+      padding:20px; 
+      width:340px; 
+      max-width:90vw;
+      max-height:70vh; 
+      overflow-y:auto; 
+      box-shadow:var(--shadow-lg);
+      pointer-events:auto; 
+      display:none; 
+      color:#fff;
+      opacity:0; 
+      transform:scale(0.97); 
+      transition:opacity 0.15s ease, transform 0.15s ease;
+      z-index:501;
+    }
+    .popup-card.active { display:block; opacity:1; transform:scale(1); }
     .popup-close { position:absolute; top:12px; right:16px; font-size:1.4rem; cursor:pointer; color:#cbd5e1; line-height:1; z-index:2; }
     .modal-poster-wrap { width:120px; flex-shrink:0; border-radius:10px; overflow:hidden; float:left; margin-right:16px; margin-bottom:12px; }
     .modal-poster-wrap img { width:100%; height:auto; display:block; }
@@ -2863,7 +2881,7 @@ async function loadNewAniocean() {
         <a href="/info/anime/jikan-${mal_id}/${anime.slug}" 
            class="aniocean-card" 
            data-mal-id="${mal_id}"
-           onmouseenter="showAnikotoPopupById('${mal_id}')" 
+           onmouseenter="showAnikotoPopupById('${mal_id}', event)" 
            onmouseleave="_onCardLeave()">
           <div class="aniocean-poster">
             <img src="${anime.poster}" alt="${anime.title}" 
@@ -3008,56 +3026,6 @@ async function loadNewAniocean() {
   console.log('[New on Aniumi] All APIs failed - showing empty state');
   renderAnimeList([]);
 }
-
-      /* ── ANIKOTO STYLE POPUP ── */
-     /* Popup triggered by mal_id lookup */
-window.showAnikotoPopupById = function(mal_id) {
-      // Anti-flicker: clear timer and set keepAlive
-      window._clearPopupTimer();
-      window._popupState.isActive = true;
-      window._popupState.keepAlive = true;
-      
-      const anime = window.anioceanData[mal_id];
-  if (!anime) return;
-  
-  const starIcon = '<i class="fas fa-star" style="color:var(--accent-gold)"></i>';
-  const genreSlug = g => g.trim().toLowerCase().replace(/\s+/g, '+');
-  const genresHtml = anime.genres
-    .flatMap(g => g.split('&').map(part => part.trim()).filter(Boolean))
-    .map(g => `<a href="/anime/genre/${genreSlug(g)}" class="genre-pill">${g}</a>`)
-    .join('');
-  
-  document.getElementById('popupContent').innerHTML = `
-    <div class="anikoto-popup">
-      <div class="anikoto-popup-poster">
-        <img src="${anime.poster}" alt="${anime.title}" onerror="this.style.display='none'">
-      </div>
-      <div class="anikoto-popup-content">
-        <div class="anikoto-popup-title">${anime.title}</div>
-        <div class="anikoto-popup-meta">
-          <div class="anikoto-meta-item">${starIcon} ${anime.score}</div>
-          <div class="anikoto-meta-item"><i class="fas fa-film"></i> ${anime.type}</div>
-          <div class="anikoto-meta-item"><i class="fas fa-calendar"></i> ${anime.year}</div>
-          <div class="anikoto-meta-item"><i class="fas fa-clock"></i> ${anime.duration}</div>
-          <div class="anikoto-meta-item"><i class="fas fa-building"></i> ${anime.studios[0] || '?'}</div>
-        </div>
-        <div class="genre-pills-row">${genresHtml}</div>
-        <div class="anikoto-popup-synopsis">${anime.description}</div>
-        <div class="anikoto-popup-actions">
-          <a href="/watch/anime/jikan-${anime.mal_id}/${anime.slug}/episode/1" class="anikoto-btn anikoto-btn-primary">
-            <i class="fas fa-play"></i> Watch Now
-          </a>
-          <a href="/info/anime/jikan-${anime.mal_id}/${anime.slug}" class="anikoto-btn anikoto-btn-secondary">
-            <i class="fas fa-plus"></i> Details
-          </a>
-        </div>
-      </div>
-    </div>
-  `;
-  
-  document.getElementById('popupCard').classList.add('active');
-  document.getElementById('popupOverlay').style.pointerEvents = 'auto';
-};
 
       /* ── HERO ── */
       // Hero shows 13 TMDB ongoing TV + ~70% Anilist airing anime = 35-40 total slides
@@ -4782,33 +4750,30 @@ window.showAnikotoPopupById = function(mal_id) {
           </a>`).join('');
       }
 
-      /* ── POPUP (FIXED) - Professional Anti-flicker System ── */
+      /* ── POPUP (FIXED) - Anchored Anti-flicker System (Netflix/Anikoto style) ── */
      
-     // Advanced popup state management - inspired by Anikoto's approach
+     // Advanced popup state management with card-anchored positioning
+     // This positions popup NEXT to the hovered card, not centered on screen!
      window._popupManager = {
        // State
        isVisible: false,
        currentId: null,          // Currently displayed item ID
        hideTimer: null,
        showTimer: null,
-       lastMousePos: { x: 0, y: 0 },
+       anchorEl: null,           // The card element we're anchored to
        
-       // Timing config (tuned for smooth UX)
-       SHOW_DELAY: 100,          // Small delay before showing (prevents flicker on fast pass)
-       HIDE_DELAY: 600,           // Delay before hiding (gives time to reach popup)
-       MOUSE_TOLERANCE: 15,      // Pixels tolerance for mouse movement detection
+       // Timing config (tuned for anchored popup - shorter delays work better)
+       SHOW_DELAY: 80,           // Very small delay before showing (prevents flicker)
+       HIDE_DELAY: 350,          // Shorter delay since popup is RIGHT next to card
+       POPUP_WIDTH: 340,         // Match CSS width
+       MARGIN: 10,               // Gap between card and popup
        
        // Initialize
        init: function() {
-         this.trackMouse();
          this.setupPopupEvents();
-       },
-       
-       // Track mouse position globally for trajectory prediction
-       trackMouse: function() {
-         document.addEventListener('mousemove', (e) => {
-           this.lastMousePos = { x: e.clientX, y: e.clientY };
-         });
+         // Reposition on scroll/resize if visible
+         window.addEventListener('scroll', () => { if (this.isVisible) this.position(); }, { passive: true });
+         window.addEventListener('resize', () => { if (this.isVisible) this.position(); }, { passive: true });
        },
        
        // Setup popup container events
@@ -4841,12 +4806,18 @@ window.showAnikotoPopupById = function(mal_id) {
          }
        },
        
-       // Show popup with smart delay
-       requestShow: function(id) {
+       // Show popup with anchor element for positioning
+       requestShow: function(id, anchorEl) {
          this.cancelHide();
          
-         // If same ID already showing, just keep it alive
+         // Store anchor element for positioning
+         if (anchorEl) {
+           this.anchorEl = anchorEl;
+         }
+         
+         // If same ID already showing, just reposition and keep alive
          if (this.currentId === id && this.isVisible) {
+           this.position();
            return;
          }
          
@@ -4872,6 +4843,46 @@ window.showAnikotoPopupById = function(mal_id) {
          
          if (popup) popup.classList.add('active');
          if (overlay) overlay.style.pointerEvents = 'auto';
+         
+         // Position next to the anchor element
+         this.position();
+       },
+       
+       // Position popup relative to anchor element (the key fix!)
+       position: function() {
+         const popup = document.getElementById('popupCard');
+         if (!popup || !this.anchorEl) return;
+         
+         const rect = this.anchorEl.getBoundingClientRect();
+         const pw = this.POPUP_WIDTH;
+         const ph = popup.offsetHeight || 300; // Estimate height if not rendered yet
+         const margin = this.MARGIN;
+         
+         // Default: position to the right of the card
+         let left = rect.right + margin;
+         let top = rect.top;
+         
+         // FLIP: If it would overflow the right edge, position to the left instead
+         if (left + pw > window.innerWidth - margin) {
+           left = rect.left - pw - margin;
+         }
+         
+         // Clamp so it never goes off the left edge either
+         if (left < margin) {
+           left = Math.max(margin, rect.right + margin);
+         }
+         
+         // VERTICAL: Clamp within viewport bounds
+         if (top + ph > window.innerHeight - margin) {
+           top = window.innerHeight - ph - margin;
+         }
+         if (top < margin) {
+           top = margin;
+         }
+         
+         // Apply position
+         popup.style.left = left + 'px';
+         popup.style.top = top + 'px';
        },
        
        // Schedule hide with delay
@@ -4903,30 +4914,18 @@ window.showAnikotoPopupById = function(mal_id) {
          
          this.isVisible = false;
          this.currentId = null;
+         this.anchorEl = null;  // Clear anchor
          
          const popup = document.getElementById('popupCard');
          const overlay = document.getElementById('popupOverlay');
          
-         if (popup) popup.classList.remove('active');
+         if (popup) {
+           popup.classList.remove('active');
+           // Reset position styles
+           popup.style.left = '';
+           popup.style.top = '';
+         }
          if (overlay) overlay.style.pointerEvents = 'none';
-       },
-       
-       // Check if mouse is moving toward popup (advanced prediction)
-       isMouseTowardPopup: function() {
-         const popup = document.getElementById('popupCard');
-         if (!popup || !this.isVisible) return false;
-         
-         const rect = popup.getBoundingClientRect();
-         const mouse = this.lastMousePos;
-         
-         // Check if mouse is in expanded boundary around popup
-         const expandZone = 50; // pixels
-         return (
-           mouse.x >= rect.left - expandZone &&
-           mouse.x <= rect.right + expandZone &&
-           mouse.y >= rect.top - expandZone &&
-           mouse.y <= rect.bottom + expandZone
-         );
        }
      };
      
@@ -4939,8 +4938,9 @@ window.showAnikotoPopupById = function(mal_id) {
        const show = [...upcomingShows, ...trendingData, ...popularData, ...Object.values(window.anioceanData || {})].find(s => s.id === id || s.mal_id == id);
        if (!show) return;
 
-       // Request show through manager
-       window._popupManager.requestShow(id);
+       // Request show through manager WITH anchor element for positioning!
+       const anchorEl = e?.currentTarget || null;
+       window._popupManager.requestShow(id, anchorEl);
 
        // Update content immediately (but manager controls visibility)
        const isUpcoming = upcomingShows.some(s => s.id === id);
@@ -4995,12 +4995,13 @@ window.showAnikotoPopupById = function(mal_id) {
      };
 
      // Anikoto-style popup handler (for New on Aniumi section)
-     window.showAnikotoPopupById = function(mal_id) {
+     window.showAnikotoPopupById = function(mal_id, e) {
        const anime = window.anioceanData[mal_id];
        if (!anime) return;
        
-       // Use popup manager for consistent behavior
-       window._popupManager.requestShow(`anilist-${mal_id}`);
+       // Use popup manager for consistent behavior WITH anchor element
+       const anchorEl = e?.currentTarget || null;
+       window._popupManager.requestShow(`anilist-${mal_id}`, anchorEl);
 
        const starIcon = '<i class="fas fa-star" style="color:var(--accent-gold)"></i>';
        const genreSlug = g => g.trim().toLowerCase().replace(/\s+/g, '+');
