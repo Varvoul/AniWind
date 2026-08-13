@@ -435,51 +435,37 @@
     .card-poster.no-image::before { content:'No'; position:absolute; top:40%; left:50%; transform:translate(-50%,-50%); color:#94a3b8; font-size:0.75rem; font-weight:600; letter-spacing:2px; text-transform:uppercase; z-index:1; user-select:none; }
     .card-poster.no-image::after { content:'Image'; position:absolute; top:55%; left:50%; transform:translate(-50%,-50%); color:#94a3b8; font-size:0.7rem; font-weight:600; letter-spacing:1px; text-transform:uppercase; z-index:1; user-select:none; }
 
-    /* NEW ON ANIOCEAN SECTION - Balanced rows */
-    .new-aniocean-grid { 
-      display:grid; 
-      grid-template-columns:repeat(7, 1fr); 
-      gap:12px;
-      /* Ensure complete rows only */
+    /* NEW ON ANIOCEAN SECTION - 2-Row Horizontal Scroll Shelf (Netflix-style) */
+    .new-aniocean-shelf {
+      /* Use CSS Grid for true 2-row horizontal scroll */
+      display: grid;
+      /* Create 40 columns of 165px each (cards fill left-to-right, top-to-bottom) */
+      grid-template-columns: repeat(40, 165px);
+      /* Exactly 2 rows */
+      grid-template-rows: repeat(2, auto);
+      /* CRITICAL: fill column-by-column (row1,row2 pairs) instead of the default
+         row-by-row flow, which was stacking every card into row 1 only */
+      grid-auto-flow: column;
+      gap: 12px;
+      /* Horizontal scroll only */
+      overflow-x: auto;
+      overflow-y: hidden;
+      scroll-behavior: smooth;
+      /* Height for 2 full rows: poster(~248px) + info(~70px) + gap */
+      height: calc(((165px * 4.5 / 3) + 75px) * 2 + 12px);
+      max-height: 670px;
+      /* Hide scrollbar like other sections */
+      scrollbar-width: none;
+      -ms-overflow-style: none;
     }
-    @media (max-width: 1600px) {
-      .new-aniocean-grid { grid-template-columns:repeat(6, 1fr); }
-    }
-    @media (max-width: 1200px) {
-      .new-aniocean-grid { grid-template-columns:repeat(6, 1fr); }
-    }
-    @media (max-width: 992px) {
-      .new-aniocean-grid { grid-template-columns:repeat(5, 1fr); }
-    }
-    @media (max-width: 768px) {
-      .new-aniocean-grid { grid-template-columns:repeat(3, 1fr); gap:10px; }
-    }
-    @media (max-width: 520px) {
-      .new-aniocean-grid { grid-template-columns:repeat(2, 1fr); }
-    }
-
-    /* ── DESKTOP ONLY (≥1025px): horizontal 2-row scrolling "shelf" ──
-       Same card size/gap as the wrapping grid above — items just flow
-       into columns (2 rows tall) and scroll sideways instead of
-       wrapping into more rows. Placed after the max-width blocks above
-       so it wins the cascade in the 1025-1600px range where both would
-       otherwise match. Left untouched below 1025px (tablet/mobile keep
-       the original wrapping grid). */
-    @media (min-width: 1025px) {
-      .new-aniocean-grid {
-        grid-template-columns: none;
-        grid-auto-flow: column;
-        grid-template-rows: repeat(2, auto);
-        grid-auto-columns: 170px;
-        overflow-x: auto;
-        overflow-y: hidden;
-        scroll-behavior: smooth;
-        scrollbar-width: none;       /* Firefox */
-        -ms-overflow-style: none;    /* old Edge/IE */
-        padding-top: 4px;            /* keeps hover-lift/shadow from clipping */
-        padding-bottom: 2px;
-      }
-      .new-aniocean-grid::-webkit-scrollbar { display: none; height: 0; }
+    .new-aniocean-shelf::-webkit-scrollbar { display: none; }
+    
+    /* Card sizing for grid */
+    .new-aniocean-shelf .aniocean-card {
+      width: 165px;
+      min-width: 165px;
+      max-width: 165px;
+      /* No flex properties needed - grid controls layout */
     }
 
     .aniocean-card {
@@ -930,6 +916,31 @@
       color: var(--link-accent);
     }
     #newReleasesGrid .action-btns-row { align-items: center; }
+
+    /* ── Upcoming Shows: match New Releases' play/heart button styling ── */
+    #upcomingScroll .action-btn.action-watch {
+      background: var(--btn-primary);
+      border-color: var(--btn-primary);
+      width: 38px; height: 38px; font-size: 0.92rem;
+      box-shadow: 0 4px 14px rgba(43,108,176,0.5);
+    }
+    #upcomingScroll .action-btn.action-watch:hover {
+      background: var(--btn-primary-hover);
+      border-color: var(--btn-primary-hover);
+      transform: scale(1.08);
+    }
+    #upcomingScroll .action-btn.action-heart {
+      background: rgba(255,255,255,0.06);
+      border: 1.5px solid rgba(255,255,255,0.35);
+      width: 32px; height: 32px; font-size: 0.75rem;
+      align-self: center;
+    }
+    #upcomingScroll .action-btn.action-heart:hover {
+      background: rgba(237,100,166,0.16);
+      border-color: var(--link-accent);
+      color: var(--link-accent);
+    }
+    #upcomingScroll .action-btns-row { align-items: center; }
 
     /* Empty state per tab */
     .nr-empty-state {
@@ -1663,12 +1674,34 @@
       .main-layout { flex-direction:column; }
       .main-content, .sidebar-right { flex:1; max-width:100%; padding:0 16px; }
       .sidebar-right { position:static; width:100%; padding:0 16px; }
+      /* Tablet: Adjust 2-row grid for smaller screens */
+      .new-aniocean-shelf {
+        grid-template-columns: repeat(30, 150px);
+        height: calc(((150px * 4.5 / 3) + 70px) * 2 + 12px);
+        max-height: 600px;
+      }
+      .new-aniocean-shelf .aniocean-card {
+        width: 150px;
+        min-width: 150px;
+        max-width: 150px;
+      }
     }
     @media (max-width:768px) {
       .horizontal-scroll { gap:10px; }
       .show-card-horiz { width:150px; }
       .grid-container { grid-template-columns:repeat(2, 1fr); gap:10px; } /* Mobile portrait: 2 per row */
-      .new-aniocean-grid { grid-template-columns:repeat(2, 1fr); gap:8px; }
+      .new-aniocean-shelf { 
+        gap: 8px;
+        /* Mobile: Show 2 columns per row, still 2 rows = 4 cards visible */
+        grid-template-columns: repeat(20, calc((100vw - 32px - 8px) / 2));
+        height: auto;
+        max-height: none;
+      }
+      .new-aniocean-shelf .aniocean-card { 
+        width: auto;
+        min-width: auto;
+        max-width: auto;
+      }
       
       /* Schedule Widget - Mobile Responsive */
       .esw-widget { margin-top: 15px; border-radius: var(--radius-md); }
@@ -1839,7 +1872,7 @@
 
   <div class="main-layout">
     <div class="main-content">
-      <section class="section">
+      <section class="section" id="topAiringSection">
         <div class="section-header">
           <h2 class="section-title">Top Airing</h2>
           <div class="section-controls">
@@ -1869,7 +1902,7 @@
       </section>
 
       <!-- NEW ON ANIOCEAN SECTION -->
-      <section class="section">
+      <section class="section" id="newOnAniumiSection">
         <div class="section-header">
           <h2 class="section-title">New on Aniumi</h2>
           <div class="section-controls">
@@ -1878,10 +1911,10 @@
             <a href="/recent" class="view-all">View All ›</a>
           </div>
         </div>
-        <div class="new-aniocean-grid" id="newAnioceanGrid"></div>
+        <div class="horizontal-scroll new-aniocean-shelf" id="newAnioceanGrid"></div>
       </section>
 
-      <section class="section">
+      <section class="section" id="upcomingSection">
         <div class="section-header">
           <h2 class="section-title">Upcoming Shows</h2>
           <div class="section-controls">
@@ -2645,41 +2678,21 @@
 window.anioceanData = {};
 
 async function loadNewAniocean() {
-  // Helper to render the grid from an array of anime objects (Anikoto or Jikan format)
-  // grid resolved at call time — no TDZ issue
+  // Helper to render the horizontal scroll list from an array of anime objects
+  // Container is now a flex horizontal scroll - works on all screen sizes
   function renderAnimeList(animeList) {
-    const grid = document.getElementById('newAnioceanGrid');
+    const container = document.getElementById('newAnioceanGrid');
     if (!animeList || animeList.length === 0) {
-      if (grid) grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-muted)">No recent anime available</div>';
+      if (container) container.innerHTML = '<div style="flex:0 0 auto;width:100%;text-align:center;padding:40px;color:var(--text-muted)">No recent anime available</div>';
       return false;
     }
-    if (!grid) return false;
+    if (!container) return false;
 
-    // Calculate target shows for 4 complete rows
-    function calcColsForGrid() {
-      const w = window.innerWidth;
-      if (w <= 520) return 2;
-      if (w <= 768) return 3;
-      if (w <= 992) return 4;
-      if (w <= 1400) return 5;
-      if (w <= 1800) return 6;
-      return 7;
-    }
-    const TARGET_ROWS = 6;  // FIXED: Always show exactly 6 rows
-    const cols = calcColsForGrid();
-    // Desktop (≥1025px) uses the horizontal-scrolling 2-row "shelf" layout
-    // (see the min-width:1025px CSS block) instead of the wrapping grid, so
-    // it needs far more items available to scroll through — not just
-    // enough to fill 6 stacked rows.
-    const isDesktopShelf = window.innerWidth >= 1025;
-    const TARGET_SHOWS = isDesktopShelf
-      ? Math.min(animeList.length, 40)
-      : TARGET_ROWS * cols; // Max shows for 6 rows
+    // For horizontal scroll, show up to 40 items (enough for smooth scrolling)
+    const MAX_SHOWS = 40;
+    const displayList = animeList.slice(0, MAX_SHOWS);
 
-    // Trim to exactly 6 rows (wrapping-grid mode) or up to 40 items (shelf mode)
-    const displayList = animeList.slice(0, TARGET_SHOWS);
-
-    grid.innerHTML = displayList.map(anime => {
+    container.innerHTML = displayList.map(anime => {
       const studio = anime.studio || '?';
       const rating = anime.rating || 'N/A';
       const type = anime.type || 'TV';
@@ -3485,20 +3498,72 @@ window.showAnikotoPopupById = function(mal_id) {
             ${generateCardButtons(s, { compact: true, showBookmark: false, showDetails: false })}
           </div>`).join('');
       }
-      document.getElementById('topAiringLeft').addEventListener('click',()=> document.getElementById('topAiringScroll').scrollBy({left:-400,behavior:'smooth'}));
-      document.getElementById('topAiringRight').addEventListener('click',()=> document.getElementById('topAiringScroll').scrollBy({left:400,behavior:'smooth'}));
+      /* ── Shared helper: compute a "visible width minus one card" scroll amount ── */
+      function getRowScrollAmount(container) {
+        const cardWidth = 165; // Fixed card width
+        const gap = 14;
+        const containerWidth = container.clientWidth;
+        const visibleCols = Math.floor((containerWidth + gap) / (cardWidth + gap));
+        return Math.max(1, visibleCols - 1) * (cardWidth + gap);
+      }
+      /* ── Shared helper: enable PC left/right arrow-key scrolling while hovering a section ── */
+      function enableArrowKeyScroll(sectionEl, containerEl) {
+        if (!sectionEl || !containerEl) return;
+        document.addEventListener('keydown', (e) => {
+          if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') &&
+              (sectionEl.matches(':hover') || containerEl.matches(':hover'))) {
+            e.preventDefault();
+            const amount = getRowScrollAmount(containerEl);
+            containerEl.scrollBy({ left: e.key === 'ArrowLeft' ? -amount : amount, behavior: 'smooth' });
+          }
+        });
+      }
 
-      // New on Aniumi — desktop 2-row horizontal "shelf". Scrolls by a
-      // batch (~80% of the visible width) per click instead of one column,
-      // so a couple of clicks is enough to page through the whole shelf.
-      document.getElementById('newAnioceanLeft')?.addEventListener('click', () => {
-        const grid = document.getElementById('newAnioceanGrid');
-        if (grid) grid.scrollBy({ left: -grid.clientWidth * 0.8, behavior: 'smooth' });
-      });
-      document.getElementById('newAnioceanRight')?.addEventListener('click', () => {
-        const grid = document.getElementById('newAnioceanGrid');
-        if (grid) grid.scrollBy({ left: grid.clientWidth * 0.8, behavior: 'smooth' });
-      });
+      document.getElementById('topAiringLeft').addEventListener('click',()=> document.getElementById('topAiringScroll').scrollBy({left:-getRowScrollAmount(document.getElementById('topAiringScroll')),behavior:'smooth'}));
+      document.getElementById('topAiringRight').addEventListener('click',()=> document.getElementById('topAiringScroll').scrollBy({left:getRowScrollAmount(document.getElementById('topAiringScroll')),behavior:'smooth'}));
+      enableArrowKeyScroll(document.getElementById('topAiringSection'), document.getElementById('topAiringScroll'));
+
+      /* ── NEW ON ANIUMI - 2-Row Horizontal Scroll ── */
+      (function initNewAnioceanScroll() {
+        const container = document.getElementById('newAnioceanGrid');
+        const leftBtn = document.getElementById('newAnioceanLeft');
+        const rightBtn = document.getElementById('newAnioceanRight');
+        if (!container || !leftBtn || !rightBtn) return;
+        
+        // Calculate how many columns are visible and scroll by that amount
+        function getScrollAmount() {
+          const cardWidth = 165; // Fixed card width
+          const gap = 12;
+          const containerWidth = container.clientWidth;
+          // Number of visible columns
+          const visibleCols = Math.floor((containerWidth + gap) / (cardWidth + gap));
+          // Scroll by visible columns minus 1 (to show overlap for context)
+          return Math.max(1, visibleCols - 1) * (cardWidth + gap);
+        }
+        
+        leftBtn.addEventListener('click', () => {
+          container.scrollBy({ left: -getScrollAmount(), behavior: 'smooth' });
+        });
+        rightBtn.addEventListener('click', () => {
+          container.scrollBy({ left: getScrollAmount(), behavior: 'smooth' });
+        });
+        
+        // Keyboard arrow key support when hovering over section
+        const section = document.getElementById('newOnAniumiSection');
+        if (section) {
+          document.addEventListener('keydown', (e) => {
+            if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && 
+                (section.matches(':hover') || container.matches(':hover'))) {
+              e.preventDefault();
+              if (e.key === 'ArrowLeft') {
+                container.scrollBy({ left: -getScrollAmount(), behavior: 'smooth' });
+              } else {
+                container.scrollBy({ left: getScrollAmount(), behavior: 'smooth' });
+              }
+            }
+          });
+        }
+      })();
 
       /* ── NEW RELEASES ── */
       let allReleases = {all:[], anime:[], movie:[], tv:[]};
@@ -3989,12 +4054,13 @@ window.showAnikotoPopupById = function(mal_id) {
               <h3 class="card-title">${s.title}</h3>
               <div class="card-meta-sm"><i class="fas fa-star"></i> ${s.score} · ${s.type} · ${s.releaseDate||'TBA'}</div>
             </a>
-            ${generateCardButtons(s, { compact: true })}
+            ${generateCardButtons(s, { compact: true, showBookmark: false, showDetails: false })}
           </div>`;
         }).join('');
       }
-      document.getElementById('upcomingLeft').addEventListener('click', ()=> document.getElementById('upcomingScroll').scrollBy({left:-400}));
-      document.getElementById('upcomingRight').addEventListener('click', ()=> document.getElementById('upcomingScroll').scrollBy({left:400}));
+      document.getElementById('upcomingLeft').addEventListener('click', ()=> document.getElementById('upcomingScroll').scrollBy({left:-getRowScrollAmount(document.getElementById('upcomingScroll')),behavior:'smooth'}));
+      document.getElementById('upcomingRight').addEventListener('click', ()=> document.getElementById('upcomingScroll').scrollBy({left:getRowScrollAmount(document.getElementById('upcomingScroll')),behavior:'smooth'}));
+      enableArrowKeyScroll(document.getElementById('upcomingSection'), document.getElementById('upcomingScroll'));
 
       /* ── COMPLETED (paginated) ── */
       let completedCurrentPage = 1;
