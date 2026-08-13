@@ -4294,6 +4294,10 @@ window.showAnikotoPopupById = function(mal_id) {
           fetchTMDB('/discover/tv', `sort_by=first_air_date.asc&page=${page+1}`),     // ASCENDING order!
           fetchTMDB('/discover/tv', `sort_by=first_air_date.asc&page=${page+2}`),     // ASCENDING order!
           // AniList: Recently completed anime (replacing Jikan status=complete)
+          // perPage bumped 50→100 so there's a bigger pool of candidates to
+          // draw from — more raw anime for the MAL-ID backfill step below to
+          // work with, since not every candidate successfully resolves a
+          // confident mal_id and gets kept.
           fetchAniList(`
             query ($page: Int, $perPage: Int) {
               Page(page: $page, perPage: $perPage) {
@@ -4302,7 +4306,7 @@ window.showAnikotoPopupById = function(mal_id) {
                 }
               }
             }
-          `, { page: page, perPage: 50 })
+          `, { page: page, perPage: 100 })
         ]);
         
         // Merge multiple TMDB pages (ascending order - oldest first)
@@ -4311,9 +4315,17 @@ window.showAnikotoPopupById = function(mal_id) {
         // Convert AniList completed anime — backfill missing MAL ids via
         // title search instead of dropping the anime outright, so grid
         // density isn't lost just because AniList lacks a MAL mapping.
+        //
+        // Candidate pool is 2x TARGET_SHOWS (not just TARGET_SHOWS) — some
+        // fraction of candidates won't resolve a confident mal_id via
+        // backfill and get dropped (see the `if (!malId) return null;`
+        // below), so starting with only exactly TARGET_SHOWS candidates
+        // meant a page could end up showing noticeably fewer anime than
+        // intended. The larger pool means losses there don't shrink the
+        // final anime count nearly as much.
         let anilistItems = [];
         if (anilistComp?.Page?.media) {
-          const candidates = anilistComp.Page.media.slice(0, TARGET_SHOWS).filter(m => !m.isAdult);
+          const candidates = anilistComp.Page.media.slice(0, TARGET_SHOWS * 2).filter(m => !m.isAdult);
           const resolved = await mapWithConcurrency(candidates, 3, async (m) => {
             let malId = m.idMal || null;
             if (!malId) {
