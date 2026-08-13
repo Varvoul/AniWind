@@ -4113,6 +4113,7 @@ window.showAnikotoPopupById = function(mal_id) {
           fetchTMDB('/tv/on_the_air', `page=29`),
           fetchTMDB('/tv/on_the_air', `page=30`),
           // AniList: Upcoming anime (replacing Jikan top/anime filter=upcoming)
+          // INCREASED to 60 to match TMDB row length (user request!)
           fetchAniList(`
             query ($perPage: Int) {
               Page(page: 1, perPage: $perPage) {
@@ -4121,7 +4122,7 @@ window.showAnikotoPopupById = function(mal_id) {
                 }
               }
             }
-          `, { perPage: 40 })
+          `, { perPage: 60 })
         ]);
         
         // Merge TMDB movie pages (30 pages = up to 600 results)
@@ -4281,7 +4282,7 @@ window.showAnikotoPopupById = function(mal_id) {
         upcomingShows = dedupById([
           ...tmdbMovieShows,
           ...tmdbTVShows,
-          ...anilistFiltered.slice(0, 50)
+          ...anilistFiltered.slice(0, 60)  // Increased to 60 to match TMDB row length
         ], 'id').slice(0,120);
         renderUpcoming();
       }
