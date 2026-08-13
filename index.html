@@ -4688,7 +4688,7 @@ window.showAnikotoPopupById = function(mal_id) {
     ${safeStudio ? `<span class="meta-pill">${safeStudio}</span>` : ''}
   `;
   const genresHtml = (show.genres || []).filter(Boolean).map(g =>
-    `<a href="${isUpcoming ? `/genre/${encodeURIComponent(g)}` : `/search?genre=${encodeURIComponent(g)}`}" class="genre-pill">${g}</a>`
+    `<a href="/genre/${encodeURIComponent(g)}" class="genre-pill">${g}</a>`
   ).join('');
 
   const synopsis = show.synopsis || show.overview || 'No description available.';
