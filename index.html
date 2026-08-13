@@ -2784,7 +2784,8 @@ window.anioceanData = {};
 async function loadNewAniocean() {
   // ── INSTANT UI: Show skeleton IMMEDIATELY before any API calls ──
   // This ensures users see loading state instead of empty space
-  generateAnioceanSkeleton(14);  // Show 14 skeleton cards while fetching
+  // Use 24 cards to fill 3 rows × ~8 columns (matches grid layout)
+  generateAnioceanSkeleton(24);  // Show 24 skeleton cards while fetching
   
   // Helper to render the horizontal scroll list from an array of anime objects
   // Container is now a flex horizontal scroll - works on all screen sizes
@@ -4974,31 +4975,55 @@ window.showAnikotoPopupById = function(mal_id) {
           </div>`).join('');
       }
 
-      // Skeleton for "New on Aniumi" section — matches aniocean-card style
-      // Shows placeholder cards with poster + title section before API data arrives
-      function generateAnioceanSkeleton(count=14) {
+      // Skeleton for "New on Aniumi" section — matches aniocean-card style EXACTLY
+      // Uses SAME grid layout (40 columns × 165px, gap:12px) as real data
+      function generateAnioceanSkeleton(count=24) {
         const container = document.getElementById('newAnioceanGrid');
         if (!container) return;
         
-        // Generate skeleton cards matching aniocean-card dimensions (165px wide, 3/4.5 aspect ratio)
+        // Generate skeleton cards that MIRROR the exact HTML structure of real aniocean-cards
+        // This ensures identical sizing, gaps, and grid positioning
         container.innerHTML = Array.from({length: count}, (_, i) => `
-          <div class="aniocean-card skeleton-card" style="width:165px;min-width:165px;max-width:165px;animation-delay:${i * 50}ms;">
+          <a href="#" class="aniocean-card skeleton-card" onclick="return false;" 
+             style="pointer-events:none;animation-delay:${i * 40}ms;">
+            <!-- Poster section - matches .aniocean-poster exactly -->
             <div class="aniocean-poster">
-              <div class="skeleton sk-poster" style="width:100%;height:100%;position:absolute;inset:0;border-radius:var(--radius-md);"></div>
-              <!-- Score badge placeholder -->
-              <div class="skeleton" style="position:absolute;top:6px;right:6px;width:40px;height:18px;border-radius:10px;background:rgba(255,255,255,0.1);"></div>
-              <!-- Sub/Dub badge placeholders -->
-              <div class="skeleton" style="position:absolute;bottom:6px;left:6px;width:35px;height:16px;border-radius:8px;background:rgba(255,255,255,0.1);"></div>
+              <!-- Skeleton poster background (uses existing skeletonWave animation) -->
+              <div class="skeleton sk-poster" style="
+                position:absolute;
+                inset:0;
+                border-radius:var(--radius-md);
+              "></div>
+              <!-- Score badge placeholder (top-right) -->
+              <div class="skeleton" style="
+                position:absolute;
+                top:6px;
+                right:6px;
+                width:42px;
+                height:20px;
+                border-radius:10px;
+              "></div>
+              <!-- Sub/Dub badge placeholder (bottom-left) -->
+              <div class="skeleton" style="
+                position:absolute;
+                bottom:6px;
+                left:6px;
+                width:38px;
+                height:18px;
+                border-radius:9px;
+              "></div>
             </div>
-            <!-- Title section below poster -->
-            <div class="aniocean-title-section" style="padding:8px 4px 0;">
-              <div class="skeleton sk-line w60" style="height:9px;margin-bottom:6px;"></div>
-              <div class="skeleton sk-line w90" style="height:11px;"></div>
+            <!-- Title section below poster - matches .aniocean-title-section exactly -->
+            <div class="aniocean-title-section">
+              <!-- Meta line placeholder (type · rating) -->
+              <div class="skeleton sk-line w60" style="height:10px;margin-bottom:7px;"></div>
+              <!-- Title line placeholder -->
+              <div class="skeleton sk-line w95" style="height:12px;"></div>
             </div>
-          </div>
+          </a>
         `).join('');
         
-        console.log(`[New on Aniumi] 💀 Showing ${count} skeleton cards while loading...`);
+        console.log(`[New on Aniumi] 💀 Showing ${count} skeleton cards in grid layout while loading...`);
       }
 
       /* ════════════════════════════════════════════════════════════
