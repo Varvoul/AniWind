@@ -932,6 +932,10 @@
 
     #newReleasesGrid.nr-horizontal {
       display: grid;
+      /* Reset the explicit column tracks set by .grid-container (repeat(7,1fr) etc.)
+         so ONLY grid-auto-columns governs sizing — mixing the two caused the
+         next column to bleed partially into view instead of staying off-screen. */
+      grid-template-columns: none;
       grid-auto-flow: column;
       grid-template-rows: repeat(2, auto);
       grid-auto-columns: var(--nr-col-width, 200px);
@@ -3492,8 +3496,10 @@ window.showAnikotoPopupById = function(mal_id) {
         
         const tv = (tvOnAir.results||[]).slice(0,20).map(i => ({
           id:`tmdb-tv-${i.id}`, title:i.name, poster:tmdbImg(i.poster_path), type:'TV',
-          duration:'45m/ep', score:(i.vote_average||0).toFixed(1),
-          status:'Airing', episodes: i.number_of_episodes||'?',
+          score:(i.vote_average||0).toFixed(1),
+          status:'Airing',
+          country: (i.origin_country && i.origin_country.length) ? i.origin_country.join('/') : 'N/A',
+          voteCount: i.vote_count || 0,
         }));
         
         // Convert AniList data
@@ -3525,19 +3531,28 @@ window.showAnikotoPopupById = function(mal_id) {
       }
       function renderTopAiring(shows) {
         const container = document.getElementById('topAiringScroll');
-        container.innerHTML = shows.map(s => `
+        container.innerHTML = shows.map(s => {
+          const isTmdbTv = s.type === 'TV';
+          // TMDB doesn't reliably provide episode counts on this endpoint — show
+          // country + vote count instead of the hardcoded/placeholder episode data.
+          const posterBadge = isTmdbTv ? s.country : `EP ${s.episodes||'?'}`;
+          const metaLine = isTmdbTv
+            ? `${s.type} · ${s.status} · ${s.country} · ${s.voteCount}`
+            : `${s.type} · ${s.duration} · ${s.status} · ${s.episodes} EP`;
+          return `
           <div class="show-card-horiz" style="position:relative;">
             <a href="${infoUrl(s)}" class="show-card-horiz" style="position:static;">
               <div class="card-poster" style="background-image:url('${s.poster}');">
-                <span class="ranking-badge">EP ${s.episodes||'?'}</span>
+                <span class="ranking-badge">${posterBadge}</span>
                 <span class="score-badge"><i class="fas fa-star"></i> ${s.score}</span>
                 <div class="play-overlay"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" fill="white"/></svg></div>
               </div>
               <h3 class="card-title">${s.title}</h3>
-              <div class="card-meta-sm">${s.type} · ${s.duration} · ${s.status} · ${s.episodes} EP</div>
+              <div class="card-meta-sm">${metaLine}</div>
             </a>
             ${generateCardButtons(s, { compact: true, showBookmark: false, showDetails: false })}
-          </div>`).join('');
+          </div>`;
+        }).join('');
       }
       /* ── Shared helper: compute a "visible width minus one card" scroll amount ── */
       function getRowScrollAmount(container) {
@@ -3850,6 +3865,14 @@ window.showAnikotoPopupById = function(mal_id) {
               grid.scrollBy({ left: e.key === 'ArrowLeft' ? -nrGetScrollAmount() : nrGetScrollAmount(), behavior: 'smooth' });
             }
           });
+        }
+        // Belt-and-suspenders: recompute column width whenever the container's
+        // actual box size changes (sidebar/font/image reflows, not just window resize)
+        if (grid && 'ResizeObserver' in window) {
+          const ro = new ResizeObserver(() => {
+            if (grid.classList.contains('nr-horizontal')) nrLayoutColumns();
+          });
+          ro.observe(grid);
         }
       }
 
