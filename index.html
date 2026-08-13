@@ -435,13 +435,13 @@
     .card-poster.no-image::before { content:'No'; position:absolute; top:40%; left:50%; transform:translate(-50%,-50%); color:#94a3b8; font-size:0.75rem; font-weight:600; letter-spacing:2px; text-transform:uppercase; z-index:1; user-select:none; }
     .card-poster.no-image::after { content:'Image'; position:absolute; top:55%; left:50%; transform:translate(-50%,-50%); color:#94a3b8; font-size:0.7rem; font-weight:600; letter-spacing:1px; text-transform:uppercase; z-index:1; user-select:none; }
 
-    /* NEW ON ANIOCEAN SECTION - 3-Row Horizontal Scroll Shelf (Netflix-style), desktop only */
+    /* NEW ON ANIOCEAN SECTION - 3-Row Horizontal Scroll Shelf (Netflix-style), computer only */
     .new-aniocean-shelf {
       /* Use CSS Grid for true 3-row horizontal scroll */
       display: grid;
-      /* Create 60 columns of 165px each (cards fill left-to-right, top-to-bottom) */
-      grid-template-columns: repeat(60, 165px);
-      /* Exactly 3 rows (desktop only) - for 3-row layout as requested */
+      /* Create 40 columns of 165px each (cards fill left-to-right, top-to-bottom) */
+      grid-template-columns: repeat(40, 165px);
+      /* Exactly 3 rows (desktop only) */
       grid-template-rows: repeat(3, auto);
       /* CRITICAL: fill column-by-column (row1,row2,row3 triples) instead of the default
          row-by-row flow, which was stacking every card into row 1 only */
@@ -917,24 +917,14 @@
     }
     #newReleasesGrid .action-btns-row { align-items: center; }
 
-    /* Empty state per tab */
-    .nr-empty-state {
-      grid-column: 1 / -1;
-      text-align: center;
-      padding: 60px 20px;
-      color: var(--text-muted);
-    }
-    .nr-empty-state i { font-size: 1.8rem; opacity: 0.35; margin-bottom: 10px; display: block; }
-    .nr-empty-state span { font-size: 0.85rem; }
-
     /* ════════════════════════════════════════════════════════════
-       NEW RELEASES — "All" tab, 3-row horizontal layout
-       Row 1: anime · Row 2: TMDB TV · Row 3: TMDB movies
-       Column count adapts to screen width; chevrons scroll by one
+       NEW RELEASES — "All" tab, desktop-only 3-row horizontal layout
+       Row 1: anime · Row 2: TMDB TV · Row 3: TMDB movies. Column count
+       adapts to screen width; chevrons + keyboard arrows scroll by one
        full page of columns so edges are always exactly aligned.
        ════════════════════════════════════════════════════════════ */
     .nr-scroll-controls { display: none; align-items: center; gap: 8px; }
-    /* Only show chevrons once JS confirms horizontal layout is active */
+    /* Only show the chevrons once JS confirms the horizontal layout is active */
     .nr-header-controls.nr-horiz-active .nr-scroll-controls { display: flex; }
     @media (max-width: 1024px) {
       .nr-scroll-controls { display: none !important; }
@@ -942,6 +932,9 @@
 
     #newReleasesGrid.nr-horizontal {
       display: grid;
+      /* Reset the explicit column tracks set by .grid-container (repeat(7,1fr) etc.)
+         so ONLY grid-auto-columns governs sizing — mixing the two caused the
+         next column to bleed partially into view instead of staying off-screen. */
       grid-template-columns: none;
       grid-auto-flow: column;
       grid-template-rows: repeat(3, auto);
@@ -958,11 +951,47 @@
       scroll-snap-align: start;
       width: 100%;
     }
-    /* Featured spotlight card - never span rows/cols in horizontal mode */
+    /* Featured spotlight card only makes sense in the vertical grid —
+       never let it span rows/cols here, or it breaks the anime/other split */
     #newReleasesGrid.nr-horizontal .nr-featured {
       grid-column: auto;
       grid-row: auto;
     }
+
+    /* ── Upcoming Shows: match New Releases' play/heart button styling ── */
+    #upcomingScroll .action-btn.action-watch {
+      background: var(--btn-primary);
+      border-color: var(--btn-primary);
+      width: 38px; height: 38px; font-size: 0.92rem;
+      box-shadow: 0 4px 14px rgba(43,108,176,0.5);
+    }
+    #upcomingScroll .action-btn.action-watch:hover {
+      background: var(--btn-primary-hover);
+      border-color: var(--btn-primary-hover);
+      transform: scale(1.08);
+    }
+    #upcomingScroll .action-btn.action-heart {
+      background: rgba(255,255,255,0.06);
+      border: 1.5px solid rgba(255,255,255,0.35);
+      width: 32px; height: 32px; font-size: 0.75rem;
+      align-self: center;
+    }
+    #upcomingScroll .action-btn.action-heart:hover {
+      background: rgba(237,100,166,0.16);
+      border-color: var(--link-accent);
+      color: var(--link-accent);
+    }
+    #upcomingScroll .action-btns-row { align-items: center; }
+
+    /* Empty state per tab */
+    .nr-empty-state {
+      grid-column: 1 / -1;
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-muted);
+    }
+    .nr-empty-state i { font-size: 1.8rem; opacity: 0.35; margin-bottom: 10px; display: block; }
+    .nr-empty-state span { font-size: 0.85rem; }
 
     /* sidebar - wider and improved */
     .sidebar-list-item { display:flex; gap:12px; align-items:center; padding:10px 8px; border-radius:var(--radius-sm); cursor:pointer; transition:background var(--transition-fast); margin-bottom:2px; }
@@ -1114,89 +1143,6 @@
       display:inline-flex; align-items:center; gap:3px;
     }
     .pa-score i { font-size:0.54rem; }
-
-    /* ── POPULAR ANIME HOVER POP-UP ── */
-    .pa-popup {
-      position: fixed;
-      z-index: 9999;
-      pointer-events: none;
-      opacity: 0;
-      transform: translateY(8px);
-      transition: opacity 0.2s ease, transform 0.2s ease;
-    }
-    .pa-popup.active {
-      opacity: 1;
-      transform: translateY(0);
-      pointer-events: auto;
-    }
-    .pa-popup-inner {
-      background: linear-gradient(135deg, #1a2945 0%, #0f223d 100%);
-      border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 12px;
-      padding: 14px 16px;
-      min-width: 280px;
-      max-width: 320px;
-      box-shadow: 0 12px 40px rgba(0,0,0,0.6), 0 0 1px rgba(0,0,0,0.15);
-    }
-    .popup-header {
-      display: flex;
-      align-items: baseline;
-      gap: 10px;
-      margin-bottom: 10px;
-      padding-bottom: 10px;
-      border-bottom: 1px solid rgba(255,255,255,0.08);
-    }
-    .popup-rank {
-      font-family: var(--font-title);
-      font-size: 1.1rem;
-      font-weight: 800;
-      color: #fbbf24;
-      text-shadow: 0 0 10px rgba(251,191,36,0.7);
-    }
-    .popup-title {
-      font-size: 0.88rem;
-      font-weight: 700;
-      color: #fff;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      max-width: 180px;
-    }
-    .popup-genres {
-      margin-bottom: 10px;
-    }
-    .popup-genre-label {
-      font-size: 0.72rem;
-      color: #94a3b8;
-      margin-bottom: 6px;
-      display: block;
-    }
-    .popup-genre-tag {
-      display: inline-block;
-      font-size: 0.68rem;
-      font-weight: 600;
-      background: rgba(99, 102, 241, 0.25);
-      border: 1px solid rgba(99, 102, 241, 0.35);
-      border-radius: 20px;
-      padding: 3px 10px;
-      color: #c7d2fe;
-      margin: 2px 4px 2px 0;
-      white-space: nowrap;
-    }
-    .popup-link {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 0.75rem;
-      color: var(--link-accent);
-      font-weight: 600;
-      cursor: pointer;
-      padding-top: 8px;
-      border-top: 1px solid rgba(255,255,255,0.06);
-    }
-    .popup-link:hover {
-      color: #fff;
-    }
 
     /* popup */
     .popup-overlay { position:fixed; inset:0; z-index:500; display:flex; align-items:center; justify-content:center; pointer-events:none; }
@@ -1769,9 +1715,9 @@
       .main-layout { flex-direction:column; }
       .main-content, .sidebar-right { flex:1; max-width:100%; padding:0 16px; }
       .sidebar-right { position:static; width:100%; padding:0 16px; }
-      /* Tablet: Adjust 2-row grid for smaller screens (3-row is desktop only) */
+      /* Tablet: keep 2-row grid — the 3-row layout is desktop/computer only */
       .new-aniocean-shelf {
-        grid-template-columns: repeat(40, 150px);
+        grid-template-columns: repeat(30, 150px);
         grid-template-rows: repeat(2, auto);
         height: calc(((150px * 4.5 / 3) + 70px) * 2 + 12px);
         max-height: 600px;
@@ -1790,6 +1736,7 @@
         gap: 8px;
         /* Mobile: Show 2 columns per row, still 2 rows = 4 cards visible */
         grid-template-columns: repeat(20, calc((100vw - 32px - 8px) / 2));
+        grid-template-rows: repeat(2, auto);
         height: auto;
         max-height: none;
       }
@@ -1951,7 +1898,6 @@
   transform: scale(1.02);
 }
   </style>
-  <script src="/aniumi-cache.js"></script>
 </head>
 <body>
   <!-- header injected by shared.js -->
@@ -1968,7 +1914,7 @@
 
   <div class="main-layout">
     <div class="main-content">
-      <section class="section">
+      <section class="section" id="topAiringSection">
         <div class="section-header">
           <h2 class="section-title">Top Airing</h2>
           <div class="section-controls">
@@ -2014,7 +1960,7 @@
         <div class="horizontal-scroll new-aniocean-shelf" id="newAnioceanGrid"></div>
       </section>
 
-      <section class="section">
+      <section class="section" id="upcomingSection">
         <div class="section-header">
           <h2 class="section-title">Upcoming Shows</h2>
           <div class="section-controls">
@@ -2132,13 +2078,13 @@
         }
 
         // Fallback: id-prefix guessing (only used when show.type is missing)
-        if (id.startsWith('tmdb-mv-') || id.startsWith('tmdb-movie-') || id.startsWith('tmdb-up-') || id.startsWith('tmdb-comp-movie-')) {
-          const numeric = show.tmdb_id || id.replace(/^tmdb-(?:mv|movie|up|comp-movie)-/, '');
+        if (id.startsWith('tmdb-mv-') || id.startsWith('tmdb-movie-') || id.startsWith('tmdb-up-')) {
+          const numeric = show.tmdb_id || id.replace(/^tmdb-(?:mv|movie|up)-/, '');
           const base = `/info/movie/tmdb-movie-${numeric}`;
           return slug ? `${base}/${slug}` : base;
         }
 
-        if (id.startsWith('tmdb-tv-') || id.startsWith('tmdb-tvpop-') || id.startsWith('tmdb-comp-tv-') || id.startsWith('tmdb-comp-') || id.startsWith('tmdb-uptv-')) {
+        if (id.startsWith('tmdb-tv-') || id.startsWith('tmdb-tvpop-') || id.startsWith('tmdb-comp-') || id.startsWith('tmdb-uptv-')) {
           const numeric = show.tmdb_id || id.replace(/^tmdb-(?:tv|tvpop|comp|uptv)-/, '');
           const base = `/info/tv/tmdb-tv-${numeric}`;
           const seasonSuffix = season ? `-season-${season}` : '';
@@ -2778,13 +2724,6 @@
 window.anioceanData = {};
 
 async function loadNewAniocean() {
-  const container = document.getElementById('newAnioceanGrid');
-  
-  // ── Show skeleton immediately while fetching ──
-  if (container) {
-    container.innerHTML = generateAnioceanSkeleton(14); // 2 rows × 7 columns
-  }
-  
   // Helper to render the horizontal scroll list from an array of anime objects
   // Container is now a flex horizontal scroll - works on all screen sizes
   function renderAnimeList(animeList) {
@@ -2795,7 +2734,7 @@ async function loadNewAniocean() {
     }
     if (!container) return false;
 
-    // For horizontal scroll, show up to 80 items (3 rows × ~27 columns)
+    // For horizontal scroll, show up to 80 items (matches the increased fetch quantity)
     const MAX_SHOWS = 80;
     const displayList = animeList.slice(0, MAX_SHOWS);
 
@@ -2866,14 +2805,17 @@ async function loadNewAniocean() {
     } catch(e) {}
   }
 
-  // ----- PRIMARY: Anikoto proxy (80 items for 3 complete rows) -----
+  // ----- PRIMARY: Anikoto proxy (100 items for 6 complete rows) -----
   try {
     console.log('[New on Aniumi] Trying Anikoto API...');
-    const response = await fetchAnikoto('/recent-anime?page=1&per_page=80');
+    const response = await fetchAnikoto('/recent-anime?page=1&per_page=100');
     if (response.ok && response.data && response.data.length > 0) {
       const data = response.data;
       const formatted = data.map(anime => ({
-        mal_id: anime.mal_id || anime.id,
+        // Never fall back to the Anikoto/internal `id` here — that is NOT a
+        // MAL id, and using it would silently link to the wrong anime.
+        // Missing/empty mal_id is backfilled below via confident title search.
+        mal_id: anime.mal_id || null,
         title: anime.title,
         slug: anime.slug,
         poster: anime.poster,
@@ -2888,8 +2830,25 @@ async function loadNewAniocean() {
         is_sub: anime.is_sub || 0,
         is_dub: anime.is_dub || 0
       }));
+
+      // Backfill any missing mal_id via confident Jikan title search before
+      // deduping (dedup keys on mal_id, so nulls must be resolved first or
+      // they'd collapse into a single entry).
+      const cleaned = cleanJikan(formatted);
+      const backfilled = await mapWithConcurrency(cleaned, 3, async (anime) => {
+        if (anime.mal_id) return anime; // already has one — leave as-is
+        const media = {
+          title: { english: anime.title, romaji: anime.title, native: null },
+          startDate: { year: (anime.year && anime.year !== '?') ? parseInt(anime.year, 10) : null },
+          episodes: null
+        };
+        const malId = await findMalIdByTitle(media);
+        if (!malId) return null; // no confident match — skip rather than risk a wrong link
+        return { ...anime, mal_id: malId };
+      });
+
       // Deduplicate by mal_id
-      const unique = dedupById(cleanJikan(formatted), 'mal_id');
+      const unique = dedupById(backfilled.filter(Boolean), 'mal_id');
       
       // Use exactly 6 rows (fixed limit)
       if (renderAnimeList(unique)) {
@@ -2917,31 +2876,35 @@ async function loadNewAniocean() {
     `, { perPage: 80 });
 
     if (anilistData?.Page?.media && anilistData.Page.media.length > 0) {
-      // Convert AniList format to our internal format
-      const formattedAnilist = anilistData.Page.media
-        .filter(m => !m.isAdult)
-        .map(m => {
-          const internal = anilistToInternal(m);
-          return {
-            mal_id: m.idMal || m.id,
-            title: internal.title,
-            slug: internal.slug,
-            poster: internal.poster,
-            score: internal.score,
-            type: internal.type || 'TV',
-            rating: internal.rating,
-            description: internal.description || 'No description available.',
-            year: String(internal.year),
-            duration: internal.duration,
-            genres: internal.genres,
-            studio: internal.studio,
-            is_sub: 1,
-            is_dub: 0
-          };
-        });
+      // Convert AniList format to our internal format — backfill any anime
+      // missing idMal via confident Jikan title search instead of guessing
+      // (AniList's own numeric `id` is NOT a MAL id and must never be used).
+      const candidates = anilistData.Page.media.filter(m => !m.isAdult);
+      const resolved = await mapWithConcurrency(candidates, 3, async (m) => {
+        let malId = m.idMal || null;
+        if (!malId) malId = await findMalIdByTitle(m);
+        if (!malId) return null; // no confident match — skip rather than risk a wrong link
+        const internal = anilistToInternal(m);
+        return {
+          mal_id: malId,
+          title: internal.title,
+          slug: internal.slug,
+          poster: internal.poster,
+          score: internal.score,
+          type: internal.type || 'TV',
+          rating: internal.rating,
+          description: internal.description || 'No description available.',
+          year: String(internal.year),
+          duration: internal.duration,
+          genres: internal.genres,
+          studio: internal.studio,
+          is_sub: 1,
+          is_dub: 0
+        };
+      });
 
       // Deduplicate by mal_id
-      const unique = dedupById(formattedAnilist, 'mal_id');
+      const unique = dedupById(resolved.filter(Boolean), 'mal_id');
 
       if (unique.length === 0) {
         throw new Error('No anime data from AniList');
@@ -2972,7 +2935,7 @@ window.showAnikotoPopupById = function(mal_id) {
   if (!anime) return;
   
   const starIcon = '<i class="fas fa-star" style="color:var(--accent-gold)"></i>';
-  const genresHtml = anime.genres.map(g => `<a href="/search?genre=${encodeURIComponent(g)}" class="genre-pill">${g}</a>`).join('');
+  const genresHtml = anime.genres.map(g => `<a href="/genre/${encodeURIComponent(g)}" class="genre-pill">${g}</a>`).join('');
   
   document.getElementById('popupContent').innerHTML = `
     <div class="anikoto-popup">
@@ -3534,47 +3497,6 @@ window.showAnikotoPopupById = function(mal_id) {
       document.getElementById('nextSlide').addEventListener('click', ()=>goToSlide(currentSlide+1));
       // Auto-advance is started inside renderHero() to avoid stacking intervals
 
-      /* ── SMART SCROLL HELPERS (for Top Airing & other horizontal sections) ── */
-      
-      /**
-       * Calculates how many pixels to scroll based on visible card columns.
-       * Ensures edges always align perfectly - no partial cards visible.
-       */
-      function getRowScrollAmount(scrollContainer) {
-        if (!scrollContainer) return 400; // fallback
-        
-        const cardWidth = 165; // Standard card width
-        const gap = 14; // Gap between cards (from .horizontal-scroll / .new-aniocean-shelf)
-        const containerWidth = scrollContainer.clientWidth;
-        
-        // Calculate how many full columns are visible
-        const visibleCols = Math.floor((containerWidth + gap) / (cardWidth + gap));
-        // Scroll by (visibleCols - 1) to show overlap for context, or at least 1 column
-        const scrollCols = Math.max(1, visibleCols - 1);
-        
-        return scrollCols * (cardWidth + gap);
-      }
-      
-      /**
-       * Enables keyboard arrow key scrolling when hovering over a section.
-       * Left/Right arrows scroll by one page of columns.
-       */
-      function enableArrowKeyScroll(sectionEl, containerEl) {
-        if (!sectionEl || !containerEl) return;
-        
-        document.addEventListener('keydown', (e) => {
-          if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') &&
-              (sectionEl.matches(':hover') || containerEl.matches(':hover'))) {
-            e.preventDefault();
-            const amount = getRowScrollAmount(containerEl);
-            containerEl.scrollBy({ 
-              left: e.key === 'ArrowLeft' ? -amount : amount, 
-              behavior: 'smooth' 
-            });
-          }
-        });
-      }
-
       /* ── TOP AIRING ── */
       async function loadTopAiring() {
         if (window.AniCache) {
@@ -3599,8 +3521,10 @@ window.showAnikotoPopupById = function(mal_id) {
         
         const tv = (tvOnAir.results||[]).slice(0,20).map(i => ({
           id:`tmdb-tv-${i.id}`, title:i.name, poster:tmdbImg(i.poster_path), type:'TV',
-          duration:'45m/ep', score:(i.vote_average||0).toFixed(1),
-          status:'Airing', episodes: i.number_of_episodes||'?',
+          score:(i.vote_average||0).toFixed(1),
+          status:'Airing',
+          country: (i.origin_country && i.origin_country.length) ? i.origin_country.join('/') : 'N/A',
+          voteCount: i.vote_count || 0,
         }));
         
         // Convert AniList data
@@ -3632,24 +3556,52 @@ window.showAnikotoPopupById = function(mal_id) {
       }
       function renderTopAiring(shows) {
         const container = document.getElementById('topAiringScroll');
-        container.innerHTML = shows.map(s => `
+        container.innerHTML = shows.map(s => {
+          const isTmdbTv = s.type === 'TV';
+          // TMDB doesn't reliably provide episode counts on this endpoint — show
+          // country + vote count instead of the hardcoded/placeholder episode data.
+          const posterBadge = isTmdbTv ? s.country : `EP ${s.episodes||'?'}`;
+          const metaLine = isTmdbTv
+            ? `${s.type} · ${s.status} · ${s.country} · ${s.voteCount}`
+            : `${s.type} · ${s.duration} · ${s.status} · ${s.episodes} EP`;
+          return `
           <div class="show-card-horiz" style="position:relative;">
             <a href="${infoUrl(s)}" class="show-card-horiz" style="position:static;">
               <div class="card-poster" style="background-image:url('${s.poster}');">
-                <span class="ranking-badge">EP ${s.episodes||'?'}</span>
+                <span class="ranking-badge">${posterBadge}</span>
                 <span class="score-badge"><i class="fas fa-star"></i> ${s.score}</span>
                 <div class="play-overlay"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" fill="white"/></svg></div>
               </div>
               <h3 class="card-title">${s.title}</h3>
-              <div class="card-meta-sm">${s.type} · ${s.duration} · ${s.status} · ${s.episodes} EP</div>
+              <div class="card-meta-sm">${metaLine}</div>
             </a>
             ${generateCardButtons(s, { compact: true, showBookmark: false, showDetails: false })}
-          </div>`).join('');
+          </div>`;
+        }).join('');
       }
+      /* ── Shared helper: compute a "visible width minus one card" scroll amount ── */
+      function getRowScrollAmount(container) {
+        const cardWidth = 165; // Fixed card width
+        const gap = 14;
+        const containerWidth = container.clientWidth;
+        const visibleCols = Math.floor((containerWidth + gap) / (cardWidth + gap));
+        return Math.max(1, visibleCols - 1) * (cardWidth + gap);
+      }
+      /* ── Shared helper: enable PC left/right arrow-key scrolling while hovering a section ── */
+      function enableArrowKeyScroll(sectionEl, containerEl) {
+        if (!sectionEl || !containerEl) return;
+        document.addEventListener('keydown', (e) => {
+          if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') &&
+              (sectionEl.matches(':hover') || containerEl.matches(':hover'))) {
+            e.preventDefault();
+            const amount = getRowScrollAmount(containerEl);
+            containerEl.scrollBy({ left: e.key === 'ArrowLeft' ? -amount : amount, behavior: 'smooth' });
+          }
+        });
+      }
+
       document.getElementById('topAiringLeft').addEventListener('click',()=> document.getElementById('topAiringScroll').scrollBy({left:-getRowScrollAmount(document.getElementById('topAiringScroll')),behavior:'smooth'}));
       document.getElementById('topAiringRight').addEventListener('click',()=> document.getElementById('topAiringScroll').scrollBy({left:getRowScrollAmount(document.getElementById('topAiringScroll')),behavior:'smooth'}));
-      
-      // Enable keyboard arrow key scrolling for Top Airing section
       enableArrowKeyScroll(document.getElementById('topAiringSection'), document.getElementById('topAiringScroll'));
 
       /* ── NEW ON ANIUMI - 2-Row Horizontal Scroll ── */
@@ -3802,79 +3754,15 @@ window.showAnikotoPopupById = function(mal_id) {
         setCount('nrCountMovie', (allReleases.movie||[]).length);
         setCount('nrCountTv',    (allReleases.tv||[]).length);
       }
-      function renderNewReleases(filter) {
-        const grid = document.getElementById('newReleasesGrid');
-        const headerControls = document.querySelector('.nr-header-controls');
-        
-        // Check if we should use 3-row horizontal layout (only for "All" tab on desktop)
-        const isDesktop = window.innerWidth > 1024;
-        const useHorizontalLayout = (filter === 'all' && isDesktop);
-        
-        // Toggle horizontal mode CSS class
-        if (useHorizontalLayout) {
-          grid.classList.add('nr-horizontal');
-          if (headerControls) headerControls.classList.add('nr-horiz-active');
-        } else {
-          grid.classList.remove('nr-horizontal');
-          if (headerControls) headerControls.classList.remove('nr-horiz-active');
-        }
-        
-        if (filter === 'all') {
-          // ── 3-ROW HORIZONTAL LAYOUT: Anime | TV | Movies ──
-          const animeItems = allReleases.anime || [];
-          const tvItems = allReleases.tv || [];
-          const movieItems = allReleases.movie || [];
-          
-          if (!animeItems.length && !tvItems.length && !movieItems.length) {
-            grid.innerHTML = `<div class="nr-empty-state">
-              <i class="fas fa-inbox"></i>
-              <span>No releases available right now</span>
-            </div>`;
-            return;
-          }
-          
-          // Build 3 rows: interleave anime, tv, movies in column-order
-          // Each "column" contains up to 3 items (one per row)
-          const maxCols = Math.max(animeItems.length, tvItems.length, movieItems.length);
-          let html = '';
-          
-          for (let col = 0; col < maxCols; col++) {
-            // Row 1: Anime
-            if (col < animeItems.length) html += renderNrCard(animeItems[col], col === 0);
-            // Row 2: TV
-            if (col < tvItems.length) html += renderNrCard(tvItems[col], false);
-            // Row 3: Movie
-            if (col < movieItems.length) html += renderNrCard(movieItems[col], false);
-          }
-          
-          grid.innerHTML = html;
-          
-          // Setup horizontal scroll controls
-          setupNrScrollControls(grid);
-          
-        } else {
-          // ── SINGLE TYPE: Normal grid layout ──
-          const data = allReleases[filter] || [];
 
-          if (!data.length) {
-            grid.innerHTML = `<div class="nr-empty-state">
-              <i class="fas fa-inbox"></i>
-              <span>No ${filter} available right now</span>
-            </div>`;
-            return;
-          }
-
-          grid.innerHTML = data.map((s, idx) => renderNrCard(s, idx === 0)).join('');
-        }
-      }
-      
-      // Helper: Render a single New Releases card (used by both layouts)
-      function renderNrCard(s, isFeatured) {
+      /* Single card markup builder shared by both the vertical grid and the
+         horizontal "All" layout, so both stay visually identical. */
+      function buildReleaseCardHTML(s, { featured = false } = {}) {
         const hasPoster = s.poster && s.poster !== '' && s.poster !== 'null' && s.poster !== 'undefined';
         const posterStyle = hasPoster ? `background-image:url('${s.poster}');` : 'background:linear-gradient(135deg, #1e293b 0%, #334155 100%);';
         const noImageClass = hasPoster ? '' : 'no-image';
-        const featuredCls = isFeatured ? ' nr-featured' : '';
-        const featuredRibbon = isFeatured ? `<span class="nr-featured-ribbon">New</span>` : '';
+        const featuredCls = featured ? ' nr-featured' : '';
+        const featuredRibbon = featured ? `<span class="nr-featured-ribbon">New</span>` : '';
 
         if (s.type === 'Anime') {
           const ratingText = RATING_EXPLAIN[s.rating] || s.rating;
@@ -3887,7 +3775,7 @@ window.showAnikotoPopupById = function(mal_id) {
                 <div class="play-overlay"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" fill="white"/></svg></div>
               </div>
               <div class="card-info-grid">
-                <div class="card-meta-sm"><span class="nr-type-dot nr-anime"></span>${s.type} · ${s.duration==='?'?'':s.duration} · ${ratingText || s.rating}</div>
+                <div class="card-meta-sm"><span class="nr-type-dot nr-anime"></span>${s.type} · ${s.duration==='?'?'?':s.duration} · ${ratingText || s.rating}</div>
                 <div class="card-title">${s.title}</div>
               </div>
             </a>
@@ -3924,34 +3812,127 @@ window.showAnikotoPopupById = function(mal_id) {
               </div>
             </a>
             ${generateCardButtons(s, { compact: true, showBookmark: false, showDetails: false })}
-           </div>`;
+         </div>`;
         }
       }
-      
-      // Setup scroll controls for New Releases horizontal mode
-      function setupNrScrollControls(container) {
+
+      /* ── Horizontal "All" layout (computer only): row1 = anime, row2 = movie/TV ── */
+      const NR_HORIZ_MIN_WIDTH = 1024;
+      function nrCalcCols() {
+        const w = window.innerWidth;
+        if (w > 1800) return 7;
+        if (w > 1400) return 6;
+        if (w > 1200) return 5;
+        return 4; // 1024–1200
+      }
+      function nrIsHorizontalActive() {
+        return currentNewReleasesFilter === 'all' && window.innerWidth > NR_HORIZ_MIN_WIDTH;
+      }
+      function nrBuildHorizontalList() {
+        // Row 1 = anime, Row 2 = TMDB TV, Row 3 = TMDB movies. Interleaving
+        // in triples lets grid-auto-flow:column sort them into their rows
+        // automatically (item1->row1, item2->row2, item3->row3, item4->row1, ...).
+        const animeList = allReleases.anime || [];
+        const tvList = allReleases.tv || [];
+        const movieList = allReleases.movie || [];
+        const n = Math.min(animeList.length, tvList.length, movieList.length);
+        const combined = [];
+        for (let i = 0; i < n; i++) {
+          combined.push(animeList[i], tvList[i], movieList[i]);
+        }
+        // Append any leftovers from longer lists at the end
+        combined.push(...animeList.slice(n), ...tvList.slice(n), ...movieList.slice(n));
+        return combined;
+      }
+      function nrLayoutColumns() {
+        const grid = document.getElementById('newReleasesGrid');
+        if (!grid || !grid.classList.contains('nr-horizontal')) return;
+        const cols = nrCalcCols();
+        const gap = 14;
+        const containerWidth = grid.clientWidth;
+        const colWidth = Math.floor((containerWidth - gap * (cols - 1)) / cols);
+        grid.style.setProperty('--nr-col-width', colWidth + 'px');
+        grid.dataset.nrCols = cols;
+      }
+      function nrGetScrollAmount() {
+        const grid = document.getElementById('newReleasesGrid');
+        return grid ? grid.clientWidth : 0;
+      }
+      let _nrResizeTimer = null;
+      window.addEventListener('resize', () => {
+        clearTimeout(_nrResizeTimer);
+        _nrResizeTimer = setTimeout(() => {
+          const shouldBeHorizontal = nrIsHorizontalActive();
+          const grid = document.getElementById('newReleasesGrid');
+          if (!grid) return;
+          const isHorizontal = grid.classList.contains('nr-horizontal');
+          if (shouldBeHorizontal !== isHorizontal) {
+            // Crossed the desktop breakpoint or tab changed layout mode — re-render fully
+            renderNewReleases(currentNewReleasesFilter);
+          } else if (shouldBeHorizontal) {
+            nrLayoutColumns();
+          }
+        }, 200);
+      });
+      let _nrScrollWired = false;
+      function nrWireScrollControls() {
+        if (_nrScrollWired) return;
+        _nrScrollWired = true;
         const leftBtn = document.getElementById('nrScrollLeft');
         const rightBtn = document.getElementById('nrScrollRight');
-        
-        if (!leftBtn || !rightBtn || !container) return;
-        
-        // Remove old listeners by cloning
-        const newLeft = leftBtn.cloneNode(true);
-        const newRight = rightBtn.cloneNode(true);
-        leftBtn.parentNode.replaceChild(newLeft, leftBtn);
-        rightBtn.parentNode.replaceChild(newRight, rightBtn);
-        
-        // Update IDs
-        newLeft.id = 'nrScrollLeft';
-        newRight.id = 'nrScrollRight';
-        
-        // Add click handlers with smart scrolling
-        newLeft.addEventListener('click', () => {
-          container.scrollBy({ left: -getRowScrollAmount(container), behavior: 'smooth' });
-        });
-        newRight.addEventListener('click', () => {
-          container.scrollBy({ left: getRowScrollAmount(container), behavior: 'smooth' });
-        });
+        const grid = document.getElementById('newReleasesGrid');
+        const section = grid ? grid.closest('.section') : null;
+        if (leftBtn) leftBtn.addEventListener('click', () => grid.scrollBy({ left: -nrGetScrollAmount(), behavior: 'smooth' }));
+        if (rightBtn) rightBtn.addEventListener('click', () => grid.scrollBy({ left: nrGetScrollAmount(), behavior: 'smooth' }));
+        if (section && grid) {
+          document.addEventListener('keydown', (e) => {
+            if (!grid.classList.contains('nr-horizontal')) return;
+            if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') &&
+                (section.matches(':hover') || grid.matches(':hover'))) {
+              e.preventDefault();
+              grid.scrollBy({ left: e.key === 'ArrowLeft' ? -nrGetScrollAmount() : nrGetScrollAmount(), behavior: 'smooth' });
+            }
+          });
+        }
+        // Belt-and-suspenders: recompute column width whenever the container's
+        // actual box size changes (sidebar/font/image reflows, not just window resize)
+        if (grid && 'ResizeObserver' in window) {
+          const ro = new ResizeObserver(() => {
+            if (grid.classList.contains('nr-horizontal')) nrLayoutColumns();
+          });
+          ro.observe(grid);
+        }
+      }
+
+      function renderNewReleases(filter) {
+        const grid = document.getElementById('newReleasesGrid');
+        const controls = document.getElementById('nrScrollControls')?.closest('.nr-header-controls');
+        const useHorizontal = filter === 'all' && window.innerWidth > NR_HORIZ_MIN_WIDTH;
+        const data = useHorizontal ? nrBuildHorizontalList() : (allReleases[filter] || []);
+
+        if (!data.length) {
+          grid.classList.remove('nr-horizontal');
+          grid.style.removeProperty('--nr-col-width');
+          if (controls) controls.classList.remove('nr-horiz-active');
+          grid.innerHTML = `<div class="nr-empty-state">
+            <i class="fas fa-inbox"></i>
+            <span>No ${filter === 'all' ? 'releases' : filter} available right now</span>
+          </div>`;
+          return;
+        }
+
+        grid.classList.toggle('nr-horizontal', useHorizontal);
+        if (controls) controls.classList.toggle('nr-horiz-active', useHorizontal);
+
+        grid.innerHTML = data.map((s, idx) => buildReleaseCardHTML(s, { featured: !useHorizontal && idx === 0 })).join('');
+
+        if (useHorizontal) {
+          nrLayoutColumns();
+          nrWireScrollControls();
+          grid.scrollLeft = 0;
+        } else {
+          grid.style.removeProperty('--nr-col-width');
+        }
       }
       document.getElementById('releaseTabs').addEventListener('click', e => {
         const tabBtn = e.target.closest('.toggle-tab');
@@ -3964,6 +3945,7 @@ window.showAnikotoPopupById = function(mal_id) {
           moveGlider('releaseTabs', 'releaseGlider', tabBtn);
           
           const filter = tabBtn.dataset.filter;
+          currentNewReleasesFilter = filter;
           const grid = document.getElementById('newReleasesGrid');
           const label = tabBtn.dataset.filter === 'all' ? 'All' : tabBtn.dataset.filter === 'anime' ? 'Anime' : tabBtn.dataset.filter === 'movie' ? 'Movies' : 'Series';
 
@@ -4260,215 +4242,158 @@ window.showAnikotoPopupById = function(mal_id) {
               <h3 class="card-title">${s.title}</h3>
               <div class="card-meta-sm"><i class="fas fa-star"></i> ${s.score} · ${s.type} · ${s.releaseDate||'TBA'}</div>
             </a>
-            ${generateCardButtons(s, { compact: true })}
+            ${generateCardButtons(s, { compact: true, showBookmark: false, showDetails: false })}
           </div>`;
         }).join('');
       }
-      document.getElementById('upcomingLeft').addEventListener('click', ()=> document.getElementById('upcomingScroll').scrollBy({left:-400}));
-      document.getElementById('upcomingRight').addEventListener('click', ()=> document.getElementById('upcomingScroll').scrollBy({left:400}));
+      document.getElementById('upcomingLeft').addEventListener('click', ()=> document.getElementById('upcomingScroll').scrollBy({left:-getRowScrollAmount(document.getElementById('upcomingScroll')),behavior:'smooth'}));
+      document.getElementById('upcomingRight').addEventListener('click', ()=> document.getElementById('upcomingScroll').scrollBy({left:getRowScrollAmount(document.getElementById('upcomingScroll')),behavior:'smooth'}));
+      enableArrowKeyScroll(document.getElementById('upcomingSection'), document.getElementById('upcomingScroll'));
 
-      /* ── COMPLETED (paginated) - NO CACHE - Always fresh data ── */
+      /* ── COMPLETED (paginated) ── */
       let completedCurrentPage = 1;
       const _compSeenIds = new Set();
-      let _isFetchingCompleted = false; // Prevent duplicate fetches
-      
-      async function loadCompleted(page = 1) {
-        // ── INSTANT UI FEEDBACK: Show active page & loading state immediately ──
-        completedCurrentPage = page;
-        renderPagination(page); // Update buttons instantly
-        
-        // Show skeleton loading grid while fetching
-        const gridEl = document.getElementById('completedGrid');
-        if (gridEl) {
-          function calcCols() {
-            const w = window.innerWidth;
-            if (w <= 520) return 2;
-            if (w <= 600 && window.matchMedia('(orientation: landscape)').matches) return 3;
-            if (w <= 768) return 4;
-            if (w <= 992) return 5;
-            if (w <= 1400) return 6;
-            if (w <= 1800) return 7;
-            return 8;
-          }
-          gridEl.innerHTML = generateCompletedSkeleton(6, calcCols());
+      let _completedPagesCache = {};
+      async function loadCompleted(page=1) {
+        if (window.AniCache && !_completedPagesCache[page]) {
+          const cached = await window.AniCache.get('index:recently_completed').catch(()=>null);
+          if (cached && cached.pages) _completedPagesCache = { ..._completedPagesCache, ...cached.pages };
         }
-        
-        // Prevent duplicate concurrent fetches
-        if (_isFetchingCompleted) {
-          console.log(`[Completed] Already fetching, skipping duplicate request for page ${page}`);
+        if (_completedPagesCache[page] && _completedPagesCache[page].length) {
+          const el = document.getElementById('completedGrid');
+          if (el) el.innerHTML = _completedPagesCache[page].map(s => renderCompletedCard(s)).join('');
+          renderPagination(page);
           return;
         }
-        _isFetchingCompleted = true;
+        completedCurrentPage = page;
         
-        try {
-          // ── ALWAYS FETCH FRESH DATA (no cache) ──
-          
-          // Grid col count - must match CSS grid-template-columns!
-          function calcCols() {
-            const w = window.innerWidth;
-            if (w <= 520) return 2;
-            if (w <= 600 && window.matchMedia('(orientation: landscape)').matches) return 3;
-            if (w <= 768) return 4;
-            if (w <= 992) return 5;
-            if (w <= 1400) return 6;
-            if (w <= 1800) return 7;
-            return 8;
-          }
-          
-          // Calculate target: 6 COMPLETE rows × columns
-          const TARGET_ROWS = 6;
-          const cols = calcCols();
-          const TARGET_SHOWS = TARGET_ROWS * cols;  // e.g., 6×7=42, 6×8=48
-          
-          // Fetch MULTIPLE sources to ensure enough data for 6 rows
-          // Using NEW t-umi proxy + AniList (replacing Jikan)
-          // TMDB in ASCENDING order + TMDB MOVIES (user request!)
-          
-          const [tv, tv2, tv3, movie, movie2, movie3, anilistComp] = await Promise.all([
-            fetchTMDB('/discover/tv', `sort_by=first_air_date.asc&page=${page}`),           // ASCENDING order!
-            fetchTMDB('/discover/tv', `sort_by=first_air_date.asc&page=${page+1}`),         // ASCENDING order!
-            fetchTMDB('/discover/tv', `sort_by=first_air_date.asc&page=${page+2}`),         // ASCENDING order!
-            // TMDB MOVIES: Recently released/completed movies (NEW!)
-            fetchTMDB('/discover/movie', `sort_by=release_date.desc&page=${page}&with_release_type=2|3&release_date.lte=${new Date().toISOString().split('T')[0]}`),
-            fetchTMDB('/discover/movie', `sort_by=release_date.desc&page=${page+1}&with_release_type=2|3&release_date.lte=${new Date().toISOString().split('T')[0]}`),
-            fetchTMDB('/discover/movie', `sort_by=release_date.desc&page=${page+2}&with_release_type=2|3&release_date.lte=${new Date().toISOString().split('T')[0]}`),
-            // AniList: Recently completed anime (replacing Jikan status=complete)
-            fetchAniList(`
-              query ($page: Int, $perPage: Int) {
-                Page(page: $page, perPage: $perPage) {
-                  media(type: ANIME, status: FINISHED, isAdult: false, sort: [END_DATE_DESC]) {
-                    ${ANILIST_ANIME_FIELDS}
-                  }
+        // Grid col count - must match CSS grid-template-columns!
+        function calcCols() {
+          const w = window.innerWidth;
+          if (w <= 520) return 2;
+          if (w <= 600 && window.matchMedia('(orientation: landscape)').matches) return 3;
+          if (w <= 768) return 4;
+          if (w <= 992) return 5;
+          if (w <= 1400) return 6;
+          if (w <= 1800) return 7;
+          return 8;
+        }
+        
+        // Calculate target: 6 COMPLETE rows × columns
+        const TARGET_ROWS = 6;
+        const cols = calcCols();
+        const TARGET_SHOWS = TARGET_ROWS * cols;  // e.g., 6×7=42, 6×8=48
+        
+        // Fetch MULTIPLE pages to ensure enough data for 6 rows
+        // Using NEW t-umi proxy + AniList (replacing Jikan)
+        // TMDB in ASCENDING order (user request!)
+        
+        const [tv, tv2, tv3, anilistComp] = await Promise.all([
+          fetchTMDB('/discover/tv', `sort_by=first_air_date.asc&page=${page}`),       // ASCENDING order!
+          fetchTMDB('/discover/tv', `sort_by=first_air_date.asc&page=${page+1}`),     // ASCENDING order!
+          fetchTMDB('/discover/tv', `sort_by=first_air_date.asc&page=${page+2}`),     // ASCENDING order!
+          // AniList: Recently completed anime (replacing Jikan status=complete)
+          // perPage bumped 50→100 so there's a bigger pool of candidates to
+          // draw from — more raw anime for the MAL-ID backfill step below to
+          // work with, since not every candidate successfully resolves a
+          // confident mal_id and gets kept.
+          fetchAniList(`
+            query ($page: Int, $perPage: Int) {
+              Page(page: $page, perPage: $perPage) {
+                media(type: ANIME, status: FINISHED, isAdult: false, sort: [END_DATE_DESC]) {
+                  ${ANILIST_ANIME_FIELDS}
                 }
               }
-            `, { page: page, perPage: 50 })
-          ]);
-          
-          // Merge multiple TMDB TV pages (ascending order - oldest first)
-          const allTmdbTvResults = [...(tv.results||[]), ...(tv2.results||[]), ...(tv3.results||[])];
-          
-          // Merge TMDB Movie pages (descending order - newest first)
-          const allTmdbMovieResults = [...(movie.results||[]), ...(movie2.results||[]), ...(movie3.results||[])];
-          
-          // Convert AniList completed anime — backfill missing MAL ids via
-          // title search instead of dropping the anime outright, so grid
-          // density isn't lost just because AniList lacks a MAL mapping.
-          let anilistItems = [];
-          if (anilistComp?.Page?.media) {
-            const candidates = anilistComp.Page.media.slice(0, TARGET_SHOWS).filter(m => !m.isAdult);
-            const resolved = await mapWithConcurrency(candidates, 3, async (m) => {
-              let malId = m.idMal || null;
-              if (!malId) {
-                malId = await findMalIdByTitle(m);
-              }
-              // Still no confident mal_id after backfill attempt — skip this
-              // one rather than risk a broken or (worse) wrong-anime link.
-              if (!malId) return null;
-              const internal = anilistToInternal(m);
-              return {
-                id:`anilist-comp-${m.id}`,
-                mal_id: malId,
-                title: internal.title,
-                poster: internal.poster,
-                type: internal.type || 'Anime',
-                year: String(internal.year),
-                score: internal.score,
-                quality: 'HD'
-              };
-            });
-            anilistItems = resolved.filter(Boolean);
-          }
-          
-          // Create items arrays - take enough to fill 6 rows
-          // FILTER: Remove items without valid poster!
-          const tmdbTvItems = allTmdbTvResults
-            .filter(i => {
-              const hasPoster = i.poster_path && i.poster_path !== '' && i.poster_path !== null && i.poster_path !== 'undefined';
-              if (!hasPoster) {
-                console.log(`[Completed Filter] ❌ TV dropped: "${i?.name}" - no poster`);
-              }
-              return hasPoster;
-            })
-            .map(i => ({
-              id:`tmdb-comp-tv-${i.id}`,
-              title:i.name,
-              poster:tmdbImg(i.poster_path),
-              type:'TV',
-              year:(i.first_air_date||'').slice(0,4),
-              score:(i.vote_average||0).toFixed(1),
-              quality:'HD',
-              tmdb_id: i.id
-            }))
-            .slice(0, TARGET_SHOWS * 1.5);  // Fetch extra to compensate for filtered items
-          
-          // NEW: TMDB Movies for Recently Completed section
-          const tmdbMovieItems = allTmdbMovieResults
-            .filter(i => {
-              const hasPoster = i.poster_path && i.poster_path !== '' && i.poster_path !== null && i.poster_path !== 'undefined';
-              if (!hasPoster) {
-                console.log(`[Completed Filter] ❌ Movie dropped: "${i?.title}" - no poster`);
-              }
-              return hasPoster;
-            })
-            .map(i => ({
-              id:`tmdb-comp-movie-${i.id}`,
-              title:i.title,
-              poster:tmdbImg(i.poster_path),
-              type:'Movie',
-              year:(i.release_date||'').slice(0,4),
-              score:(i.vote_average||0).toFixed(1),
-              quality:'HD',
-              tmdb_id: i.id,
-              slug: (i.title||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')
-            }))
-            .slice(0, Math.floor(TARGET_SHOWS * 0.5));  // Fewer movies than TV shows
-          
-          // Also filter Anilist completed anime without posters
-          const anilistItemsFiltered = anilistItems.filter(a => {
-            const hasPoster = a.poster && a.poster !== '' && a.poster !== 'null' && a.poster !== 'undefined';
+            }
+          `, { page: page, perPage: 100 })
+        ]);
+        
+        // Merge multiple TMDB pages (ascending order - oldest first)
+        const allTmdbResults = [...(tv.results||[]), ...(tv2.results||[]), ...(tv3.results||[])];
+        
+        // Convert AniList completed anime — backfill missing MAL ids via
+        // title search instead of dropping the anime outright, so grid
+        // density isn't lost just because AniList lacks a MAL mapping.
+        //
+        // Candidate pool is 2x TARGET_SHOWS (not just TARGET_SHOWS) — some
+        // fraction of candidates won't resolve a confident mal_id via
+        // backfill and get dropped (see the `if (!malId) return null;`
+        // below), so starting with only exactly TARGET_SHOWS candidates
+        // meant a page could end up showing noticeably fewer anime than
+        // intended. The larger pool means losses there don't shrink the
+        // final anime count nearly as much.
+        let anilistItems = [];
+        if (anilistComp?.Page?.media) {
+          const candidates = anilistComp.Page.media.slice(0, TARGET_SHOWS * 2).filter(m => !m.isAdult);
+          const resolved = await mapWithConcurrency(candidates, 3, async (m) => {
+            let malId = m.idMal || null;
+            if (!malId) {
+              malId = await findMalIdByTitle(m);
+            }
+            // Still no confident mal_id after backfill attempt — skip this
+            // one rather than risk a broken or (worse) wrong-anime link.
+            if (!malId) return null;
+            const internal = anilistToInternal(m);
+            return {
+              id:`anilist-comp-${m.id}`,
+              mal_id: malId,
+              title: internal.title,
+              poster: internal.poster,
+              type: internal.type || 'Anime',
+              year: String(internal.year),
+              score: internal.score,
+              quality: 'HD'
+            };
+          });
+          anilistItems = resolved.filter(Boolean);
+        }
+        
+        // Create items arrays - take enough to fill 6 rows
+        // FILTER: Remove items without valid poster!
+        const tmdbItems = allTmdbResults
+          .filter(i => {
+            const hasPoster = i.poster_path && i.poster_path !== '' && i.poster_path !== null && i.poster_path !== 'undefined';
             if (!hasPoster) {
-              console.log(`[Completed Filter] ❌ Anime dropped: "${a?.title}" - no poster`);
+              console.log(`[Completed Filter] ❌ TV dropped: "${i?.name}" - no poster`);
             }
             return hasPoster;
-          });
-          
-          console.log(`[Completed Filter] ✅ After filtering: ${tmdbTvItems.length} TV + ${tmdbMovieItems.length} Movies + ${anilistItemsFiltered.length} anime`);
-          
-          // Interleave all three sources: Anime, TV, Movies
-          const interleaved = [];
-          const maxLen = Math.max(anilistItemsFiltered.length, tmdbTvItems.length, tmdbMovieItems.length);
-          for (let i = 0; i < maxLen; i++) {
-            if (i < anilistItemsFiltered.length) interleaved.push(anilistItemsFiltered[i]);
-            if (i < tmdbTvItems.length) interleaved.push(tmdbTvItems[i]);
-            if (i < tmdbMovieItems.length) interleaved.push(tmdbMovieItems[i]);
+          })
+          .map(i=>({
+            id:`tmdb-comp-${i.id}`,title:i.name,poster:tmdbImg(i.poster_path),
+            type:'TV',year:(i.first_air_date||'').slice(0,4),
+            score:(i.vote_average||0).toFixed(1),quality:'HD'
+          }))
+          .slice(0, TARGET_SHOWS * 1.5);  // Fetch extra to compensate for filtered items
+        
+        // Also filter Anilist completed anime without posters
+        const anilistItemsFiltered = anilistItems.filter(a => {
+          const hasPoster = a.poster && a.poster !== '' && a.poster !== 'null' && a.poster !== 'undefined';
+          if (!hasPoster) {
+            console.log(`[Completed Filter] ❌ Anime dropped: "${a?.title}" - no poster`);
           }
-          
-          // Trim to exactly 6 complete rows (no incomplete last row!)
-          const trimTo = Math.min(Math.floor(interleaved.length / cols) * cols, TARGET_SHOWS);
-          const list = interleaved.slice(0, trimTo || TARGET_SHOWS);
-          
-          // Render actual data (replaces skeleton)
-          const gridEl = document.getElementById('completedGrid');
-          if (gridEl) {
-            gridEl.innerHTML = list.map(s => renderCompletedCard(s)).join('');
-          }
-          
-          // Re-render pagination to ensure correct state
-          renderPagination(page);
-          
-        } catch (error) {
-          console.error('[Completed] Error loading page:', page, error);
-          // Show error state in grid
-          const gridEl = document.getElementById('completedGrid');
-          if (gridEl) {
-            gridEl.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-muted);">
-              <div style="font-size:1.2rem;margin-bottom:8px;">⚠️</div>
-              Failed to load content. <button onclick="loadCompleted(${page})" style="margin-top:10px;padding:8px 16px;background:var(--btn-primary);color:#fff;border:none;border-radius:6px;cursor:pointer;">Retry</button>
-            </div>`;
-          }
-        } finally {
-          _isFetchingCompleted = false;
+          return hasPoster;
+        });
+        
+        console.log(`[Completed Filter] ✅ After filtering: ${tmdbItems.length} TV + ${anilistItemsFiltered.length} anime`);
+        
+        const interleaved = [];
+        for (let i=0; i<Math.max(anilistItemsFiltered.length,tmdbItems.length); i++) {
+          if (i<anilistItemsFiltered.length) interleaved.push(anilistItemsFiltered[i]);
+          if (i<tmdbItems.length)  interleaved.push(tmdbItems[i]);
         }
+        // Trim to exactly 6 complete rows (no incomplete last row!)
+        const trimTo = Math.min(Math.floor(interleaved.length/cols)*cols, TARGET_SHOWS);
+        const list = interleaved.slice(0, trimTo || TARGET_SHOWS);
+        document.getElementById('completedGrid').innerHTML = list.map(s => renderCompletedCard(s)).join('');
+        _completedPagesCache[page] = list;
+        // Save pages 1 & 2 globally — 5h TTL
+        if (window.AniCache && list.length && page <= 2) {
+          const existing = await window.AniCache.get('index:recently_completed').catch(()=>null);
+          const mergedPages = { ...((existing && existing.pages) || {}), [page]: list };
+          window.AniCache.set({ cacheKey:'index:recently_completed', pageSource:'index',
+            section:'recently_completed', data:{ pages: mergedPages }, itemCount: list.length }).catch(()=>{});
+        }
+        renderPagination(page);
       }
       function renderPagination(page) {
         const total = Math.ceil(1000/20);
@@ -4803,7 +4728,7 @@ window.showAnikotoPopupById = function(mal_id) {
     ${safeStudio ? `<span class="meta-pill">${safeStudio}</span>` : ''}
   `;
   const genresHtml = (show.genres || []).filter(Boolean).map(g =>
-    `<a href="/search?genre=${encodeURIComponent(g)}" class="genre-pill">${g}</a>`
+    `<a href="/genre/${encodeURIComponent(g)}" class="genre-pill">${g}</a>`
   ).join('');
 
   const synopsis = show.synopsis || show.overview || 'No description available.';
@@ -4976,79 +4901,6 @@ window.showAnikotoPopupById = function(mal_id) {
           console.warn('[loadPopularAnime] failed:', err);
         }
       }
-      
-      /* ── POPULAR ANIME POP-UP (Hover to show detailed info) ── */
-      function initPaPopup() {
-        const container = document.getElementById('popularAnimeList');
-        if (!container) return;
-        
-        // Create popup element
-        let popup = document.getElementById('paPopup');
-        if (!popup) {
-          popup = document.createElement('div');
-          popup.id = 'paPopup';
-          popup.className = 'pa-popup';
-          document.body.appendChild(popup);
-        }
-        
-        let hideTimer = null;
-        
-        // Show popup on hover
-        container.addEventListener('mouseover', (e) => {
-          const row = e.target.closest('.pa-row');
-          if (!row) return;
-          
-          clearTimeout(hideTimer);
-          
-          // Get data from row attributes
-          const title = row.querySelector('.pa-title')?.textContent || '';
-          const metaItems = row.querySelectorAll('.pa-tag');
-          const rank = row.querySelector('.pa-rank')?.textContent || '';
-          const poster = row.style.getPropertyValue('--pa-bg') || '';
-          
-          // Build genre list from tags
-          const genres = [];
-          metaItems.forEach(tag => {
-            const text = tag.textContent?.trim();
-            if (text && !text.includes('eps') && !text.includes('<i') && !text.includes('★')) {
-              genres.push(text);
-            }
-          });
-          
-          // Position popup near the hovered row
-          const rect = row.getBoundingClientRect();
-          popup.style.top = `${rect.bottom + 8}px`;
-          popup.style.left = `${Math.min(rect.left, window.innerWidth - 320)}px`;
-          
-          popup.innerHTML = `
-            <div class="pa-popup-inner">
-              <div class="popup-header">
-                <span class="popup-rank">#${rank}</span>
-                <span class="popup-title">${title}</span>
-              </div>
-              <div class="popup-genres">
-                <span class="popup-genre-label">Genres:</span>
-                ${genres.length ? genres.map(g => `<span class="popup-genre-tag">${g}</span>`).join('') : '<span class="popup-genre-tag">N/A</span>'}
-              </div>
-              <div class="popup-link">
-                <i class="fas fa-info-circle"></i> Click for full details
-              </div>
-            </div>
-          `;
-          
-          popup.classList.add('active');
-        });
-        
-        // Hide popup when leaving container
-        container.addEventListener('mouseleave', () => {
-          hideTimer = setTimeout(() => {
-            popup.classList.remove('active');
-          }, 200);
-        });
-      }
-      
-      // Initialize pop-up after page load
-      setTimeout(initPaPopup, 1000);
 
       /* ── SKELETON SCREENS — injected before any real data loads ── */
       function skCards(n, w='140px', h='200px') {
@@ -5057,40 +4909,6 @@ window.showAnikotoPopupById = function(mal_id) {
             <div class="skeleton sk-poster"></div>
             <div class="skeleton sk-line w80"></div>
             <div class="skeleton sk-line w60"></div>
-          </div>`).join('');
-      }
-      
-      // Skeleton for New on Aniumi 2-row horizontal scroll section
-      function generateAnioceanSkeleton(count = 14) {
-        // Match the aniocean-card dimensions (165px width, aspect-ratio 3/4.5 for poster)
-        return Array.from({length: count}, () => `
-          <div class="aniocean-card skeleton-card" style="width:165px;min-width:165px;max-width:165px;">
-            <div class="aniocean-poster">
-              <div class="skeleton" style="width:100%;aspect-ratio:3/4.5;border-radius:var(--radius-md);"></div>
-              <!-- Placeholder for badges -->
-              <div class="skeleton" style="position:absolute;top:6px;right:6px;width:40px;height:18px;border-radius:4px;"></div>
-              <div class="skeleton" style="position:absolute;top:6px;left:6px;width:45px;height:18px;border-radius:3px;"></div>
-            </div>
-            <div class="aniocean-title-section">
-              <div class="skeleton" style="height:8px;margin:6px 0 4px;border-radius:4px;width:70%;"></div>
-              <div class="skeleton" style="height:10px;margin-bottom:6px;border-radius:4px;width:90%;"></div>
-            </div>
-          </div>`).join('');
-      }
-      
-      // Skeleton for Recently Completed grid (loading state during pagination)
-      function generateCompletedSkeleton(rows = 6, cols = 7) {
-        const total = rows * cols;
-        return Array.from({length: total }, () => `
-          <div class="show-card-grid skeleton-card">
-            <div class="card-poster" style="background:linear-gradient(135deg, #1e293b 0%, #334155 100%);">
-              <div class="skeleton" style="position:absolute;inset:0;border-radius:var(--radius-md);"></div>
-              <span class="quality-badge skeleton" style="background:rgba(255,255,255,0.1);color:transparent;">HD</span>
-            </div>
-            <div class="card-info-grid">
-              <div class="skeleton card-meta-sm" style="height:10px;width:80%;margin-bottom:6px;"></div>
-              <div class="skeleton card-title" style="height:12px;width:90%;"></div>
-            </div>
           </div>`).join('');
       }
       function skPaRows(n=8) {
