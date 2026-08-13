@@ -435,15 +435,15 @@
     .card-poster.no-image::before { content:'No'; position:absolute; top:40%; left:50%; transform:translate(-50%,-50%); color:#94a3b8; font-size:0.75rem; font-weight:600; letter-spacing:2px; text-transform:uppercase; z-index:1; user-select:none; }
     .card-poster.no-image::after { content:'Image'; position:absolute; top:55%; left:50%; transform:translate(-50%,-50%); color:#94a3b8; font-size:0.7rem; font-weight:600; letter-spacing:1px; text-transform:uppercase; z-index:1; user-select:none; }
 
-    /* NEW ON ANIOCEAN SECTION - 2-Row Horizontal Scroll Shelf (Netflix-style) */
+    /* NEW ON ANIOCEAN SECTION - 3-Row Horizontal Scroll Shelf (Netflix-style), computer only */
     .new-aniocean-shelf {
-      /* Use CSS Grid for true 2-row horizontal scroll */
+      /* Use CSS Grid for true 3-row horizontal scroll */
       display: grid;
       /* Create 40 columns of 165px each (cards fill left-to-right, top-to-bottom) */
       grid-template-columns: repeat(40, 165px);
-      /* Exactly 2 rows */
-      grid-template-rows: repeat(2, auto);
-      /* CRITICAL: fill column-by-column (row1,row2 pairs) instead of the default
+      /* Exactly 3 rows (desktop only) */
+      grid-template-rows: repeat(3, auto);
+      /* CRITICAL: fill column-by-column (row1,row2,row3 triples) instead of the default
          row-by-row flow, which was stacking every card into row 1 only */
       grid-auto-flow: column;
       gap: 12px;
@@ -451,9 +451,9 @@
       overflow-x: auto;
       overflow-y: hidden;
       scroll-behavior: smooth;
-      /* Height for 2 full rows: poster(~248px) + info(~70px) + gap */
-      height: calc(((165px * 4.5 / 3) + 75px) * 2 + 12px);
-      max-height: 670px;
+      /* Height for 3 full rows: poster(~248px) + info(~75px) + 2 gaps */
+      height: calc(((165px * 4.5 / 3) + 75px) * 3 + 24px);
+      max-height: 1000px;
       /* Hide scrollbar like other sections */
       scrollbar-width: none;
       -ms-overflow-style: none;
@@ -918,10 +918,10 @@
     #newReleasesGrid .action-btns-row { align-items: center; }
 
     /* ════════════════════════════════════════════════════════════
-       NEW RELEASES — "All" tab, desktop-only 2-row horizontal layout
-       Row 1: anime · Row 2: TMDB movies/TV. Column count adapts to
-       screen width; chevrons + keyboard arrows scroll by one full
-       page of columns so edges are always exactly aligned.
+       NEW RELEASES — "All" tab, desktop-only 3-row horizontal layout
+       Row 1: anime · Row 2: TMDB TV · Row 3: TMDB movies. Column count
+       adapts to screen width; chevrons + keyboard arrows scroll by one
+       full page of columns so edges are always exactly aligned.
        ════════════════════════════════════════════════════════════ */
     .nr-scroll-controls { display: none; align-items: center; gap: 8px; }
     /* Only show the chevrons once JS confirms the horizontal layout is active */
@@ -937,7 +937,7 @@
          next column to bleed partially into view instead of staying off-screen. */
       grid-template-columns: none;
       grid-auto-flow: column;
-      grid-template-rows: repeat(2, auto);
+      grid-template-rows: repeat(3, auto);
       grid-auto-columns: var(--nr-col-width, 200px);
       gap: 14px;
       overflow-x: auto;
@@ -1715,9 +1715,10 @@
       .main-layout { flex-direction:column; }
       .main-content, .sidebar-right { flex:1; max-width:100%; padding:0 16px; }
       .sidebar-right { position:static; width:100%; padding:0 16px; }
-      /* Tablet: Adjust 2-row grid for smaller screens */
+      /* Tablet: keep 2-row grid — the 3-row layout is desktop/computer only */
       .new-aniocean-shelf {
         grid-template-columns: repeat(30, 150px);
+        grid-template-rows: repeat(2, auto);
         height: calc(((150px * 4.5 / 3) + 70px) * 2 + 12px);
         max-height: 600px;
       }
@@ -1735,6 +1736,7 @@
         gap: 8px;
         /* Mobile: Show 2 columns per row, still 2 rows = 4 cards visible */
         grid-template-columns: repeat(20, calc((100vw - 32px - 8px) / 2));
+        grid-template-rows: repeat(2, auto);
         height: auto;
         max-height: none;
       }
@@ -2733,8 +2735,8 @@ async function loadNewAniocean() {
     }
     if (!container) return false;
 
-    // For horizontal scroll, show up to 40 items (enough for smooth scrolling)
-    const MAX_SHOWS = 40;
+    // For horizontal scroll, show up to 80 items (matches the increased fetch quantity)
+    const MAX_SHOWS = 80;
     const displayList = animeList.slice(0, MAX_SHOWS);
 
     container.innerHTML = displayList.map(anime => {
@@ -2811,7 +2813,10 @@ async function loadNewAniocean() {
     if (response.ok && response.data && response.data.length > 0) {
       const data = response.data;
       const formatted = data.map(anime => ({
-        mal_id: anime.mal_id || anime.id,
+        // Never fall back to the Anikoto/internal `id` here — that is NOT a
+        // MAL id, and using it would silently link to the wrong anime.
+        // Missing/empty mal_id is backfilled below via confident title search.
+        mal_id: anime.mal_id || null,
         title: anime.title,
         slug: anime.slug,
         poster: anime.poster,
@@ -2826,8 +2831,25 @@ async function loadNewAniocean() {
         is_sub: anime.is_sub || 0,
         is_dub: anime.is_dub || 0
       }));
+
+      // Backfill any missing mal_id via confident Jikan title search before
+      // deduping (dedup keys on mal_id, so nulls must be resolved first or
+      // they'd collapse into a single entry).
+      const cleaned = cleanJikan(formatted);
+      const backfilled = await mapWithConcurrency(cleaned, 3, async (anime) => {
+        if (anime.mal_id) return anime; // already has one — leave as-is
+        const media = {
+          title: { english: anime.title, romaji: anime.title, native: null },
+          startDate: { year: (anime.year && anime.year !== '?') ? parseInt(anime.year, 10) : null },
+          episodes: null
+        };
+        const malId = await findMalIdByTitle(media);
+        if (!malId) return null; // no confident match — skip rather than risk a wrong link
+        return { ...anime, mal_id: malId };
+      });
+
       // Deduplicate by mal_id
-      const unique = dedupById(cleanJikan(formatted), 'mal_id');
+      const unique = dedupById(backfilled.filter(Boolean), 'mal_id');
       
       // Use exactly 6 rows (fixed limit)
       if (renderAnimeList(unique)) {
@@ -2852,34 +2874,38 @@ async function loadNewAniocean() {
           }
         }
       }
-    `, { perPage: 50 });
+    `, { perPage: 80 });
 
     if (anilistData?.Page?.media && anilistData.Page.media.length > 0) {
-      // Convert AniList format to our internal format
-      const formattedAnilist = anilistData.Page.media
-        .filter(m => !m.isAdult)
-        .map(m => {
-          const internal = anilistToInternal(m);
-          return {
-            mal_id: m.idMal || m.id,
-            title: internal.title,
-            slug: internal.slug,
-            poster: internal.poster,
-            score: internal.score,
-            type: internal.type || 'TV',
-            rating: internal.rating,
-            description: internal.description || 'No description available.',
-            year: String(internal.year),
-            duration: internal.duration,
-            genres: internal.genres,
-            studio: internal.studio,
-            is_sub: 1,
-            is_dub: 0
-          };
-        });
+      // Convert AniList format to our internal format — backfill any anime
+      // missing idMal via confident Jikan title search instead of guessing
+      // (AniList's own numeric `id` is NOT a MAL id and must never be used).
+      const candidates = anilistData.Page.media.filter(m => !m.isAdult);
+      const resolved = await mapWithConcurrency(candidates, 3, async (m) => {
+        let malId = m.idMal || null;
+        if (!malId) malId = await findMalIdByTitle(m);
+        if (!malId) return null; // no confident match — skip rather than risk a wrong link
+        const internal = anilistToInternal(m);
+        return {
+          mal_id: malId,
+          title: internal.title,
+          slug: internal.slug,
+          poster: internal.poster,
+          score: internal.score,
+          type: internal.type || 'TV',
+          rating: internal.rating,
+          description: internal.description || 'No description available.',
+          year: String(internal.year),
+          duration: internal.duration,
+          genres: internal.genres,
+          studio: internal.studio,
+          is_sub: 1,
+          is_dub: 0
+        };
+      });
 
       // Deduplicate by mal_id
-      const unique = dedupById(formattedAnilist, 'mal_id');
+      const unique = dedupById(resolved.filter(Boolean), 'mal_id');
 
       if (unique.length === 0) {
         throw new Error('No anime data from AniList');
@@ -3804,16 +3830,19 @@ window.showAnikotoPopupById = function(mal_id) {
         return currentNewReleasesFilter === 'all' && window.innerWidth > NR_HORIZ_MIN_WIDTH;
       }
       function nrBuildHorizontalList() {
+        // Row 1 = anime, Row 2 = TMDB TV, Row 3 = TMDB movies. Interleaving
+        // in triples lets grid-auto-flow:column sort them into their rows
+        // automatically (item1->row1, item2->row2, item3->row3, item4->row1, ...).
         const animeList = allReleases.anime || [];
-        const otherList = [...(allReleases.movie || []), ...(allReleases.tv || [])];
-        const n = Math.min(animeList.length, otherList.length);
+        const tvList = allReleases.tv || [];
+        const movieList = allReleases.movie || [];
+        const n = Math.min(animeList.length, tvList.length, movieList.length);
         const combined = [];
         for (let i = 0; i < n; i++) {
-          combined.push(animeList[i]);
-          combined.push(otherList[i]);
+          combined.push(animeList[i], tvList[i], movieList[i]);
         }
-        // Append any leftovers from the longer list at the end
-        combined.push(...animeList.slice(n), ...otherList.slice(n));
+        // Append any leftovers from longer lists at the end
+        combined.push(...animeList.slice(n), ...tvList.slice(n), ...movieList.slice(n));
         return combined;
       }
       function nrLayoutColumns() {
