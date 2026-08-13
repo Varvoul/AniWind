@@ -917,6 +917,43 @@
     }
     #newReleasesGrid .action-btns-row { align-items: center; }
 
+    /* ════════════════════════════════════════════════════════════
+       NEW RELEASES — "All" tab, desktop-only 2-row horizontal layout
+       Row 1: anime · Row 2: TMDB movies/TV. Column count adapts to
+       screen width; chevrons + keyboard arrows scroll by one full
+       page of columns so edges are always exactly aligned.
+       ════════════════════════════════════════════════════════════ */
+    .nr-scroll-controls { display: none; align-items: center; gap: 8px; }
+    /* Only show the chevrons once JS confirms the horizontal layout is active */
+    .nr-header-controls.nr-horiz-active .nr-scroll-controls { display: flex; }
+    @media (max-width: 1024px) {
+      .nr-scroll-controls { display: none !important; }
+    }
+
+    #newReleasesGrid.nr-horizontal {
+      display: grid;
+      grid-auto-flow: column;
+      grid-template-rows: repeat(2, auto);
+      grid-auto-columns: var(--nr-col-width, 200px);
+      gap: 14px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      scroll-behavior: smooth;
+      scroll-snap-type: x mandatory;
+      padding-bottom: 8px;
+    }
+    #newReleasesGrid.nr-horizontal::-webkit-scrollbar { display: none; }
+    #newReleasesGrid.nr-horizontal .show-card-grid {
+      scroll-snap-align: start;
+      width: 100%;
+    }
+    /* Featured spotlight card only makes sense in the vertical grid —
+       never let it span rows/cols here, or it breaks the anime/other split */
+    #newReleasesGrid.nr-horizontal .nr-featured {
+      grid-column: auto;
+      grid-row: auto;
+    }
+
     /* ── Upcoming Shows: match New Releases' play/heart button styling ── */
     #upcomingScroll .action-btn.action-watch {
       background: var(--btn-primary);
@@ -1895,6 +1932,10 @@
               <button class="toggle-tab" data-filter="movie"><i class="fas fa-film"></i> Movies <span class="tab-count" id="nrCountMovie"></span></button>
               <button class="toggle-tab" data-filter="tv"><i class="fas fa-tv"></i> Series <span class="tab-count" id="nrCountTv"></span></button>
             </div>
+            <div class="nr-scroll-controls" id="nrScrollControls">
+              <button class="scroll-arrow" id="nrScrollLeft" title="Scroll left">‹</button>
+              <button class="scroll-arrow" id="nrScrollRight" title="Scroll right">›</button>
+            </div>
             <a href="/new-releases" class="view-all" id="nrViewAll"><span class="nr-viewall-text">View All</span> <i class="fas fa-chevron-right"></i></a>
           </div>
         </div>
@@ -2865,7 +2906,7 @@ window.showAnikotoPopupById = function(mal_id) {
   if (!anime) return;
   
   const starIcon = '<i class="fas fa-star" style="color:var(--accent-gold)"></i>';
-  const genresHtml = anime.genres.map(g => `<a href="/search?genre=${encodeURIComponent(g)}" class="genre-pill">${g}</a>`).join('');
+  const genresHtml = anime.genres.map(g => `<a href="/genre/${encodeURIComponent(g)}" class="genre-pill">${g}</a>`).join('');
   
   document.getElementById('popupContent').innerHTML = `
     <div class="anikoto-popup">
@@ -3673,11 +3714,155 @@ window.showAnikotoPopupById = function(mal_id) {
         setCount('nrCountMovie', (allReleases.movie||[]).length);
         setCount('nrCountTv',    (allReleases.tv||[]).length);
       }
+
+      /* Single card markup builder shared by both the vertical grid and the
+         horizontal "All" layout, so both stay visually identical. */
+      function buildReleaseCardHTML(s, { featured = false } = {}) {
+        const hasPoster = s.poster && s.poster !== '' && s.poster !== 'null' && s.poster !== 'undefined';
+        const posterStyle = hasPoster ? `background-image:url('${s.poster}');` : 'background:linear-gradient(135deg, #1e293b 0%, #334155 100%);';
+        const noImageClass = hasPoster ? '' : 'no-image';
+        const featuredCls = featured ? ' nr-featured' : '';
+        const featuredRibbon = featured ? `<span class="nr-featured-ribbon">New</span>` : '';
+
+        if (s.type === 'Anime') {
+          const ratingText = RATING_EXPLAIN[s.rating] || s.rating;
+          return `<div class="show-card-grid${featuredCls}" style="position:relative;">
+            ${featuredRibbon}
+            <a href="${infoUrl(s)}" class="show-card-grid" style="position:static;">
+              <div class="card-poster ${noImageClass}" style="${posterStyle}">
+                <span class="poster-status-badge">${s.status}</span>
+                <span class="poster-rating-badge" title="${ratingText}"><i class="fas fa-star"></i> ${s.score}</span>
+                <div class="play-overlay"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" fill="white"/></svg></div>
+              </div>
+              <div class="card-info-grid">
+                <div class="card-meta-sm"><span class="nr-type-dot nr-anime"></span>${s.type} · ${s.duration==='?'?'?':s.duration} · ${ratingText || s.rating}</div>
+                <div class="card-title">${s.title}</div>
+              </div>
+            </a>
+            ${generateCardButtons(s, { compact: true, showBookmark: false, showDetails: false })}
+          </div>`;
+        } else if (s.type === 'Movie') {
+          return `<div class="show-card-grid${featuredCls}" style="position:relative;">
+            ${featuredRibbon}
+            <a href="${infoUrl(s)}" class="show-card-grid" style="position:static;">
+              <div class="card-poster ${noImageClass}" style="${posterStyle}">
+                <span class="quality-badge">${s.quality}</span>
+                <span class="score-badge"><i class="fas fa-star"></i> ${s.score}</span>
+                <div class="play-overlay"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" fill="white"/></svg></div>
+              </div>
+              <div class="card-info-grid">
+                <div class="card-meta-sm"><span class="nr-type-dot nr-movie"></span>${s.type} · ${s.details} · ${s.cert}</div>
+                <div class="card-title">${s.title}</div>
+              </div>
+            </a>
+            ${generateCardButtons(s, { compact: true, showBookmark: false, showDetails: false })}
+          </div>`;
+        } else {
+          return `<div class="show-card-grid${featuredCls}" style="position:relative;">
+            ${featuredRibbon}
+            <a href="${infoUrl(s)}" class="show-card-grid" style="position:static;">
+              <div class="card-poster ${noImageClass}" style="${posterStyle}">
+                <span class="quality-badge">${s.quality}</span>
+                <span class="score-badge"><i class="fas fa-star"></i> ${s.score}</span>
+                <div class="play-overlay"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" fill="white"/></svg></div>
+              </div>
+              <div class="card-info-grid">
+                <div class="card-meta-sm"><span class="nr-type-dot nr-tv"></span>${s.type} · ${s.details} · ${s.cert}</div>
+                <div class="card-title">${s.title}</div>
+              </div>
+            </a>
+            ${generateCardButtons(s, { compact: true, showBookmark: false, showDetails: false })}
+         </div>`;
+        }
+      }
+
+      /* ── Horizontal "All" layout (computer only): row1 = anime, row2 = movie/TV ── */
+      const NR_HORIZ_MIN_WIDTH = 1024;
+      function nrCalcCols() {
+        const w = window.innerWidth;
+        if (w > 1800) return 7;
+        if (w > 1400) return 6;
+        if (w > 1200) return 5;
+        return 4; // 1024–1200
+      }
+      function nrIsHorizontalActive() {
+        return currentNewReleasesFilter === 'all' && window.innerWidth > NR_HORIZ_MIN_WIDTH;
+      }
+      function nrBuildHorizontalList() {
+        const animeList = allReleases.anime || [];
+        const otherList = [...(allReleases.movie || []), ...(allReleases.tv || [])];
+        const n = Math.min(animeList.length, otherList.length);
+        const combined = [];
+        for (let i = 0; i < n; i++) {
+          combined.push(animeList[i]);
+          combined.push(otherList[i]);
+        }
+        // Append any leftovers from the longer list at the end
+        combined.push(...animeList.slice(n), ...otherList.slice(n));
+        return combined;
+      }
+      function nrLayoutColumns() {
+        const grid = document.getElementById('newReleasesGrid');
+        if (!grid || !grid.classList.contains('nr-horizontal')) return;
+        const cols = nrCalcCols();
+        const gap = 14;
+        const containerWidth = grid.clientWidth;
+        const colWidth = Math.floor((containerWidth - gap * (cols - 1)) / cols);
+        grid.style.setProperty('--nr-col-width', colWidth + 'px');
+        grid.dataset.nrCols = cols;
+      }
+      function nrGetScrollAmount() {
+        const grid = document.getElementById('newReleasesGrid');
+        return grid ? grid.clientWidth : 0;
+      }
+      let _nrResizeTimer = null;
+      window.addEventListener('resize', () => {
+        clearTimeout(_nrResizeTimer);
+        _nrResizeTimer = setTimeout(() => {
+          const shouldBeHorizontal = nrIsHorizontalActive();
+          const grid = document.getElementById('newReleasesGrid');
+          if (!grid) return;
+          const isHorizontal = grid.classList.contains('nr-horizontal');
+          if (shouldBeHorizontal !== isHorizontal) {
+            // Crossed the desktop breakpoint or tab changed layout mode — re-render fully
+            renderNewReleases(currentNewReleasesFilter);
+          } else if (shouldBeHorizontal) {
+            nrLayoutColumns();
+          }
+        }, 200);
+      });
+      let _nrScrollWired = false;
+      function nrWireScrollControls() {
+        if (_nrScrollWired) return;
+        _nrScrollWired = true;
+        const leftBtn = document.getElementById('nrScrollLeft');
+        const rightBtn = document.getElementById('nrScrollRight');
+        const grid = document.getElementById('newReleasesGrid');
+        const section = grid ? grid.closest('.section') : null;
+        if (leftBtn) leftBtn.addEventListener('click', () => grid.scrollBy({ left: -nrGetScrollAmount(), behavior: 'smooth' }));
+        if (rightBtn) rightBtn.addEventListener('click', () => grid.scrollBy({ left: nrGetScrollAmount(), behavior: 'smooth' }));
+        if (section && grid) {
+          document.addEventListener('keydown', (e) => {
+            if (!grid.classList.contains('nr-horizontal')) return;
+            if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') &&
+                (section.matches(':hover') || grid.matches(':hover'))) {
+              e.preventDefault();
+              grid.scrollBy({ left: e.key === 'ArrowLeft' ? -nrGetScrollAmount() : nrGetScrollAmount(), behavior: 'smooth' });
+            }
+          });
+        }
+      }
+
       function renderNewReleases(filter) {
         const grid = document.getElementById('newReleasesGrid');
-        const data = allReleases[filter] || [];
+        const controls = document.getElementById('nrScrollControls')?.closest('.nr-header-controls');
+        const useHorizontal = filter === 'all' && window.innerWidth > NR_HORIZ_MIN_WIDTH;
+        const data = useHorizontal ? nrBuildHorizontalList() : (allReleases[filter] || []);
 
         if (!data.length) {
+          grid.classList.remove('nr-horizontal');
+          grid.style.removeProperty('--nr-col-width');
+          if (controls) controls.classList.remove('nr-horiz-active');
           grid.innerHTML = `<div class="nr-empty-state">
             <i class="fas fa-inbox"></i>
             <span>No ${filter === 'all' ? 'releases' : filter} available right now</span>
@@ -3685,67 +3870,18 @@ window.showAnikotoPopupById = function(mal_id) {
           return;
         }
 
-        grid.innerHTML = data.map((s, idx) => {
-          const isFeatured = idx === 0;
-          // Check for valid poster - show No Image placeholder if missing
-          const hasPoster = s.poster && s.poster !== '' && s.poster !== 'null' && s.poster !== 'undefined';
-          const posterStyle = hasPoster ? `background-image:url('${s.poster}');` : 'background:linear-gradient(135deg, #1e293b 0%, #334155 100%);';
-          const noImageClass = hasPoster ? '' : 'no-image';
-          
-          const featuredCls = isFeatured ? ' nr-featured' : '';
-          const featuredRibbon = isFeatured ? `<span class="nr-featured-ribbon">New</span>` : '';
+        grid.classList.toggle('nr-horizontal', useHorizontal);
+        if (controls) controls.classList.toggle('nr-horiz-active', useHorizontal);
 
-          if (s.type==='Anime') {
-            const ratingText = RATING_EXPLAIN[s.rating] || s.rating;
-            return `<div class="show-card-grid${featuredCls}" style="position:relative;">
-              ${featuredRibbon}
-              <a href="${infoUrl(s)}" class="show-card-grid" style="position:static;">
-                <div class="card-poster ${noImageClass}" style="${posterStyle}">
-                  <span class="poster-status-badge">${s.status}</span>
-                  <span class="poster-rating-badge" title="${ratingText}"><i class="fas fa-star"></i> ${s.score}</span>
-                  <div class="play-overlay"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" fill="white"/></svg></div>
-                </div>
-                <div class="card-info-grid">
-                  <div class="card-meta-sm"><span class="nr-type-dot nr-anime"></span>${s.type} · ${s.duration==='?'?'?':s.duration} · ${ratingText || s.rating}</div>
-                  <div class="card-title">${s.title}</div>
-                </div>
-              </a>
-              ${generateCardButtons(s, { compact: true, showBookmark: false, showDetails: false })}
-            </div>`;
-          } else if (s.type==='Movie') {
-            return `<div class="show-card-grid${featuredCls}" style="position:relative;">
-              ${featuredRibbon}
-              <a href="${infoUrl(s)}" class="show-card-grid" style="position:static;">
-                <div class="card-poster ${noImageClass}" style="${posterStyle}">
-                  <span class="quality-badge">${s.quality}</span>
-                  <span class="score-badge"><i class="fas fa-star"></i> ${s.score}</span>
-                  <div class="play-overlay"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" fill="white"/></svg></div>
-                </div>
-                <div class="card-info-grid">
-                  <div class="card-meta-sm"><span class="nr-type-dot nr-movie"></span>${s.type} · ${s.details} · ${s.cert}</div>
-                  <div class="card-title">${s.title}</div>
-                </div>
-              </a>
-              ${generateCardButtons(s, { compact: true, showBookmark: false, showDetails: false })}
-            </div>`;
-          } else {
-            return `<div class="show-card-grid${featuredCls}" style="position:relative;">
-              ${featuredRibbon}
-              <a href="${infoUrl(s)}" class="show-card-grid" style="position:static;">
-                <div class="card-poster ${noImageClass}" style="${posterStyle}">
-                  <span class="quality-badge">${s.quality}</span>
-                  <span class="score-badge"><i class="fas fa-star"></i> ${s.score}</span>
-                  <div class="play-overlay"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" fill="white"/></svg></div>
-                </div>
-                <div class="card-info-grid">
-                  <div class="card-meta-sm"><span class="nr-type-dot nr-tv"></span>${s.type} · ${s.details} · ${s.cert}</div>
-                  <div class="card-title">${s.title}</div>
-                </div>
-              </a>
-              ${generateCardButtons(s, { compact: true, showBookmark: false, showDetails: false })}
-           </div>`;
-          }
-        }).join('');
+        grid.innerHTML = data.map((s, idx) => buildReleaseCardHTML(s, { featured: !useHorizontal && idx === 0 })).join('');
+
+        if (useHorizontal) {
+          nrLayoutColumns();
+          nrWireScrollControls();
+          grid.scrollLeft = 0;
+        } else {
+          grid.style.removeProperty('--nr-col-width');
+        }
       }
       document.getElementById('releaseTabs').addEventListener('click', e => {
         const tabBtn = e.target.closest('.toggle-tab');
@@ -3758,6 +3894,7 @@ window.showAnikotoPopupById = function(mal_id) {
           moveGlider('releaseTabs', 'releaseGlider', tabBtn);
           
           const filter = tabBtn.dataset.filter;
+          currentNewReleasesFilter = filter;
           const grid = document.getElementById('newReleasesGrid');
           const label = tabBtn.dataset.filter === 'all' ? 'All' : tabBtn.dataset.filter === 'anime' ? 'Anime' : tabBtn.dataset.filter === 'movie' ? 'Movies' : 'Series';
 
@@ -4528,7 +4665,7 @@ window.showAnikotoPopupById = function(mal_id) {
     ${safeStudio ? `<span class="meta-pill">${safeStudio}</span>` : ''}
   `;
   const genresHtml = (show.genres || []).filter(Boolean).map(g =>
-    `<a href="/search?genre=${encodeURIComponent(g)}" class="genre-pill">${g}</a>`
+    `<a href="${isUpcoming ? `/genre/${encodeURIComponent(g)}` : `/search?genre=${encodeURIComponent(g)}`}" class="genre-pill">${g}</a>`
   ).join('');
 
   const synopsis = show.synopsis || show.overview || 'No description available.';
