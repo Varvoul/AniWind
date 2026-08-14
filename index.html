@@ -1207,15 +1207,49 @@
     /* ── POPULAR ANIME LIST (Miruro-style improved) ── */
     .pa-list {
       display:flex; flex-direction:column; gap:5px;
-      /* Fixed height showing 7 rows by default - NO SCROLLBAR */
+      /* Fixed height showing 7 rows by default */
       height: calc((88px + 5px) * 7 - 5px);
       max-height: calc((88px + 5px) * 7 - 5px);
-      overflow-y: hidden;
+      overflow-y: auto;
       overflow-x: hidden;
       scroll-behavior: smooth;
       scroll-snap-type: y mandatory;
       scrollbar-width: none; /* Firefox */
       -ms-overflow-style: none; /* IE/Edge */
+    }
+    
+    /* Mobile: Show Popular Anime scrollable with smaller height */
+    @media (max-width: 768px) {
+      .pa-list {
+        height: calc((78px + 4px) * 6 - 4px);
+        max-height: calc((78px + 4px) * 6 - 4px);
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch; /* Smooth iOS scrolling */
+      }
+      .pa-row { min-height:78px; }
+      .pa-poster { width:50px; height:70px; margin:4px 10px 4px 5px; }
+    }
+    
+    /* Show scroll arrows ONLY on mobile for Popular Anime */
+    @media (max-width: 768px) {
+      #popularAnimeSec .scroll-arrow { 
+        display:flex !important; 
+        width:28px; 
+        height:28px; 
+        font-size:.85rem;
+        background:rgba(59,130,246,0.15);
+        border-color:rgba(59,130,246,0.3);
+      }
+      #popularAnimeSec .scroll-arrow:hover {
+        background:rgba(59,130,246,0.25);
+      }
+    }
+    
+    /* Desktop: Hide arrows (use mouse wheel instead) */
+    @media (min-width: 769px) {
+      #popularAnimeSec .scroll-arrow {
+        display:none !important;
+      }
     }
     .pa-list::-webkit-scrollbar { display: none; } /* Chrome/Safari */
     .pa-list .pa-row { scroll-snap-align: start; }
@@ -1319,6 +1353,12 @@
       z-index:501;
     }
     .popup-card.active { display:block; opacity:1; transform:scale(1); }
+    
+    /* MOBILE: Hide popup cards entirely - users click directly to info page */
+    @media (max-width: 768px) {
+      .popup-overlay { display:none !important; pointer-events:none !important; }
+      .popup-card { display:none !important; }
+    }
     .popup-close { position:absolute; top:12px; right:16px; font-size:1.4rem; cursor:pointer; color:#cbd5e1; line-height:1; z-index:2; }
     .modal-poster-wrap { width:120px; flex-shrink:0; border-radius:10px; overflow:hidden; float:left; margin-right:16px; margin-bottom:12px; }
     .modal-poster-wrap img { width:100%; height:auto; display:block; }
