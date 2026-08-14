@@ -5,90 +5,10 @@
   <link rel="icon" type="image/png" href="https://i.postimg.cc/BvwTjXgv/image-359e594e.png">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
   
-  <!-- System Theme Support (Miruro-style) -->
-  <meta name="color-scheme" content="dark light">
+  <!-- Minimal fallback title (enhanced by shared.js MetadataManager for hybrid site) -->
+  <title>AniUmi · Watch Anime, Movies & TV Shows Online Free in HD</title>
   
-  <!-- Primary Meta Tags -->
-  <title>AniUmi · Watch Anime Online Free in HD · Stream Sub & Dub Anime</title>
-  <meta name="title" content="AniUmi · Watch Anime Online Free in HD · Stream Sub & Dub Anime">
-  <meta name="description" content="Watch anime online free in HD quality. Stream subbed and dubbed anime episodes with no ads and no signup required. From seasonal hits to classic series, movies & donghua — all in one place. The anime site that actually works.">
-  <meta name="keywords" content="watch anime online, free anime streaming, anime HD, dubbed anime, subbed anime, anime subtitles, anime episodes, no ads anime, anime movies, TV shows, AniUmi, anime streaming site, watch anime free, anime online, english dub anime, japanese anime, korean anime, chinese anime, donghua, latest anime, seasonal anime, popular anime, anime recommendations, 1080p anime">
-  <meta name="author" content="AniUmi">
-  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
-  
-  <!-- Theme Colors -->
-  <meta name="theme-color" content="#0a1929">
-  <meta name="msapplication-TileColor" content="#0a1929">
-  <meta name="msapplication-TileImage" content="https://i.postimg.cc/BvwTjXgv/image-359e594e.png">
-  
-  <!-- Mobile Web App (Miruro-style complete) -->
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="AniUmi">
-  
-  <!-- Canonical URL -->
-  <link rel="canonical" href="https://aniumi.vercel.app/">
-  
-  <!-- Open Graph / Facebook (Miruro-style complete) -->
-  <meta property="og:type" content="website">
-  <meta property="og:url" content="https://aniumi.vercel.app/">
-  <meta property="og:title" content="AniUmi · Watch Anime Online Free in HD · Stream Sub & Dub Anime">
-  <meta property="og:description" content="Stream subbed and dubbed anime in HD — no ads, no signup walls, no geo-blocks. Just pick a show and watch. Seasonal hits, classics, movies & donghua updated daily.">
-  <meta property="og:image" content="https://i.postimg.cc/BvwTjXgv/image-359e594e.png">
-  <meta property="og:image:width" content="1200">
-  <meta property="og:image:height" content="630">
-  <meta property="og:site_name" content="AniUmi">
-  <meta property="og:locale" content="en_US">
-  
-  <!-- Twitter Card (Complete) -->
-  <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:url" content="https://aniumi.vercel.app/">
-  <meta name="twitter:title" content="AniUmi · Watch Anime Online Free in HD · Sub & Dub">
-  <meta name="twitter:description" content="HD anime streaming that doesn't suck. No ad overload, no signup traps — just subbed & dubbed anime that plays when you click it.">
-  <meta name="twitter:image" content="https://i.postimg.cc/BvwTjXgv/image-359e594e.png">
-  
-  <!-- Structured Data / JSON-LD (Miruro-style MULTIPLE schemas) -->
-  <script type="application/ld+json">
-  [
-    {
-      "@context": "https://schema.org",
-      "@type": "WebSite",
-      "name": "AniUmi",
-      "alternateName": ["AniUmi", "Aniumi", "AniOcean", "AniUmi TV"],
-      "url": "https://aniumi.vercel.app",
-      "description": "Watch anime online free in HD. Stream subbed and dubbed anime episodes with no ads, no signup. Updated daily.",
-      "inLanguage": "en",
-      "potentialAction": {
-        "@type": "SearchAction",
-        "target": {
-          "@type": "EntryPoint",
-          "urlTemplate": "https://aniumi.vercel.app/?q={search_term_string}"
-        },
-        "query-input": "required name=search_term_string"
-      }
-    },
-    {
-      "@context": "https://schema.org",
-      "@type": "Organization",
-      "name": "AniUmi",
-      "url": "https://aniumi.vercel.app",
-      "logo": {
-        "@type": "ImageObject",
-        "url": "https://i.postimg.cc/BvwTjXgv/image-359e594e.png",
-        "width": 1024,
-        "height": 1024
-      },
-      "description": "Free HD anime streaming platform with subbed and dubbed content. No ads, no signup required.",
-      "sameAs": []
-    }
-  ]
-  </script>
-  
-  <!-- Additional SEO Tags -->
-  <meta name="format-detection" content="telephone-no">
-  <meta name="msapplication-TileColor" content="#0a1929">
-  <meta name="msapplication-TileImage" content="https://i.postimg.cc/BvwTjXgv/image-359e594e.png">
+  <!-- Scripts (shared.js auto-injects full SEO metadata) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="shared.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1207,16 +1127,45 @@
     /* ── POPULAR ANIME LIST (Miruro-style improved) ── */
     .pa-list {
       display:flex; flex-direction:column; gap:5px;
-      /* Fixed height showing 7 rows by default - NO SCROLLBAR */
+      /* Fixed height showing 7 rows by default */
       height: calc((88px + 5px) * 7 - 5px);
       max-height: calc((88px + 5px) * 7 - 5px);
-      overflow-y: hidden;
+      overflow-y: auto;
       overflow-x: hidden;
       scroll-behavior: smooth;
       scroll-snap-type: y mandatory;
       scrollbar-width: none; /* Firefox */
       -ms-overflow-style: none; /* IE/Edge */
     }
+    
+    /* Mobile: Show Popular Anime scrollable with smaller height */
+    @media (max-width: 768px) {
+      .pa-list {
+        height: calc((78px + 4px) * 6 - 4px);
+        max-height: calc((78px + 4px) * 6 - 4px);
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch; /* Smooth iOS scrolling */
+      }
+      .pa-row { min-height:78px; }
+      .pa-poster { width:50px; height:70px; margin:4px 10px 4px 5px; }
+    }
+    
+    /* Show scroll arrows ONLY on mobile for Popular Anime */
+    @media (max-width: 768px) {
+      #popularAnimeSec .scroll-arrow { 
+        display:flex !important; 
+        width:28px; 
+        height:28px; 
+        font-size:.85rem;
+        background:rgba(59,130,246,0.15);
+        border-color:rgba(59,130,246,0.3);
+      }
+      #popularAnimeSec .scroll-arrow:hover {
+        background:rgba(59,130,246,0.25);
+      }
+    }
+
+    /* Popular Anime: Show chevron arrows on BOTH desktop AND mobile */
     .pa-list::-webkit-scrollbar { display: none; } /* Chrome/Safari */
     .pa-list .pa-row { scroll-snap-align: start; }
     .pa-row {
@@ -1319,6 +1268,12 @@
       z-index:501;
     }
     .popup-card.active { display:block; opacity:1; transform:scale(1); }
+    
+    /* MOBILE: Hide popup cards entirely - users click directly to info page */
+    @media (max-width: 768px) {
+      .popup-overlay { display:none !important; pointer-events:none !important; }
+      .popup-card { display:none !important; }
+    }
     .popup-close { position:absolute; top:12px; right:16px; font-size:1.4rem; cursor:pointer; color:#cbd5e1; line-height:1; z-index:2; }
     .modal-poster-wrap { width:120px; flex-shrink:0; border-radius:10px; overflow:hidden; float:left; margin-right:16px; margin-bottom:12px; }
     .modal-poster-wrap img { width:100%; height:auto; display:block; }
