@@ -174,8 +174,13 @@
 
     /* ── SEARCH (Optimized Responsive) ── */
     .header-search-wrap{
-      flex:0 1 auto;
-      max-width:560px;
+      /* flex-basis was "auto" before, meaning this box sized itself to its
+         content (tabs + input's intrinsic width, ~400px) and never actually
+         reached the max-width cap — so raising max-width alone had no visual
+         effect. Giving it an explicit basis forces the real width up; it can
+         still shrink (flex-shrink:1) down to min-width if the header gets tight. */
+      flex:0 1 520px;
+      max-width:680px;
       min-width:280px;
       position:relative;
       margin-left:8px;
