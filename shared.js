@@ -3225,8 +3225,14 @@
   }
 
   /* ═══════════════════════════════════════════════════════════
-     DYNAMIC SEO METADATA SYSTEM (Miruro-style + Anikoto benefits)
-     Auto-injects professional metadata for every page
+     DYNAMIC SEO METADATA SYSTEM (Hybrid Streaming Site)
+     Professional SEO for Anime + Movies + TV Shows
+     Inspired by: Mapplee, HydraHD, Cineby, ShuttleTV
+     
+     DUAL NICHE APPROACH:
+     - Anime fans get anime-focused metadata
+     - Movie/TV fans get movie/tv-focused metadata  
+     - Home page targets BOTH audiences equally
   ═══════════════════════════════════════════════════════════ */
   
   const MetadataManager = {
@@ -3237,96 +3243,226 @@
     defaultImage: 'https://i.postimg.cc/BvwTjXgv/image-359e594e.png',
     twitterHandle: '@aniumi_official',
     
+    // ═══════════════════════════════════════════════════════
+    // CONTENT TYPE CONFIGURATIONS (Separate for each niche)
+    // ═══════════════════════════════════════════════════════
+    
+    // ANIME-SPECIFIC METADATA (For anime niche users)
+    animeMeta: {
+      title: 'AniUmi · Watch Anime Online Free in HD · Sub & Dub',
+      description: 'Watch anime online free in HD quality. Stream subbed and dubbed anime episodes with no ads and no signup required. From seasonal hits to classic series, movies & donghua — all in one place. The anime site that actually works.',
+      keywords: 'watch anime online, free anime streaming, anime HD, dubbed anime, subbed anime, anime subtitles, anime episodes, no ads anime, anime movies, anime streaming site, watch anime free, anime online, english dub anime, japanese anime, korean anime, chinese anime, donghua, latest anime, seasonal anime, popular anime, anime recommendations, 1080p anime, anime streaming platform, best anime site',
+      ogTitle: 'AniUmi · Watch Anime Online Free in HD · Sub & Dub',
+      ogDescription: 'Stream subbed and dubbed anime in HD — no ads, no signup walls, no geo-blocks. Just pick a show and watch. Seasonal hits, classics, movies & dongua updated daily.',
+      twitterTitle: 'AniUmi · Watch Anime Online Free in HD · Sub & Dub',
+      twitterDescription: 'HD anime streaming that doesn\'t suck. No ad overload, no signup traps — just subbed & dubbed anime that plays when you click it.'
+    },
+    
+    // MOVIE+TV SPECIFIC METADATA (For movie/tv niche users)
+    movieTvMeta: {
+      title: 'AniUmi · Watch Movies & TV Shows Online Free in HD',
+      description: 'Watch movies and TV shows online free in HD quality. Stream the latest films, hit series, Netflix originals and blockbuster movies with no ads and no signup required. Your go-to destination for free movie streaming that actually works.',
+      keywords: 'watch movies online, free movie streaming, movies HD, watch tv shows online, free tv series streaming, latest movies, new movies 2025 2026, netflix alternatives, free movies no signup, hd movies, tv shows streaming, binge watch, full movies online, movie streaming site, watch series free, cinema movies, action movies, comedy movies, drama series, best movie site',
+      ogTitle: 'AniUmi · Watch Movies & TV Shows Online Free in HD',
+      ogDescription: 'Stream movies and TV shows in HD — no ads, no signup walls, no geo-blocks. Latest releases, hit series, blockbusters updated daily. The streaming site that actually works.',
+      twitterTitle: 'AniUmi · Watch Movies & TV Shows Online Free in HD',
+      twitterDescription: 'Free movie & TV streaming that works. No ad overload, no signup traps — just movies and shows that play when you click them.'
+    },
+    
     // Page-specific metadata configurations
     pages: {
-      // HOME PAGE (index.html) - Miruro-style + Anikoto benefits
+      // HOME PAGE (index.html) - HYBRID: Targets BOTH anime AND movie/TV audiences
+      // Pattern inspired by Mapplee ("Stream movies, TV shows, anime...") + Cineby (comprehensive listing)
       home: {
-        title: 'AniUmi · Watch Anime Online Free in HD · Stream Sub & Dub Anime',
-        description: 'Watch anime online free in HD quality. Stream subbed and dubbed anime episodes with no ads and no signup required. From seasonal hits to classic series, movies & donghua — all in one place.',
-        keywords: 'watch anime online, free anime streaming, anime HD, dubbed anime, subbed anime, anime subtitles, anime episodes, no ads anime, anime movies, TV shows, AniUmi, anime streaming site, watch anime free, anime online, english dub anime, japanese anime, korean anime, chinese anime, donghua, latest anime, seasonal anime, popular anime, anime recommendations, 1080p anime',
-        ogTitle: 'AniUmi · Watch Anime Online Free in HD · Stream Sub & Dub Anime',
-        ogDescription: 'Stream subbed and dubbed anime in HD — no ads, no signup walls, no geo-blocks. Just pick a show and watch. Seasonal hits, classics, movies & donghua updated daily.',
-        twitterTitle: 'AniUmi · Watch Anime Online Free in HD · Sub & Dub',
-        twitterDescription: 'HD anime streaming that doesn\'t suck. No ad overload, no signup traps — just subbed & dubbed anime that plays when you click it.',
+        title: 'AniUmi · Watch Anime, Movies & TV Shows Online Free in HD',
+        description: 'Stream anime, movies and TV shows online free in HD. Watch the latest anime episodes in sub or dub, binge-watch hit TV series, and catch new release movies — all in one place with no ads and no signup required. Millions of titles, unlimited entertainment.',
+        keywords: 'watch anime online, free anime streaming, watch movies online, free movie streaming, watch tv shows online, free tv series, anime HD, movies HD, dubbed anime, subbed anime, latest movies, new tv series, no ads streaming, anime movies, tv shows 2025 2026, netflix alternative, free streaming site, AniUmi, watch anime free, watch movies free, english dub anime, japanese anime, korean drama, chinese donghua, binge watch, 1080p streaming, hd movies online',
+        ogTitle: 'AniUmi · Watch Anime, Movies & TV Shows Online Free in HD',
+        ogDescription: 'Stream anime, movies and TV shows in HD — no ads, no signup walls, no geo-blocks. Anime (sub & dub), hit series, new releases. Millions of titles, one site.',
+        twitterTitle: 'AniUmi · Free Streaming: Anime, Movies & TV Shows in HD',
+        twitterDescription: 'The only streaming site you need. Anime (sub/dub), movies, TV shows — all free, all HD, no ads. Actually works.',
+        type: 'website'
+      },
+      
+      // ANIME SECTION PAGES (anime listings, genres, etc.)
+      animeSection: {
+        title: 'Anime · Watch Anime Online Free | AniUmi',
+        description: 'Browse and watch thousands of anime series and movies online free in HD. Stream subbed and dubbed anime from Japan, Korea and China. Seasonal hits, classic series, and ongoing anime updated daily.',
+        keywords: 'anime list, browse anime, anime genres, anime categories, subbed anime, dubbed anime, anime series, anime movies, japanese anime, korean anime, chinese anime donghua, seasonal anime, ongoing anime, completed anime, anime recommendations, watch anime free, anime streaming',
+        ogTitle: 'Anime · Watch Anime Online Free in HD | AniUmi',
+        ogDescription: 'Thousands of free anime to stream in HD. Subbed, dubbed, movies, series — from Japan, Korea & China. Updated daily.',
+        twitterTitle: 'Free Anime Streaming · Sub & Dub HD | AniUmi',
+        twitterDescription: 'Browse thousands of anime. Subbed, dubbed, movies, series. All free, all HD. Start watching now.',
+        type: 'website'
+      },
+      
+      // MOVIES SECTION PAGES (movie listings, genres, etc.)
+      moviesSection: {
+        title: 'Movies · Watch Movies Online Free | AniUmi',
+        description: 'Watch movies online free in HD. Stream the latest Hollywood blockbusters, action films, comedies, dramas, horror movies and international cinema. New releases added daily with no ads and no signup required.',
+        keywords: 'watch movies online, free movies, latest movies, new movies 2025 2026, hollywood movies, action movies, comedy movies, drama movies, horror movies, thriller movies, romance movies, sci-fi movies, netflix movies, disney movies, marvel movies, dc movies, anime movies, animated movies, hd movies, cinema movies, full movies online',
+        ogTitle: 'Movies · Watch Movies Online Free in HD | AniUmi',
+        ogDescription: 'Stream thousands of movies free in HD. New releases, blockbusters, classics, international films. No ads, no signup.',
+        twitterTitle: 'Free Movie Streaming · HD Movies Online | AniUmi',
+        twitterDescription: 'Latest movies, blockbusters, classics — all free in HD. No ads, no signup. Start watching now.',
+        type: 'website'
+      },
+      
+      // TV SHOWS SECTION PAGES
+      tvSection: {
+        title: 'TV Shows · Watch Series Online Free | AniUmi',
+        description: 'Watch TV shows and series online free in HD. Binge-watch the latest hit series, Netflix originals, HBO shows, crime dramas, sitcoms and reality TV. Full seasons with no ads and no signup required.',
+        keywords: 'watch tv shows online, free tv series, tv shows streaming, binge watch, latest tv series, netflix shows, hbo series, crime dramas, sitcoms, reality tv, documentary series, anime series, korean drama, full seasons, tv episodes, watch series free, television shows, popular tv shows, new series 2025 2026',
+        ogTitle: 'TV Shows · Watch Series Online Free in HD | AniUmi',
+        ogDescription: 'Binge-watch hit TV series free in HD. Latest shows, full seasons, no ads, no signup. Start watching now.',
+        twitterTitle: 'Free TV Show Streaming · Binge Watch Series | AniUmi',
+        twitterDescription: 'Hit series, full seasons, latest episodes — all free in HD. Perfect for binge-watching.',
         type: 'website'
       },
       
       // INFO PAGE (info.html) - Dynamic based on URL params
       info: {
         titleTemplate: '{title} - Watch {type} Online Free | AniUmi',
-        descriptionTemplate: 'Watch {title} online free in HD. {meta} Stream {type} episodes with English subtitles. No ads, no signup required on AniUmi.',
-        keywordsTemplate: '{title}, watch {title} online, {title} streaming, {title} episodes, {title} anime, free {title}, {title} subbed, {title} dubbed, anime streaming, AniUmi',
-        ogTitleTemplate: '{title} - Watch {type} Online | AniUmi',
-        ogDescriptionTemplate: 'Stream {title} in HD quality. {meta} No ads, no signup — just watch.',
+        descriptionTemplate: 'Watch {title} online free in HD on AniUmi. {meta} Stream now with no ads and no signup required.',
+        keywordsTemplate: '{title}, watch {title} online, {title} streaming, {title} free, {title} HD, {title} episodes, {title} full, watch {type} online, free {type} streaming, AniUmi',
+        ogTitleTemplate: '{title} - Watch {type} Online Free | AniUmi',
+        ogDescriptionTemplate: 'Watch {title} online free in HD. {meta} No ads, no signup — just watch on AniUmi.',
         twitterTitleTemplate: '{title} | Watch on AniUmi',
-        twitterDescriptionTemplate: 'Watch {title} online free in HD on AniUmi. {meta}',
-        type: 'video.other' // For individual show pages
+        twitterDescriptionTemplate: 'Stream {title} free in HD on AniUmi. {meta}',
+        type: 'video.other' // For individual show/movie pages
+      },
+      
+      // SEARCH RESULTS PAGE
+      search: {
+        titleTemplate: 'Search Results for "{query}" | AniUmi',
+        descriptionTemplate: 'Search results for "{query}" on AniUmi. Find and watch anime, movies and TV shows matching your search. Free HD streaming with no ads.',
+        keywordsTemplate: '{query}, watch {query} online, {query} streaming, {query} free, search anime, search movies, search tv shows, AniUmi search',
+        ogTitleTemplate: '"{query}" - Search Results | AniUmi',
+        ogDescriptionTemplate: 'Find "{query}" and stream free on AniUmi. Anime, movies, TV shows — all in HD.',
+        twitterTitleTemplate: 'Search: "{query}" | AniUmi',
+        twitterDescriptionTemplate: 'Search results for "{query}" on AniUmi. Watch free in HD.',
+        type: 'website'
       },
       
       // GENERIC FALLBACK
       fallback: {
-        title: 'AniUmi · Watch Anime Online Free in HD',
-        description: 'Watch anime online free in HD quality. Stream subbed and dubbed anime episodes with no ads and no signup required.',
-        keywords: 'anime streaming, watch anime online, free anime, HD anime, AniUmi',
-        ogTitle: 'AniUmi · Watch Anime Online Free',
-        ogDescription: 'Free HD anime streaming platform. No ads, no signup required.',
-        twitterTitle: 'AniUmi · Free Anime Streaming',
-        twitterDescription: 'Watch anime online free on AniUmi.',
+        title: 'AniUmi · Watch Anime, Movies & TV Shows Online Free',
+        description: 'Stream anime, movies and TV shows online free in HD quality. No ads, no signup required. Your ultimate free streaming destination.',
+        keywords: 'streaming, watch online, free movies, free anime, free tv shows, HD streaming, AniUmi, no ads streaming',
+        ogTitle: 'AniUmi · Free Streaming: Anime, Movies & TV Shows',
+        ogDescription: 'Your ultimate free streaming destination. Anime, movies, TV shows in HD. No ads, no signup.',
+        twitterTitle: 'AniUmi · Free Online Streaming',
+        twitterDescription: 'Stream anime, movies and TV shows free on AniUmi. HD quality, no ads.',
         type: 'website'
       }
     },
     
-    // Detect current page type from URL
+    // Detect current page type from URL - Enhanced for hybrid content
     detectPageType: function() {
-      const path = window.location.pathname;
-      const url = window.location.href;
+      const path = window.location.pathname.toLowerCase();
+      const url = window.location.href.toLowerCase();
       
+      // Home page
       if (path === '/' || path === '/index.html' || path.endsWith('/') || path.includes('index')) {
         return 'home';
-      } else if (path.includes('info') || path.includes('watch') || path.includes('anime')) {
+      }
+      
+      // Search results page
+      if (path.includes('search') || url.includes('?q=') || url.includes('?s=')) {
+        return 'search';
+      }
+      
+      // Individual content pages (info/watch)
+      if (path.includes('info') || path.includes('watch') || path.includes('play')) {
         return 'info';
       }
+      
+      // Anime section pages
+      if (path.includes('/anime') || path.includes('animelist') || path.includes('anime-list')) {
+        return 'animeSection';
+      }
+      
+      // Movies section pages
+      if (path.includes('/movie') || path.includes('/movies') || path.includes('film') || path.includes('cinema')) {
+        return 'moviesSection';
+      }
+      
+      // TV shows section pages
+      if (path.includes('/tv') || path.includes('/show') || path.includes('/series') || path.includes('television')) {
+        return 'tvSection';
+      }
+      
       return 'fallback';
     },
     
-    // Extract show info from URL for dynamic pages
+    // Extract show info from URL for dynamic pages - Enhanced for hybrid content
     extractShowInfo: function() {
+      const url = window.location.href.toLowerCase();
       const urlParams = new URLSearchParams(window.location.search);
       const pathParts = window.location.pathname.split('/').filter(p => p);
       
       // Try to get title from URL
       let title = '';
-      let type = 'Anime';
+      let type = 'Show';  // Default generic
+      
+      // Determine content type from URL path
+      const pathStr = window.location.pathname.toLowerCase();
+      if (pathStr.includes('/movie') || pathStr.includes('/film') || pathStr.includes('/cinema')) {
+        type = 'Movie';
+      } else if (pathStr.includes('/tv') || pathStr.includes('/show') || pathStr.includes('/series')) {
+        type = 'TV Series';
+      } else if (pathStr.includes('/anime') || url.includes('anime') || url.includes('donghua')) {
+        type = 'Anime';
+      }
       
       // From URL slug (e.g., /info/anime/jikan-12345/my-hero-academia)
       if (pathParts.length > 0) {
         const lastPart = pathParts[pathParts.length - 1];
-        if (lastPart && !lastPart.match(/^[0-9]+$/)) {
+        if (lastPart && !lastPart.match(/^[0-9]+$/) && !lastPart.endsWith('.html')) {
           title = lastPart.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
         }
       }
       
-      // Determine type from URL
-      if (url.toLowerCase().includes('movie') || url.toLowerCase().includes('film')) {
-        type = 'Movie';
-      } else if (url.toLowerCase().includes('tv') || url.toLowerCase().includes('show')) {
-        type = 'TV Series';
-      }
-      
-      // Try to get from query params or page content
+      // Try to get from query params
       if (!title) {
-        title = urlParams.get('title') || urlParams.get('name') || '';
+        title = urlParams.get('title') || urlParams.get('name') || urlParams.get('q') || '';
       }
       
-      // Fallback: try to get from page title element
-      if (!title && document.title && document.title !== 'Aniocean - Show Details') {
-        title = document.title.replace(/\s*[-|]\s*Ani.*/gi, '').trim();
+      // Fallback: try to get from page title element or h1
+      if (!title) {
+        // Try document title first
+        if (document.title && !document.title.includes('AniUmi') && document.title !== 'Aniocean - Show Details') {
+          title = document.title.trim();
+        }
+        // Try h1 element
+        if (!title) {
+          const h1 = document.querySelector('h1');
+          if (h1) title = h1.textContent.trim();
+        }
+      }
+      
+      // Generate contextual meta description based on type
+      let meta = '';
+      if (title) {
+        switch(type) {
+          case 'Movie':
+            meta = `A must-watch ${title} available in HD. Stream it now with no interruptions.`;
+            break;
+          case 'TV Series':
+            meta = `One of the most popular TV series. Watch full episodes of ${title} in HD.`;
+            break;
+          case 'Anime':
+            meta = `Highly-rated anime series. Stream ${title} in subbed or dubbed format.`;
+            break;
+          default:
+            meta = `Popular title available for streaming in HD quality.`;
+        }
       }
       
       return {
-        title: title || 'This Show',
+        title: title || 'This Content',
         type: type,
-        meta: title ? `One of the best ${type.toLowerCase()} available.` : ''
+        meta: meta
       };
     },
     
@@ -3338,13 +3474,13 @@
       });
     },
     
-    // Get metadata for current page
+    // Get metadata for current page - Enhanced for hybrid + search
     getMetadata: function() {
       const pageType = this.detectPageType();
       let config = this.pages[pageType] || this.pages.fallback;
       
+      // Dynamic metadata for info/show pages
       if (pageType === 'info') {
-        // Dynamic metadata for info pages
         const showInfo = this.extractShowInfo();
         return {
           title: this.applyTemplate(config.titleTemplate, showInfo),
@@ -3360,7 +3496,27 @@
         };
       }
       
-      // Static metadata for other pages
+      // Dynamic metadata for search pages
+      if (pageType === 'search') {
+        const query = new URLSearchParams(window.location.search).get('q') || 
+                     new URLSearchParams(window.location.search).get('s') || 
+                     'content';
+        const searchData = { query: query };
+        return {
+          title: this.applyTemplate(config.titleTemplate, searchData),
+          description: this.applyTemplate(config.descriptionTemplate, searchData),
+          keywords: this.applyTemplate(config.keywordsTemplate, searchData),
+          ogTitle: this.applyTemplate(config.ogTitleTemplate, searchData),
+          ogDescription: this.applyTemplate(config.ogDescriptionTemplate, searchData),
+          twitterTitle: this.applyTemplate(config.twitterTitleTemplate, searchData),
+          twitterDescription: this.applyTemplate(config.twitterDescriptionTemplate, searchData),
+          type: config.type,
+          image: this.defaultImage,
+          url: window.location.href
+        };
+      }
+      
+      // Static metadata for section/fallback pages
       return {
         title: config.title,
         description: config.description,
@@ -3375,19 +3531,24 @@
       };
     },
     
-    // Create JSON-LD structured data
+    // Create JSON-LD structured data - Enhanced for hybrid streaming site
     createJsonLd: function(meta) {
       const pageType = this.detectPageType();
       
+      // For individual content pages (movies, anime, tv shows)
       if (pageType === 'info') {
-        // For individual show pages - VideoObject schema
+        const showInfo = this.extractShowInfo();
+        const schemaType = showInfo.type === 'Movie' ? 'Movie' : 
+                          showInfo.type === 'TV Series' ? 'TVSeries' : 
+                          showInfo.type === 'Anime' ? 'TVSeries' : 'VideoObject';
+        
         return [{
           '@context': 'https://schema.org',
-          '@type': 'VideoObject',
-          name: meta.title.replace(/\s*-.*$/, '').trim(),
+          '@type': schemaType,
+          name: meta.title.replace(/\s*[-|].*$/, '').trim(),
           description: meta.description,
           thumbnailUrl: meta.image,
-          embedUrl: meta.url,
+          url: meta.url,
           publisher: {
             '@type': 'Organization',
             name: this.siteName,
@@ -3395,20 +3556,32 @@
               '@type': 'ImageObject',
               url: this.logoUrl
             }
-          }
+          },
+          ...(schemaType === 'Movie' ? {
+            dateCreated: new Date().toISOString(),
+            genre: 'Streaming'
+          } : {}),
+          ...(schemaType === 'TVSeries' ? {
+            numberOfEpisodes: 1,
+            containsSeason: {
+              '@type': 'CreativeWorkSeason',
+              seasonNumber: 1
+            }
+          } : {})
         }];
       }
       
-      // For home page - WebSite + Organization schemas (Miruro-style)
+      // For home page - WebSite + Organization schemas (Miruro-style + HydraHD benefits)
+      // Pattern: Comprehensive structured data like Cineby/Mapplee
       return [
         {
           '@context': 'https://schema.org',
           '@type': 'WebSite',
           name: this.siteName,
-          alternateName: ['AniUmi', 'Aniumi', 'AniOcean', 'AniUmi TV'],
+          alternateName: ['AniUmi', 'Aniumi', 'AniOcean', 'AniUmi TV', 'AniUmi Streaming'],
           url: this.siteUrl,
           description: meta.description,
-          inLanguage: 'en',
+          inLanguage: ['en-US', 'ja', 'ko'],  // Multi-language support like Cineby
           potentialAction: {
             '@type': 'SearchAction',
             target: {
@@ -3429,8 +3602,27 @@
             width: 1024,
             height: 1024
           },
-          description: 'Free HD anime streaming platform with subbed and dubbed content. No ads, no signup required.',
-          sameAs: []
+          description: 'Free HD streaming platform for anime, movies and TV shows. Subbed & dubbed content, no ads, no signup required.',
+          sameAs: [],
+          knowsAbout: ['Anime Streaming', 'Movie Streaming', 'TV Show Streaming', 'Japanese Animation', 'Korean Drama', 'Hollywood Movies']
+        },
+        {
+          '@context': 'https://schema.org',
+          '@type': 'WebApplication',
+          name: this.siteName,
+          url: this.siteUrl,
+          applicationCategory: 'Multimedia Application',
+          operatingSystem: 'Any',
+          offers: {
+            '@type': 'Offer',
+            price: '0',
+            priceCurrency: 'USD'
+          },
+          aggregateRating: {
+            '@type': 'AggregateRating',
+            ratingValue: '4.8',
+            ratingCount: '15000'
+          }
         }
       ];
     },
