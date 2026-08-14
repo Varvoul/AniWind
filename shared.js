@@ -3729,6 +3729,368 @@
   };
 
   /* ═══════════════════════════════════════════════════════════
+     ADAPTIVE COLOR ENGINE (Text Glow Effect)
+     Canvas-based color sampling for hero slider titles
+     Samples dominant colors and applies intelligent text glow
+  ═══════════════════════════════════════════════════════════ */
+  
+  const AdaptiveColorEngine = {
+    canvas: null,
+    ctx: null,
+    cache: new Map(), // Cache sampled colors to avoid re-processing
+    
+    init: function() {
+      // Create canvas element if it doesn't exist
+      this.canvas = document.getElementById('adaptiveColorCanvas');
+      if (!this.canvas) {
+        this.canvas = document.createElement('canvas');
+        this.canvas.id = 'adaptiveColorCanvas';
+        this.canvas.style.display = 'none';
+        document.body.appendChild(this.canvas);
+      }
+      this.ctx = this.canvas.getContext('2d', { willReadFrequently: true });
+    },
+
+    /**
+     * Sample colors from image area behind title position
+     * @param {string} imageUrl - Background image URL
+     * @param {object} options - Sampling config
+     * @returns {Promise<object>} Color analysis results
+     */
+    sampleImage: async function(imageUrl, options = {}) {
+      const {
+        sampleRegion = 'bottomLeft',
+        sampleSize = 120,
+        downsample = 4
+      } = options;
+
+      // Check cache first
+      const cacheKey = `${imageUrl}_${sampleRegion}_${sampleSize}`;
+      if (this.cache.has(cacheKey)) {
+        return this.cache.get(cacheKey);
+      }
+
+      // Ensure initialized
+      if (!this.ctx) this.init();
+
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        
+        img.onload = () => {
+          try {
+            // Set canvas size (downsampled for performance)
+            const w = Math.floor(img.width / downsample);
+            const h = Math.floor(img.height / downsample);
+            this.canvas.width = w;
+            this.canvas.height = h;
+            
+            // Draw image to canvas
+            this.ctx.drawImage(img, 0, 0, w, h);
+            
+            // Determine sample region coordinates (bottom-left where title sits)
+            let sx, sy, sw, sh;
+            
+            switch(sampleRegion) {
+              case 'bottomLeft':
+                sw = Math.min(sampleSize, w * 0.5);
+                sh = Math.min(sampleSize, h * 0.35);
+                sx = w * 0.05;
+                sy = h - sh - h * 0.05;
+                break;
+              case 'center':
+              default:
+                sw = Math.min(sampleSize, w * 0.4);
+                sh = Math.min(sampleSize, h * 0.4);
+                sx = (w - sw) / 2;
+                sy = (h - sh) / 2;
+            }
+
+            // Get pixel data
+            const imageData = this.ctx.getImageData(sx, sy, sw, sh);
+            const analysis = this.analyzePixels(imageData.data);
+            
+            // Cache result
+            this.cache.set(cacheKey, analysis);
+            resolve(analysis);
+          } catch (e) {
+            reject(e);
+          }
+        };
+        
+        img.onerror = () => {
+          // Return fallback on error
+          resolve({
+            average: { r: 100, g: 130, b: 170 },
+            dominant: { r: 100, g: 130, b: 170 },
+            dominantHue: 210,
+            luminance: 0.4,
+            saturation: 0.5,
+            error: true
+          });
+        };
+        
+        img.src = imageUrl;
+      });
+    },
+
+    /**
+     * Analyze pixel data to extract color information
+     */
+    analyzePixels: function(pixels) {
+      const totalPixels = pixels.length / 4;
+      
+      let rTotal = 0, gTotal = 0, bTotal = 0;
+      let maxSaturation = 0;
+      let brightestPixel = { r: 0, g: 0, b: 0, brightness: 0 };
+      let darkestPixel = { r: 255, g: 255, b: 255, brightness: Infinity };
+      
+      // Color histogram for finding dominant hue
+      const hueBuckets = {};
+      
+      for (let i = 0; i < pixels.length; i += 4) {
+        const r = pixels[i];
+        const g = pixels[i + 1];
+        const b = pixels[i + 2];
+        
+        // Skip very transparent or very dark/bright pixels
+        if (pixels[i + 3] < 128) continue;
+        
+        rTotal += r;
+        gTotal += g;
+        bTotal += b;
+        
+        // Convert to HSL
+        const hsl = this.rgbToHsl(r, g, b);
+        
+        // Track saturation (excluding extreme lightness)
+        if (hsl.s > maxSaturation && hsl.l > 0.1 && hsl.l < 0.9) {
+          maxSaturation = hsl.s;
+        }
+        
+        // Track brightest and darkest
+        if (hsl.l > brightestPixel.brightness) {
+          brightestPixel = { r, g, b, brightness: hsl.l };
+        }
+        if (hsl.l < darkestPixel.brightness) {
+          darkestPixel = { r, g, b, brightness: hsl.l };
+        }
+        
+        // Bucket by hue (quantized to 30-degree segments)
+        const hueBucket = Math.floor(hsl.h / 30) * 30;
+        if (!hueBuckets[hueBucket]) {
+          hueBuckets[hueBucket] = { count: 0, r: 0, g: 0, b: 0 };
+        }
+        hueBuckets[hueBucket].count++;
+        hueBuckets[hueBucket].r += r;
+        hueBuckets[hueBucket].g += g;
+        hueBuckets[hueBucket].b += b;
+      }
+      
+      // Calculate averages
+      const avgR = Math.round(rTotal / totalPixels);
+      const avgG = Math.round(gTotal / totalPixels);
+      const avgB = Math.round(bTotal / totalPixels);
+      
+      // Find dominant hue bucket
+      let dominantHue = 0;
+      let dominantHueCount = 0;
+      let dominantColor = { r: avgR, g: avgG, b: avgB };
+      
+      for (const [hue, data] of Object.entries(hueBuckets)) {
+        if (data.count > dominantHueCount) {
+          dominantHueCount = data.count;
+          dominantHue = parseInt(hue);
+          dominantColor = {
+            r: Math.round(data.r / data.count),
+            g: Math.round(data.g / data.count),
+            b: Math.round(data.b / data.count)
+          };
+        }
+      }
+      
+      // Calculate luminance
+      const luminance = this.calculateLuminance(avgR, avgG, avgB);
+      
+      return {
+        average: { r: avgR, g: avgG, b: avgB },
+        dominant: dominantColor,
+        dominantHue: dominantHue,
+        brightest: brightestPixel,
+        darkest: darkestPixel,
+        luminance: luminance,
+        saturation: maxSaturation,
+        pixelCount: totalPixels
+      };
+    },
+
+    /**
+     * RGB to HSL conversion
+     */
+    rgbToHsl: function(r, g, b) {
+      r /= 255; g /= 255; b /= 255;
+      const max = Math.max(r, g, b), min = Math.min(r, g, b);
+      let h, s, l = (max + min) / 2;
+
+      if (max === min) {
+        h = s = 0;
+      } else {
+        const d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        switch (max) {
+          case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+          case g: h = ((b - r) / d + 2) / 6; break;
+          case b: h = ((r - g) / d + 4) / 6; break;
+        }
+      }
+      return { h: h * 360, s, l };
+    },
+
+    /**
+     * HSL to RGB conversion
+     */
+    hslToRgb: function(h, s, l) {
+      h /= 360;
+      let r, g, b;
+
+      if (s === 0) {
+        r = g = b = l;
+      } else {
+        const hue2rgb = (p, q, t) => {
+          if (t < 0) t += 1;
+          if (t > 1) t -= 1;
+          if (t < 1/6) return p + (q - p) * 6 * t;
+          if (t < 1/2) return q;
+          if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+          return p;
+        };
+        const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+        const p = 2 * l - q;
+        r = hue2rgb(p, q, h + 1/3);
+        g = hue2rgb(p, q, h);
+        b = hue2rgb(p, q, h - 1/3);
+      }
+
+      return {
+        r: Math.round(r * 255),
+        g: Math.round(g * 255),
+        b: Math.round(b * 255)
+      };
+    },
+
+    /**
+     * Calculate perceived luminance (0-1)
+     */
+    calculateLuminance: function(r, g, b) {
+      return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    },
+
+    /**
+     * Generate text glow color based on image analysis
+     * Returns CSS rgba string for text-shadow
+     */
+    getGlowColor: function(analysis) {
+      if (analysis.error) {
+        // Fallback glow for errors
+        return 'rgba(66, 153, 225, 0.7)'; // Blue glow
+      }
+
+      const { dominant, dominantHue, saturation, luminance } = analysis;
+      const hsl = this.rgbToHsl(dominant.r, dominant.g, dominant.b);
+      
+      // Determine glow characteristics based on image properties
+      let glowHue, glowSat, glowAlpha;
+      
+      // Adjust based on dominant hue range
+      if (dominantHue >= 0 && dominantHue <= 60 || dominantHue >= 300) {
+        // Warm images (red/orange/yellow) → Use complementary cool glow
+        glowHue = 200 + Math.random() * 40; // Cyan-blue range
+        glowSat = 0.85;
+        glowAlpha = 0.75;
+      } else if (dominantHue >= 180 && dominantHue <= 260) {
+        // Cool blue images → Use warm golden glow
+        glowHue = 35 + Math.random() * 20; // Gold-amber range
+        glowSat = 0.9;
+        glowAlpha = 0.8;
+      } else if (dominantHue >= 90 && dominantHue <= 160) {
+        // Green images → Use magenta/pink glow
+        glowHue = 290 + Math.random() * 20;
+        glowSat = 0.8;
+        glowAlpha = 0.7;
+      } else {
+        // Neutral/purple images → Use warm accent glow
+        glowHue = 25 + Math.random() * 30; // Orange-gold range
+        glowSat = 0.85;
+        glowAlpha = 0.72;
+      }
+      
+      // Boost saturation for more vibrant glow
+      glowSat = Math.min(glowSat + 0.15, 1);
+      
+      // Create glow color
+      const glow = this.hslToRgb(glowHue, glowSat, 0.58);
+      return `rgba(${glow.r}, ${glow.g}, ${glow.b}, ${glowAlpha})`;
+    },
+
+    /**
+     * Generate secondary (softer) glow layer
+     */
+    getSoftGlowColor: function(analysis) {
+      if (analysis.error) {
+        return 'rgba(66, 153, 225, 0.3)';
+      }
+      
+      const primaryGlow = this.getGlowColor(analysis);
+      // Reduce alpha for softer secondary glow
+      return primaryGlow.replace(/[\d.]+\)$/, '0.3)');
+    },
+
+    /**
+     * Apply adaptive text glow to a title element
+     * @param {HTMLElement} titleElement - The .slide-title element
+     * @param {string} imageUrl - The background image URL
+     */
+    applyGlowToElement: async function(titleElement, imageUrl) {
+      if (!titleElement || !imageUrl) return;
+      
+      try {
+        const analysis = await this.sampleImage(imageUrl);
+        const primaryGlow = this.getGlowColor(analysis);
+        const softGlow = this.getSoftGlowColor(analysis);
+        
+        // Apply multi-layered text shadow for professional glow effect
+        titleElement.style.textShadow = `
+          0 0 20px ${primaryGlow},
+          0 0 45px ${primaryGlow},
+          0 0 80px ${softGlow},
+          2px 2px 8px rgba(0, 0, 0, 0.5)
+        `;
+        
+        // Keep text white for readability
+        titleElement.style.color = '#ffffff';
+        
+        console.log('[AdaptiveColorEngine] ✓ Glow applied:', primaryGlow.substring(0, 50));
+      } catch (error) {
+        console.warn('[AdaptiveColorEngine] Failed to apply glow:', error.message);
+        // Fallback: subtle white glow
+        titleElement.style.textShadow = `
+          0 0 20px rgba(255, 255, 255, 0.5),
+          0 0 45px rgba(200, 220, 255, 0.3),
+          2px 2px 8px rgba(0, 0, 0, 0.5)
+        `;
+        titleElement.style.color = '#ffffff';
+      }
+    },
+
+    /**
+     * Clear cache (useful when slides change)
+     */
+    clearCache: function() {
+      this.cache.clear();
+    }
+  };
+
+  /* ═══════════════════════════════════════════════════════════
      GLOBAL EXPORTS
   ═══════════════════════════════════════════════════════════ */
   window.supabaseClient   = supabase;
@@ -3739,5 +4101,6 @@
   window.getUserGeo       = getUserGeo;
   window.AVATAR_BUCKET    = AVATAR_BUCKET;
   window.AVATAR_BUCKET_URL= AVATAR_BUCKET_URL;
+  window.AdaptiveColorEngine = AdaptiveColorEngine;
 
 })();

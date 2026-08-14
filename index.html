@@ -173,6 +173,13 @@
       -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
       overflow: hidden;
+      /* Adaptive text glow - smooth transitions */
+      color: #ffffff;
+      transition: text-shadow 0.6s ease, color 0.3s ease;
+      text-shadow: 
+        0 0 20px rgba(66, 153, 225, 0.5),
+        0 0 45px rgba(66, 153, 225, 0.25),
+        2px 2px 8px rgba(0, 0, 0, 0.4);
     }
     .slide-meta {
       display: flex;
@@ -1972,6 +1979,13 @@
     font-size: clamp(13px, 4.5vw, 20px) !important;
     margin-bottom: 3px !important;
     -webkit-line-clamp: 2 !important;
+    /* Preserve adaptive glow on mobile with smaller radii */
+    color: #ffffff !important;
+    transition: text-shadow 0.4s ease, color 0.2s ease;
+    text-shadow: 
+      0 0 12px rgba(66, 153, 225, 0.4),
+      0 0 25px rgba(66, 153, 225, 0.2),
+      1px 1px 4px rgba(0, 0, 0, 0.4) !important;
   }
   .slide-meta {
     gap: 3px !important;
@@ -3507,6 +3521,10 @@ async function loadNewAniocean() {
         document.getElementById('slideCounter').textContent = `${currentSlide+1} / ${totalSlides}`;
         // Apply correct resolution backdrops for current device
         requestAnimationFrame(applyResponsiveBackdrops);
+        
+        // Apply adaptive text glow effect to all slide titles
+        applyAdaptiveGlow();
+        
         // Restart auto-advance with a single interval (clear old one first)
         if (_heroInterval) clearInterval(_heroInterval);
         _heroInterval = setInterval(() => goToSlide(currentSlide + 1), 6000);
@@ -3526,7 +3544,105 @@ async function loadNewAniocean() {
       }
       window.addEventListener('resize', applyResponsiveBackdrops);
 
-      function goToSlide(i) { currentSlide = ((i%heroData.length)+heroData.length)%heroData.length; updateSlidePos(); }
+      function goToSlide(i) { 
+        currentSlide = ((i%heroData.length)+heroData.length)%heroData.length; 
+        updateSlidePos(); 
+        // Update glow for current slide
+        applyGlowToCurrentSlide();
+      }
+      
+      /* ════════════════════════════════════════════════════════════
+         ADAPTIVE TEXT GLOW EFFECT (Miruro-style)
+         Samples each slide's background image and applies intelligent
+         colored glow to the title based on dominant colors.
+         Keeps text white for readability, adds Mirro-style warmth.
+      ════════════════════════════════════════════════════════════ */
+      
+      /**
+       * Apply adaptive glow to ALL slide titles (called after renderHero)
+       * Processes slides in batches to avoid overwhelming the browser
+       */
+      async function applyAdaptiveGlow() {
+        // Check if AdaptiveColorEngine is available (from shared.js)
+        if (!window.AdaptiveColorEngine) {
+          console.warn('[AdaptiveGlow] AdaptiveColorEngine not found in shared.js');
+          return;
+        }
+        
+        const slides = document.querySelectorAll('#slidesContainer .slide');
+        
+        if (!slides.length) return;
+        
+        console.log(`[AdaptiveGlow] Applying glow to ${slides.length} slides...`);
+        
+        // Process all slides with slight delay between each to avoid blocking
+        for (let i = 0; i < slides.length; i++) {
+          const slide = slides[i];
+          const titleEl = slide.querySelector('.slide-title');
+          
+          if (!titleEl) continue;
+          
+          // Get background image URL from data attributes or inline style
+          let bgUrl = slide.dataset.bgDesktop || 
+                       slide.style.backgroundImage?.replace(/url\(['"]?|['"]?\)/g, '') || '';
+          
+          if (!bgUrl) continue;
+          
+          try {
+            // Apply glow using the engine from shared.js
+            await window.AdaptiveColorEngine.applyGlowToElement(titleEl, bgUrl);
+            
+            // Small delay between slides to keep UI responsive
+            await new Promise(resolve => setTimeout(resolve, 50));
+          } catch (e) {
+            console.warn(`[AdaptiveGlow] Failed on slide ${i}:`, e.message);
+          }
+        }
+        
+        console.log('[AdaptiveGlow] ✓ All glows applied');
+      }
+      
+      /**
+       * Apply glow only to the CURRENT visible slide
+       * Called when user navigates to a new slide
+       */
+      async function applyGlowToCurrentSlide() {
+        if (!window.AdaptiveColorEngine) return;
+        
+        const slides = document.querySelectorAll('#slidesContainer .slide');
+        const currentSlideEl = slides[currentSlide];
+        
+        if (!currentSlideEl) return;
+        
+        const titleEl = currentSlideEl.querySelector('.slide-title');
+        if (!titleEl) return;
+        
+        // Get background image URL
+        let bgUrl = currentSlideEl.dataset.bgDesktop || 
+                     currentSlideEl.style.backgroundImage?.replace(/url\(['"]?|['"]?\)/g, '') || '';
+        
+        if (!bgUrl) return;
+        
+        // Check if we already have this cached (instant application)
+        const cacheKey = `${bgUrl}_bottomLeft_120`;
+        if (window.AdaptiveColorEngine.cache && window.AdaptiveColorEngine.cache.has(cacheKey)) {
+          // Use cached analysis for instant update
+          const analysis = window.AdaptiveColorEngine.cache.get(cacheKey);
+          const primaryGlow = window.AdaptiveColorEngine.getGlowColor(analysis);
+          const softGlow = window.AdaptiveColorEngine.getSoftGlowColor(analysis);
+          
+          titleEl.style.textShadow = `
+            0 0 20px ${primaryGlow},
+            0 0 45px ${primaryGlow},
+            0 0 80px ${softGlow},
+            2px 2px 8px rgba(0, 0, 0, 0.5)
+          `;
+          titleEl.style.color = '#ffffff';
+        } else {
+          // Not cached yet, apply async (will show after brief delay)
+          window.AdaptiveColorEngine.applyGlowToElement(titleEl, bgUrl);
+        }
+      }
       function updateSlidePos() {
         document.getElementById('slidesContainer').style.transform = `translateX(-${currentSlide*100}%)`;
         // Dots are capped at 30 — highlight the proportionally closest dot
