@@ -3225,6 +3225,318 @@
   }
 
   /* ═══════════════════════════════════════════════════════════
+     DYNAMIC SEO METADATA SYSTEM (Miruro-style + Anikoto benefits)
+     Auto-injects professional metadata for every page
+  ═══════════════════════════════════════════════════════════ */
+  
+  const MetadataManager = {
+    // Base configuration
+    siteName: 'AniUmi',
+    siteUrl: 'https://aniumi.vercel.app',
+    logoUrl: 'https://i.postimg.cc/BvwTjXgv/image-359e594e.png',
+    defaultImage: 'https://i.postimg.cc/BvwTjXgv/image-359e594e.png',
+    twitterHandle: '@aniumi_official',
+    
+    // Page-specific metadata configurations
+    pages: {
+      // HOME PAGE (index.html) - Miruro-style + Anikoto benefits
+      home: {
+        title: 'AniUmi · Watch Anime Online Free in HD · Stream Sub & Dub Anime',
+        description: 'Watch anime online free in HD quality. Stream subbed and dubbed anime episodes with no ads and no signup required. From seasonal hits to classic series, movies & donghua — all in one place.',
+        keywords: 'watch anime online, free anime streaming, anime HD, dubbed anime, subbed anime, anime subtitles, anime episodes, no ads anime, anime movies, TV shows, AniUmi, anime streaming site, watch anime free, anime online, english dub anime, japanese anime, korean anime, chinese anime, donghua, latest anime, seasonal anime, popular anime, anime recommendations, 1080p anime',
+        ogTitle: 'AniUmi · Watch Anime Online Free in HD · Stream Sub & Dub Anime',
+        ogDescription: 'Stream subbed and dubbed anime in HD — no ads, no signup walls, no geo-blocks. Just pick a show and watch. Seasonal hits, classics, movies & donghua updated daily.',
+        twitterTitle: 'AniUmi · Watch Anime Online Free in HD · Sub & Dub',
+        twitterDescription: 'HD anime streaming that doesn\'t suck. No ad overload, no signup traps — just subbed & dubbed anime that plays when you click it.',
+        type: 'website'
+      },
+      
+      // INFO PAGE (info.html) - Dynamic based on URL params
+      info: {
+        titleTemplate: '{title} - Watch {type} Online Free | AniUmi',
+        descriptionTemplate: 'Watch {title} online free in HD. {meta} Stream {type} episodes with English subtitles. No ads, no signup required on AniUmi.',
+        keywordsTemplate: '{title}, watch {title} online, {title} streaming, {title} episodes, {title} anime, free {title}, {title} subbed, {title} dubbed, anime streaming, AniUmi',
+        ogTitleTemplate: '{title} - Watch {type} Online | AniUmi',
+        ogDescriptionTemplate: 'Stream {title} in HD quality. {meta} No ads, no signup — just watch.',
+        twitterTitleTemplate: '{title} | Watch on AniUmi',
+        twitterDescriptionTemplate: 'Watch {title} online free in HD on AniUmi. {meta}',
+        type: 'video.other' // For individual show pages
+      },
+      
+      // GENERIC FALLBACK
+      fallback: {
+        title: 'AniUmi · Watch Anime Online Free in HD',
+        description: 'Watch anime online free in HD quality. Stream subbed and dubbed anime episodes with no ads and no signup required.',
+        keywords: 'anime streaming, watch anime online, free anime, HD anime, AniUmi',
+        ogTitle: 'AniUmi · Watch Anime Online Free',
+        ogDescription: 'Free HD anime streaming platform. No ads, no signup required.',
+        twitterTitle: 'AniUmi · Free Anime Streaming',
+        twitterDescription: 'Watch anime online free on AniUmi.',
+        type: 'website'
+      }
+    },
+    
+    // Detect current page type from URL
+    detectPageType: function() {
+      const path = window.location.pathname;
+      const url = window.location.href;
+      
+      if (path === '/' || path === '/index.html' || path.endsWith('/') || path.includes('index')) {
+        return 'home';
+      } else if (path.includes('info') || path.includes('watch') || path.includes('anime')) {
+        return 'info';
+      }
+      return 'fallback';
+    },
+    
+    // Extract show info from URL for dynamic pages
+    extractShowInfo: function() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const pathParts = window.location.pathname.split('/').filter(p => p);
+      
+      // Try to get title from URL
+      let title = '';
+      let type = 'Anime';
+      
+      // From URL slug (e.g., /info/anime/jikan-12345/my-hero-academia)
+      if (pathParts.length > 0) {
+        const lastPart = pathParts[pathParts.length - 1];
+        if (lastPart && !lastPart.match(/^[0-9]+$/)) {
+          title = lastPart.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        }
+      }
+      
+      // Determine type from URL
+      if (url.toLowerCase().includes('movie') || url.toLowerCase().includes('film')) {
+        type = 'Movie';
+      } else if (url.toLowerCase().includes('tv') || url.toLowerCase().includes('show')) {
+        type = 'TV Series';
+      }
+      
+      // Try to get from query params or page content
+      if (!title) {
+        title = urlParams.get('title') || urlParams.get('name') || '';
+      }
+      
+      // Fallback: try to get from page title element
+      if (!title && document.title && document.title !== 'Aniocean - Show Details') {
+        title = document.title.replace(/\s*[-|]\s*Ani.*/gi, '').trim();
+      }
+      
+      return {
+        title: title || 'This Show',
+        type: type,
+        meta: title ? `One of the best ${type.toLowerCase()} available.` : ''
+      };
+    },
+    
+    // Template helper - replace {var} with actual values
+    applyTemplate: function(template, data) {
+      if (!template) return '';
+      return template.replace(/\{(\w+)\}/g, (match, key) => {
+        return data[key] !== undefined ? data[key] : match;
+      });
+    },
+    
+    // Get metadata for current page
+    getMetadata: function() {
+      const pageType = this.detectPageType();
+      let config = this.pages[pageType] || this.pages.fallback;
+      
+      if (pageType === 'info') {
+        // Dynamic metadata for info pages
+        const showInfo = this.extractShowInfo();
+        return {
+          title: this.applyTemplate(config.titleTemplate, showInfo),
+          description: this.applyTemplate(config.descriptionTemplate, showInfo),
+          keywords: this.applyTemplate(config.keywordsTemplate, showInfo),
+          ogTitle: this.applyTemplate(config.ogTitleTemplate, showInfo),
+          ogDescription: this.applyTemplate(config.ogDescriptionTemplate, showInfo),
+          twitterTitle: this.applyTemplate(config.twitterTitleTemplate, showInfo),
+          twitterDescription: this.applyTemplate(config.twitterDescriptionTemplate, showInfo),
+          type: config.type,
+          image: this.defaultImage,
+          url: window.location.href
+        };
+      }
+      
+      // Static metadata for other pages
+      return {
+        title: config.title,
+        description: config.description,
+        keywords: config.keywords,
+        ogTitle: config.ogTitle,
+        ogDescription: config.ogDescription,
+        twitterTitle: config.twitterTitle,
+        twitterDescription: config.twitterDescription,
+        type: config.type,
+        image: this.defaultImage,
+        url: this.siteUrl
+      };
+    },
+    
+    // Create JSON-LD structured data
+    createJsonLd: function(meta) {
+      const pageType = this.detectPageType();
+      
+      if (pageType === 'info') {
+        // For individual show pages - VideoObject schema
+        return [{
+          '@context': 'https://schema.org',
+          '@type': 'VideoObject',
+          name: meta.title.replace(/\s*-.*$/, '').trim(),
+          description: meta.description,
+          thumbnailUrl: meta.image,
+          embedUrl: meta.url,
+          publisher: {
+            '@type': 'Organization',
+            name: this.siteName,
+            logo: {
+              '@type': 'ImageObject',
+              url: this.logoUrl
+            }
+          }
+        }];
+      }
+      
+      // For home page - WebSite + Organization schemas (Miruro-style)
+      return [
+        {
+          '@context': 'https://schema.org',
+          '@type': 'WebSite',
+          name: this.siteName,
+          alternateName: ['AniUmi', 'Aniumi', 'AniOcean', 'AniUmi TV'],
+          url: this.siteUrl,
+          description: meta.description,
+          inLanguage: 'en',
+          potentialAction: {
+            '@type': 'SearchAction',
+            target: {
+              '@type': 'EntryPoint',
+              urlTemplate: this.siteUrl + '/?q={search_term_string}'
+            },
+            'query-input': 'required name=search_term_string'
+          }
+        },
+        {
+          '@context': 'https://schema.org',
+          '@type': 'Organization',
+          name: this.siteName,
+          url: this.siteUrl,
+          logo: {
+            '@type': 'ImageObject',
+            url: this.logoUrl,
+            width: 1024,
+            height: 1024
+          },
+          description: 'Free HD anime streaming platform with subbed and dubbed content. No ads, no signup required.',
+          sameAs: []
+        }
+      ];
+    },
+    
+    // Inject/update a meta tag
+    setMetaTag: function(name, value, attribute = 'name') {
+      if (!value) return;
+      
+      let tag = document.querySelector(`meta[${attribute}="${name}"]`);
+      if (!tag) {
+        tag = document.createElement('meta');
+        tag.setAttribute(attribute, name);
+        document.head.appendChild(tag);
+      }
+      tag.setAttribute('content', value);
+    },
+    
+    // Inject/update Open Graph tag
+    setOgTag: function(property, value) {
+      if (!value) return;
+      
+      let tag = document.querySelector(`meta[property="${property}"]`);
+      if (!tag) {
+        tag = document.createElement('meta');
+        tag.setAttribute('property', property);
+        document.head.appendChild(tag);
+      }
+      tag.setAttribute('content', value);
+    },
+    
+    // Main injection function
+    inject: function() {
+      const meta = this.getMetadata();
+      
+      // Basic meta tags
+      document.title = meta.title;
+      this.setMetaTag('description', meta.description);
+      this.setMetaTag('keywords', meta.keywords);
+      this.setMetaTag('author', this.siteName);
+      this.setMetaTag('robots', 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1');
+      
+      // Theme colors
+      this.setMetaTag('theme-color', '#0a1929');
+      this.setMetaTag('msapplication-TileColor', '#0a1929');
+      this.setMetaTag('color-scheme', 'dark light');
+      
+      // Mobile web app
+      this.setMetaTag('mobile-web-app-capable', 'yes');
+      this.setMetaTag('apple-mobile-web-app-capable', 'yes');
+      this.setMetaTag('apple-mobile-web-app-status-bar-style', 'black-translucent');
+      this.setMetaTag('apple-mobile-web-app-title', this.siteName);
+      
+      // Canonical URL
+      let canonical = document.querySelector('link[rel="canonical"]');
+      if (!canonical) {
+        canonical = document.createElement('link');
+        canonical.rel = 'canonical';
+        document.head.appendChild(canonical);
+      }
+      canonical.href = meta.url;
+      
+      // Open Graph tags (Miruro-style complete)
+      this.setOgTag('og:type', meta.type);
+      this.setOgTag('og:url', meta.url);
+      this.setOgTag('og:title', meta.ogTitle);
+      this.setOgTag('og:description', meta.ogDescription);
+      this.setOgTag('og:image', meta.image);
+      this.setOgTag('og:image:width', '1200');
+      this.setOgTag('og:image:height', '630');
+      this.setOgTag('og:site_name', this.siteName);
+      this.setOgTag('og:locale', 'en_US');
+      
+      // Twitter Card tags (Complete)
+      this.setMetaTag('twitter:card', 'summary_large_image', 'name');
+      this.setMetaTag('twitter:url', meta.url, 'name');
+      this.setMetaTag('twitter:title', meta.twitterTitle, 'name');
+      this.setMetaTag('twitter:description', meta.twitterDescription, 'name');
+      this.setMetaTag('twitter:image', meta.image, 'name');
+      if (this.twitterHandle) {
+        this.setMetaTag('twitter:site', this.twitterHandle, 'name');
+      }
+      
+      // JSON-LD Structured Data
+      let jsonLd = document.querySelector('script[type="application/ld+json"]');
+      if (!jsonLd) {
+        jsonLd = document.createElement('script');
+        jsonLd.type = 'application/ld+json';
+        document.head.appendChild(jsonLd);
+      }
+      jsonLd.textContent = JSON.stringify(this.createJsonLd(meta));
+      
+      console.log('[MetadataManager] ✓ Injected SEO metadata for page:', this.detectPageType());
+    }
+  };
+
+  // Auto-inject metadata on DOM ready
+  MetadataManager.inject();
+  
+  // Also re-inject when page content changes (for SPA-like behavior)
+  const originalPushState = history.pushState;
+  history.pushState = function() {
+    originalPushState.apply(this, arguments);
+    setTimeout(() => MetadataManager.inject(), 100);
+  };
+
+  /* ═══════════════════════════════════════════════════════════
      GLOBAL EXPORTS
   ═══════════════════════════════════════════════════════════ */
   window.supabaseClient   = supabase;
