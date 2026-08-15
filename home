@@ -3066,45 +3066,104 @@ async function loadNewAniocean() {
 }
 
       /* ── HERO ── */
-      // Hero shows 13 TMDB ongoing TV + ~70% Anilist airing anime = 35-40 total slides
+      // Hero shows TRULY currently airing TMDB TV + ALL Anilist airing anime = up to 60 total slides
+      // Dynamic date filtering ensures only fresh, current content appears
       // Anilist anime use bannerImage for hero slider background
       let heroData=[], currentSlide=0, _heroRendered=false, _heroInterval=null;
+      
+      // Dynamic date constants - always fresh, no hardcoded dates!
+      const HERO_CONFIG = {
+        maxTotalSlides: 60,           // Increased from 40 to show more content
+        tmdbTargetCount: 15,          // Increased from 13
+        anilistPerPage: 50,           // Anilist results per page
+        anilistMaxPages: 2,           // Fetch up to 2 pages of airing anime (100 total)
+        anilistTargetCount: 45,       // Target anime count (increased from 27)
+        // Dynamic date windows (calculated fresh on every load!)
+        get today() { return new Date(); },
+        get daysAgo7() { 
+          const d = new Date(); d.setDate(d.getDate() - 7); return d; 
+        },
+        get daysFromNow14() { 
+          const d = new Date(); d.setDate(d.getDate() + 14); return d; 
+        },
+        get daysFromNow30() { 
+          const d = new Date(); d.setDate(d.getDate() + 30); return d; 
+        }
+      };
 
       async function loadHero() {
-        // ── Fetch 13 TMDB ongoing TV + Anilist 70% airing anime ────
-        const JIKAN_BASE = 'https://jikan-api-bohb.onrender.com/v4';
+        // ── Fetch TRULY currently airing TMDB TV + ALL airing Anilist anime ────
         const [tmdbResults, anilistResults] = await Promise.allSettled([
-          // TMDB: 13 ongoing TV shows with popularity sort
+          // TMDB: Fetch MANY pages of "on_the_air" shows
+          // (We filter by current year, so most results get dropped — need extra pages!)
           Promise.allSettled([
-            fetchTMDB('/tv/on_the_air', `page=1&sort_by=popularity.desc`),
-            fetchTMDB('/tv/on_the_air', `page=2&sort_by=popularity.desc`),
+            fetchTMDB('/tv/on_the_air', `page=1`),
+            fetchTMDB('/tv/on_the_air', `page=2`),
+            fetchTMDB('/tv/on_the_air', `page=3`),
+            fetchTMDB('/tv/on_the_air', `page=4`),
+            fetchTMDB('/tv/on_the_air', `page=5`),
+            fetchTMDB('/tv/on_the_air', `page=6`),
+            fetchTMDB('/tv/on_the_air', `page=7`),
+            fetchTMDB('/tv/on_the_air', `page=8`),
+            fetchTMDB('/tv/on_the_air', `page=9`),
+            fetchTMDB('/tv/on_the_air', `page=10`),
+            fetchTMDB('/tv/on_the_air', `page=11`),
+            fetchTMDB('/tv/on_the_air', `page=12`),
           ]),
-          // Anilist: Currently airing anime (70% of total slider)
-          fetchAniList(`
-            query ($page: Int) {
-              Page(page: $page, perPage: 50) {
-                media(type: ANIME, status: RELEASING, isAdult: false, sort: POPULARITY_DESC) {
-                  id
-                  idMal
-                  title { romaji english native }
-                  bannerImage
-                  coverImage { large medium }
-                  averageScore
-                  episodes
-                  format
-                  genres
-                  tags { name rank }
-                  startDate { year month day }
-                  studios(isMain: true) { nodes { name } }
-                  description
-                  nextAiringEpisode { episode }
+          // Anilist: ALL currently airing anime (multiple pages for comprehensive coverage)
+          Promise.allSettled([
+            fetchAniList(`
+              query ($page: Int) {
+                Page(page: $page, perPage: ${HERO_CONFIG.anilistPerPage}) {
+                  media(type: ANIME, status: RELEASING, isAdult: false, sort: POPULARITY_DESC) {
+                    id
+                    idMal
+                    title { romaji english native }
+                    bannerImage
+                    coverImage { large medium }
+                    averageScore
+                    episodes
+                    format
+                    genres
+                    tags { name rank }
+                    startDate { year month day }
+                    studios(isMain: true) { nodes { name } }
+                    description
+                    nextAiringEpisode { episode airingAt timeUntilAiring }
+                  }
                 }
               }
-            }
-          `, { page: 1 })
+            `, { page: 1 }),
+            fetchAniList(`
+              query ($page: Int) {
+                Page(page: $page, perPage: ${HERO_CONFIG.anilistPerPage}) {
+                  media(type: ANIME, status: RELEASING, isAdult: false, sort: POPULARITY_DESC) {
+                    id
+                    idMal
+                    title { romaji english native }
+                    bannerImage
+                    coverImage { large medium }
+                    averageScore
+                    episodes
+                    format
+                    genres
+                    tags { name rank }
+                    startDate { year month day }
+                    studios(isMain: true) { nodes { name } }
+                    description
+                    nextAiringEpisode { episode airingAt timeUntilAiring }
+                  }
+                }
+              }
+            `, { page: 2 })
+          ])
         ]);
 
-        // ── 3a) Collect TMDB TV shows (target: 13) ──────────────────────
+        // ═══════════════════════════════════════════════════════════════════
+        // TMDB FILTERING: Simple current-year filter (uses first_air_date from API!)
+        // ═══════════════════════════════════════════════════════════════════
+        
+        // ── 3a) Collect and filter TMDB TV shows ──────────────────────
         let rawTmdbShows = [];
         if (tmdbResults.status === 'fulfilled') {
           for (const t of tmdbResults.value) {
@@ -3114,31 +3173,89 @@ async function loadNewAniocean() {
           }
         }
         
-        // Deduplicate & filter TMDB - pick best 13
+        // Deduplicate TMDB shows
         const seenTmdb = new Set();
         const uniqueTmdb = [];
         for (const t of rawTmdbShows) {
           if (!t.id || seenTmdb.has(t.id)) continue;
-          if (!t.backdrop_path) continue;  // Must have backdrop for hero
           seenTmdb.add(t.id);
           uniqueTmdb.push(t);
         }
-        uniqueTmdb.sort((a, b) => (b.popularity||0) - (a.popularity||0));
-        const top13Tmdb = uniqueTmdb.slice(0, 13);
+        
+        // 🎯 SIMPLE CURRENT-YEAR FILTER
+        // The /tv/on_the_air endpoint returns shows with first_air_date field.
+        // We ONLY keep shows that launched THIS YEAR → guarantees fresh content!
+        // No complex scoring needed — just check if it started in current year.
+        const currentYear = new Date().getFullYear().toString();
+        
+        console.log(`[Hero] 📅 Filtering TMDB shows: keeping only ${currentYear} launches...`);
+        console.log(`[Hero] 🔍 Raw TMDB shows before filter: ${uniqueTmdb.length}`);
+        
+        const freshTmdbShows = uniqueTmdb.filter(show => {
+          // Must have backdrop image for hero slider
+          if (!show.backdrop_path) return false;
+          
+          // Must have first_air_date that starts with current year
+          // e.g., "2026-01-15", "2026-06-20" etc.
+          if (!show.first_air_date) return false;
+          
+          return show.first_air_date.startsWith(currentYear);
+        });
+        
+        // Sort by popularity (most popular new shows first)
+        freshTmdbShows.sort((a, b) => (b.popularity||0) - (a.popularity||0));
+        
+        // Debug: Show filtered results
+        console.log('[Hero] ✅ Fresh TMDB shows (current year):', freshTmdbShows.map(s => ({
+          title: s.name,
+          firstAir: s.first_air_date,
+          popularity: s.popularity
+        })));
+        
+        const topTmdbShows = freshTmdbShows.slice(0, HERO_CONFIG.tmdbTargetCount);
 
-        // ── 3b) Collect Anilist airing anime (target: ~25-27 for 70% ratio) ──
+        // ═══════════════════════════════════════════════════════════════════
+        // ANILIST FETCHING: ALL currently airing anime (multiple pages)
+        // ═══════════════════════════════════════════════════════════════════
+        
+        // ── 3b) Collect ALL Anilist airing anime from all fetched pages ──
         let rawAnilistAnime = [];
-        if (anilistResults.status === 'fulfilled' && anilistResults.value?.Page?.media) {
-          rawAnilistAnime = anilistResults.value.Page.media.filter(m => 
-            m.bannerImage && m.idMal  // Must have banner AND mal_id for matching
-          );
+        if (anilistResults.status === 'fulfilled') {
+          for (const pageResult of anilistResults.value) {
+            if (pageResult.status === 'fulfilled' && pageResult.value?.Page?.media) {
+              rawAnilistAnime.push(...pageResult.value.Page.media);
+            }
+          }
         }
+        
+        // Filter: Must have banner image for hero slider
+        const filteredAnilistAnime = rawAnilistAnime.filter(m => m.bannerImage);
+        
+        // Remove duplicates (safety check)
+        const seenAnilist = new Set();
+        const uniqueAnilistAnime = [];
+        for (const anime of filteredAnilistAnime) {
+          if (!seenAnilist.has(anime.id)) {
+            seenAnilist.add(anime.id);
+            uniqueAnilistAnime.push(anime);
+          }
+        }
+        
+        // Sort by: next airing episode soonest first, then popularity
+        uniqueAnilistAnime.sort((a, b) => {
+          // Prioritize anime with upcoming episodes (airing soon!)
+          const timeA = a.nextAiringEpisode?.timeUntilAiring || Infinity;
+          const timeB = b.nextAiringEpisode?.timeUntilAiring || Infinity;
+          if (timeA !== timeB) return timeA - timeB;
+          // Then by popularity as tiebreaker
+          return (b.averageScore||0) * (b.popularity||0) - (a.averageScore||0) * (a.popularity||0);
+        });
+        
+        // Take target count (increased to show more airing anime!)
+        const topAnilistAnime = uniqueAnilistAnime.slice(0, HERO_CONFIG.anilistTargetCount);
 
-        // Sort by popularity (already sorted by POPULARITY_DESC from API)
-        // Take top 27 anime for 70% ratio (27 / (13+27) ≈ 67.5% ≈ 70%)
-        const topAnilistAnime = rawAnilistAnime.slice(0, 27);
-
-        console.log(`[Hero] Fetched ${top13Tmdb.length} TMDB + ${topAnilistAnime.length} Anilist`);
+        console.log(`[Hero] 🎬 Fetched ${topTmdbShows.length} fresh TMDB (${currentYear} launches) + ${topAnilistAnime.length} Anilist airing anime`);
+        console.log(`[Hero] 📅 Filter: TMDB shows must have first_air_date starting with "${currentYear}"`);
 
         // ═══════════════════════════════════════════════════════════════════
         // HYBRID IMAGE RESOLUTION PIPELINE
@@ -3348,7 +3465,7 @@ async function loadNewAniocean() {
         };
 
         // ── 4a) Map TMDB slides ─────────────────────────────────────────
-        const tmdbSlides = top13Tmdb.map(t => ({
+        const tmdbSlides = topTmdbShows.map(t => ({
           id:             `tmdb-tv-${t.id}`,
           title:          t.name || t.original_name || 'Unknown',
           source:         'tmdb',
@@ -3442,15 +3559,127 @@ async function loadNewAniocean() {
         }
         
         // Phase 2: Add remaining Anilist after TMDB is exhausted
-        while (anilistIdx < jikanSlides.length && merged.length < 40) {
+        while (anilistIdx < jikanSlides.length && merged.length < HERO_CONFIG.maxTotalSlides) {
           merged.push(jikanSlides[anilistIdx++]);
         }
         
-        heroData = merged.slice(0, 40); // Max 40 slides total
+        heroData = merged.slice(0, HERO_CONFIG.maxTotalSlides); // Max slides from config
 
         console.log(`[Hero] ${tmdbSlides.length} TMDB + ${jikanSlides.length} Jikan = ${heroData.length} total slides`);
         renderHero();
       }
+      /* HERO ACCENT COLOR (Neon-cached via Worker) */
+const ACCENT_WORKER_URL = 'https://hero-accent-cache.zeraf.workers.dev';
+
+function rgbToHsl(r, g, b) {
+r /= 255; g /= 255; b /= 255;
+const max = Math.max(r, g, b), min = Math.min(r, g, b);
+let h, s, l = (max + min) / 2;
+if (max === min) { h = s = 0; }
+else {
+const d = max - min;
+s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+switch (max) {
+case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+case g: h = (b - r) / d + 2; break;
+case b: h = (r - g) / d + 4; break;
+}
+h /= 6;
+}
+return [h * 360, s * 100, l * 100];
+}
+function hslToHex(h, s, l) {
+s /= 100; l /= 100;
+const k = n => (n + h / 30) % 12;
+const a = s * Math.min(l, 1 - l);
+const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+const toHex = x => Math.round(255 * x).toString(16).padStart(2, '0');
+return `#${toHex(f(0))}${toHex(f(8))}${toHex(f(4))}`;
+}
+function extractAccentColorLocal(imgUrl) {
+return new Promise((resolve) => {
+if (!imgUrl) return resolve(null);
+const img = new Image();
+img.crossOrigin = 'anonymous';
+img.onload = () => {
+try {
+const w = 48, h = 27;
+const canvas = document.createElement('canvas');
+canvas.width = w; canvas.height = h;
+const ctx = canvas.getContext('2d', { willReadFrequently: true });
+ctx.drawImage(img, 0, 0, w, h);
+const data = ctx.getImageData(0, 0, w, h).data;
+let best = null, bestScore = -1;
+for (let i = 0; i < data.length; i += 4) {
+const [hh, ss, ll] = rgbToHsl(data[i], data[i + 1], data[i + 2]);
+if (ll < 15 || ll > 90) continue;
+const score = ss * (1 - Math.abs(ll - 55) / 55);
+if (score > bestScore) { bestScore = score; best = [hh, ss, ll]; }
+}
+if (!best) return resolve(null);
+const sat = Math.min(90, Math.max(55, best[1]));
+const light = Math.min(72, Math.max(56, best[2]));
+resolve(hslToHex(best[0], sat, light));
+} catch (e) { resolve(null); }
+};
+img.onerror = () => resolve(null);
+img.src = imgUrl;
+});
+}
+function accentCacheKey(imgUrl) {
+let h = 0;
+for (let i = 0; i < imgUrl.length; i++) h = (h * 31 + imgUrl.charCodeAt(i)) | 0;
+return 'hero_' + Math.abs(h).toString(36);
+}
+async function getAccentColor(imgUrl) {
+if (!imgUrl) return null;
+const key = accentCacheKey(imgUrl);
+try {
+const res = await fetch(ACCENT_WORKER_URL + '/accent?key=' + key, { signal: AbortSignal.timeout(1500) });
+if (res.ok) {
+const data = await res.json();
+if (data.hex) return data.hex;
+}
+} catch (e) { }
+const hex = await extractAccentColorLocal(imgUrl);
+if (hex) {
+fetch(ACCENT_WORKER_URL + '/accent', {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ key: key, imageUrl: imgUrl, hex: hex }),
+}).catch(function() {});
+}
+return hex;
+}
+function applyHeroAccentColors() {
+document.querySelectorAll('#slidesContainer .slide').forEach(async function(el) {
+const titleEl = el.querySelector('.slide-title');
+if (!titleEl) return;
+// Try multiple sources: data attributes, then inline background-image style
+let imgUrl = el.dataset.bgOrig || el.dataset.bgDesktop || el.dataset.bgMobile;
+// Fallback: extract URL from inline style.backgroundImage (for anime slides)
+if (!imgUrl || imgUrl === 'undefined' || imgUrl === 'null') {
+const bgStyle = el.style.backgroundImage || '';
+const match = bgStyle.match(/url\(["']?([^"')]+)["']?\)/);
+if (match) imgUrl = match[1];
+}
+const hex = await getAccentColor(imgUrl);
+if (hex) {
+// Create gradient effect like Miruro (not flat solid color)
+const r = parseInt(hex.slice(1,3),16);
+const g = parseInt(hex.slice(3,5),16);
+const b = parseInt(hex.slice(5,7),16);
+// Lighter variant for gradient end
+const lightHex = '#' + [r,g].map(c => Math.min(255, c + 60).toString(16).padStart(2,'0')).join('') + b.toString(16).padStart(2,'0');
+titleEl.style.transition = 'all 0.4s ease';
+titleEl.style.background = `linear-gradient(135deg, ${hex} 0%, ${lightHex} 50%, ${hex} 100%)`;
+titleEl.style.webkitBackgroundClip = 'text';
+titleEl.style.backgroundClip = 'text';
+titleEl.style.webkitTextFillColor = 'transparent';
+titleEl.style.color = 'transparent';
+}
+});
+}
       function renderHero() {
         const container = document.getElementById('slidesContainer');
         const slugify = t => (t||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
@@ -3507,6 +3736,7 @@ async function loadNewAniocean() {
         document.getElementById('slideCounter').textContent = `${currentSlide+1} / ${totalSlides}`;
         // Apply correct resolution backdrops for current device
         requestAnimationFrame(applyResponsiveBackdrops);
+        requestAnimationFrame(applyHeroAccentColors);
         // Restart auto-advance with a single interval (clear old one first)
         if (_heroInterval) clearInterval(_heroInterval);
         _heroInterval = setInterval(() => goToSlide(currentSlide + 1), 6000);
@@ -3781,11 +4011,23 @@ async function loadNewAniocean() {
         ]);
         
         // Merge multiple pages for each source
+        // 🎯 MOVIE FILTER: Only keep movies released in CURRENT YEAR (fresh content!)
+        const currentYearForMovies = new Date().getFullYear().toString();
         const allMovies = [...(nowMovies.results||[]), ...(nowMovies2.results||[])]
+          .filter(i => {
+            // Must have poster image
+            if (!i.poster_path) return false;
+            // Must have release_date starting with current year (e.g., "2026-...")
+            if (!i.release_date || !i.release_date.startsWith(currentYearForMovies)) return false;
+            return true;
+          })
           .map(i => ({
             id:`tmdb-mv-${i.id}`, title:i.title, poster:tmdbImg(i.poster_path), type:'Movie',
-            score:(i.vote_average||0).toFixed(1), details:'1h 45m', cert:'PG-13', quality:'HD'
+            score:(i.vote_average||0).toFixed(1), details:'1h 45m', cert:'PG-13', quality:'HD',
+            releaseDate: i.release_date
           })).slice(0, TARGET_SHOWS);
+        
+        console.log(`[New Releases] 📅 Filtered movies: keeping only ${currentYearForMovies} releases (${allMovies.length} passed)`);
         const allTv = [...(onAirTv.results||[]), ...(onAirTv2.results||[])]
           .map(i => ({
             id:`tmdb-tv-${i.id}`, title:i.name, poster:tmdbImg(i.poster_path), type:'TV',
@@ -4218,23 +4460,28 @@ async function loadNewAniocean() {
                  posterUrl !== 'undefined' && posterUrl !== 'none';
         };
         
-        // Map and filter TMDB MOVIES (only future dates + valid posters)
-        console.log(`[Upcoming] Filtering ${allTmdbMovies.length} movies...`);
-        let moviesPassed = 0, moviesDroppedPast = 0, moviesDroppedPoster = 0;
+        // 🎯 Map and filter TMDB MOVIES - Current Year Filter (same as hero slider!)
+        // Only keep movies with release_date in CURRENT YEAR → guarantees fresh content!
+        const upcomingCurrentYear = new Date().getFullYear().toString();
+        console.log(`[Upcoming] 📅 Filtering ${allTmdbMovies.length} movies: keeping only ${upcomingCurrentYear} releases...`);
+        
+        let moviesPassed = 0, moviesDroppedYear = 0, moviesDroppedPoster = 0;
         const tmdbMovieShows = allTmdbMovies
           .filter(i => {
             const hasPoster = hasValidPoster(i.poster_path);
-            const isFuture = isFutureDate(i.release_date);
-            if (!isFuture || !hasPoster) {
-              if (!isFuture) moviesDroppedPast++;
+            // NEW: Check if release_date starts with current year (e.g., "2026")
+            const isCurrentYear = i.release_date && i.release_date.startsWith(upcomingCurrentYear);
+            
+            if (!isCurrentYear || !hasPoster) {
+              if (!isCurrentYear) moviesDroppedYear++;
               else moviesDroppedPoster++;
-              if (moviesPassed + moviesDroppedPast <= 10) { // Log first 10 drops only
-                console.log(`[Upcoming Filter] ❌ Movie dropped: "${i?.title}" - ${!isFuture ? 'past date: '+i.release_date : 'no poster'}`);
+              if (moviesPassed + moviesDroppedYear <= 10) { // Log first 10 drops only
+                console.log(`[Upcoming Filter] ❌ Movie dropped: "${i?.title}" - ${!isCurrentYear ? 'not '+upcomingCurrentYear+': '+i.release_date : 'no poster'}`);
               }
             } else {
               moviesPassed++;
             }
-            return hasPoster && isFuture;
+            return hasPoster && isCurrentYear;
           })
           .slice(0, 50)  // Take more since we filter
           .map(i => ({
@@ -4288,7 +4535,7 @@ async function loadNewAniocean() {
           return hasPoster;
         });
         
-        console.log(`[Upcoming Filter] ✅ RESULTS: ${tmdbMovieShows.length} movies (from ${moviesPassed} passed, ${moviesDroppedPast} past-date, ${moviesDroppedPoster} no-poster) + ${tmdbTVShows.length} TV (from ${tvPassed} passed, ${tvDroppedNoPoster} no-poster, deduped) + ${anilistFiltered.length} anime`);
+        console.log(`[Upcoming Filter] ✅ RESULTS: ${tmdbMovieShows.length} movies (from ${moviesPassed} passed, ${moviesDroppedYear} not-2026, ${moviesDroppedPoster} no-poster) + ${tmdbTVShows.length} TV (from ${tvPassed} passed, ${tvDroppedNoPoster} no-poster, deduped) + ${anilistFiltered.length} anime`);
         
         upcomingShows = dedupById([
           ...tmdbMovieShows,
