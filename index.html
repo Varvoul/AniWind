@@ -4247,10 +4247,14 @@ titleEl.style.color = 'transparent';
         
         // 🎯 TV SHOWS FROM TVMAZE (Primary source - truly airing!)
         let allTv = [];
-        if (tvmazeTvShows.status === 'fulfilled' && Array.isArray(tvmazeTvShows.value)) {
-          console.log(`[New Releases] 📺 Using TVMaze for TV: ${tvmazeTvShows.value.length} shows`);
+        
+        // Handle both Promise.allSettled format AND direct array result
+        const tvmazeResult = tvmazeTvShows.status ? tvmazeTvShows.value : tvmazeTvShows;
+        
+        if (Array.isArray(tvmazeResult) && tvmazeResult.length > 0) {
+          console.log(`[New Releases] 📺 Using TVMaze for TV: ${tvmazeResult.length} shows`);
           
-          allTv = tvmazeTvShows.value
+          allTv = tvmazeResult
             .filter(item => item.tmdb && item.tmdb.poster_path)  // Must have poster
             .map(item => ({
               id:`tmdb-tv-${item.tmdb.id}`, 
