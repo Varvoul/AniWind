@@ -3094,11 +3094,21 @@ async function loadNewAniocean() {
       async function loadHero() {
         // ── Fetch TRULY currently airing TMDB TV + ALL airing Anilist anime ────
         const [tmdbResults, anilistResults] = await Promise.allSettled([
-          // TMDB: Fetch multiple pages of "on_the_air" shows
+          // TMDB: Fetch MANY pages of "on_the_air" shows
+          // (We filter by current year, so most results get dropped — need extra pages!)
           Promise.allSettled([
             fetchTMDB('/tv/on_the_air', `page=1`),
             fetchTMDB('/tv/on_the_air', `page=2`),
-            fetchTMDB('/tv/on_the_air', `page=3`),  // Extra page for more options
+            fetchTMDB('/tv/on_the_air', `page=3`),
+            fetchTMDB('/tv/on_the_air', `page=4`),
+            fetchTMDB('/tv/on_the_air', `page=5`),
+            fetchTMDB('/tv/on_the_air', `page=6`),
+            fetchTMDB('/tv/on_the_air', `page=7`),
+            fetchTMDB('/tv/on_the_air', `page=8`),
+            fetchTMDB('/tv/on_the_air', `page=9`),
+            fetchTMDB('/tv/on_the_air', `page=10`),
+            fetchTMDB('/tv/on_the_air', `page=11`),
+            fetchTMDB('/tv/on_the_air', `page=12`),
           ]),
           // Anilist: ALL currently airing anime (multiple pages for comprehensive coverage)
           Promise.allSettled([
@@ -3150,7 +3160,7 @@ async function loadNewAniocean() {
         ]);
 
         // ═══════════════════════════════════════════════════════════════════
-        // TMDB FILTERING: Only TRULY currently airing shows (dynamic dates!)
+        // TMDB FILTERING: Simple current-year filter (uses first_air_date from API!)
         // ═══════════════════════════════════════════════════════════════════
         
         // ── 3a) Collect and filter TMDB TV shows ──────────────────────
@@ -3172,109 +3182,37 @@ async function loadNewAniocean() {
           uniqueTmdb.push(t);
         }
         
-        // 🔥 SMART FILTERING - Prioritize truly current, fallback to on_the_air
-        // A show is "currently airing" if it meets ANY of these criteria:
-        // 1. Has a next episode air date within the next 30 days (actively airing)
-        // 2. Last air date was within the last 14 days (recently aired, likely ongoing)
-        // 3. Status explicitly says "Returning Series" or "In Production"
-        // 4. FALLBACK: If show is from /tv/on_the_air endpoint (TMDB already filters!)
-        const now = HERO_CONFIG.today;
-        const cutoffFuture = HERO_CONFIG.daysFromNow30;  // Relaxed to 30 days
-        const cutoffPast = HERO_CONFIG.daysAgo7;
+        // 🎯 SIMPLE CURRENT-YEAR FILTER
+        // The /tv/on_the_air endpoint returns shows with first_air_date field.
+        // We ONLY keep shows that launched THIS YEAR → guarantees fresh content!
+        // No complex scoring needed — just check if it started in current year.
+        const currentYear = new Date().getFullYear().toString();
         
-        // Debug: Log sample of raw data to understand structure
-        console.log('[Hero] 🔍 Sample TMDB data:', JSON.stringify(uniqueTmdb.slice(0, 2), null, 2));
+        console.log(`[Hero] 📅 Filtering TMDB shows: keeping only ${currentYear} launches...`);
+        console.log(`[Hero] 🔍 Raw TMDB shows before filter: ${uniqueTmdb.length}`);
         
-        const scoredTmdb = uniqueTmdb.map(show => {
-          let score = 0;  // Higher = more "currently airing"
-          let reason = '';
-          
+        const freshTmdbShows = uniqueTmdb.filter(show => {
           // Must have backdrop image for hero slider
-          if (!show.backdrop_path) return { show, score: -1, reason: 'no-backdrop' };
+          if (!show.backdrop_path) return false;
           
-          // CRITERION 1: Next episode air date exists and is within next 30 days
-          if (show.next_episode_to_air) {
-            // Handle both string and object formats
-            let nextAirDate;
-            if (typeof show.next_episode_to_air === 'string') {
-              nextAirDate = new Date(show.next_episode_to_air);
-            } else if (show.next_episode_to_air.air_date) {
-              nextAirDate = new Date(show.next_episode_to_air.air_date);
-            }
-            
-            if (nextAirDate && !isNaN(nextAirDate.getTime())) {
-              if (nextAirDate <= cutoffFuture && nextAirDate >= now) {
-                score = 100;  // ✅ Definitely currently airing!
-                reason = 'airing-soon';
-              } else if (nextAirDate >= now) {
-                score = 80;   // ✅ Airing within extended window
-                reason = 'airing-future';
-              } else if (nextAirDate > HERO_CONFIG.daysAgo7) {
-                score = 60;   // ⚠️ Recently aired
-                reason = 'aired-recently';
-              }
-            }
-          }
+          // Must have first_air_date that starts with current year
+          // e.g., "2026-01-15", "2026-06-20" etc.
+          if (!show.first_air_date) return false;
           
-          // CRITERION 2: Last air date within last 14 days (relaxed window)
-          if (score === 0 && show.last_air_date) {
-            const lastAirDate = new Date(show.last_air_date);
-            const twoWeeksAgo = new Date();
-            twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
-            
-            if (!isNaN(lastAirDate.getTime()) && lastAirDate >= twoWeeksAgo && lastAirDate <= now) {
-              score = 70;  // ✅ Recently aired, probably still going
-              reason = 'last-aired-recent';
-            }
-          }
-          
-          // CRITERION 3: Check status field for active production (tightened!)
-          if (score === 0 && show.status) {
-            const statusLower = (show.status || '').toLowerCase();
-            if (statusLower.includes('returning') || statusLower.includes('in production') || 
-                statusLower.includes('airing') || statusLower.includes('ongoing')) {
-              // Must have a known start date AND started within last year
-              // (Unknown start dates shouldn't earn a pass on their own)
-              if (show.first_air_date) {
-                const firstAir = new Date(show.first_air_date);
-                const oneYearAgo = new Date();
-                oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);  // Tightened: was 3 years
-                if (firstAir >= oneYearAgo) {
-                  score = 50;  // ✅ Active production, recent show
-                  reason = 'active-status';
-                }
-                // If older than 1 year, don't score it - let it drop
-              }
-              // No "unknown start date" fallback - prevents stale shows leaking in
-            }
-          }
-          
-          // No fallback — if a show didn't earn a score from criteria 1-3,
-          // it's not confidently "currently airing" and gets dropped.
-          // (Trusting the raw /tv/on_the_air listing was letting stale/
-          // hiatus shows leak into the hero slider.)
-          return { show, score, reason: reason || 'no-recent-signal' };
+          return show.first_air_date.startsWith(currentYear);
         });
         
-        // Filter out only shows with valid backdrops (score > 0)
-        const validShows = scoredTmdb.filter(item => item.score > 0);
+        // Sort by popularity (most popular new shows first)
+        freshTmdbShows.sort((a, b) => (b.popularity||0) - (a.popularity||0));
         
-        // Sort by score (highest first), then by popularity as tiebreaker
-        validShows.sort((a, b) => {
-          if (b.score !== a.score) return b.score - a.score;  // Higher score first
-          return (b.show.popularity||0) - (a.show.popularity||0);  // Then popularity
-        });
-        
-        // Debug: Show top results and their scores
-        console.log('[Hero] 📊 TMDB scoring (top 10):', validShows.slice(0, 10).map(i => ({
-          title: i.show.name,
-          score: i.score,
-          reason: i.reason,
-          nextAir: i.show.next_episode_to_air,
-          status: i.show.status
+        // Debug: Show filtered results
+        console.log('[Hero] ✅ Fresh TMDB shows (current year):', freshTmdbShows.map(s => ({
+          title: s.name,
+          firstAir: s.first_air_date,
+          popularity: s.popularity
         })));
         
-        const topTmdbShows = validShows.slice(0, HERO_CONFIG.tmdbTargetCount).map(item => item.show);
+        const topTmdbShows = freshTmdbShows.slice(0, HERO_CONFIG.tmdbTargetCount);
 
         // ═══════════════════════════════════════════════════════════════════
         // ANILIST FETCHING: ALL currently airing anime (multiple pages)
@@ -3316,8 +3254,8 @@ async function loadNewAniocean() {
         // Take target count (increased to show more airing anime!)
         const topAnilistAnime = uniqueAnilistAnime.slice(0, HERO_CONFIG.anilistTargetCount);
 
-        console.log(`[Hero] 🎬 Fetched ${topTmdbShows.length} TRULY current TMDB + ${topAnilistAnime.length} Anilist airing anime`);
-        console.log(`[Hero] 📅 Date range: ${cutoffPast.toISOString().split('T')[0]} to ${cutoffFuture.toISOString().split('T')[0]} (dynamic)`);
+        console.log(`[Hero] 🎬 Fetched ${topTmdbShows.length} fresh TMDB (${currentYear} launches) + ${topAnilistAnime.length} Anilist airing anime`);
+        console.log(`[Hero] 📅 Filter: TMDB shows must have first_air_date starting with "${currentYear}"`);
 
         // ═══════════════════════════════════════════════════════════════════
         // HYBRID IMAGE RESOLUTION PIPELINE
