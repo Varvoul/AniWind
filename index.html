@@ -3451,6 +3451,101 @@ async function loadNewAniocean() {
         console.log(`[Hero] ${tmdbSlides.length} TMDB + ${jikanSlides.length} Jikan = ${heroData.length} total slides`);
         renderHero();
       }
+      /* HERO ACCENT COLOR (Neon-cached via Worker) */
+const ACCENT_WORKER_URL = 'https://hero-accent-cache.zeraf.workers.dev';
+
+function rgbToHsl(r, g, b) {
+r /= 255; g /= 255; b /= 255;
+const max = Math.max(r, g, b), min = Math.min(r, g, b);
+let h, s, l = (max + min) / 2;
+if (max === min) { h = s = 0; }
+else {
+const d = max - min;
+s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+switch (max) {
+case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+case g: h = (b - r) / d + 2; break;
+case b: h = (r - g) / d + 4; break;
+}
+h /= 6;
+}
+return [h * 360, s * 100, l * 100];
+}
+function hslToHex(h, s, l) {
+s /= 100; l /= 100;
+const k = n => (n + h / 30) % 12;
+const a = s * Math.min(l, 1 - l);
+const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+const toHex = x => Math.round(255 * x).toString(16).padStart(2, '0');
+return `#${toHex(f(0))}${toHex(f(8))}${toHex(f(4))}`;
+}
+function extractAccentColorLocal(imgUrl) {
+return new Promise((resolve) => {
+if (!imgUrl) return resolve(null);
+const img = new Image();
+img.crossOrigin = 'anonymous';
+img.onload = () => {
+try {
+const w = 48, h = 27;
+const canvas = document.createElement('canvas');
+canvas.width = w; canvas.height = h;
+const ctx = canvas.getContext('2d', { willReadFrequently: true });
+ctx.drawImage(img, 0, 0, w, h);
+const data = ctx.getImageData(0, 0, w, h).data;
+let best = null, bestScore = -1;
+for (let i = 0; i < data.length; i += 4) {
+const [hh, ss, ll] = rgbToHsl(data[i], data[i + 1], data[i + 2]);
+if (ll < 15 || ll > 90) continue;
+const score = ss * (1 - Math.abs(ll - 55) / 55);
+if (score > bestScore) { bestScore = score; best = [hh, ss, ll]; }
+}
+if (!best) return resolve(null);
+const sat = Math.min(90, Math.max(55, best[1]));
+const light = Math.min(72, Math.max(56, best[2]));
+resolve(hslToHex(best[0], sat, light));
+} catch (e) { resolve(null); }
+};
+img.onerror = () => resolve(null);
+img.src = imgUrl;
+});
+}
+function accentCacheKey(imgUrl) {
+let h = 0;
+for (let i = 0; i < imgUrl.length; i++) h = (h * 31 + imgUrl.charCodeAt(i)) | 0;
+return 'hero_' + Math.abs(h).toString(36);
+}
+async function getAccentColor(imgUrl) {
+if (!imgUrl) return null;
+const key = accentCacheKey(imgUrl);
+try {
+const res = await fetch(ACCENT_WORKER_URL + '/accent?key=' + key, { signal: AbortSignal.timeout(1500) });
+if (res.ok) {
+const data = await res.json();
+if (data.hex) return data.hex;
+}
+} catch (e) { }
+const hex = await extractAccentColorLocal(imgUrl);
+if (hex) {
+fetch(ACCENT_WORKER_URL + '/accent', {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ key: key, imageUrl: imgUrl, hex: hex }),
+}).catch(function() {});
+}
+return hex;
+}
+function applyHeroAccentColors() {
+document.querySelectorAll('#slidesContainer .slide').forEach(async function(el) {
+const titleEl = el.querySelector('.slide-title');
+if (!titleEl) return;
+const imgUrl = el.dataset.bgOrig || el.dataset.bgDesktop || el.dataset.bgMobile;
+const hex = await getAccentColor(imgUrl);
+if (hex) {
+titleEl.style.transition = 'color 0.4s ease';
+titleEl.style.color = hex;
+}
+});
+}
       function renderHero() {
         const container = document.getElementById('slidesContainer');
         const slugify = t => (t||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
@@ -3507,6 +3602,7 @@ async function loadNewAniocean() {
         document.getElementById('slideCounter').textContent = `${currentSlide+1} / ${totalSlides}`;
         // Apply correct resolution backdrops for current device
         requestAnimationFrame(applyResponsiveBackdrops);
+        requestAnimationFrame(applyHeroAccentColors);
         // Restart auto-advance with a single interval (clear old one first)
         if (_heroInterval) clearInterval(_heroInterval);
         _heroInterval = setInterval(() => goToSlide(currentSlide + 1), 6000);
