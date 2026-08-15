@@ -4011,11 +4011,23 @@ titleEl.style.color = 'transparent';
         ]);
         
         // Merge multiple pages for each source
+        // 🎯 MOVIE FILTER: Only keep movies released in CURRENT YEAR (fresh content!)
+        const currentYearForMovies = new Date().getFullYear().toString();
         const allMovies = [...(nowMovies.results||[]), ...(nowMovies2.results||[])]
+          .filter(i => {
+            // Must have poster image
+            if (!i.poster_path) return false;
+            // Must have release_date starting with current year (e.g., "2026-...")
+            if (!i.release_date || !i.release_date.startsWith(currentYearForMovies)) return false;
+            return true;
+          })
           .map(i => ({
             id:`tmdb-mv-${i.id}`, title:i.title, poster:tmdbImg(i.poster_path), type:'Movie',
-            score:(i.vote_average||0).toFixed(1), details:'1h 45m', cert:'PG-13', quality:'HD'
+            score:(i.vote_average||0).toFixed(1), details:'1h 45m', cert:'PG-13', quality:'HD',
+            releaseDate: i.release_date
           })).slice(0, TARGET_SHOWS);
+        
+        console.log(`[New Releases] 📅 Filtered movies: keeping only ${currentYearForMovies} releases (${allMovies.length} passed)`);
         const allTv = [...(onAirTv.results||[]), ...(onAirTv2.results||[])]
           .map(i => ({
             id:`tmdb-tv-${i.id}`, title:i.name, poster:tmdbImg(i.poster_path), type:'TV',
@@ -4448,23 +4460,28 @@ titleEl.style.color = 'transparent';
                  posterUrl !== 'undefined' && posterUrl !== 'none';
         };
         
-        // Map and filter TMDB MOVIES (only future dates + valid posters)
-        console.log(`[Upcoming] Filtering ${allTmdbMovies.length} movies...`);
-        let moviesPassed = 0, moviesDroppedPast = 0, moviesDroppedPoster = 0;
+        // 🎯 Map and filter TMDB MOVIES - Current Year Filter (same as hero slider!)
+        // Only keep movies with release_date in CURRENT YEAR → guarantees fresh content!
+        const upcomingCurrentYear = new Date().getFullYear().toString();
+        console.log(`[Upcoming] 📅 Filtering ${allTmdbMovies.length} movies: keeping only ${upcomingCurrentYear} releases...`);
+        
+        let moviesPassed = 0, moviesDroppedYear = 0, moviesDroppedPoster = 0;
         const tmdbMovieShows = allTmdbMovies
           .filter(i => {
             const hasPoster = hasValidPoster(i.poster_path);
-            const isFuture = isFutureDate(i.release_date);
-            if (!isFuture || !hasPoster) {
-              if (!isFuture) moviesDroppedPast++;
+            // NEW: Check if release_date starts with current year (e.g., "2026")
+            const isCurrentYear = i.release_date && i.release_date.startsWith(upcomingCurrentYear);
+            
+            if (!isCurrentYear || !hasPoster) {
+              if (!isCurrentYear) moviesDroppedYear++;
               else moviesDroppedPoster++;
-              if (moviesPassed + moviesDroppedPast <= 10) { // Log first 10 drops only
-                console.log(`[Upcoming Filter] ❌ Movie dropped: "${i?.title}" - ${!isFuture ? 'past date: '+i.release_date : 'no poster'}`);
+              if (moviesPassed + moviesDroppedYear <= 10) { // Log first 10 drops only
+                console.log(`[Upcoming Filter] ❌ Movie dropped: "${i?.title}" - ${!isCurrentYear ? 'not '+upcomingCurrentYear+': '+i.release_date : 'no poster'}`);
               }
             } else {
               moviesPassed++;
             }
-            return hasPoster && isFuture;
+            return hasPoster && isCurrentYear;
           })
           .slice(0, 50)  // Take more since we filter
           .map(i => ({
