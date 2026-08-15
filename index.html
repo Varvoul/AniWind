@@ -3228,35 +3228,32 @@ async function loadNewAniocean() {
             }
           }
           
-          // CRITERION 3: Check status field for active production
+          // CRITERION 3: Check status field for active production (tightened!)
           if (score === 0 && show.status) {
             const statusLower = (show.status || '').toLowerCase();
             if (statusLower.includes('returning') || statusLower.includes('in production') || 
                 statusLower.includes('airing') || statusLower.includes('ongoing')) {
-              // Additional check: ensure it's not too old (started within last 3 years)
+              // Must have a known start date AND started within last year
+              // (Unknown start dates shouldn't earn a pass on their own)
               if (show.first_air_date) {
                 const firstAir = new Date(show.first_air_date);
-                const threeYearsAgo = new Date();
-                threeYearsAgo.setFullYear(threeYearsAgo.getFullYear() - 3);
-                if (firstAir >= threeYearsAgo) {
-                  score = 50;  // ✅ Active production, relatively new
+                const oneYearAgo = new Date();
+                oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);  // Tightened: was 3 years
+                if (firstAir >= oneYearAgo) {
+                  score = 50;  // ✅ Active production, recent show
                   reason = 'active-status';
                 }
-              } else {
-                score = 40;  // ✅ Active status but unknown start date
-                reason = 'active-status-unknown';
+                // If older than 1 year, don't score it - let it drop
               }
+              // No "unknown start date" fallback - prevents stale shows leaking in
             }
           }
           
-          // CRITERION 4: FALLBACK - Trust TMDB's /tv/on_the_air endpoint
-          // If TMDB says it's on the air, include it with lower priority
-          if (score === 0) {
-            score = 30;  // ⚠️ Fallback: trust TMDB's classification
-            reason = 'tmdb-on-the-air-fallback';
-          }
-          
-          return { show, score, reason };
+          // No fallback — if a show didn't earn a score from criteria 1-3,
+          // it's not confidently "currently airing" and gets dropped.
+          // (Trusting the raw /tv/on_the_air listing was letting stale/
+          // hiatus shows leak into the hero slider.)
+          return { show, score, reason: reason || 'no-recent-signal' };
         });
         
         // Filter out only shows with valid backdrops (score > 0)
