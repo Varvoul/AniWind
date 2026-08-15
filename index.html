@@ -3066,45 +3066,94 @@ async function loadNewAniocean() {
 }
 
       /* ── HERO ── */
-      // Hero shows 13 TMDB ongoing TV + ~70% Anilist airing anime = 35-40 total slides
+      // Hero shows TRULY currently airing TMDB TV + ALL Anilist airing anime = up to 60 total slides
+      // Dynamic date filtering ensures only fresh, current content appears
       // Anilist anime use bannerImage for hero slider background
       let heroData=[], currentSlide=0, _heroRendered=false, _heroInterval=null;
+      
+      // Dynamic date constants - always fresh, no hardcoded dates!
+      const HERO_CONFIG = {
+        maxTotalSlides: 60,           // Increased from 40 to show more content
+        tmdbTargetCount: 15,          // Increased from 13
+        anilistPerPage: 50,           // Anilist results per page
+        anilistMaxPages: 2,           // Fetch up to 2 pages of airing anime (100 total)
+        anilistTargetCount: 45,       // Target anime count (increased from 27)
+        // Dynamic date windows (calculated fresh on every load!)
+        get today() { return new Date(); },
+        get daysAgo7() { 
+          const d = new Date(); d.setDate(d.getDate() - 7); return d; 
+        },
+        get daysFromNow14() { 
+          const d = new Date(); d.setDate(d.getDate() + 14); return d; 
+        },
+        get daysFromNow30() { 
+          const d = new Date(); d.setDate(d.getDate() + 30); return d; 
+        }
+      };
 
       async function loadHero() {
-        // ── Fetch 13 TMDB ongoing TV + Anilist 70% airing anime ────
-        const JIKAN_BASE = 'https://jikan-api-bohb.onrender.com/v4';
+        // ── Fetch TRULY currently airing TMDB TV + ALL airing Anilist anime ────
         const [tmdbResults, anilistResults] = await Promise.allSettled([
-          // TMDB: 13 ongoing TV shows with popularity sort
+          // TMDB: Fetch multiple pages of "on_the_air" shows
           Promise.allSettled([
-            fetchTMDB('/tv/on_the_air', `page=1&sort_by=popularity.desc`),
-            fetchTMDB('/tv/on_the_air', `page=2&sort_by=popularity.desc`),
+            fetchTMDB('/tv/on_the_air', `page=1`),
+            fetchTMDB('/tv/on_the_air', `page=2`),
+            fetchTMDB('/tv/on_the_air', `page=3`),  // Extra page for more options
           ]),
-          // Anilist: Currently airing anime (70% of total slider)
-          fetchAniList(`
-            query ($page: Int) {
-              Page(page: $page, perPage: 50) {
-                media(type: ANIME, status: RELEASING, isAdult: false, sort: POPULARITY_DESC) {
-                  id
-                  idMal
-                  title { romaji english native }
-                  bannerImage
-                  coverImage { large medium }
-                  averageScore
-                  episodes
-                  format
-                  genres
-                  tags { name rank }
-                  startDate { year month day }
-                  studios(isMain: true) { nodes { name } }
-                  description
-                  nextAiringEpisode { episode }
+          // Anilist: ALL currently airing anime (multiple pages for comprehensive coverage)
+          Promise.allSettled([
+            fetchAniList(`
+              query ($page: Int) {
+                Page(page: $page, perPage: ${HERO_CONFIG.anilistPerPage}) {
+                  media(type: ANIME, status: RELEASING, isAdult: false, sort: POPULARITY_DESC) {
+                    id
+                    idMal
+                    title { romaji english native }
+                    bannerImage
+                    coverImage { large medium }
+                    averageScore
+                    episodes
+                    format
+                    genres
+                    tags { name rank }
+                    startDate { year month day }
+                    studios(isMain: true) { nodes { name } }
+                    description
+                    nextAiringEpisode { episode airingAt timeUntilAiring }
+                  }
                 }
               }
-            }
-          `, { page: 1 })
+            `, { page: 1 }),
+            fetchAniList(`
+              query ($page: Int) {
+                Page(page: $page, perPage: ${HERO_CONFIG.anilistPerPage}) {
+                  media(type: ANIME, status: RELEASING, isAdult: false, sort: POPULARITY_DESC) {
+                    id
+                    idMal
+                    title { romaji english native }
+                    bannerImage
+                    coverImage { large medium }
+                    averageScore
+                    episodes
+                    format
+                    genres
+                    tags { name rank }
+                    startDate { year month day }
+                    studios(isMain: true) { nodes { name } }
+                    description
+                    nextAiringEpisode { episode airingAt timeUntilAiring }
+                  }
+                }
+              }
+            `, { page: 2 })
+          ])
         ]);
 
-        // ── 3a) Collect TMDB TV shows (target: 13) ──────────────────────
+        // ═══════════════════════════════════════════════════════════════════
+        // TMDB FILTERING: Only TRULY currently airing shows (dynamic dates!)
+        // ═══════════════════════════════════════════════════════════════════
+        
+        // ── 3a) Collect and filter TMDB TV shows ──────────────────────
         let rawTmdbShows = [];
         if (tmdbResults.status === 'fulfilled') {
           for (const t of tmdbResults.value) {
@@ -3114,31 +3163,121 @@ async function loadNewAniocean() {
           }
         }
         
-        // Deduplicate & filter TMDB - pick best 13
+        // Deduplicate TMDB shows
         const seenTmdb = new Set();
         const uniqueTmdb = [];
         for (const t of rawTmdbShows) {
           if (!t.id || seenTmdb.has(t.id)) continue;
-          if (!t.backdrop_path) continue;  // Must have backdrop for hero
           seenTmdb.add(t.id);
           uniqueTmdb.push(t);
         }
-        uniqueTmdb.sort((a, b) => (b.popularity||0) - (a.popularity||0));
-        const top13Tmdb = uniqueTmdb.slice(0, 13);
+        
+        // 🔥 DYNAMIC DATE FILTERING - Only TRULY current shows!
+        // A show is "currently airing" if it meets ANY of these criteria:
+        // 1. Has a next episode air date within the next 14 days (actively airing)
+        // 2. Last air date was within the last 7 days (recently aired, likely ongoing)
+        // 3. Status explicitly says "Returning Series" or "In Production"
+        const now = HERO_CONFIG.today;
+        const cutoffFuture = HERO_CONFIG.daysFromNow14;
+        const cutoffPast = HERO_CONFIG.daysAgo7;
+        
+        const trulyCurrentTmdb = uniqueTmdb.filter(show => {
+          // Must have backdrop image for hero slider
+          if (!show.backdrop_path) return false;
+          
+          // CRITERION 1: Next episode air date exists and is within next 14 days
+          if (show.next_episode_to_air) {
+            const nextAirDate = new Date(show.next_episode_to_air.air_date || show.next_episode_to_air);
+            if (!isNaN(nextAirDate.getTime()) && nextAirDate <= cutoffFuture && nextAirDate >= now) {
+              return true;  // ✅ Definitely currently airing!
+            }
+          }
+          
+          // CRITERION 2: Last air date within last 7 days (recently aired, likely ongoing)
+          if (show.last_air_date) {
+            const lastAirDate = new Date(show.last_air_date);
+            if (!isNaN(lastAirDate.getTime()) && lastAirDate >= cutoffPast && lastAirDate <= now) {
+              return true;  // ✅ Recently aired, probably still going
+            }
+          }
+          
+          // CRITERION 3: Check status field for active production
+          if (show.status === 'Returning Series' || show.status === 'In Production') {
+            // Additional check: ensure it's not too old (started within last 2 years)
+            if (show.first_air_date) {
+              const firstAir = new Date(show.first_air_date);
+              const twoYearsAgo = new Date();
+              twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
+              if (firstAir >= twoYearsAgo) {
+                return true;  // ✅ Active production, relatively new
+              }
+            } else {
+              return true;  // ✅ Active status but unknown start date - give benefit of doubt
+            }
+          }
+          
+          return false;  // ❌ Doesn't meet any "currently airing" criteria
+        });
+        
+        // Sort by relevance: prefer shows with sooner next episode air date
+        trulyCurrentTmdb.sort((a, b) => {
+          const dateA = a.next_episode_to_air ? new Date(a.next_episode_to_air.air_date || a.next_episode_to_air) : new Date(0);
+          const dateB = b.next_episode_to_air ? new Date(b.next_episode_to_air.air_date || b.next_episode_to_air) : new Date(0);
+          
+          // Both have future air dates - sort by sooner date first
+          if (dateA >= now && dateB >= now) return dateA - dateB;
+          // Only A has future date - prioritize A
+          if (dateA >= now) return -1;
+          // Only B has future date - prioritize B  
+          if (dateB >= now) return 1;
+          // Neither has future date or both past - fall back to popularity
+          return (b.popularity||0) - (a.popularity||0);
+        });
+        
+        const topTmdbShows = trulyCurrentTmdb.slice(0, HERO_CONFIG.tmdbTargetCount);
 
-        // ── 3b) Collect Anilist airing anime (target: ~25-27 for 70% ratio) ──
+        // ═══════════════════════════════════════════════════════════════════
+        // ANILIST FETCHING: ALL currently airing anime (multiple pages)
+        // ═══════════════════════════════════════════════════════════════════
+        
+        // ── 3b) Collect ALL Anilist airing anime from all fetched pages ──
         let rawAnilistAnime = [];
-        if (anilistResults.status === 'fulfilled' && anilistResults.value?.Page?.media) {
-          rawAnilistAnime = anilistResults.value.Page.media.filter(m => 
-            m.bannerImage && m.idMal  // Must have banner AND mal_id for matching
-          );
+        if (anilistResults.status === 'fulfilled') {
+          for (const pageResult of anilistResults.value) {
+            if (pageResult.status === 'fulfilled' && pageResult.value?.Page?.media) {
+              rawAnilistAnime.push(...pageResult.value.Page.media);
+            }
+          }
         }
+        
+        // Filter: Must have banner image for hero slider
+        const filteredAnilistAnime = rawAnilistAnime.filter(m => m.bannerImage);
+        
+        // Remove duplicates (safety check)
+        const seenAnilist = new Set();
+        const uniqueAnilistAnime = [];
+        for (const anime of filteredAnilistAnime) {
+          if (!seenAnilist.has(anime.id)) {
+            seenAnilist.add(anime.id);
+            uniqueAnilistAnime.push(anime);
+          }
+        }
+        
+        // Sort by: next airing episode soonest first, then popularity
+        uniqueAnilistAnime.sort((a, b) => {
+          // Prioritize anime with upcoming episodes (airing soon!)
+          const timeA = a.nextAiringEpisode?.timeUntilAiring || Infinity;
+          const timeB = b.nextAiringEpisode?.timeUntilAiring || Infinity;
+          if (timeA !== timeB) return timeA - timeB;
+          // Then by popularity as tiebreaker
+          return (b.averageScore||0) * (b.popularity||0) - (a.averageScore||0) * (a.popularity||0);
+        });
+        
+        // Take target count (increased to show more airing anime!)
+        const topAnilistAnime = uniqueAnilistAnime.slice(0, HERO_CONFIG.anilistTargetCount);
 
-        // Sort by popularity (already sorted by POPULARITY_DESC from API)
-        // Take top 27 anime for 70% ratio (27 / (13+27) ≈ 67.5% ≈ 70%)
-        const topAnilistAnime = rawAnilistAnime.slice(0, 27);
-
-        console.log(`[Hero] Fetched ${top13Tmdb.length} TMDB + ${topAnilistAnime.length} Anilist`);
+        console.log(`[Hero] 🎬 Fetched ${topTmdbShows.length} TRULY current TMDB + ${topAnilistAnime.length} Anilist airing anime`);
+        console.log(`[Hero] 📅 Date range: ${cutoffPast.toISOString().split('T')[0]} to ${cutoffFuture.toISOString().split('T')[0]} (dynamic)`);
 
         // ═══════════════════════════════════════════════════════════════════
         // HYBRID IMAGE RESOLUTION PIPELINE
@@ -3348,7 +3487,7 @@ async function loadNewAniocean() {
         };
 
         // ── 4a) Map TMDB slides ─────────────────────────────────────────
-        const tmdbSlides = top13Tmdb.map(t => ({
+        const tmdbSlides = topTmdbShows.map(t => ({
           id:             `tmdb-tv-${t.id}`,
           title:          t.name || t.original_name || 'Unknown',
           source:         'tmdb',
@@ -3442,11 +3581,11 @@ async function loadNewAniocean() {
         }
         
         // Phase 2: Add remaining Anilist after TMDB is exhausted
-        while (anilistIdx < jikanSlides.length && merged.length < 40) {
+        while (anilistIdx < jikanSlides.length && merged.length < HERO_CONFIG.maxTotalSlides) {
           merged.push(jikanSlides[anilistIdx++]);
         }
         
-        heroData = merged.slice(0, 40); // Max 40 slides total
+        heroData = merged.slice(0, HERO_CONFIG.maxTotalSlides); // Max slides from config
 
         console.log(`[Hero] ${tmdbSlides.length} TMDB + ${jikanSlides.length} Jikan = ${heroData.length} total slides`);
         renderHero();
