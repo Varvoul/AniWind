@@ -3065,8 +3065,222 @@ async function loadNewAniocean() {
   renderAnimeList([]);
 }
 
+      /* ── TVMAZE INTEGRATION (Primary source for truly airing TV shows!) ── */
+      
+      /**
+       * Fetch TVMaze Schedule API - returns ONLY shows airing today/tomorrow!
+       * No complex filtering needed - TVMaze does the work for us!
+       * @param {string} country - Country code (default: 'US')
+       * @returns {Array} Array of episode objects with show data
+       */
+      async function fetchTVMazeSchedule(country = 'US') {
+        try {
+          const url = `https://api.tvmaze.com/schedule?country=${country}`;
+          console.log(`[TVMaze] 📡 Fetching schedule: ${url}`);
+          
+          const res = await fetch(url, {
+            headers: { Accept: 'application/json' },
+            signal: AbortSignal.timeout(15000)
+          });
+          
+          if (!res.ok) {
+            throw new Error(`TVMaze returned ${res.status}`);
+          }
+          
+          const data = await res.json();
+          console.log(`[TVMaze] ✅ Fetched ${data.length} episodes`);
+          
+          // Deduplicate shows (same show can have multiple episodes)
+          const seenShows = new Set();
+          const uniqueShows = [];
+          
+          for (const ep of data) {
+            const show = ep.show;
+            if (!show || !show.id || seenShows.has(show.id)) continue;
+            seenShows.add(show.id);
+            
+            // Add episode info to show object
+            show._episode = {
+              id: ep.id,
+              name: ep.name,
+              season: ep.season,
+              number: ep.number,
+              airdate: ep.airdate,
+              airstamp: ep.airstamp
+            };
+            
+            uniqueShows.push(show);
+          }
+          
+          console.log(`[TVMaze] ✅ Unique shows: ${uniqueShows.length}`);
+          return uniqueShows;
+        } catch (error) {
+          console.error('[TVMaze] ❌ Error fetching schedule:', error.message);
+          return [];
+        }
+      }
+      
+      /**
+       * Bridge TVMaze show to TMDB using external IDs (IMDb/TheTVDB)
+       * Falls back to title search if no external ID available
+       * @param {Object} tvmazeShow - TVMaze show object
+       * @returns {Object|null} TMDB TV show object or null
+       */
+      async function bridgeTVMazeToTMDB(tvmazeShow) {
+        const externals = tvmazeShow.externals || {};
+        const showName = tvmazeShow.name;
+        
+        // Strategy 1: Try IMDb ID bridge (most reliable!)
+        if (externals.imdb) {
+          try {
+            const result = await fetchTMDB(`/find/${externals.imdb}`, `external_source=imdb_id`);
+            if (result?.tv_results?.length > 0) {
+              const tmdbShow = result.tv_results[0];
+              console.log(`[TVMaze→TMDB] ✅ IMDb bridge: "${showName}" → TMDB:${tmdbShow.id}`);
+              return tmdbShow;
+            }
+          } catch (e) {
+            console.warn(`[TVMaze→TMDB] ⚠️ IMDb bridge failed for "${showName}":`, e.message);
+          }
+        }
+        
+        // Strategy 2: Try TheTVDB ID bridge
+        if (externals.thetvdb) {
+          try {
+            const result = await fetchTMDB(`/find/${externals.thetvdb}`, `external_source=tvdb_id`);
+            if (result?.tv_results?.length > 0) {
+              const tmdbShow = result.tv_results[0];
+              console.log(`[TVMaze→TMDB] ✅ TheTVDB bridge: "${showName}" → TMDB:${tmdbShow.id}`);
+              return tmdbShow;
+            }
+          } catch (e) {
+            console.warn(`[TVMaze→TMDB] ⚠️ TheTVDB bridge failed for "${showName}":`, e.message);
+          }
+        }
+        
+        // Strategy 3: Fallback to TMDB search (with pagination for accuracy)
+        console.log(`[TVMaze→TMDB] 🔍 No external ID for "${showName}" - trying search...`);
+        return await searchTMDBFallback(showName, tvmazeShow.premiered);
+      }
+      
+      /**
+       * TMDB Search fallback - searches by name with pagination to find correct show
+       * Validates match by comparing premiere year
+       * @param {string} showName - Name of the show to search
+       * @param {string} premiered - Premiere date from TVMaze (for validation)
+       * @param {number} maxPages - Maximum pages to search (default: 3)
+       * @returns {Object|null} Best matching TMDB show or null
+       */
+      async function searchTMDBFallback(showName, premiered, maxPages = 3) {
+        try {
+          // Extract year from premiered for validation
+          const premierYear = premiered ? new Date(premiered).getFullYear() : null;
+          
+          for (let page = 1; page <= maxPages; page++) {
+            const result = await fetchTMDB('/search/tv', `query=${encodeURIComponent(showName)}&page=${page}`);
+            
+            if (!result?.results || result.results.length === 0) break;
+            
+            // Find best match in this page
+            for (const candidate of result.results) {
+              const candidateYear = candidate.first_air_date 
+                ? new Date(candidate.first_air_date).getFullYear() 
+                : null;
+              
+              // Exact name match (case-insensitive) is best
+              if (candidate.name.toLowerCase() === showName.toLowerCase()) {
+                console.log(`[TVMaze→TMDB] ✅ Search exact match: "${showName}" → TMDB:${candidate.id}`);
+                return candidate;
+              }
+              
+              // Same premiere year = likely correct show
+              if (premierYear && candidateYear && Math.abs(premierYear - candidateYear) <= 1) {
+                console.log(`[TVMaze→TMDB] ✅ Search year match: "${showName}" (${premierYear}) → TMDB:${candidate.id} (${candidateYear})`);
+                return candidate;
+              }
+            }
+          }
+          
+          // If we searched all pages and found results but no good match, take first result
+          const firstResult = await fetchTMDB('/search/tv', `query=${encodeURIComponent(showName)}&page=1`);
+          if (firstResult?.results?.length > 0) {
+            console.log(`[TVMaze→TMDB] ⚠️ Using first search result for "${showName}" → TMDB:${firstResult.results[0].id}`);
+            return firstResult.results[0];
+          }
+          
+          console.log(`[TVMaze→TMDB] ❌ No TMDB match found for "${showName}"`);
+          return null;
+        } catch (e) {
+          console.error(`[TVMaze→TMDB] ❌ Search error for "${showName}":`, e.message);
+          return null;
+        }
+      }
+      
+      /**
+       * Main function: Get TVMaze shows enriched with TMDB data
+       * Filters out non-scripted content (News, Talk Shows, Sports, etc.)
+       * Respects rate limits with batching
+       * @param {number} maxShows - Maximum shows to process (default: 20)
+       * @returns {Array} Array of objects with both TVMaze and TMDB data
+       */
+      async function getTVMazeShowsWithTMDBData(maxShows = 20) {
+        console.log('[TVMaze] 🚀 Starting TVMaze + TMDB bridge pipeline...');
+        
+        // Step 1: Fetch TVMaze schedule
+        const tvmazeShows = await fetchTVMazeSchedule('US');
+        
+        // Filter to scripted/animation content only (skip News, Talk Show, Sports, Reality, etc.)
+        const validTypes = ['Scripted', 'Animation', 'Mini-Series', 'Documentary'];
+        const filteredShows = tvmazeShows.filter(show => {
+          const type = show.type || 'Unknown';
+          if (!validTypes.includes(type)) {
+            console.log(`[TVMaze] ⏭️ Skipping ${type}: "${show.name}"`);
+            return false;
+          }
+          return true;
+        });
+        
+        console.log(`[TVMaze] 📊 After type filter: ${filteredShows.length}/${tvmazeShows.length} shows`);
+        
+        // Limit to maxShows to avoid too many API calls
+        const targetShows = filteredShows.slice(0, maxShows);
+        
+        // Step 2: Bridge each show to TMDB (with rate limit awareness - batch of 5 concurrent)
+        const BATCH_SIZE = 5;
+        const bridgedShows = [];
+        
+        for (let i = 0; i < targetShows.length; i += BATCH_SIZE) {
+          const batch = targetShows.slice(i, i + BATCH_SIZE);
+          const batchResults = await Promise.allSettled(
+            batch.map(async (show) => {
+              const tmdbData = await bridgeTVMazeToTMDB(show);
+              return {
+                tvmaze: show,
+                tmdb: tmdbData,
+                hasTMDB: !!tmdbData
+              };
+            })
+          );
+          
+          for (const result of batchResults) {
+            if (result.status === 'fulfilled' && result.value.hasTMDB) {
+              bridgedShows.push(result.value);
+            }
+          }
+          
+          // Small delay between batches to respect rate limits
+          if (i + BATCH_SIZE < targetShows.length) {
+            await new Promise(resolve => setTimeout(resolve, 250));
+          }
+        }
+        
+        console.log(`[TVMaze] ✅ Successfully bridged ${bridgedShows.length}/${targetShows.length} shows to TMDB`);
+        return bridgedShows;
+      }
+
       /* ── HERO ── */
-      // Hero shows TRULY currently airing TMDB TV + ALL Anilist airing anime = up to 60 total slides
+      // Hero shows TRULY currently airing TV (from TVMaze!) + ALL Anilist airing anime = up to 60 total slides
+      // TVMaze is PRIMARY source (guaranteed currently airing), TMDB is SECONDARY fallback
       // Dynamic date filtering ensures only fresh, current content appears
       // Anilist anime use bannerImage for hero slider background
       let heroData=[], currentSlide=0, _heroRendered=false, _heroInterval=null;
@@ -3092,24 +3306,14 @@ async function loadNewAniocean() {
       };
 
       async function loadHero() {
-        // ── Fetch TRULY currently airing TMDB TV + ALL airing Anilist anime ────
-        const [tmdbResults, anilistResults] = await Promise.allSettled([
-          // TMDB: Fetch MANY pages of "on_the_air" shows
-          // (We filter by current year, so most results get dropped — need extra pages!)
-          Promise.allSettled([
-            fetchTMDB('/tv/on_the_air', `page=1`),
-            fetchTMDB('/tv/on_the_air', `page=2`),
-            fetchTMDB('/tv/on_the_air', `page=3`),
-            fetchTMDB('/tv/on_the_air', `page=4`),
-            fetchTMDB('/tv/on_the_air', `page=5`),
-            fetchTMDB('/tv/on_the_air', `page=6`),
-            fetchTMDB('/tv/on_the_air', `page=7`),
-            fetchTMDB('/tv/on_the_air', `page=8`),
-            fetchTMDB('/tv/on_the_air', `page=9`),
-            fetchTMDB('/tv/on_the_air', `page=10`),
-            fetchTMDB('/tv/on_the_air', `page=11`),
-            fetchTMDB('/tv/on_the_air', `page=12`),
-          ]),
+        // ── Fetch TRULY currently airing TV (TVMaze PRIMARY!) + ALL airing Anilist anime ────
+        // TVMaze schedule API = guaranteed currently airing shows (no filtering needed!)
+        // TMDB /tv/on_the_air = SECONDARY fallback (with current-year filter)
+        
+        const [tvmazeResults, anilistResults] = await Promise.allSettled([
+          // PRIMARY: TVMaze Schedule API - truly airing shows with TMDB bridge!
+          getTVMazeShowsWithTMDBData(HERO_CONFIG.tmdbTargetCount),
+          
           // Anilist: ALL currently airing anime (multiple pages for comprehensive coverage)
           Promise.allSettled([
             fetchAniList(`
@@ -3160,59 +3364,70 @@ async function loadNewAniocean() {
         ]);
 
         // ═══════════════════════════════════════════════════════════════════
-        // TMDB FILTERING: Simple current-year filter (uses first_air_date from API!)
+        // TVMaze PRIMARY SOURCE: Extract TMDB data from bridged shows
         // ═══════════════════════════════════════════════════════════════════
         
-        // ── 3a) Collect and filter TMDB TV shows ──────────────────────
-        let rawTmdbShows = [];
-        if (tmdbResults.status === 'fulfilled') {
-          for (const t of tmdbResults.value) {
-            if (t.status === 'fulfilled' && t.value?.results) {
-              rawTmdbShows.push(...t.value.results);
+        let topTmdbShows = [];
+        
+        if (tvmazeResults.status === 'fulfilled' && tvmazeResults.value.length > 0) {
+          // ✅ TVMaze worked! Extract TMDB data from bridged results
+          console.log(`[Hero] 🎬 Using TVMaze as PRIMARY source: ${tvmazeResults.value.length} shows`);
+          
+          topTmdbShows = tvmazeResults.value
+            .filter(item => item.tmdb && item.tmdb.backdrop_path)  // Must have backdrop for hero
+            .map(item => ({
+              ...item.tmdb,
+              _source: 'tvmaze',  // Mark as TVMaze-sourced
+              _tvmazeShow: item.tvmaze  // Keep original TVMaze data
+            }))
+            .slice(0, HERO_CONFIG.tmdbTargetCount);
+            
+          console.log(`[Hero] ✅ TVMaze + TMDB bridge: ${topTmdbShows.length} shows ready`);
+        } else {
+          // ❌ TVMaze failed → FALLBACK to TMDB /tv/on_the_air with current-year filter
+          console.warn('[Hero] ⚠️ TVMaze failed, falling back to TMDB /tv/on_the_air...');
+          
+          const tmdbFallback = await Promise.allSettled([
+            fetchTMDB('/tv/on_the_air', `page=1`),
+            fetchTMDB('/tv/on_the_air', `page=2`),
+            fetchTMDB('/tv/on_the_air', `page=3`),
+            fetchTMDB('/tv/on_the_air', `page=4`),
+            fetchTMDB('/tv/on_the_air', `page=5`),
+            fetchTMDB('/tv/on_the_air', `page=6`),
+          ]);
+          
+          // Collect and deduplicate
+          let rawTmdbShows = [];
+          if (tmdbFallback.status === 'fulfilled') {
+            for (const t of tmdbFallback.value) {
+              if (t.status === 'fulfilled' && t.value?.results) {
+                rawTmdbShows.push(...t.value.results);
+              }
             }
           }
-        }
-        
-        // Deduplicate TMDB shows
-        const seenTmdb = new Set();
-        const uniqueTmdb = [];
-        for (const t of rawTmdbShows) {
-          if (!t.id || seenTmdb.has(t.id)) continue;
-          seenTmdb.add(t.id);
-          uniqueTmdb.push(t);
-        }
-        
-        // 🎯 SIMPLE CURRENT-YEAR FILTER
-        // The /tv/on_the_air endpoint returns shows with first_air_date field.
-        // We ONLY keep shows that launched THIS YEAR → guarantees fresh content!
-        // No complex scoring needed — just check if it started in current year.
-        const currentYear = new Date().getFullYear().toString();
-        
-        console.log(`[Hero] 📅 Filtering TMDB shows: keeping only ${currentYear} launches...`);
-        console.log(`[Hero] 🔍 Raw TMDB shows before filter: ${uniqueTmdb.length}`);
-        
-        const freshTmdbShows = uniqueTmdb.filter(show => {
-          // Must have backdrop image for hero slider
-          if (!show.backdrop_path) return false;
           
-          // Must have first_air_date that starts with current year
-          // e.g., "2026-01-15", "2026-06-20" etc.
-          if (!show.first_air_date) return false;
+          const seenTmdb = new Set();
+          const uniqueTmdb = [];
+          for (const t of rawTmdbShows) {
+            if (!t.id || seenTmdb.has(t.id)) continue;
+            seenTmdb.add(t.id);
+            uniqueTmdb.push(t);
+          }
           
-          return show.first_air_date.startsWith(currentYear);
-        });
-        
-        // Sort by popularity (most popular new shows first)
-        freshTmdbShows.sort((a, b) => (b.popularity||0) - (a.popularity||0));
-        
-        // Debug: Show filtered results
-        console.log('[Hero] ✅ Fresh TMDB shows (current year):', freshTmdbShows.map(s => ({
-          title: s.name,
-          firstAir: s.first_air_date,
-          popularity: s.popularity
-        })));
-        
-        const topTmdbShows = freshTmdbShows.slice(0, HERO_CONFIG.tmdbTargetCount);
+          // Apply current-year filter to fallback
+          const currentYear = new Date().getFullYear().toString();
+          const freshTmdbShows = uniqueTmdb.filter(show => {
+            if (!show.backdrop_path) return false;
+            if (!show.first_air_date || !show.first_air_date.startsWith(currentYear)) return false;
+            return true;
+          });
+          
+          // Sort by popularity
+          freshTmdbShows.sort((a, b) => (b.popularity||0) - (a.popularity||0));
+          topTmdbShows = freshTmdbShows.slice(0, HERO_CONFIG.tmdbTargetCount);
+          
+          console.log(`[Hero] ⚠️ TMDB Fallback: ${topTmdbShows.length} shows (${currentYear} filter applied)`);
+        }
 
         // ═══════════════════════════════════════════════════════════════════
         // ANILIST FETCHING: ALL currently airing anime (multiple pages)
@@ -3254,8 +3469,9 @@ async function loadNewAniocean() {
         // Take target count (increased to show more airing anime!)
         const topAnilistAnime = uniqueAnilistAnime.slice(0, HERO_CONFIG.anilistTargetCount);
 
-        console.log(`[Hero] 🎬 Fetched ${topTmdbShows.length} fresh TMDB (${currentYear} launches) + ${topAnilistAnime.length} Anilist airing anime`);
-        console.log(`[Hero] 📅 Filter: TMDB shows must have first_air_date starting with "${currentYear}"`);
+        const sourceType = topTmdbShows.length > 0 && topTmdbShows[0]?._source === 'tvmaze' ? 'TVMaze+TMDB' : 'TMDB Fallback';
+        console.log(`[Hero] 🎬 Fetched ${topTmdbShows.length} TV (${sourceType}) + ${topAnilistAnime.length} Anilist airing anime`);
+        console.log(`[Hero] 📅 Source: ${sourceType} - ${sourceType.includes('TVMaze') ? 'truly airing from TVMaze schedule' : 'current-year filter applied'}`);
 
         // ═══════════════════════════════════════════════════════════════════
         // HYBRID IMAGE RESOLUTION PIPELINE
@@ -3992,12 +4208,12 @@ titleEl.style.color = 'transparent';
         const cols = calcColsForGrid();
         const TARGET_SHOWS = TARGET_ROWS * cols; // 42-48 shows
         
-        // Fetch MORE pages to fill 6 rows - Using NEW t-umi proxy + AniList
-        const [nowMovies, nowMovies2, onAirTv, onAirTv2, anilistNow] = await Promise.all([
+        // Fetch using TVMaze for TV (PRIMARY!) + TMDB for movies + AniList for anime
+        const [nowMovies, nowMovies2, tvmazeTvShows, anilistNow] = await Promise.all([
           fetchTMDB('/movie/now_playing', `page=1`),
           fetchTMDB('/movie/now_playing', `page=2`),
-          fetchTMDB('/tv/on_the_air', `page=1`),
-          fetchTMDB('/tv/on_the_air', `page=2`),
+          // PRIMARY: TVMaze for truly airing TV shows!
+          getTVMazeShowsWithTMDBData(30),
           // AniList: Current season anime (replacing Jikan seasons/now)
           fetchAniList(`
             query ($perPage: Int) {
@@ -4028,11 +4244,45 @@ titleEl.style.color = 'transparent';
           })).slice(0, TARGET_SHOWS);
         
         console.log(`[New Releases] 📅 Filtered movies: keeping only ${currentYearForMovies} releases (${allMovies.length} passed)`);
-        const allTv = [...(onAirTv.results||[]), ...(onAirTv2.results||[])]
-          .map(i => ({
-            id:`tmdb-tv-${i.id}`, title:i.name, poster:tmdbImg(i.poster_path), type:'TV',
-            score:(i.vote_average||0).toFixed(1), details: 'S?', cert:'PG-13', quality:'HD'
-          })).slice(0, TARGET_SHOWS);
+        
+        // 🎯 TV SHOWS FROM TVMAZE (Primary source - truly airing!)
+        let allTv = [];
+        if (tvmazeTvShows.status === 'fulfilled' && Array.isArray(tvmazeTvShows.value)) {
+          console.log(`[New Releases] 📺 Using TVMaze for TV: ${tvmazeTvShows.value.length} shows`);
+          
+          allTv = tvmazeTvShows.value
+            .filter(item => item.tmdb && item.tmdb.poster_path)  // Must have poster
+            .map(item => ({
+              id:`tmdb-tv-${item.tmdb.id}`, 
+              title:item.tmdb.name, 
+              poster:tmdbImg(item.tmdb.poster_path), 
+              type:'TV',
+              score:(item.tmdb.vote_average||0).toFixed(1), 
+              details: item.tvmaze._episode ? `S${item.tvmaze._episode.season}E${item.tvmaze._episode.number}` : 'S?', 
+              cert:'PG-13', 
+              quality:'HD',
+              _source: 'tvmaze'
+            }))
+            .slice(0, TARGET_SHOWS);
+            
+          console.log(`[New Releases] ✅ TVMaze TV ready: ${allTv.length} shows`);
+        } else {
+          // FALLBACK to TMDB /tv/on_the_air if TVMaze fails
+          console.warn('[New Releases] ⚠️ TVMaze failed, falling back to TMDB /tv/on_the_air...');
+          const [onAirTv, onAirTv2] = await Promise.all([
+            fetchTMDB('/tv/on_the_air', `page=1`),
+            fetchTMDB('/tv/on_the_air', `page=2`)
+          ]);
+          
+          allTv = [...(onAirTv?.results||[]), ...(onAirTv2?.results||[])]
+            .filter(i => i.poster_path)
+            .map(i => ({
+              id:`tmdb-tv-${i.id}`, title:i.name, poster:tmdbImg(i.poster_path), type:'TV',
+              score:(i.vote_average||0).toFixed(1), details: 'S?', cert:'PG-13', quality:'HD',
+              _source: 'tmdb-fallback'
+            }))
+            .slice(0, TARGET_SHOWS);
+        }
         
         // Convert AniList data (replacing Jikan seasons/now)
         const anime = [];
