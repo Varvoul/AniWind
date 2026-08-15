@@ -4145,7 +4145,7 @@ titleEl.style.color = 'transparent';
         } else {
           // FALLBACK to TMDB /tv/on_the_air if TVMaze fails
           console.warn('[Top Airing] ⚠️ TVMaze failed, falling back to TMDB /tv/on_the_air...');
-          const tvOnAir = await fetchTMDB('/tv/on_the_air', `page=1');
+          const tvOnAir = await fetchTMDB('/tv/on_the_air', 'page=1');
           
           tv = (tvOnAir.results||[]).slice(0,20).map(i => ({
             id:`tmdb-tv-${i.id}`, title:i.name, poster:tmdbImg(i.poster_path), type:'TV',
@@ -4190,21 +4190,18 @@ titleEl.style.color = 'transparent';
           
           // Enhanced display for TVMaze-sourced shows (truly airing!)
           let posterBadge, metaLine;
-          
-          if (isTmdbTv && isFromTVMaze) {
-            // TVMaze shows: Show episode info or country flag
-            posterBadge = s.episodeInfo || s.country || '🎬';
-            metaLine = `${s.type} · ${s.status} · ${s.country} · ⭐${s.voteCount}`;
-          } else if (isTmdbTv) {
-            // TMDB fallback shows: show country + vote count
-            posterBadge = s.country || 'TV';
+          if (isFromTVMaze) {
+            // Show episode info (S#E#) for TVMaze shows
+            posterBadge = s.episodeInfo || s.country || 'TV';
             metaLine = `${s.type} · ${s.status} · ${s.country} · ${s.voteCount}`;
+          } else if (isTmdbTv) {
+            posterBadge = s.country || 'TV';
+            metaLine = `${s.type} · ${s.status} · ${s.country} · ⭐${s.voteCount}`;
           } else {
             // Anilist anime: show episode count
             posterBadge = `EP ${s.episodes||'?'}`;
             metaLine = `${s.type} · ${s.duration} · ${s.status} · ${s.episodes} EP`;
           }
-          
           return `
           <div class="show-card-horiz" style="position:relative;">
             <a href="${infoUrl(s)}" class="show-card-horiz" style="position:static;">
