@@ -3244,6 +3244,40 @@
     twitterHandle: '@aniumi_official',
     
     // ═══════════════════════════════════════════════════════
+    // OG FLYER CARD IMAGES (Dynamic per page type)
+    // Your Canva-designed flyer with "Aniumi" + cyan gradient + pink buttons
+    // Size: 1200x630px (Facebook/Twitter standard OG image size)
+    // ═══════════════════════════════════════════════════════
+    flyerImages: {
+      // MAIN FLYER - Your Canva design (used for most pages)
+      // Design: Dark navy bg + anime posters left + "Aniumi" cyan gradient + URL + pink buttons
+      home: 'https://i.postimg.cc/Fs8y8Wqh/Follow-Ani-Wind-Zone-x-profile-banner.jpg',
+      
+      // ANIME SECTION PAGES - Uses main brand flyer
+      animeSection: 'https://i.postimg.cc/Fs8y8Wqh/Follow-Ani-Wind-Zone-x-profile-banner.jpg',
+      
+      // MOVIES SECTION PAGES - Uses main brand flyer
+      moviesSection: 'https://i.postimg.cc/Fs8y8Wqh/Follow-Ani-Wind-Zone-x-profile-banner.jpg',
+      
+      // TV SHOWS SECTION PAGES - Uses main brand flyer
+      tvSection: 'https://i.postimg.cc/Fs8y8Wqh/Follow-Ani-Wind-Zone-x-profile-banner.jpg',
+      
+      // INFO/WATCH PAGES - NOT using flyer (will use dynamic poster detection or default)
+      // TODO: User will design specific content page flyer later
+      info: '',  // Empty = triggers detectPosterImage() or falls back to defaultImage
+      
+      // SEARCH RESULTS PAGE - Uses main brand flyer
+      search: 'https://i.postimg.cc/Fs8y8Wqh/Follow-Ani-Wind-Zone-x-profile-banner.jpg',
+      
+      // FALLBACK FLYER - For any unmatched/unknown pages
+      fallback: 'https://i.postimg.cc/Fs8y8Wqh/Follow-Ani-Wind-Zone-x-profile-banner.jpg'
+    },
+    
+    // Enable/disable dynamic poster detection for content pages
+    // When true, tries to use actual anime/movie poster as OG image on info pages
+    dynamicPosterDetection: true,
+    
+    // ═══════════════════════════════════════════════════════
     // CONTENT TYPE CONFIGURATIONS (Separate for each niche)
     // ═══════════════════════════════════════════════════════
     
@@ -3466,6 +3500,106 @@
       };
     },
     
+    // ═══════════════════════════════════════════════════════
+    // DYNAMIC OG IMAGE SELECTION (Flyer Card System)
+    // Automatically selects the best OG image for each page type
+    // Priority: Page-specific flyer > Dynamic poster > Default
+    // ═══════════════════════════════════════════════════════
+    getOgImage: function() {
+      const pageType = this.detectPageType();
+      
+      // 1. Try to get page-specific flyer image first
+      const flyerUrl = this.flyerImages[pageType] || this.flyerImages.fallback;
+      
+      // 2. For info/content pages, try to detect actual poster image
+      if (pageType === 'info' && this.dynamicPosterDetection) {
+        const posterImage = this.detectPosterImage();
+        if (posterImage) {
+          console.log('[MetadataManager] 🖼️ Using dynamic poster for OG:', posterImage);
+          return posterImage;
+        }
+      }
+      
+      // 3. If flyer URL is placeholder (not uploaded yet), fall back to default
+      if (flyerUrl && !flyerUrl.includes('YOUR_')) {
+        console.log('[MetadataManager] 📄 Using flyer image for', pageType, ':', flyerUrl);
+        return flyerUrl;
+      }
+      
+      // 4. Final fallback to default image
+      console.log('[MetadataManager] 🖼️ Using default OG image');
+      return this.defaultImage;
+    },
+    
+    // Detect poster/image from current page for content pages
+    // Looks for: og:image already set, poster img, hero background, etc.
+    detectPosterImage: function() {
+      // Method 1: Check for existing og:image (set by server or earlier script)
+      const existingOg = document.querySelector('meta[property="og:image"]');
+      if (existingOg && existingOg.content && !existingOg.content.includes('postimg.cc/BvwTjXgv')) {
+        return existingOg.content;
+      }
+      
+      // Method 2: Look for poster image element (common patterns)
+      const posterSelectors = [
+        'img.poster-img',
+        'img.content-poster',
+        'img.show-poster',
+        '.poster-image img',
+        '.show-poster img',
+        '[data-poster]',
+        '.hero-slider .slide[style*="background"]',
+        '#bannerImg',
+        '.info-banner img',
+        '.content-banner img'
+      ];
+      
+      for (const selector of posterSelectors) {
+        const el = document.querySelector(selector);
+        if (el) {
+          // Handle background images
+          if (el.style && el.style.backgroundImage) {
+            const match = el.style.backgroundImage.match(/url\(["']?(.*?)["']?\)/);
+            if (match && match[1]) return match[1];
+          }
+          // Handle img src
+          if (el.src && el.src.startsWith('http') && !el.src.includes('avatar') && !el.src.includes('icon')) {
+            return el.src;
+          }
+          // Handle data attribute
+          if (el.dataset && el.dataset.poster) {
+            return el.dataset.poster;
+          }
+        }
+      }
+      
+      // Method 3: Try to get from Open Graph data in page (if any)
+      const jsonLd = document.querySelector('script[type="application/ld+json"]');
+      if (jsonLd) {
+        try {
+          const data = JSON.parse(jsonLd.textContent);
+          if (data.thumbnailUrl) return data.thumbnailUrl;
+          if (data.image) return data.image;
+          if (Array.isArray(data)) {
+            for (const item of data) {
+              if (item.thumbnailUrl) return item.thumbnailUrl;
+              if (item.image) return item.image;
+            }
+          }
+        } catch (e) { /* ignore parse errors */ }
+      }
+      
+      // Method 4: Get largest image on page (heuristic)
+      const images = Array.from(document.querySelectorAll('img[src*="tmdb"], img[src*="anilist"], img[src*="fanart"], img[src*="poster"]'));
+      if (images.length > 0) {
+        // Return the largest image by area (best candidate for poster)
+        images.sort((a, b) => (b.naturalWidth * b.naturalHeight) - (a.naturalWidth * a.naturalHeight));
+        return images[0].src;
+      }
+      
+      return null; // No poster detected
+    },
+    
     // Template helper - replace {var} with actual values
     applyTemplate: function(template, data) {
       if (!template) return '';
@@ -3491,7 +3625,7 @@
           twitterTitle: this.applyTemplate(config.twitterTitleTemplate, showInfo),
           twitterDescription: this.applyTemplate(config.twitterDescriptionTemplate, showInfo),
           type: config.type,
-          image: this.defaultImage,
+          image: this.getOgImage(),  // Dynamic: poster or flyer
           url: window.location.href
         };
       }
@@ -3511,7 +3645,7 @@
           twitterTitle: this.applyTemplate(config.twitterTitleTemplate, searchData),
           twitterDescription: this.applyTemplate(config.twitterDescriptionTemplate, searchData),
           type: config.type,
-          image: this.defaultImage,
+          image: this.getOgImage(),  // Dynamic: search flyer or default
           url: window.location.href
         };
       }
@@ -3526,7 +3660,7 @@
         twitterTitle: config.twitterTitle,
         twitterDescription: config.twitterDescription,
         type: config.type,
-        image: this.defaultImage,
+        image: this.getOgImage(),  // Dynamic: page-specific flyer or default
         url: this.siteUrl
       };
     },
