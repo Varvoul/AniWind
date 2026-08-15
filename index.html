@@ -3068,14 +3068,18 @@ async function loadNewAniocean() {
       /* ── TVMAZE INTEGRATION (Primary source for truly airing TV shows!) ── */
       
       /**
-       * Fetch TVMaze Schedule API - returns ONLY shows airing today/tomorrow!
-       * No complex filtering needed - TVMaze does the work for us!
-       * @param {string} country - Country code (default: 'US')
-       * @returns {Array} Array of episode objects with show data
+       * Fetch TVMaze Schedule API - returns ONLY shows airing on specified date!
+       * Supports dynamic country and date parameters for maximum coverage.
+       * @param {string} country - ISO 3166-1 country code (default: 'US')
+       * @param {string} date - Date in YYYY-MM-DD format (optional, defaults to today)
+       * @returns {Array} Array of unique show objects with episode data
        */
-      async function fetchTVMazeSchedule(country = 'US') {
+      async function fetchTVMazeSchedule(country = 'US', date = null) {
         try {
-          const url = `https://api.tvmaze.com/schedule?country=${country}`;
+          // Build URL with optional date parameter
+          const baseUrl = `https://api.tvmaze.com/schedule?country=${country}`;
+          const url = date ? `${baseUrl}&date=${date}` : baseUrl;
+          
           console.log(`[TVMaze] 📡 Fetching schedule: ${url}`);
           
           const res = await fetch(url, {
@@ -3088,7 +3092,7 @@ async function loadNewAniocean() {
           }
           
           const data = await res.json();
-          console.log(`[TVMaze] ✅ Fetched ${data.length} episodes`);
+          console.log(`[TVMaze] ✅ Fetched ${data.length} episodes from ${country}${date ? ' (' + date + ')' : ''}`);
           
           // Deduplicate shows (same show can have multiple episodes)
           const seenShows = new Set();
@@ -3109,15 +3113,102 @@ async function loadNewAniocean() {
               airstamp: ep.airstamp
             };
             
+            // Mark which country/date this came from (useful for debugging)
+            show._sourceCountry = country;
+            show._sourceDate = date || new Date().toISOString().split('T')[0];
+            
             uniqueShows.push(show);
           }
           
-          console.log(`[TVMaze] ✅ Unique shows: ${uniqueShows.length}`);
+          console.log(`[TVMaze] ✅ Unique shows from ${country}: ${uniqueShows.length}`);
           return uniqueShows;
         } catch (error) {
-          console.error('[TVMaze] ❌ Error fetching schedule:', error.message);
+          console.error(`[TVMaze] ❌ Error fetching ${country} schedule:`, error.message);
           return [];
         }
+      }
+      
+      /**
+       * Multi-Country TVMaze Fetcher - Tries multiple countries to maximize scripted content!
+       * Smart fallback: If primary country returns too few scripted shows, tries others.
+       * Perfect for weekends when US schedule is dominated by news/sports!
+       * 
+       * @param {Array<string>} countries - Ordered list of countries to try (default: US-first strategy)
+       * @param {string} date - Optional date in YYYY-MM-DD format
+       * @param {number} minScriptedShows - Minimum scripted shows needed before stopping (default: 5)
+       * @param {number} maxCountries - Maximum countries to try (default: 4)
+       * @returns {Object} { shows: Array, countriesTried: Array, stats: Object }
+       */
+      async function getTVMazeShowsMultiCountry(countries = null, date = null, minScriptedShows = 5, maxCountries = 4) {
+        // Default country priority list (optimized for English content + anime!)
+        const DEFAULT_COUNTRIES = ['US', 'GB', 'JP', 'CA', 'AU'];
+        const countryList = countries || DEFAULT_COUNTRIES;
+        
+        console.log(`[TVMaze-🌍] Starting multi-country fetch...`);
+        console.log(`[TVMaze-🌍] Countries to try: ${countryList.join(', ')}`);
+        console.log(`[TVMaze-🌍] Target date: ${date || 'today'}`);
+        console.log(`[TVMaze-🌍] Min scripted shows needed: ${minScriptedShows}`);
+        
+        const validTypes = ['Scripted', 'Animation', 'Mini-Series', 'Documentary'];
+        const allShows = new Map(); // Use Map for automatic dedup by show ID
+        const countriesTried = [];
+        let totalScriptedFound = 0;
+        
+        // Try each country until we have enough shows or hit max limit
+        for (let i = 0; i < Math.min(countryList.length, maxCountries); i++) {
+          const country = countryList[i];
+          console.log(`\n[TVMaze-🌍] 📍 Trying ${country}...`);
+          
+          const shows = await fetchTVMazeSchedule(country, date);
+          countriesTried.push({ country, totalFetched: shows.length });
+          
+          // Filter and add only valid types
+          let addedFromThisCountry = 0;
+          for (const show of shows) {
+            // Skip if already found from another country
+            if (allShows.has(show.id)) continue;
+            
+            // Check type filter
+            const type = show.type || 'Unknown';
+            if (!validTypes.includes(type)) {
+              console.log(`[TVMaze-🌍]   ⏭️ Skipping ${type}: "${show.name}" (${country})`);
+              continue;
+            }
+            
+            // Add to collection
+            allShows.set(show.id, show);
+            addedFromThisCountry++;
+            totalScriptedFound++;
+          }
+          
+          console.log(`[TVMaze-🌍]   ✅ Added ${addedFromThisCountry} scripted shows from ${country}`);
+          console.log(`[TVMaze-🌍]   📊 Total scripted so far: ${totalScriptedFound}`);
+          
+          // Stop early if we have enough shows
+          if (totalScriptedFound >= minScriptedShows * 3) {
+            console.log(`[TVMaze-🌍]   🎉 Got enough shows (${totalScriptedFound}), stopping!`);
+            break;
+          }
+          
+          // Small delay between countries (rate limit courtesy)
+          if (i < Math.min(countryList.length, maxCountries) - 1) {
+            await new Promise(resolve => setTimeout(resolve, 200));
+          }
+        }
+        
+        const finalShows = Array.from(allShows.values());
+        const stats = {
+          totalUniqueShows: finalShows.length,
+          totalScripted: totalScriptedFound,
+          countriesTried: countriesTried.length,
+          distribution: countriesTried
+        };
+        
+        console.log(`\n[TVMaze-🌍] 🎬 FINAL RESULTS:`);
+        console.log(`[TVMaze-🌍]    Total unique scripted shows: ${finalShows.length}`);
+        console.log(`[TVMaze-🌍]    Countries tried: ${countriesTried.map(c => c.country).join(', ')}`);
+        
+        return { shows: finalShows, countriesTried, stats };
       }
       
       /**
@@ -3217,37 +3308,52 @@ async function loadNewAniocean() {
       }
       
       /**
-       * Main function: Get TVMaze shows enriched with TMDB data
-       * Filters out non-scripted content (News, Talk Shows, Sports, etc.)
-       * Respects rate limits with batching
+       * Main function: Get TVMaze shows (multi-country!) enriched with TMDB data
+       * Uses smart multi-country fallback to maximize scripted content!
+       * Filters out non-scripted content and bridges to TMDB for rich data
        * @param {number} maxShows - Maximum shows to process (default: 20)
+       * @param {boolean} useMultiCountry - Use multi-country fetch? (default: true)
        * @returns {Array} Array of objects with both TVMaze and TMDB data
        */
-      async function getTVMazeShowsWithTMDBData(maxShows = 20) {
+      async function getTVMazeShowsWithTMDBData(maxShows = 20, useMultiCountry = true) {
         console.log('[TVMaze] 🚀 Starting TVMaze + TMDB bridge pipeline...');
         
-        // Step 1: Fetch TVMaze schedule
-        const tvmazeShows = await fetchTVMazeSchedule('US');
+        // Step 1: Fetch TVMaze schedule (multi-country or single country)
+        let tvmazeShows;
         
-        // Filter to scripted/animation content only (skip News, Talk Show, Sports, Reality, etc.)
-        const validTypes = ['Scripted', 'Animation', 'Mini-Series', 'Documentary'];
-        const filteredShows = tvmazeShows.filter(show => {
-          const type = show.type || 'Unknown';
-          if (!validTypes.includes(type)) {
-            console.log(`[TVMaze] ⏭️ Skipping ${type}: "${show.name}"`);
-            return false;
-          }
-          return true;
-        });
+        if (useMultiCountry) {
+          // 🌍 MULTI-COUNTRY: Try US, GB, JP, CA, AU for maximum coverage!
+          const multiResult = await getTVMazeShowsMultiCountry(
+            ['US', 'GB', 'JP', 'CA', 'AU'],  // Country priority
+            null,                              // Today's date
+            5,                                 // Min scripted shows needed
+            4                                  // Max countries to try
+          );
+          
+          tvmazeShows = multiResult.shows;
+          console.log(`[TVMaze-🌍] Multi-country result: ${tvmazeShows.length} shows from ${multiResult.stats.countriesTried} countries`);
+        } else {
+          // Single country (original behavior)
+          tvmazeShows = await fetchTVMazeSchedule('US');
+          
+          // Filter to scripted/animation content only
+          const validTypes = ['Scripted', 'Animation', 'Mini-Series', 'Documentary'];
+          tvmazeShows = tvmazeShows.filter(show => {
+            const type = show.type || 'Unknown';
+            if (!validTypes.includes(type)) {
+              console.log(`[TVMaze] ⏭️ Skipping ${type}: "${show.name}"`);
+              return false;
+            }
+            return true;
+          });
+        }
         
-        console.log(`[TVMaze] 📊 After type filter: ${filteredShows.length}/${tvmazeShows.length} shows`);
-        
-        // Limit to maxShows to avoid too many API calls
-        const targetShows = filteredShows.slice(0, maxShows);
+        console.log(`[TVMaze] 📊 Total shows to bridge: ${tvmazeShows.length}`);
         
         // Step 2: Bridge each show to TMDB (with rate limit awareness - batch of 5 concurrent)
         const BATCH_SIZE = 5;
         const bridgedShows = [];
+        const targetShows = tvmazeShows.slice(0, maxShows);  // Limit to maxShows
         
         for (let i = 0; i < targetShows.length; i += BATCH_SIZE) {
           const batch = targetShows.slice(i, i + BATCH_SIZE);
@@ -3993,9 +4099,11 @@ titleEl.style.color = 'transparent';
       /* ── TOP AIRING ── */
       async function loadTopAiring() {
         
-        // Fetch TMDB TV + AniList airing anime (replacing Jikan)
-        const [tvOnAir, anilistAir] = await Promise.all([
-          fetchTMDB('/tv/on_the_air', `page=1`),
+        // Fetch TV using TVMaze (PRIMARY - truly airing!) + AniList airing anime
+        const [tvmazeResult, anilistAir] = await Promise.all([
+          // PRIMARY: TVMaze Multi-Country for maximum scripted content!
+          getTVMazeShowsWithTMDBData(25, true),  // 25 shows, multi-country enabled
+          
           // AniList: Currently airing anime sorted by popularity
           fetchAniList(`
             query ($perPage: Int) {
@@ -4008,13 +4116,46 @@ titleEl.style.color = 'transparent';
           `, { perPage: 30 })
         ]);
         
-        const tv = (tvOnAir.results||[]).slice(0,20).map(i => ({
-          id:`tmdb-tv-${i.id}`, title:i.name, poster:tmdbImg(i.poster_path), type:'TV',
-          score:(i.vote_average||0).toFixed(1),
-          status:'Airing',
-          country: (i.origin_country && i.origin_country.length) ? i.origin_country.join('/') : 'N/A',
-          voteCount: i.vote_count || 0,
-        }));
+        // Process TVMaze results (handle both Promise.allSettled and direct array)
+        const tvmazeShows = tvmazeResult.status ? tvmazeResult.value : tvmazeResult;
+        
+        // Build TV list from bridged TVMaze+TMDB data
+        let tv = [];
+        
+        if (Array.isArray(tvmazeShows) && tvmazeShows.length > 0) {
+          console.log(`[Top Airing] 📺 Using TVMaze Multi-Country: ${tvmazeShows.length} shows`);
+          
+          tv = tvmazeShows
+            .filter(item => item.tmdb && item.tmdb.poster_path)  // Must have poster
+            .map(item => ({
+              id:`tmdb-tv-${item.tmdb.id}`, 
+              title:item.tmdb.name, 
+              poster:tmdbImg(item.tmdb.poster_path), 
+              type:'TV',
+              score:(item.tmdb.vote_average||0).toFixed(1),
+              status:'Airing 🎬',  // Truly airing from TVMaze!
+              country: item.tvmaze._sourceCountry || '🌍 Multi',
+              voteCount: item.tmdb.vote_count || 0,
+              _source: 'tvmaze',
+              episodeInfo: item.tvmaze._episode ? `S${item.tvmaze._episode.season}E${item.tvmaze._episode.number}` : null
+            }))
+            .slice(0, 20);
+            
+          console.log(`[Top Airing] ✅ TVMaze TV ready: ${tv.length} shows`);
+        } else {
+          // FALLBACK to TMDB /tv/on_the_air if TVMaze fails
+          console.warn('[Top Airing] ⚠️ TVMaze failed, falling back to TMDB /tv/on_the_air...');
+          const tvOnAir = await fetchTMDB('/tv/on_the_air', `page=1');
+          
+          tv = (tvOnAir.results||[]).slice(0,20).map(i => ({
+            id:`tmdb-tv-${i.id}`, title:i.name, poster:tmdbImg(i.poster_path), type:'TV',
+            score:(i.vote_average||0).toFixed(1),
+            status:'Airing',
+            country: (i.origin_country && i.origin_country.length) ? i.origin_country.join('/') : 'N/A',
+            voteCount: i.vote_count || 0,
+            _source: 'tmdb-fallback'
+          }));
+        }
         
         // Convert AniList data
         const anime = [];
@@ -4045,12 +4186,25 @@ titleEl.style.color = 'transparent';
         const container = document.getElementById('topAiringScroll');
         container.innerHTML = shows.map(s => {
           const isTmdbTv = s.type === 'TV';
-          // TMDB doesn't reliably provide episode counts on this endpoint — show
-          // country + vote count instead of the hardcoded/placeholder episode data.
-          const posterBadge = isTmdbTv ? s.country : `EP ${s.episodes||'?'}`;
-          const metaLine = isTmdbTv
-            ? `${s.type} · ${s.status} · ${s.country} · ${s.voteCount}`
-            : `${s.type} · ${s.duration} · ${s.status} · ${s.episodes} EP`;
+          const isFromTVMaze = s._source === 'tvmaze';
+          
+          // Enhanced display for TVMaze-sourced shows (truly airing!)
+          let posterBadge, metaLine;
+          
+          if (isTmdbTv && isFromTVMaze) {
+            // TVMaze shows: Show episode info or country flag
+            posterBadge = s.episodeInfo || s.country || '🎬';
+            metaLine = `${s.type} · ${s.status} · ${s.country} · ⭐${s.voteCount}`;
+          } else if (isTmdbTv) {
+            // TMDB fallback shows: show country + vote count
+            posterBadge = s.country || 'TV';
+            metaLine = `${s.type} · ${s.status} · ${s.country} · ${s.voteCount}`;
+          } else {
+            // Anilist anime: show episode count
+            posterBadge = `EP ${s.episodes||'?'}`;
+            metaLine = `${s.type} · ${s.duration} · ${s.status} · ${s.episodes} EP`;
+          }
+          
           return `
           <div class="show-card-horiz" style="position:relative;">
             <a href="${infoUrl(s)}" class="show-card-horiz" style="position:static;">
