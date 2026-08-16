@@ -3153,20 +3153,14 @@ async function loadNewAniocean() {
       const TVMAZE_ROTATION_COUNTRIES = ['GB', 'US', 'KR', 'TR', 'PK', 'IN', 'CN', 'SG', 'ID', 'VN', 'MM'];
 
       function getNextTVMazeRotationCountry() {
-        try {
-          let idx = parseInt(localStorage.getItem('tvmazeCountryIndex'), 10);
-          if (isNaN(idx) || idx < 0 || idx >= TVMAZE_ROTATION_COUNTRIES.length) idx = 0;
-          const country = TVMAZE_ROTATION_COUNTRIES[idx];
-          const nextIdx = (idx + 1) % TVMAZE_ROTATION_COUNTRIES.length;
-          localStorage.setItem('tvmazeCountryIndex', String(nextIdx));
-          console.log(`[TVMaze-🔄] Rotation: using "${country}" this load (next load → "${TVMAZE_ROTATION_COUNTRIES[nextIdx]}")`);
-          return country;
-        } catch (e) {
-          // localStorage unavailable (private mode etc) — just pick one at random
-          const fallback = TVMAZE_ROTATION_COUNTRIES[Math.floor(Math.random() * TVMAZE_ROTATION_COUNTRIES.length)];
-          console.warn('[TVMaze-🔄] localStorage unavailable, picking random country:', fallback);
-          return fallback;
-        }
+        // No localStorage/persisted state — instead rotate deterministically off
+        // the current time, so different page loads (a few minutes apart) land
+        // on different countries, and eventually the full list gets shown.
+        const ROTATION_WINDOW_MS = 5 * 60 * 1000; // new country every 5 minutes
+        const idx = Math.floor(Date.now() / ROTATION_WINDOW_MS) % TVMAZE_ROTATION_COUNTRIES.length;
+        const country = TVMAZE_ROTATION_COUNTRIES[idx];
+        console.log(`[TVMaze-🔄] Rotation: using "${country}" this load (time-based, no storage)`);
+        return country;
       }
 
       /**
@@ -3178,9 +3172,11 @@ async function loadNewAniocean() {
        */
       async function getTVMazeShowsRotatingCountry(date = null) {
         const validTypes = ['Scripted', 'Animation', 'Mini-Series', 'Documentary'];
-        let country = getNextTVMazeRotationCountry();
+        const startCountry = getNextTVMazeRotationCountry();
+        const startIdx = TVMAZE_ROTATION_COUNTRIES.indexOf(startCountry);
         let attempts = 0;
         let shows = [];
+        let country = startCountry;
 
         while (attempts < TVMAZE_ROTATION_COUNTRIES.length) {
           const raw = await fetchTVMazeSchedule(country, date);
@@ -3188,8 +3184,11 @@ async function loadNewAniocean() {
           if (shows.length > 0) break;
           attempts++;
           if (attempts < TVMAZE_ROTATION_COUNTRIES.length) {
-            console.warn(`[TVMaze-🔄] "${country}" had no scripted shows, trying next country...`);
-            country = getNextTVMazeRotationCountry();
+            // Step to the next country in the list (not time-based here — we're
+            // working through fallbacks within a single page load).
+            const nextIdx = (startIdx + attempts) % TVMAZE_ROTATION_COUNTRIES.length;
+            country = TVMAZE_ROTATION_COUNTRIES[nextIdx];
+            console.warn(`[TVMaze-🔄] "${TVMAZE_ROTATION_COUNTRIES[(startIdx + attempts - 1) % TVMAZE_ROTATION_COUNTRIES.length]}" had no scripted shows, trying "${country}"...`);
           }
         }
 
