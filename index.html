@@ -450,6 +450,11 @@
       /* CRITICAL: fill column-by-column (row1,row2,row3 triples) instead of the default
          row-by-row flow, which was stacking every card into row 1 only */
       grid-auto-flow: column;
+      /* Safety net: if more cards arrive than the explicit repeat() count below
+         provides columns for (e.g. API returns 100 items), any overflow cards land
+         in implicit columns. Without this they'd default to grid-auto-columns:auto
+         and collapse to a tiny width — force them to match the explicit track size. */
+      grid-auto-columns: 165px;
       gap: 12px;
       /* Horizontal scroll only */
       overflow-x: auto;
@@ -1843,8 +1848,12 @@
       .sidebar-right { position:static; width:100%; padding:0 16px; }
       /* Tablet: keep 2-row grid — the 3-row layout is desktop/computer only */
       .new-aniocean-shelf {
-        grid-template-columns: repeat(30, 150px);
+        /* 60 columns × 2 rows = 120 cells — comfortably covers the up-to-100
+           items the API can return, so nothing overflows into shrunken
+           implicit columns (see grid-auto-columns fallback below too). */
+        grid-template-columns: repeat(60, 150px);
         grid-template-rows: repeat(2, auto);
+        grid-auto-columns: 150px;
         height: calc(((150px * 4.5 / 3) + 70px) * 2 + 12px);
         max-height: 600px;
       }
@@ -1860,8 +1869,13 @@
       .grid-container { grid-template-columns:repeat(2, 1fr); gap:10px; } /* Mobile portrait: 2 per row */
       .new-aniocean-shelf { 
         gap: 8px;
-        /* Mobile: Show 2 columns per row, still 2 rows = 4 cards visible */
-        grid-template-columns: repeat(20, calc((100vw - 32px - 8px) / 2));
+        /* Mobile: 2 cards visible per "page" of the scroll, 2 rows tall.
+           60 columns × 2 rows = 120 cells — was only 20 columns (40 cells)
+           before, so cards past #40 (the API can return up to 100) fell into
+           implicit columns sized by grid-auto-columns:auto and shrank to
+           almost nothing. That's the "cards get tiny after scrolling" bug. */
+        grid-template-columns: repeat(60, calc((100vw - 32px - 8px) / 2));
+        grid-auto-columns: calc((100vw - 32px - 8px) / 2);
         grid-template-rows: repeat(2, auto);
         height: auto;
         max-height: none;
@@ -3129,9 +3143,65 @@ async function loadNewAniocean() {
       }
       
       /**
+       * 🌍 ROTATING SINGLE-COUNTRY TVMaze Fetcher
+       * Instead of hitting several countries every load, each page load fetches
+       * ONE country from the rotation list, and moves to the next country next time.
+       * Over successive loads all countries eventually get shown.
+       * NO Japan here on purpose — AniList "RELEASING" already covers currently-airing
+       * anime, so adding Japan via TVMaze would duplicate that content.
+       */
+      const TVMAZE_ROTATION_COUNTRIES = ['GB', 'US', 'KR', 'TR', 'PK', 'IN', 'CN', 'SG', 'ID', 'VN', 'MM'];
+
+      function getNextTVMazeRotationCountry() {
+        try {
+          let idx = parseInt(localStorage.getItem('tvmazeCountryIndex'), 10);
+          if (isNaN(idx) || idx < 0 || idx >= TVMAZE_ROTATION_COUNTRIES.length) idx = 0;
+          const country = TVMAZE_ROTATION_COUNTRIES[idx];
+          const nextIdx = (idx + 1) % TVMAZE_ROTATION_COUNTRIES.length;
+          localStorage.setItem('tvmazeCountryIndex', String(nextIdx));
+          console.log(`[TVMaze-🔄] Rotation: using "${country}" this load (next load → "${TVMAZE_ROTATION_COUNTRIES[nextIdx]}")`);
+          return country;
+        } catch (e) {
+          // localStorage unavailable (private mode etc) — just pick one at random
+          const fallback = TVMAZE_ROTATION_COUNTRIES[Math.floor(Math.random() * TVMAZE_ROTATION_COUNTRIES.length)];
+          console.warn('[TVMaze-🔄] localStorage unavailable, picking random country:', fallback);
+          return fallback;
+        }
+      }
+
+      /**
+       * Fetches ONE country (the next one in rotation) and filters to scripted/animation content.
+       * If that country comes back empty (e.g. no schedule data today), falls back to the
+       * next country in the list so the section is never empty.
+       * @param {string} date - Optional date in YYYY-MM-DD format
+       * @returns {Object} { shows: Array, country: string }
+       */
+      async function getTVMazeShowsRotatingCountry(date = null) {
+        const validTypes = ['Scripted', 'Animation', 'Mini-Series', 'Documentary'];
+        let country = getNextTVMazeRotationCountry();
+        let attempts = 0;
+        let shows = [];
+
+        while (attempts < TVMAZE_ROTATION_COUNTRIES.length) {
+          const raw = await fetchTVMazeSchedule(country, date);
+          shows = raw.filter(show => validTypes.includes(show.type || 'Unknown'));
+          if (shows.length > 0) break;
+          attempts++;
+          if (attempts < TVMAZE_ROTATION_COUNTRIES.length) {
+            console.warn(`[TVMaze-🔄] "${country}" had no scripted shows, trying next country...`);
+            country = getNextTVMazeRotationCountry();
+          }
+        }
+
+        console.log(`[TVMaze-🔄] Final: ${shows.length} scripted shows from "${country}"`);
+        return { shows, country };
+      }
+
+      /**
        * Multi-Country TVMaze Fetcher - Tries multiple countries to maximize scripted content!
        * Smart fallback: If primary country returns too few scripted shows, tries others.
        * Perfect for weekends when US schedule is dominated by news/sports!
+       * (Kept for reference / potential future use — not used in the rotating single-country flow above.)
        * 
        * @param {Array<string>} countries - Ordered list of countries to try (default: US-first strategy)
        * @param {string} date - Optional date in YYYY-MM-DD format
@@ -3322,16 +3392,13 @@ async function loadNewAniocean() {
         let tvmazeShows;
         
         if (useMultiCountry) {
-          // 🌍 MULTI-COUNTRY: Try US, GB, CA, AU, KR for Western/South Korea content (NO Japan!)
-          const multiResult = await getTVMazeShowsMultiCountry(
-            ['US', 'GB', 'CA', 'AU', 'KR'],  // Country priority - Western + South Korea
-            null,                              // Today's date
-            5,                                 // Min scripted shows needed
-            4                                  // Max countries to try
-          );
+          // 🔄 ROTATING SINGLE COUNTRY: each page load fetches ONE country from the
+          // rotation list (Western + America + South Korea + Turkey + Pakistan + India +
+          // China + Singapore + Indonesia + Vietnam + Myanmar). NO Japan (AniList covers that).
+          const rotationResult = await getTVMazeShowsRotatingCountry(null);
           
-          tvmazeShows = multiResult.shows;
-          console.log(`[TVMaze-🌍] Multi-country result: ${tvmazeShows.length} shows from ${multiResult.stats.countriesTried} countries`);
+          tvmazeShows = rotationResult.shows;
+          console.log(`[TVMaze-🔄] Rotation result: ${tvmazeShows.length} shows from "${rotationResult.country}"`);
         } else {
           // Single country (original behavior)
           tvmazeShows = await fetchTVMazeSchedule('US');
