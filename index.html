@@ -1778,6 +1778,23 @@
   white-space: nowrap;
   color: #fff;
 }
+.schedule-title-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+  min-width: 0;
+}
+.schedule-subtitle {
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .schedule-ep {
   font-size: 0.65rem;
   font-weight: 600;
@@ -3124,6 +3141,7 @@ async function loadNewAniocean() {
               season: ep.season,
               number: ep.number,
               airdate: ep.airdate,
+              airtime: ep.airtime,
               airstamp: ep.airstamp
             };
             
@@ -3165,11 +3183,15 @@ async function loadNewAniocean() {
 
       /**
        * Fetches ONE country (the next one in rotation) and filters to scripted/animation content.
-       * If that country comes back empty (e.g. no schedule data today), falls back to the
-       * next country in the list so the section is never empty.
+       * WEEKEND FALLBACK: TVMaze often returns very few *actual* scripted TV shows for a
+       * country on weekends (schedules get dominated by sports/news/reruns instead). So
+       * instead of only falling back when a country is fully empty, we fall back to the
+       * next country whenever we get fewer than 6 usable shows — this covers weekends
+       * automatically without needing a per-country weekend-day lookup table.
        * @param {string} date - Optional date in YYYY-MM-DD format
        * @returns {Object} { shows: Array, country: string }
        */
+      const TVMAZE_MIN_SHOWS_THRESHOLD = 6;
       async function getTVMazeShowsRotatingCountry(date = null) {
         const validTypes = ['Scripted', 'Animation', 'Mini-Series', 'Documentary'];
         const startCountry = getNextTVMazeRotationCountry();
@@ -3181,18 +3203,80 @@ async function loadNewAniocean() {
         while (attempts < TVMAZE_ROTATION_COUNTRIES.length) {
           const raw = await fetchTVMazeSchedule(country, date);
           shows = raw.filter(show => validTypes.includes(show.type || 'Unknown'));
-          if (shows.length > 0) break;
+          if (shows.length >= TVMAZE_MIN_SHOWS_THRESHOLD) break;
           attempts++;
           if (attempts < TVMAZE_ROTATION_COUNTRIES.length) {
             // Step to the next country in the list (not time-based here — we're
             // working through fallbacks within a single page load).
             const nextIdx = (startIdx + attempts) % TVMAZE_ROTATION_COUNTRIES.length;
             country = TVMAZE_ROTATION_COUNTRIES[nextIdx];
-            console.warn(`[TVMaze-🔄] "${TVMAZE_ROTATION_COUNTRIES[(startIdx + attempts - 1) % TVMAZE_ROTATION_COUNTRIES.length]}" had no scripted shows, trying "${country}"...`);
+            console.warn(`[TVMaze-🔄] "${TVMAZE_ROTATION_COUNTRIES[(startIdx + attempts - 1) % TVMAZE_ROTATION_COUNTRIES.length]}" only had ${shows.length} scripted shows (< ${TVMAZE_MIN_SHOWS_THRESHOLD}, likely a weekend/light day), trying "${country}"...`);
           }
         }
 
         console.log(`[TVMaze-🔄] Final: ${shows.length} scripted shows from "${country}"`);
+        return { shows, country };
+      }
+
+      /**
+       * ── SIDEBAR SCHEDULE WIDGET TV SHOWS ──
+       * Separate, smaller country list just for the right-sidebar schedule widget
+       * (South Korea, Turkey, USA, Pakistan, India) — independent from the Top
+       * Airing / New Releases rotation list above.
+       */
+      const SIDEBAR_TV_COUNTRIES = ['KR', 'TR', 'US', 'PK', 'IN'];
+
+      function getSidebarTVStartCountry() {
+        // Same 5-minute time-based rotation approach as the main TVMaze rotation —
+        // no persisted storage, just deterministic off the clock.
+        const ROTATION_WINDOW_MS = 5 * 60 * 1000;
+        const idx = Math.floor(Date.now() / ROTATION_WINDOW_MS) % SIDEBAR_TV_COUNTRIES.length;
+        return SIDEBAR_TV_COUNTRIES[idx];
+      }
+
+      // In-memory only (cleared on full page reload) — avoids re-fetching the
+      // same date+country combo repeatedly while the user clicks around the
+      // week navigator within one visit.
+      const _sidebarTVCache = {};
+
+      /**
+       * Fetch TV shows for the sidebar schedule widget on a specific date.
+       * Tries SIDEBAR_TV_COUNTRIES starting from the rotated country; if a country
+       * returns fewer than 6 usable shows (weekend/light day), falls through to
+       * the next one in the list.
+       * @param {string} dateStr - YYYY-MM-DD
+       * @returns {Object} { shows: Array, country: string }
+       */
+      async function fetchSidebarTVShowsForDate(dateStr) {
+        const validTypes = ['Scripted', 'Animation', 'Mini-Series', 'Documentary'];
+        const startCountry = getSidebarTVStartCountry();
+        const startIdx = SIDEBAR_TV_COUNTRIES.indexOf(startCountry);
+        let shows = [];
+        let country = startCountry;
+
+        for (let attempt = 0; attempt < SIDEBAR_TV_COUNTRIES.length; attempt++) {
+          const idx = (startIdx + attempt) % SIDEBAR_TV_COUNTRIES.length;
+          country = SIDEBAR_TV_COUNTRIES[idx];
+          const cacheKey = `${dateStr}:${country}`;
+
+          let raw;
+          if (_sidebarTVCache[cacheKey]) {
+            raw = _sidebarTVCache[cacheKey];
+          } else {
+            raw = await fetchTVMazeSchedule(country, dateStr);
+            _sidebarTVCache[cacheKey] = raw;
+          }
+
+          shows = raw.filter(show =>
+            validTypes.includes(show.type || 'Unknown') &&
+            show.image && (show.image.medium || show.image.original)
+          );
+
+          if (shows.length >= TVMAZE_MIN_SHOWS_THRESHOLD) break;
+          console.warn(`[Sidebar-TVMaze] "${country}" only had ${shows.length} usable shows for ${dateStr}, trying next country...`);
+        }
+
+        console.log(`[Sidebar-TVMaze] ${shows.length} TV shows from "${country}" for ${dateStr}`);
         return { shows, country };
       }
 
@@ -4181,8 +4265,9 @@ titleEl.style.color = 'transparent';
               poster:tmdbImg(item.tmdb.poster_path), 
               type:'TV',
               score:(item.tmdb.vote_average||0).toFixed(1),
-              status:'Airing 🎬',  // Truly airing from TVMaze!
-              country: item.tvmaze._sourceCountry || '🌍 Multi',
+              status:'Airing',  // Truly airing from TVMaze!
+              country: item.tvmaze._sourceCountry || 'N/A',
+              episodeNumber: item.tvmaze._episode ? item.tvmaze._episode.number : null,
               voteCount: item.tmdb.vote_count || 0,
               _source: 'tvmaze',
               episodeInfo: item.tvmaze._episode ? `S${item.tvmaze._episode.season}E${item.tvmaze._episode.number}` : null
@@ -4199,7 +4284,8 @@ titleEl.style.color = 'transparent';
             id:`tmdb-tv-${i.id}`, title:i.name, poster:tmdbImg(i.poster_path), type:'TV',
             score:(i.vote_average||0).toFixed(1),
             status:'Airing',
-            country: (i.origin_country && i.origin_country.length) ? i.origin_country.join('/') : 'N/A',
+            country: (i.origin_country && i.origin_country.length) ? i.origin_country[0] : 'N/A',
+            episodeNumber: null,
             voteCount: i.vote_count || 0,
             _source: 'tmdb-fallback'
           }));
@@ -4241,10 +4327,10 @@ titleEl.style.color = 'transparent';
           if (isFromTVMaze) {
             // Show episode info (S#E#) for TVMaze shows
             posterBadge = s.episodeInfo || s.country || 'TV';
-            metaLine = `${s.type} · ${s.status} · ${s.country} · ${s.voteCount}`;
+            metaLine = `${s.type} · ${s.status} · ${s.country} · ${s.episodeNumber != null ? s.episodeNumber : 'N/A'}`;
           } else if (isTmdbTv) {
             posterBadge = s.country || 'TV';
-            metaLine = `${s.type} · ${s.status} · ${s.country} · ⭐${s.voteCount}`;
+            metaLine = `${s.type} · ${s.status} · ${s.country} · ${s.episodeNumber != null ? s.episodeNumber : 'N/A'}`;
           } else {
             // Anilist anime: show episode count
             posterBadge = `EP ${s.episodes||'?'}`;
@@ -6180,11 +6266,58 @@ titleEl.style.color = 'transparent';
       }
 
       // ---------- Render schedule for a given day (from scheduleData) ----------
-      function renderScheduleForDay(dayName) {
+      // ---------- Shared row builder for anime + sidebar TV rows ----------
+      function buildScheduleRowHtml({ watchUrl, external, time, poster, title, subtitle, epLabel }) {
+        const linkAttrs = external ? ' target="_blank" rel="noopener noreferrer"' : '';
+        return `
+            <a href="${watchUrl}" class="schedule-row"${linkAttrs}>
+              <div class="schedule-time">${time}</div>
+              <div class="schedule-poster">
+                <img src="${poster}" alt="${escapeHtml(title)}" loading="lazy" 
+                     onerror="this.parentElement.style.background='linear-gradient(135deg,#1e293b,#334155)';this.style.display='none';">
+              </div>
+              <div class="schedule-title-wrap">
+                <div class="schedule-title">${escapeHtml(title)}</div>
+                ${subtitle ? `<div class="schedule-subtitle">${escapeHtml(subtitle)}</div>` : ''}
+              </div>
+              <div class="schedule-ep">${epLabel}</div>
+            </a>
+          `;
+      }
+
+      // ---------- Format a Date as YYYY-MM-DD using LOCAL date parts
+      //            (not toISOString, which shifts to UTC and can land on
+      //            the wrong calendar day depending on timezone) ----------
+      function formatDateYMD(date) {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+      }
+
+      async function renderScheduleForDay(dayName) {
         const container = document.getElementById('eswBody');
         const animeList = scheduleData?.[dayName] || [];
-        
-        if (!animeList.length) {
+
+        // Brief loading state while we fetch this day's TV shows (anime data is
+        // already in memory from fetchAllDaysParallel, only TV needs a fetch).
+        container.innerHTML = '<div style="text-align:center;padding:24px 10px;color:var(--text-muted);font-size:0.75rem;">Loading…</div>';
+
+        // Resolve the actual calendar date for this day-of-week within the
+        // currently selected week (TVMaze needs a real date, unlike Jikan's
+        // day-of-week-only schedule).
+        const weekDates = buildWeekDates();
+        const dateObj = weekDates[DAYS.indexOf(dayName)];
+        const dateStr = formatDateYMD(dateObj);
+
+        let tvResult = { shows: [], country: null };
+        try {
+          tvResult = await fetchSidebarTVShowsForDate(dateStr);
+        } catch (e) {
+          console.warn('[Sidebar-TVMaze] Failed to fetch TV shows for', dateStr, e.message);
+        }
+
+        if (!animeList.length && !tvResult.shows.length) {
           container.innerHTML = `
             <div style="text-align:center;padding:30px 15px;color:var(--text-muted);">
               <i class="fas fa-calendar-times" style="font-size:2rem;opacity:0.3;margin-bottom:10px;display:block;"></i>
@@ -6194,20 +6327,12 @@ titleEl.style.color = 'transparent';
           return;
         }
 
-        // Sort by broadcast time
-        const sorted = [...animeList].sort((a, b) => {
-          const timeA = a.broadcast?.time || '99:99';
-          const timeB = b.broadcast?.time || '99:99';
-          return timeA.localeCompare(timeB);
-        });
-
-        // Build rows HTML
-        const rowsHtml = sorted.map(anime => {
+        // Build anime row objects
+        const animeRows = animeList.map(anime => {
           const episode = getEpisodeNumber(anime);
           const title = anime.title_english || anime.title || 'Unknown Title';
           const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
           const watchUrl = `/info/anime/jikan-${anime.mal_id}/${slug}`;
-          // Use large_image_url from v4 format or fallback to jpg
           const poster = anime.images?.webp?.large_image_url || 
                          anime.images?.jpg?.large_image_url || 
                          anime.images?.jpg?.image_url || '';
@@ -6216,19 +6341,16 @@ titleEl.style.color = 'transparent';
           let broadcastTime = '—';
           const broadcast = anime.broadcast;
           if (typeof broadcast === 'string' && broadcast.trim()) {
-            // Parse time from string like "Mondays at 00:00 (JST)"
             const timeMatch = broadcast.match(/(\d{1,2}):(\d{2})/);
             if (timeMatch) {
               const h = parseInt(timeMatch[1]).toString().padStart(2, '0');
               const m = timeMatch[2];
               broadcastTime = `${h}:${m}`;
             } else {
-              // No time found, show day abbreviation
               const dayMatch = broadcast.match(/^(\w+)/);
               broadcastTime = dayMatch ? dayMatch[1].slice(0, 3) : '—';
             }
           } else if (broadcast && typeof broadcast === 'object') {
-            // Fallback for object format (if API changes)
             if (broadcast.time) {
               const timeMatch = broadcast.time.match(/(\d{1,2}):(\d{2})/);
               if (timeMatch) {
@@ -6243,23 +6365,43 @@ titleEl.style.color = 'transparent';
             }
           }
 
-          return `
-            <a href="${watchUrl}" class="schedule-row">
-              <div class="schedule-time">${broadcastTime}</div>
-              <div class="schedule-poster">
-                <img src="${poster}" alt="${escapeHtml(title)}" loading="lazy" 
-                     onerror="this.parentElement.style.background='linear-gradient(135deg,#1e293b,#334155)';this.style.display='none';">
-              </div>
-              <div class="schedule-title">${escapeHtml(title)}</div>
-              <div class="schedule-ep">EP ${episode}</div>
-            </a>
-          `;
-        }).join('');
+          return {
+            sortKey: broadcastTime,
+            html: buildScheduleRowHtml({
+              watchUrl, external: false, time: broadcastTime, poster, title,
+              subtitle: null, epLabel: `EP ${episode}`
+            })
+          };
+        });
 
-        // Split into visible (9) and hidden
-        const rowsArray = rowsHtml.split('</a>').filter(r => r.trim());
-        const visibleRows = rowsArray.slice(0, VISIBLE_COUNT).join('</a>') + (rowsArray.length > VISIBLE_COUNT ? '</a>' : '');
-        const hiddenRows = rowsArray.slice(VISIBLE_COUNT).join('</a>');
+        // Build TV row objects (sidebar countries: KR, TR, US, PK, IN)
+        const tvRows = tvResult.shows.map(show => {
+          const ep = show._episode || {};
+          const title = show.name || 'Unknown Title';
+          const poster = show.image?.medium || show.image?.original || '';
+          const watchUrl = show.url || '#';
+          const time = ep.airtime && ep.airtime.trim() ? ep.airtime : '—';
+          const epLabel = (ep.season && ep.number) ? `S${ep.season}E${ep.number}` : 'TV';
+          const subtitle = `TV · ${show._sourceCountry || tvResult.country || ''}`;
+
+          return {
+            sortKey: time,
+            html: buildScheduleRowHtml({
+              watchUrl, external: true, time, poster, title, subtitle, epLabel
+            })
+          };
+        });
+
+        // Merge anime + TV, sorted by time (missing times sort last)
+        const combinedRows = [...animeRows, ...tvRows].sort((a, b) => {
+          const timeA = a.sortKey && a.sortKey !== '—' ? a.sortKey : '99:99';
+          const timeB = b.sortKey && b.sortKey !== '—' ? b.sortKey : '99:99';
+          return timeA.localeCompare(timeB);
+        });
+
+        const rowsArray = combinedRows.map(r => r.html);
+        const visibleRows = rowsArray.slice(0, VISIBLE_COUNT).join('');
+        const hiddenRows = rowsArray.slice(VISIBLE_COUNT).join('');
         const hasMore = rowsArray.length > VISIBLE_COUNT;
         const remainingCount = rowsArray.length - VISIBLE_COUNT;
 
@@ -6283,7 +6425,6 @@ titleEl.style.color = 'transparent';
               const isHidden = wrapper.style.display === 'none';
               wrapper.style.display = isHidden ? 'block' : 'none';
               
-              // Update button state
               if (isHidden) {
                 moreBtn.classList.add('expanded');
                 moreBtn.innerHTML = '<i class="fas fa-chevron-up"></i> Show Less';
