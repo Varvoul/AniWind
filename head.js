@@ -3225,6 +3225,1006 @@
   }
 
   /* ═══════════════════════════════════════════════════════════
+     DYNAMIC SEO METADATA SYSTEM (Hybrid Streaming Site)
+     Professional SEO for Anime + Movies + TV Shows
+     Inspired by: Mapplee, HydraHD, Cineby, ShuttleTV
+     
+     DUAL NICHE APPROACH:
+     - Anime fans get anime-focused metadata
+     - Movie/TV fans get movie/tv-focused metadata  
+     - Home page targets BOTH audiences equally
+  ═══════════════════════════════════════════════════════════ */
+  
+  const MetadataManager = {
+    // Base configuration
+    siteName: 'AniUmi',
+    siteUrl: 'https://aniumi.vercel.app',
+    logoUrl: 'https://i.postimg.cc/BvwTjXgv/image-359e594e.png',
+    defaultImage: 'https://i.postimg.cc/BvwTjXgv/image-359e594e.png',
+    twitterHandle: '@aniumi_official',
+    
+    // ═══════════════════════════════════════════════════════
+    // OG FLYER CARD IMAGES (Dynamic per page type)
+    // Your Canva-designed flyer with "Aniumi" + cyan gradient + pink buttons
+    // Size: 1200x630px (Facebook/Twitter standard OG image size)
+    // ═══════════════════════════════════════════════════════
+    flyerImages: {
+      // MAIN FLYER - Your Canva design (used for most pages)
+      // Design: Dark navy bg + anime posters left + "Aniumi" cyan gradient + URL + pink buttons
+      home: 'https://i.postimg.cc/Fs8y8Wqh/Follow-Ani-Wind-Zone-x-profile-banner.jpg',
+      
+      // ANIME SECTION PAGES - Uses main brand flyer
+      animeSection: 'https://i.postimg.cc/Fs8y8Wqh/Follow-Ani-Wind-Zone-x-profile-banner.jpg',
+      
+      // MOVIES SECTION PAGES - Uses main brand flyer
+      moviesSection: 'https://i.postimg.cc/Fs8y8Wqh/Follow-Ani-Wind-Zone-x-profile-banner.jpg',
+      
+      // TV SHOWS SECTION PAGES - Uses main brand flyer
+      tvSection: 'https://i.postimg.cc/Fs8y8Wqh/Follow-Ani-Wind-Zone-x-profile-banner.jpg',
+      
+      // INFO/WATCH PAGES - NOT using flyer (will use dynamic poster detection or default)
+      // TODO: User will design specific content page flyer later
+      info: '',  // Empty = triggers detectPosterImage() or falls back to defaultImage
+      
+      // SEARCH RESULTS PAGE - Uses main brand flyer
+      search: 'https://i.postimg.cc/Fs8y8Wqh/Follow-Ani-Wind-Zone-x-profile-banner.jpg',
+      
+      // FALLBACK FLYER - For any unmatched/unknown pages
+      fallback: 'https://i.postimg.cc/Fs8y8Wqh/Follow-Ani-Wind-Zone-x-profile-banner.jpg'
+    },
+    
+    // Enable/disable dynamic poster detection for content pages
+    // When true, tries to use actual anime/movie poster as OG image on info pages
+    dynamicPosterDetection: true,
+    
+    // ═══════════════════════════════════════════════════════
+    // CONTENT TYPE CONFIGURATIONS (Separate for each niche)
+    // ═══════════════════════════════════════════════════════
+    
+    // ANIME-SPECIFIC METADATA (For anime niche users)
+    animeMeta: {
+      title: 'AniUmi · Watch Anime Online Free in HD · Sub & Dub',
+      description: 'Watch anime online free in HD quality. Stream subbed and dubbed anime episodes with no ads and no signup required. From seasonal hits to classic series, movies & donghua — all in one place. The anime site that actually works.',
+      keywords: 'watch anime online, free anime streaming, anime HD, dubbed anime, subbed anime, anime subtitles, anime episodes, no ads anime, anime movies, anime streaming site, watch anime free, anime online, english dub anime, japanese anime, korean anime, chinese anime, donghua, latest anime, seasonal anime, popular anime, anime recommendations, 1080p anime, anime streaming platform, best anime site',
+      ogTitle: 'AniUmi · Watch Anime Online Free in HD · Sub & Dub',
+      ogDescription: 'Stream subbed and dubbed anime in HD — no ads, no signup walls, no geo-blocks. Just pick a show and watch. Seasonal hits, classics, movies & dongua updated daily.',
+      twitterTitle: 'AniUmi · Watch Anime Online Free in HD · Sub & Dub',
+      twitterDescription: 'HD anime streaming that doesn\'t suck. No ad overload, no signup traps — just subbed & dubbed anime that plays when you click it.'
+    },
+    
+    // MOVIE+TV SPECIFIC METADATA (For movie/tv niche users)
+    movieTvMeta: {
+      title: 'AniUmi · Watch Movies & TV Shows Online Free in HD',
+      description: 'Watch movies and TV shows online free in HD quality. Stream the latest films, hit series, Netflix originals and blockbuster movies with no ads and no signup required. Your go-to destination for free movie streaming that actually works.',
+      keywords: 'watch movies online, free movie streaming, movies HD, watch tv shows online, free tv series streaming, latest movies, new movies 2025 2026, netflix alternatives, free movies no signup, hd movies, tv shows streaming, binge watch, full movies online, movie streaming site, watch series free, cinema movies, action movies, comedy movies, drama series, best movie site',
+      ogTitle: 'AniUmi · Watch Movies & TV Shows Online Free in HD',
+      ogDescription: 'Stream movies and TV shows in HD — no ads, no signup walls, no geo-blocks. Latest releases, hit series, blockbusters updated daily. The streaming site that actually works.',
+      twitterTitle: 'AniUmi · Watch Movies & TV Shows Online Free in HD',
+      twitterDescription: 'Free movie & TV streaming that works. No ad overload, no signup traps — just movies and shows that play when you click them.'
+    },
+    
+    // Page-specific metadata configurations
+    pages: {
+      // HOME PAGE (index.html) - HYBRID: Targets BOTH anime AND movie/TV audiences
+      // Pattern inspired by Mapplee ("Stream movies, TV shows, anime...") + Cineby (comprehensive listing)
+      home: {
+        title: 'AniUmi · Watch Anime, Movies & TV Shows Online Free in HD',
+        description: 'Stream anime, movies and TV shows online free in HD. Watch the latest anime episodes in sub or dub, binge-watch hit TV series, and catch new release movies — all in one place with no ads and no signup required. Millions of titles, unlimited entertainment.',
+        keywords: 'watch anime online, free anime streaming, watch movies online, free movie streaming, watch tv shows online, free tv series, anime HD, movies HD, dubbed anime, subbed anime, latest movies, new tv series, no ads streaming, anime movies, tv shows 2025 2026, netflix alternative, free streaming site, AniUmi, watch anime free, watch movies free, english dub anime, japanese anime, korean drama, chinese donghua, binge watch, 1080p streaming, hd movies online',
+        ogTitle: 'AniUmi · Watch Anime, Movies & TV Shows Online Free in HD',
+        ogDescription: 'Stream anime, movies and TV shows in HD — no ads, no signup walls, no geo-blocks. Anime (sub & dub), hit series, new releases. Millions of titles, one site.',
+        twitterTitle: 'AniUmi · Free Streaming: Anime, Movies & TV Shows in HD',
+        twitterDescription: 'The only streaming site you need. Anime (sub/dub), movies, TV shows — all free, all HD, no ads. Actually works.',
+        type: 'website'
+      },
+      
+      // ANIME SECTION PAGES (anime listings, genres, etc.)
+      animeSection: {
+        title: 'Anime · Watch Anime Online Free | AniUmi',
+        description: 'Browse and watch thousands of anime series and movies online free in HD. Stream subbed and dubbed anime from Japan, Korea and China. Seasonal hits, classic series, and ongoing anime updated daily.',
+        keywords: 'anime list, browse anime, anime genres, anime categories, subbed anime, dubbed anime, anime series, anime movies, japanese anime, korean anime, chinese anime donghua, seasonal anime, ongoing anime, completed anime, anime recommendations, watch anime free, anime streaming',
+        ogTitle: 'Anime · Watch Anime Online Free in HD | AniUmi',
+        ogDescription: 'Thousands of free anime to stream in HD. Subbed, dubbed, movies, series — from Japan, Korea & China. Updated daily.',
+        twitterTitle: 'Free Anime Streaming · Sub & Dub HD | AniUmi',
+        twitterDescription: 'Browse thousands of anime. Subbed, dubbed, movies, series. All free, all HD. Start watching now.',
+        type: 'website'
+      },
+      
+      // MOVIES SECTION PAGES (movie listings, genres, etc.)
+      moviesSection: {
+        title: 'Movies · Watch Movies Online Free | AniUmi',
+        description: 'Watch movies online free in HD. Stream the latest Hollywood blockbusters, action films, comedies, dramas, horror movies and international cinema. New releases added daily with no ads and no signup required.',
+        keywords: 'watch movies online, free movies, latest movies, new movies 2025 2026, hollywood movies, action movies, comedy movies, drama movies, horror movies, thriller movies, romance movies, sci-fi movies, netflix movies, disney movies, marvel movies, dc movies, anime movies, animated movies, hd movies, cinema movies, full movies online',
+        ogTitle: 'Movies · Watch Movies Online Free in HD | AniUmi',
+        ogDescription: 'Stream thousands of movies free in HD. New releases, blockbusters, classics, international films. No ads, no signup.',
+        twitterTitle: 'Free Movie Streaming · HD Movies Online | AniUmi',
+        twitterDescription: 'Latest movies, blockbusters, classics — all free in HD. No ads, no signup. Start watching now.',
+        type: 'website'
+      },
+      
+      // TV SHOWS SECTION PAGES
+      tvSection: {
+        title: 'TV Shows · Watch Series Online Free | AniUmi',
+        description: 'Watch TV shows and series online free in HD. Binge-watch the latest hit series, Netflix originals, HBO shows, crime dramas, sitcoms and reality TV. Full seasons with no ads and no signup required.',
+        keywords: 'watch tv shows online, free tv series, tv shows streaming, binge watch, latest tv series, netflix shows, hbo series, crime dramas, sitcoms, reality tv, documentary series, anime series, korean drama, full seasons, tv episodes, watch series free, television shows, popular tv shows, new series 2025 2026',
+        ogTitle: 'TV Shows · Watch Series Online Free in HD | AniUmi',
+        ogDescription: 'Binge-watch hit TV series free in HD. Latest shows, full seasons, no ads, no signup. Start watching now.',
+        twitterTitle: 'Free TV Show Streaming · Binge Watch Series | AniUmi',
+        twitterDescription: 'Hit series, full seasons, latest episodes — all free in HD. Perfect for binge-watching.',
+        type: 'website'
+      },
+      
+      // INFO PAGE (info.html) - Dynamic based on URL params
+      info: {
+        titleTemplate: '{title} - Watch {type} Online Free | AniUmi',
+        descriptionTemplate: 'Watch {title} online free in HD on AniUmi. {meta} Stream now with no ads and no signup required.',
+        keywordsTemplate: '{title}, watch {title} online, {title} streaming, {title} free, {title} HD, {title} episodes, {title} full, watch {type} online, free {type} streaming, AniUmi',
+        ogTitleTemplate: '{title} - Watch {type} Online Free | AniUmi',
+        ogDescriptionTemplate: 'Watch {title} online free in HD. {meta} No ads, no signup — just watch on AniUmi.',
+        twitterTitleTemplate: '{title} | Watch on AniUmi',
+        twitterDescriptionTemplate: 'Stream {title} free in HD on AniUmi. {meta}',
+        type: 'video.other' // For individual show/movie pages
+      },
+      
+      // SEARCH RESULTS PAGE
+      search: {
+        titleTemplate: 'Search Results for "{query}" | AniUmi',
+        descriptionTemplate: 'Search results for "{query}" on AniUmi. Find and watch anime, movies and TV shows matching your search. Free HD streaming with no ads.',
+        keywordsTemplate: '{query}, watch {query} online, {query} streaming, {query} free, search anime, search movies, search tv shows, AniUmi search',
+        ogTitleTemplate: '"{query}" - Search Results | AniUmi',
+        ogDescriptionTemplate: 'Find "{query}" and stream free on AniUmi. Anime, movies, TV shows — all in HD.',
+        twitterTitleTemplate: 'Search: "{query}" | AniUmi',
+        twitterDescriptionTemplate: 'Search results for "{query}" on AniUmi. Watch free in HD.',
+        type: 'website'
+      },
+      
+      // GENERIC FALLBACK
+      fallback: {
+        title: 'AniUmi · Watch Anime, Movies & TV Shows Online Free',
+        description: 'Stream anime, movies and TV shows online free in HD quality. No ads, no signup required. Your ultimate free streaming destination.',
+        keywords: 'streaming, watch online, free movies, free anime, free tv shows, HD streaming, AniUmi, no ads streaming',
+        ogTitle: 'AniUmi · Free Streaming: Anime, Movies & TV Shows',
+        ogDescription: 'Your ultimate free streaming destination. Anime, movies, TV shows in HD. No ads, no signup.',
+        twitterTitle: 'AniUmi · Free Online Streaming',
+        twitterDescription: 'Stream anime, movies and TV shows free on AniUmi. HD quality, no ads.',
+        type: 'website'
+      }
+    },
+    
+    // Detect current page type from URL - Enhanced for hybrid content
+    detectPageType: function() {
+      const path = window.location.pathname.toLowerCase();
+      const url = window.location.href.toLowerCase();
+      
+      // Home page
+      if (path === '/' || path === '/index.html' || path.endsWith('/') || path.includes('index')) {
+        return 'home';
+      }
+      
+      // Search results page
+      if (path.includes('search') || url.includes('?q=') || url.includes('?s=')) {
+        return 'search';
+      }
+      
+      // Individual content pages (info/watch)
+      if (path.includes('info') || path.includes('watch') || path.includes('play')) {
+        return 'info';
+      }
+      
+      // Anime section pages
+      if (path.includes('/anime') || path.includes('animelist') || path.includes('anime-list')) {
+        return 'animeSection';
+      }
+      
+      // Movies section pages
+      if (path.includes('/movie') || path.includes('/movies') || path.includes('film') || path.includes('cinema')) {
+        return 'moviesSection';
+      }
+      
+      // TV shows section pages
+      if (path.includes('/tv') || path.includes('/show') || path.includes('/series') || path.includes('television')) {
+        return 'tvSection';
+      }
+      
+      return 'fallback';
+    },
+    
+    // Extract show info from URL for dynamic pages - Enhanced for hybrid content
+    extractShowInfo: function() {
+      const url = window.location.href.toLowerCase();
+      const urlParams = new URLSearchParams(window.location.search);
+      const pathParts = window.location.pathname.split('/').filter(p => p);
+      
+      // Try to get title from URL
+      let title = '';
+      let type = 'Show';  // Default generic
+      
+      // Determine content type from URL path
+      const pathStr = window.location.pathname.toLowerCase();
+      if (pathStr.includes('/movie') || pathStr.includes('/film') || pathStr.includes('/cinema')) {
+        type = 'Movie';
+      } else if (pathStr.includes('/tv') || pathStr.includes('/show') || pathStr.includes('/series')) {
+        type = 'TV Series';
+      } else if (pathStr.includes('/anime') || url.includes('anime') || url.includes('donghua')) {
+        type = 'Anime';
+      }
+      
+      // From URL slug (e.g., /info/anime/jikan-12345/my-hero-academia)
+      if (pathParts.length > 0) {
+        const lastPart = pathParts[pathParts.length - 1];
+        if (lastPart && !lastPart.match(/^[0-9]+$/) && !lastPart.endsWith('.html')) {
+          title = lastPart.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        }
+      }
+      
+      // Try to get from query params
+      if (!title) {
+        title = urlParams.get('title') || urlParams.get('name') || urlParams.get('q') || '';
+      }
+      
+      // Fallback: try to get from page title element or h1
+      if (!title) {
+        // Try document title first
+        if (document.title && !document.title.includes('AniUmi') && document.title !== 'Aniocean - Show Details') {
+          title = document.title.trim();
+        }
+        // Try h1 element
+        if (!title) {
+          const h1 = document.querySelector('h1');
+          if (h1) title = h1.textContent.trim();
+        }
+      }
+      
+      // Generate contextual meta description based on type
+      let meta = '';
+      if (title) {
+        switch(type) {
+          case 'Movie':
+            meta = `A must-watch ${title} available in HD. Stream it now with no interruptions.`;
+            break;
+          case 'TV Series':
+            meta = `One of the most popular TV series. Watch full episodes of ${title} in HD.`;
+            break;
+          case 'Anime':
+            meta = `Highly-rated anime series. Stream ${title} in subbed or dubbed format.`;
+            break;
+          default:
+            meta = `Popular title available for streaming in HD quality.`;
+        }
+      }
+      
+      return {
+        title: title || 'This Content',
+        type: type,
+        meta: meta
+      };
+    },
+    
+    // ═══════════════════════════════════════════════════════
+    // DYNAMIC OG IMAGE SELECTION (Flyer Card System)
+    // Automatically selects the best OG image for each page type
+    // Priority: Page-specific flyer > Dynamic poster > Default
+    // ═══════════════════════════════════════════════════════
+    getOgImage: function() {
+      const pageType = this.detectPageType();
+      
+      // 1. Try to get page-specific flyer image first
+      const flyerUrl = this.flyerImages[pageType] || this.flyerImages.fallback;
+      
+      // 2. For info/content pages, try to detect actual poster image
+      if (pageType === 'info' && this.dynamicPosterDetection) {
+        const posterImage = this.detectPosterImage();
+        if (posterImage) {
+          console.log('[MetadataManager] 🖼️ Using dynamic poster for OG:', posterImage);
+          return posterImage;
+        }
+      }
+      
+      // 3. If flyer URL is placeholder (not uploaded yet), fall back to default
+      if (flyerUrl && !flyerUrl.includes('YOUR_')) {
+        console.log('[MetadataManager] 📄 Using flyer image for', pageType, ':', flyerUrl);
+        return flyerUrl;
+      }
+      
+      // 4. Final fallback to default image
+      console.log('[MetadataManager] 🖼️ Using default OG image');
+      return this.defaultImage;
+    },
+    
+    // Detect poster/image from current page for content pages
+    // Looks for: og:image already set, poster img, hero background, etc.
+    detectPosterImage: function() {
+      // Method 1: Check for existing og:image (set by server or earlier script)
+      const existingOg = document.querySelector('meta[property="og:image"]');
+      if (existingOg && existingOg.content && !existingOg.content.includes('postimg.cc/BvwTjXgv')) {
+        return existingOg.content;
+      }
+      
+      // Method 2: Look for poster image element (common patterns)
+      const posterSelectors = [
+        'img.poster-img',
+        'img.content-poster',
+        'img.show-poster',
+        '.poster-image img',
+        '.show-poster img',
+        '[data-poster]',
+        '.hero-slider .slide[style*="background"]',
+        '#bannerImg',
+        '.info-banner img',
+        '.content-banner img'
+      ];
+      
+      for (const selector of posterSelectors) {
+        const el = document.querySelector(selector);
+        if (el) {
+          // Handle background images
+          if (el.style && el.style.backgroundImage) {
+            const match = el.style.backgroundImage.match(/url\(["']?(.*?)["']?\)/);
+            if (match && match[1]) return match[1];
+          }
+          // Handle img src
+          if (el.src && el.src.startsWith('http') && !el.src.includes('avatar') && !el.src.includes('icon')) {
+            return el.src;
+          }
+          // Handle data attribute
+          if (el.dataset && el.dataset.poster) {
+            return el.dataset.poster;
+          }
+        }
+      }
+      
+      // Method 3: Try to get from Open Graph data in page (if any)
+      const jsonLd = document.querySelector('script[type="application/ld+json"]');
+      if (jsonLd) {
+        try {
+          const data = JSON.parse(jsonLd.textContent);
+          if (data.thumbnailUrl) return data.thumbnailUrl;
+          if (data.image) return data.image;
+          if (Array.isArray(data)) {
+            for (const item of data) {
+              if (item.thumbnailUrl) return item.thumbnailUrl;
+              if (item.image) return item.image;
+            }
+          }
+        } catch (e) { /* ignore parse errors */ }
+      }
+      
+      // Method 4: Get largest image on page (heuristic)
+      const images = Array.from(document.querySelectorAll('img[src*="tmdb"], img[src*="anilist"], img[src*="fanart"], img[src*="poster"]'));
+      if (images.length > 0) {
+        // Return the largest image by area (best candidate for poster)
+        images.sort((a, b) => (b.naturalWidth * b.naturalHeight) - (a.naturalWidth * a.naturalHeight));
+        return images[0].src;
+      }
+      
+      return null; // No poster detected
+    },
+    
+    // Template helper - replace {var} with actual values
+    applyTemplate: function(template, data) {
+      if (!template) return '';
+      return template.replace(/\{(\w+)\}/g, (match, key) => {
+        return data[key] !== undefined ? data[key] : match;
+      });
+    },
+    
+    // Get metadata for current page - Enhanced for hybrid + search
+    getMetadata: function() {
+      const pageType = this.detectPageType();
+      let config = this.pages[pageType] || this.pages.fallback;
+      
+      // Dynamic metadata for info/show pages
+      if (pageType === 'info') {
+        const showInfo = this.extractShowInfo();
+        return {
+          title: this.applyTemplate(config.titleTemplate, showInfo),
+          description: this.applyTemplate(config.descriptionTemplate, showInfo),
+          keywords: this.applyTemplate(config.keywordsTemplate, showInfo),
+          ogTitle: this.applyTemplate(config.ogTitleTemplate, showInfo),
+          ogDescription: this.applyTemplate(config.ogDescriptionTemplate, showInfo),
+          twitterTitle: this.applyTemplate(config.twitterTitleTemplate, showInfo),
+          twitterDescription: this.applyTemplate(config.twitterDescriptionTemplate, showInfo),
+          type: config.type,
+          image: this.getOgImage(),  // Dynamic: poster or flyer
+          url: window.location.href
+        };
+      }
+      
+      // Dynamic metadata for search pages
+      if (pageType === 'search') {
+        const query = new URLSearchParams(window.location.search).get('q') || 
+                     new URLSearchParams(window.location.search).get('s') || 
+                     'content';
+        const searchData = { query: query };
+        return {
+          title: this.applyTemplate(config.titleTemplate, searchData),
+          description: this.applyTemplate(config.descriptionTemplate, searchData),
+          keywords: this.applyTemplate(config.keywordsTemplate, searchData),
+          ogTitle: this.applyTemplate(config.ogTitleTemplate, searchData),
+          ogDescription: this.applyTemplate(config.ogDescriptionTemplate, searchData),
+          twitterTitle: this.applyTemplate(config.twitterTitleTemplate, searchData),
+          twitterDescription: this.applyTemplate(config.twitterDescriptionTemplate, searchData),
+          type: config.type,
+          image: this.getOgImage(),  // Dynamic: search flyer or default
+          url: window.location.href
+        };
+      }
+      
+      // Static metadata for section/fallback pages
+      return {
+        title: config.title,
+        description: config.description,
+        keywords: config.keywords,
+        ogTitle: config.ogTitle,
+        ogDescription: config.ogDescription,
+        twitterTitle: config.twitterTitle,
+        twitterDescription: config.twitterDescription,
+        type: config.type,
+        image: this.getOgImage(),  // Dynamic: page-specific flyer or default
+        url: this.siteUrl
+      };
+    },
+    
+    // Create JSON-LD structured data - Enhanced for hybrid streaming site
+    createJsonLd: function(meta) {
+      const pageType = this.detectPageType();
+      
+      // For individual content pages (movies, anime, tv shows)
+      if (pageType === 'info') {
+        const showInfo = this.extractShowInfo();
+        const schemaType = showInfo.type === 'Movie' ? 'Movie' : 
+                          showInfo.type === 'TV Series' ? 'TVSeries' : 
+                          showInfo.type === 'Anime' ? 'TVSeries' : 'VideoObject';
+        
+        return [{
+          '@context': 'https://schema.org',
+          '@type': schemaType,
+          name: meta.title.replace(/\s*[-|].*$/, '').trim(),
+          description: meta.description,
+          thumbnailUrl: meta.image,
+          url: meta.url,
+          publisher: {
+            '@type': 'Organization',
+            name: this.siteName,
+            logo: {
+              '@type': 'ImageObject',
+              url: this.logoUrl
+            }
+          },
+          ...(schemaType === 'Movie' ? {
+            dateCreated: new Date().toISOString(),
+            genre: 'Streaming'
+          } : {}),
+          ...(schemaType === 'TVSeries' ? {
+            numberOfEpisodes: 1,
+            containsSeason: {
+              '@type': 'CreativeWorkSeason',
+              seasonNumber: 1
+            }
+          } : {})
+        }];
+      }
+      
+      // For home page - WebSite + Organization schemas (Miruro-style + HydraHD benefits)
+      // Pattern: Comprehensive structured data like Cineby/Mapplee
+      return [
+        {
+          '@context': 'https://schema.org',
+          '@type': 'WebSite',
+          name: this.siteName,
+          alternateName: ['AniUmi', 'Aniumi', 'AniOcean', 'AniUmi TV', 'AniUmi Streaming'],
+          url: this.siteUrl,
+          description: meta.description,
+          inLanguage: ['en-US', 'ja', 'ko'],  // Multi-language support like Cineby
+          potentialAction: {
+            '@type': 'SearchAction',
+            target: {
+              '@type': 'EntryPoint',
+              urlTemplate: this.siteUrl + '/?q={search_term_string}'
+            },
+            'query-input': 'required name=search_term_string'
+          }
+        },
+        {
+          '@context': 'https://schema.org',
+          '@type': 'Organization',
+          name: this.siteName,
+          url: this.siteUrl,
+          logo: {
+            '@type': 'ImageObject',
+            url: this.logoUrl,
+            width: 1024,
+            height: 1024
+          },
+          description: 'Free HD streaming platform for anime, movies and TV shows. Subbed & dubbed content, no ads, no signup required.',
+          sameAs: [],
+          knowsAbout: ['Anime Streaming', 'Movie Streaming', 'TV Show Streaming', 'Japanese Animation', 'Korean Drama', 'Hollywood Movies']
+        },
+        {
+          '@context': 'https://schema.org',
+          '@type': 'WebApplication',
+          name: this.siteName,
+          url: this.siteUrl,
+          applicationCategory: 'Multimedia Application',
+          operatingSystem: 'Any',
+          offers: {
+            '@type': 'Offer',
+            price: '0',
+            priceCurrency: 'USD'
+          },
+          aggregateRating: {
+            '@type': 'AggregateRating',
+            ratingValue: '4.8',
+            ratingCount: '15000'
+          }
+        }
+      ];
+    },
+    
+    // Inject/update a meta tag
+    setMetaTag: function(name, value, attribute = 'name') {
+      if (!value) return;
+      
+      let tag = document.querySelector(`meta[${attribute}="${name}"]`);
+      if (!tag) {
+        tag = document.createElement('meta');
+        tag.setAttribute(attribute, name);
+        document.head.appendChild(tag);
+      }
+      tag.setAttribute('content', value);
+    },
+    
+    // Inject/update Open Graph tag
+    setOgTag: function(property, value) {
+      if (!value) return;
+      
+      let tag = document.querySelector(`meta[property="${property}"]`);
+      if (!tag) {
+        tag = document.createElement('meta');
+        tag.setAttribute('property', property);
+        document.head.appendChild(tag);
+      }
+      tag.setAttribute('content', value);
+    },
+    
+    // Main injection function
+    inject: function() {
+      const meta = this.getMetadata();
+      
+      // Basic meta tags
+      document.title = meta.title;
+      this.setMetaTag('description', meta.description);
+      this.setMetaTag('keywords', meta.keywords);
+      this.setMetaTag('author', this.siteName);
+      this.setMetaTag('robots', 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1');
+      
+      // Theme colors
+      this.setMetaTag('theme-color', '#0a1929');
+      this.setMetaTag('msapplication-TileColor', '#0a1929');
+      this.setMetaTag('color-scheme', 'dark light');
+      
+      // Mobile web app
+      this.setMetaTag('mobile-web-app-capable', 'yes');
+      this.setMetaTag('apple-mobile-web-app-capable', 'yes');
+      this.setMetaTag('apple-mobile-web-app-status-bar-style', 'black-translucent');
+      this.setMetaTag('apple-mobile-web-app-title', this.siteName);
+      
+      // Canonical URL
+      let canonical = document.querySelector('link[rel="canonical"]');
+      if (!canonical) {
+        canonical = document.createElement('link');
+        canonical.rel = 'canonical';
+        document.head.appendChild(canonical);
+      }
+      canonical.href = meta.url;
+      
+      // Open Graph tags (Miruro-style complete)
+      this.setOgTag('og:type', meta.type);
+      this.setOgTag('og:url', meta.url);
+      this.setOgTag('og:title', meta.ogTitle);
+      this.setOgTag('og:description', meta.ogDescription);
+      this.setOgTag('og:image', meta.image);
+      this.setOgTag('og:image:width', '1200');
+      this.setOgTag('og:image:height', '630');
+      this.setOgTag('og:site_name', this.siteName);
+      this.setOgTag('og:locale', 'en_US');
+      
+      // Twitter Card tags (Complete)
+      this.setMetaTag('twitter:card', 'summary_large_image', 'name');
+      this.setMetaTag('twitter:url', meta.url, 'name');
+      this.setMetaTag('twitter:title', meta.twitterTitle, 'name');
+      this.setMetaTag('twitter:description', meta.twitterDescription, 'name');
+      this.setMetaTag('twitter:image', meta.image, 'name');
+      if (this.twitterHandle) {
+        this.setMetaTag('twitter:site', this.twitterHandle, 'name');
+      }
+      
+      // JSON-LD Structured Data
+      let jsonLd = document.querySelector('script[type="application/ld+json"]');
+      if (!jsonLd) {
+        jsonLd = document.createElement('script');
+        jsonLd.type = 'application/ld+json';
+        document.head.appendChild(jsonLd);
+      }
+      jsonLd.textContent = JSON.stringify(this.createJsonLd(meta));
+      
+      console.log('[MetadataManager] ✓ Injected SEO metadata for page:', this.detectPageType());
+    }
+  };
+
+  // Auto-inject metadata on DOM ready
+  MetadataManager.inject();
+  
+  // Also re-inject when page content changes (for SPA-like behavior)
+  const originalPushState = history.pushState;
+  history.pushState = function() {
+    originalPushState.apply(this, arguments);
+    setTimeout(() => MetadataManager.inject(), 100);
+  };
+
+  /* ═══════════════════════════════════════════════════════════
+     ADAPTIVE COLOR ENGINE (Text Glow Effect)
+     Canvas-based color sampling for hero slider titles
+     Samples dominant colors and applies intelligent text glow
+  ═══════════════════════════════════════════════════════════ */
+  
+  const AdaptiveColorEngine = {
+    canvas: null,
+    ctx: null,
+    cache: new Map(), // Cache sampled colors to avoid re-processing
+    
+    init: function() {
+      // Create canvas element if it doesn't exist
+      this.canvas = document.getElementById('adaptiveColorCanvas');
+      if (!this.canvas) {
+        this.canvas = document.createElement('canvas');
+        this.canvas.id = 'adaptiveColorCanvas';
+        this.canvas.style.display = 'none';
+        document.body.appendChild(this.canvas);
+      }
+      this.ctx = this.canvas.getContext('2d', { willReadFrequently: true });
+    },
+
+    /**
+     * Sample colors from image area behind title position
+     * @param {string} imageUrl - Background image URL
+     * @param {object} options - Sampling config
+     * @returns {Promise<object>} Color analysis results
+     */
+    sampleImage: async function(imageUrl, options = {}) {
+      const {
+        sampleRegion = 'bottomLeft',
+        sampleSize = 120,
+        downsample = 4
+      } = options;
+
+      // Check cache first
+      const cacheKey = `${imageUrl}_${sampleRegion}_${sampleSize}`;
+      if (this.cache.has(cacheKey)) {
+        return this.cache.get(cacheKey);
+      }
+
+      // Ensure initialized
+      if (!this.ctx) this.init();
+
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        
+        img.onload = () => {
+          try {
+            // Set canvas size (downsampled for performance)
+            const w = Math.floor(img.width / downsample);
+            const h = Math.floor(img.height / downsample);
+            this.canvas.width = w;
+            this.canvas.height = h;
+            
+            // Draw image to canvas
+            this.ctx.drawImage(img, 0, 0, w, h);
+            
+            // Determine sample region coordinates (bottom-left where title sits)
+            let sx, sy, sw, sh;
+            
+            switch(sampleRegion) {
+              case 'bottomLeft':
+                sw = Math.min(sampleSize, w * 0.5);
+                sh = Math.min(sampleSize, h * 0.35);
+                sx = w * 0.05;
+                sy = h - sh - h * 0.05;
+                break;
+              case 'center':
+              default:
+                sw = Math.min(sampleSize, w * 0.4);
+                sh = Math.min(sampleSize, h * 0.4);
+                sx = (w - sw) / 2;
+                sy = (h - sh) / 2;
+            }
+
+            // Get pixel data
+            const imageData = this.ctx.getImageData(sx, sy, sw, sh);
+            const analysis = this.analyzePixels(imageData.data);
+            
+            // Cache result
+            this.cache.set(cacheKey, analysis);
+            resolve(analysis);
+          } catch (e) {
+            reject(e);
+          }
+        };
+        
+        img.onerror = () => {
+          // Return fallback on error
+          resolve({
+            average: { r: 100, g: 130, b: 170 },
+            dominant: { r: 100, g: 130, b: 170 },
+            dominantHue: 210,
+            luminance: 0.4,
+            saturation: 0.5,
+            error: true
+          });
+        };
+        
+        img.src = imageUrl;
+      });
+    },
+
+    /**
+     * Analyze pixel data to extract color information
+     */
+    analyzePixels: function(pixels) {
+      const totalPixels = pixels.length / 4;
+      
+      let rTotal = 0, gTotal = 0, bTotal = 0;
+      let maxSaturation = 0;
+      let brightestPixel = { r: 0, g: 0, b: 0, brightness: 0 };
+      let darkestPixel = { r: 255, g: 255, b: 255, brightness: Infinity };
+      
+      // Color histogram for finding dominant hue
+      const hueBuckets = {};
+      
+      for (let i = 0; i < pixels.length; i += 4) {
+        const r = pixels[i];
+        const g = pixels[i + 1];
+        const b = pixels[i + 2];
+        
+        // Skip very transparent or very dark/bright pixels
+        if (pixels[i + 3] < 128) continue;
+        
+        rTotal += r;
+        gTotal += g;
+        bTotal += b;
+        
+        // Convert to HSL
+        const hsl = this.rgbToHsl(r, g, b);
+        
+        // Track saturation (excluding extreme lightness)
+        if (hsl.s > maxSaturation && hsl.l > 0.1 && hsl.l < 0.9) {
+          maxSaturation = hsl.s;
+        }
+        
+        // Track brightest and darkest
+        if (hsl.l > brightestPixel.brightness) {
+          brightestPixel = { r, g, b, brightness: hsl.l };
+        }
+        if (hsl.l < darkestPixel.brightness) {
+          darkestPixel = { r, g, b, brightness: hsl.l };
+        }
+        
+        // Bucket by hue (quantized to 30-degree segments)
+        const hueBucket = Math.floor(hsl.h / 30) * 30;
+        if (!hueBuckets[hueBucket]) {
+          hueBuckets[hueBucket] = { count: 0, r: 0, g: 0, b: 0 };
+        }
+        hueBuckets[hueBucket].count++;
+        hueBuckets[hueBucket].r += r;
+        hueBuckets[hueBucket].g += g;
+        hueBuckets[hueBucket].b += b;
+      }
+      
+      // Calculate averages
+      const avgR = Math.round(rTotal / totalPixels);
+      const avgG = Math.round(gTotal / totalPixels);
+      const avgB = Math.round(bTotal / totalPixels);
+      
+      // Find dominant hue bucket
+      let dominantHue = 0;
+      let dominantHueCount = 0;
+      let dominantColor = { r: avgR, g: avgG, b: avgB };
+      
+      for (const [hue, data] of Object.entries(hueBuckets)) {
+        if (data.count > dominantHueCount) {
+          dominantHueCount = data.count;
+          dominantHue = parseInt(hue);
+          dominantColor = {
+            r: Math.round(data.r / data.count),
+            g: Math.round(data.g / data.count),
+            b: Math.round(data.b / data.count)
+          };
+        }
+      }
+      
+      // Calculate luminance
+      const luminance = this.calculateLuminance(avgR, avgG, avgB);
+      
+      return {
+        average: { r: avgR, g: avgG, b: avgB },
+        dominant: dominantColor,
+        dominantHue: dominantHue,
+        brightest: brightestPixel,
+        darkest: darkestPixel,
+        luminance: luminance,
+        saturation: maxSaturation,
+        pixelCount: totalPixels
+      };
+    },
+
+    /**
+     * RGB to HSL conversion
+     */
+    rgbToHsl: function(r, g, b) {
+      r /= 255; g /= 255; b /= 255;
+      const max = Math.max(r, g, b), min = Math.min(r, g, b);
+      let h, s, l = (max + min) / 2;
+
+      if (max === min) {
+        h = s = 0;
+      } else {
+        const d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        switch (max) {
+          case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+          case g: h = ((b - r) / d + 2) / 6; break;
+          case b: h = ((r - g) / d + 4) / 6; break;
+        }
+      }
+      return { h: h * 360, s, l };
+    },
+
+    /**
+     * HSL to RGB conversion
+     */
+    hslToRgb: function(h, s, l) {
+      h /= 360;
+      let r, g, b;
+
+      if (s === 0) {
+        r = g = b = l;
+      } else {
+        const hue2rgb = (p, q, t) => {
+          if (t < 0) t += 1;
+          if (t > 1) t -= 1;
+          if (t < 1/6) return p + (q - p) * 6 * t;
+          if (t < 1/2) return q;
+          if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+          return p;
+        };
+        const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+        const p = 2 * l - q;
+        r = hue2rgb(p, q, h + 1/3);
+        g = hue2rgb(p, q, h);
+        b = hue2rgb(p, q, h - 1/3);
+      }
+
+      return {
+        r: Math.round(r * 255),
+        g: Math.round(g * 255),
+        b: Math.round(b * 255)
+      };
+    },
+
+    /**
+     * Calculate perceived luminance (0-1)
+     */
+    calculateLuminance: function(r, g, b) {
+      return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    },
+
+    /**
+     * Generate text glow color based on image analysis
+     * Returns CSS rgba string for text-shadow
+     */
+    getGlowColor: function(analysis) {
+      if (analysis.error) {
+        // Fallback glow for errors
+        return 'rgba(66, 153, 225, 0.7)'; // Blue glow
+      }
+
+      const { dominant, dominantHue, saturation, luminance } = analysis;
+      const hsl = this.rgbToHsl(dominant.r, dominant.g, dominant.b);
+      
+      // Determine glow characteristics based on image properties
+      let glowHue, glowSat, glowAlpha;
+      
+      // Adjust based on dominant hue range
+      if (dominantHue >= 0 && dominantHue <= 60 || dominantHue >= 300) {
+        // Warm images (red/orange/yellow) → Use complementary cool glow
+        glowHue = 200 + Math.random() * 40; // Cyan-blue range
+        glowSat = 0.85;
+        glowAlpha = 0.75;
+      } else if (dominantHue >= 180 && dominantHue <= 260) {
+        // Cool blue images → Use warm golden glow
+        glowHue = 35 + Math.random() * 20; // Gold-amber range
+        glowSat = 0.9;
+        glowAlpha = 0.8;
+      } else if (dominantHue >= 90 && dominantHue <= 160) {
+        // Green images → Use magenta/pink glow
+        glowHue = 290 + Math.random() * 20;
+        glowSat = 0.8;
+        glowAlpha = 0.7;
+      } else {
+        // Neutral/purple images → Use warm accent glow
+        glowHue = 25 + Math.random() * 30; // Orange-gold range
+        glowSat = 0.85;
+        glowAlpha = 0.72;
+      }
+      
+      // Boost saturation for more vibrant glow
+      glowSat = Math.min(glowSat + 0.15, 1);
+      
+      // Create glow color
+      const glow = this.hslToRgb(glowHue, glowSat, 0.58);
+      return `rgba(${glow.r}, ${glow.g}, ${glow.b}, ${glowAlpha})`;
+    },
+
+    /**
+     * Generate secondary (softer) glow layer
+     */
+    getSoftGlowColor: function(analysis) {
+      if (analysis.error) {
+        return 'rgba(66, 153, 225, 0.3)';
+      }
+      
+      const primaryGlow = this.getGlowColor(analysis);
+      // Reduce alpha for softer secondary glow
+      return primaryGlow.replace(/[\d.]+\)$/, '0.3)');
+    },
+
+    /**
+     * Apply adaptive text glow to a title element
+     * @param {HTMLElement} titleElement - The .slide-title element
+     * @param {string} imageUrl - The background image URL
+     */
+    applyGlowToElement: async function(titleElement, imageUrl) {
+      if (!titleElement || !imageUrl) return;
+      
+      try {
+        const analysis = await this.sampleImage(imageUrl);
+        const primaryGlow = this.getGlowColor(analysis);
+        const softGlow = this.getSoftGlowColor(analysis);
+        
+        // Apply multi-layered text shadow for professional glow effect
+        titleElement.style.textShadow = `
+          0 0 20px ${primaryGlow},
+          0 0 45px ${primaryGlow},
+          0 0 80px ${softGlow},
+          2px 2px 8px rgba(0, 0, 0, 0.5)
+        `;
+        
+        // Keep text white for readability
+        titleElement.style.color = '#ffffff';
+        
+        console.log('[AdaptiveColorEngine] ✓ Glow applied:', primaryGlow.substring(0, 50));
+      } catch (error) {
+        console.warn('[AdaptiveColorEngine] Failed to apply glow:', error.message);
+        // Fallback: subtle white glow
+        titleElement.style.textShadow = `
+          0 0 20px rgba(255, 255, 255, 0.5),
+          0 0 45px rgba(200, 220, 255, 0.3),
+          2px 2px 8px rgba(0, 0, 0, 0.5)
+        `;
+        titleElement.style.color = '#ffffff';
+      }
+    },
+
+    /**
+     * Clear cache (useful when slides change)
+     */
+    clearCache: function() {
+      this.cache.clear();
+    }
+  };
+
+  /* ═══════════════════════════════════════════════════════════
      GLOBAL EXPORTS
   ═══════════════════════════════════════════════════════════ */
   window.supabaseClient   = supabase;
@@ -3235,5 +4235,6 @@
   window.getUserGeo       = getUserGeo;
   window.AVATAR_BUCKET    = AVATAR_BUCKET;
   window.AVATAR_BUCKET_URL= AVATAR_BUCKET_URL;
+  window.AdaptiveColorEngine = AdaptiveColorEngine;
 
 })();
