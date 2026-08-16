@@ -1,0 +1,440 @@
+[MetadataManager] 📄 Using flyer image for home : https://i.postimg.cc/Fs8y8Wqh/Follow-Ani-Wind-Zone-x-profile-banner.jpg
+shared.js:3970 [MetadataManager] ✓ Injected SEO metadata for page: home
+(index):2937 [API Queue] 🚀 Initialized with maxConcurrent=3
+(index):3106 [Lazy Loader] 📜 Initialized
+(index):7063 ═══════════════════════════════════════════════════════════
+(index):7064   🚀 AniUmi Optimized Loading System v2.0
+(index):7065   • Scroll-based lazy loading enabled
+(index):7066   • API queue throttling (max 3 concurrent)
+(index):7067   • Automatic retry with exponential backoff
+(index):7068 ═══════════════════════════════════════════════════════════
+(index):3120 [Lazy Loader] 👁️ Observer created with rootMargin=200px
+(index):3176 [Lazy Loader] 🚀 Loading #heroSlider...
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=2) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=3) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=4) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=5) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=6) - known caching bug
+(index):3151 [Lazy Loader] 📋 Registered #newReleasesGrid for lazy loading (priority 3)
+(index):3151 [Lazy Loader] 📋 Registered #newAnioceanGrid for lazy loading (priority 4)
+(index):3151 [Lazy Loader] 📋 Registered #upcomingSection for lazy loading (priority 5)
+(index):3151 [Lazy Loader] 📋 Registered #completedGrid for lazy loading (priority 6)
+(index):3151 [Lazy Loader] 📋 Registered #trendingList for lazy loading (priority 7)
+(index):3151 [Lazy Loader] 📋 Registered #popularList for lazy loading (priority 8)
+(index):3151 [Lazy Loader] 📋 Registered #popularAnimeList for lazy loading (priority 9)
+(index):3151 [Lazy Loader] 📋 Registered #eswWidget for lazy loading (priority 10)
+(index):3162 [Lazy Loader] 👀 #newReleasesGrid is visible, loading now...
+(index):3176 [Lazy Loader] 🚀 Loading #newReleasesGrid...
+(index):4835 [New Releases] 🚀 Starting optimized fetch with API queue...
+(index):2985 [API Queue] ▶️ [tmdb--movie/now_playing] Priority 2 | Active: 1/3 | Queue: 0
+(index):3162 [Lazy Loader] 👀 #newAnioceanGrid is visible, loading now...
+(index):3176 [Lazy Loader] 🚀 Loading #newAnioceanGrid...
+(index):6583 [New on Aniumi] 💀 Showing 24 skeleton cards in grid layout while loading...
+(index):3336 [New on Aniumi] Trying Anikoto API...
+(index):3162 [Lazy Loader] 👀 #trendingList is visible, loading now...
+(index):3176 [Lazy Loader] 🚀 Loading #trendingList...
+(index):3162 [Lazy Loader] 👀 #popularList is visible, loading now...
+(index):3176 [Lazy Loader] 🚀 Loading #popularList...
+(index):1 Access to fetch at 'https://aniumi.bionmovies47.workers.dev/anikoto/recent-anime?page=1&per_page=100' from origin 'https://aniumi.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+aniumi.bionmovies47.workers.dev/anikoto/recent-anime?page=1&per_page=100:1  Failed to load resource: net::ERR_FAILED
+(index):3176 [Lazy Loader] 🚀 Loading #topAiringSection...
+(index):3825 [TVMaze] 🚀 Starting TVMaze + TMDB bridge pipeline...
+(index):3533 [TVMaze-🔄] Rotation: using "IN" this load (time-based, no storage)
+(index):3467 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=IN
+(index):2482 [TMDB] ✅ Legacy proxy success: /tv/on_the_air (returned page: 2)
+(index):2482 [TMDB] ✅ Legacy proxy success: /tv/on_the_air (returned page: 3)
+(index):2482 [TMDB] ✅ Legacy proxy success: /tv/on_the_air (returned page: 5)
+(index):2482 [TMDB] ✅ Legacy proxy success: /tv/on_the_air (returned page: 4)
+(index):2482 [TMDB] ✅ Legacy proxy success: /tv/on_the_air (returned page: 6)
+(index):2458 [TMDB] ✅ t-umi proxy success: /tv/on_the_air
+(index):2458 [TMDB] ✅ t-umi proxy success: /discover/movie
+(index):2458 [TMDB] ✅ t-umi proxy success: /movie/now_playing
+(index):2458 [TMDB] ✅ t-umi proxy success: /discover/tv
+(index):3381 ✓ Loaded 100 anime from Anikoto proxy for "New on Aniocean"
+(index):3181 [Lazy Loader] ✅ #newAnioceanGrid loaded in 1363ms
+(index):2997 [API Queue] ✅ [tmdb--movie/now_playing] Completed in 1385ms
+(index):3479 [TVMaze] ✅ Fetched 0 episodes from IN
+(index):3508 [TVMaze] ✅ Unique shows from IN: 0
+(index):3566 [TVMaze-🔄] "IN" only had 0 scripted shows (< 6, likely a weekend/light day), trying "CN"...
+getTVMazeShowsRotatingCountry @ (index):3566
+(index):3467 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=CN
+(index):2458 [TMDB] ✅ t-umi proxy success: /trending/all/day
+(index):2985 [API Queue] ▶️ [tmdb--movie/now_playing] Priority 2 | Active: 1/3 | Queue: 2
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=2) - known caching bug
+(index):3479 [TVMaze] ✅ Fetched 16 episodes from CN
+(index):3508 [TVMaze] ✅ Unique shows from CN: 10
+(index):3570 [TVMaze-🔄] Final: 10 scripted shows from "CN"
+(index):3837 [TVMaze-🔄] Rotation result: 10 shows from "CN"
+(index):3854 [TVMaze] 📊 Total shows to bridge: 10
+(index):3759 [TVMaze→TMDB] 🔍 No external ID for "An End Is Also A Beginning" - trying search...
+(index):3759 [TVMaze→TMDB] 🔍 No external ID for "Love as Bait" - trying search...
+(index):3759 [TVMaze→TMDB] 🔍 No external ID for "The Outlaw" - trying search...
+(index):3759 [TVMaze→TMDB] 🔍 No external ID for "Hanyi Enters the Heart" - trying search...
+(index):2482 [TMDB] ✅ Legacy proxy success: /movie/now_playing (returned page: 2)
+(index):2997 [API Queue] ✅ [tmdb--movie/now_playing] Completed in 448ms
+(index):2458 [TMDB] ✅ t-umi proxy success: /search/tv
+(index):3789 [TVMaze→TMDB] ✅ Search exact match: "Love as Bait" → TMDB:314830
+(index):2985 [API Queue] ▶️ [anilist-6090] Priority 3 | Active: 1/3 | Queue: 1
+(index):3181 [Lazy Loader] ✅ #popularList loaded in 2875ms
+3(index):2458 [TMDB] ✅ t-umi proxy success: /search/tv
+(index):3795 [TVMaze→TMDB] ✅ Search year match: "The Outlaw" (2026) → TMDB:221436 (2025)
+(index):3789 [TVMaze→TMDB] ✅ Search exact match: "Hanyi Enters the Heart" → TMDB:331549
+(index):2458 [TMDB] ✅ t-umi proxy success: /find/tt33501934
+(index):3736 [TVMaze→TMDB] ✅ IMDb bridge: "Mushen Ji" → TMDB:236534
+(index):2458 [TMDB] ✅ t-umi proxy success: /search/tv
+(index):3808 [TVMaze→TMDB] ❌ No TMDB match found for "An End Is Also A Beginning"
+(index):3759 [TVMaze→TMDB] 🔍 No external ID for "My Mr. Ostrich" - trying search...
+(index):3759 [TVMaze→TMDB] 🔍 No external ID for "Forging Justice" - trying search...
+(index):3759 [TVMaze→TMDB] 🔍 No external ID for "A Father's Debt" - trying search...
+(index):3759 [TVMaze→TMDB] 🔍 No external ID for "The Silent Frontline" - trying search...
+(index):2458 [TMDB] ✅ t-umi proxy success: /find/tt27432264
+(index):3736 [TVMaze→TMDB] ✅ IMDb bridge: "Xian Ni" → TMDB:223911
+2(index):2458 [TMDB] ✅ t-umi proxy success: /search/tv
+(index):3789 [TVMaze→TMDB] ✅ Search exact match: "Forging Justice" → TMDB:291856
+(index):2458 [TMDB] ✅ t-umi proxy success: /search/tv
+(index):3789 [TVMaze→TMDB] ✅ Search exact match: "My Mr. Ostrich" → TMDB:294635
+(index):3162 [Lazy Loader] 👀 #popularAnimeList is visible, loading now...
+(index):3176 [Lazy Loader] 🚀 Loading #popularAnimeList...
+(index):3162 [Lazy Loader] 👀 #eswWidget is visible, loading now...
+(index):3176 [Lazy Loader] 🚀 Loading #eswWidget...
+(index):6967 [Schedule] 🚀 Fetching all 7 days in parallel...
+(index):6637 [Schedule] 🚀 Starting parallel fetch of all 7 days...
+(index):6607 [Schedule] Fetching: https://jikan-api-bohb.onrender.com/v4/schedule/monday?sfw=true
+(index):6607 [Schedule] Fetching: https://jikan-api-bohb.onrender.com/v4/schedule/tuesday?sfw=true
+(index):6607 [Schedule] Fetching: https://jikan-api-bohb.onrender.com/v4/schedule/wednesday?sfw=true
+(index):6607 [Schedule] Fetching: https://jikan-api-bohb.onrender.com/v4/schedule/thursday?sfw=true
+(index):6607 [Schedule] Fetching: https://jikan-api-bohb.onrender.com/v4/schedule/friday?sfw=true
+(index):6607 [Schedule] Fetching: https://jikan-api-bohb.onrender.com/v4/schedule/saturday?sfw=true
+(index):6607 [Schedule] Fetching: https://jikan-api-bohb.onrender.com/v4/schedule/sunday?sfw=true
+(index):2458 [TMDB] ✅ t-umi proxy success: /search/tv
+(index):3789 [TVMaze→TMDB] ✅ Search exact match: "A Father's Debt" → TMDB:331662
+(index):6626 [Schedule] ✅ saturday: 20 anime
+(index):6626 [Schedule] ✅ friday: 13 anime
+(index):6626 [Schedule] ✅ monday: 16 anime
+(index):6626 [Schedule] ✅ tuesday: 10 anime
+(index):6626 [Schedule] ✅ wednesday: 12 anime
+(index):6626 [Schedule] ✅ thursday: 13 anime
+(index):6626 [Schedule] ✅ sunday: 25 anime
+(index):6651 [Schedule] ✅ Complete! Total: 109 anime across 7 days
+(index):3467 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=PK&date=2026-08-16
+(index):3181 [Lazy Loader] ✅ #eswWidget loaded in 115ms
+(index):2458 [TMDB] ✅ t-umi proxy success: /search/tv
+(index):3808 [TVMaze→TMDB] ❌ No TMDB match found for "The Silent Frontline"
+(index):3886 [TVMaze] ✅ Successfully bridged 8/10 shows to TMDB
+(index):4611 [Top Airing] 📺 Using TVMaze Multi-Country: 8 shows
+(index):4630 [Top Airing] ✅ TVMaze TV ready: 8 shows
+(index):3181 [Lazy Loader] ✅ #topAiringSection loaded in 4133ms
+(index):3479 [TVMaze] ✅ Fetched 0 episodes from PK (2026-08-16)
+(index):3508 [TVMaze] ✅ Unique shows from PK: 0
+(index):3629 [Sidebar-TVMaze] "PK" only had 0 usable shows for 2026-08-16, trying next country...
+fetchSidebarTVShowsForDate @ (index):3629
+(index):3467 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=IN&date=2026-08-16
+(index):4018 [Hero] 📺 TMDB TV with 2026 filter: 15 shows ready
+(index):4064 [Hero] 🎬 Fetched 15 TV (TMDB Current-Year) + 45 Anilist airing anime
+(index):4065 [Hero] 📅 Source: TMDB Current-Year - current-year filter applied for fresh content
+(index):4300 [Hero Image] Mapping 45 Anilist anime with banner images...
+(index):4347 [Hero Image] Resolution complete: Object
+(index):4375 [Hero] 15 TMDB + 45 Jikan = 60 total slides
+(index):3181 [Lazy Loader] ✅ #heroSlider loaded in 4866ms
+(index):7153 [System Status] Object
+(index):3479 [TVMaze] ✅ Fetched 0 episodes from IN (2026-08-16)
+(index):3508 [TVMaze] ✅ Unique shows from IN: 0
+(index):3629 [Sidebar-TVMaze] "IN" only had 0 usable shows for 2026-08-16, trying next country...
+fetchSidebarTVShowsForDate @ (index):3629
+(index):3467 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=KR&date=2026-08-16
+(index):1 Access to image at 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/192800-1EhTN0zOxQsW.jpg' from origin 'https://aniumi.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+s4.anilist.co/file/anilistcdn/media/anime/banner/192800-1EhTN0zOxQsW.jpg:1  Failed to load resource: net::ERR_FAILED
+(index):1 Access to image at 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/196356-OUT2nMhW0IdS.jpg' from origin 'https://aniumi.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+s4.anilist.co/file/anilistcdn/media/anime/banner/196356-OUT2nMhW0IdS.jpg:1  Failed to load resource: net::ERR_FAILED
+(index):1 Access to image at 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/197715-X8YkpOGY968a.jpg' from origin 'https://aniumi.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+s4.anilist.co/file/anilistcdn/media/anime/banner/197715-X8YkpOGY968a.jpg:1  Failed to load resource: net::ERR_FAILED
+(index):1 Access to image at 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/201667-QYNOqPVSG3vi.jpg' from origin 'https://aniumi.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+s4.anilist.co/file/anilistcdn/media/anime/banner/201667-QYNOqPVSG3vi.jpg:1  Failed to load resource: net::ERR_FAILED
+(index):1 Access to image at 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/187166-1T03s7Eow65t.jpg' from origin 'https://aniumi.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+s4.anilist.co/file/anilistcdn/media/anime/banner/187166-1T03s7Eow65t.jpg:1  Failed to load resource: net::ERR_FAILED
+(index):1 Access to image at 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/198376-1b4DxjIUwMIY.jpg' from origin 'https://aniumi.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+s4.anilist.co/file/anilistcdn/media/anime/banner/198376-1b4DxjIUwMIY.jpg:1  Failed to load resource: net::ERR_FAILED
+(index):1 Access to image at 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/108992-5OIDQkTbM1id.jpg' from origin 'https://aniumi.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+s4.anilist.co/file/anilistcdn/media/anime/banner/108992-5OIDQkTbM1id.jpg:1  Failed to load resource: net::ERR_FAILED
+(index):1 Access to image at 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/158871-jKfsW5HCGA3K.jpg' from origin 'https://aniumi.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+s4.anilist.co/file/anilistcdn/media/anime/banner/158871-jKfsW5HCGA3K.jpg:1  Failed to load resource: net::ERR_FAILED
+(index):1 Access to image at 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/196218-lX0y9T76KQkC.jpg' from origin 'https://aniumi.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+s4.anilist.co/file/anilistcdn/media/anime/banner/196218-lX0y9T76KQkC.jpg:1  Failed to load resource: net::ERR_FAILED
+(index):1 Access to image at 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/202508-K276v0truxE0.jpg' from origin 'https://aniumi.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+s4.anilist.co/file/anilistcdn/media/anime/banner/202508-K276v0truxE0.jpg:1  Failed to load resource: net::ERR_FAILED
+(index):1 Access to image at 'https://image.tmdb.org/t/p/original/w6F8pr3bYBlr9LRCM4sIgfto5g3.jpg' from origin 'https://aniumi.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+image.tmdb.org/t/p/original/w6F8pr3bYBlr9LRCM4sIgfto5g3.jpg:1  Failed to load resource: net::ERR_FAILED
+(index):1 Access to image at 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/188525-Vnei12N4wZsM.jpg' from origin 'https://aniumi.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+s4.anilist.co/file/anilistcdn/media/anime/banner/188525-Vnei12N4wZsM.jpg:1  Failed to load resource: net::ERR_FAILED
+(index):1 Access to image at 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/209983-dKykF3rBGfik.jpg' from origin 'https://aniumi.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+s4.anilist.co/file/anilistcdn/media/anime/banner/209983-dKykF3rBGfik.jpg:1  Failed to load resource: net::ERR_FAILED
+(index):1 Access to image at 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/207674-0bYvzXIq7Lq3.jpg' from origin 'https://aniumi.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+s4.anilist.co/file/anilistcdn/media/anime/banner/207674-0bYvzXIq7Lq3.jpg:1  Failed to load resource: net::ERR_FAILED
+(index):1 Access to image at 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/966-J5CwLLTBs4OO.jpg' from origin 'https://aniumi.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+s4.anilist.co/file/anilistcdn/media/anime/banner/966-J5CwLLTBs4OO.jpg:1  Failed to load resource: net::ERR_FAILED
+(index):1 Access to image at 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/8687-aa3QbJjGfy3B.jpg' from origin 'https://aniumi.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+s4.anilist.co/file/anilistcdn/media/anime/banner/8687-aa3QbJjGfy3B.jpg:1  Failed to load resource: net::ERR_FAILED
+(index):3181 [Lazy Loader] ✅ #trendingList loaded in 5653ms
+(index):3479 [TVMaze] ✅ Fetched 4 episodes from KR (2026-08-16)
+(index):3508 [TVMaze] ✅ Unique shows from KR: 4
+(index):3629 [Sidebar-TVMaze] "KR" only had 3 usable shows for 2026-08-16, trying next country...
+fetchSidebarTVShowsForDate @ (index):3629
+(index):3467 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=TR&date=2026-08-16
+(index):3479 [TVMaze] ✅ Fetched 1 episodes from TR (2026-08-16)
+(index):3508 [TVMaze] ✅ Unique shows from TR: 1
+(index):3629 [Sidebar-TVMaze] "TR" only had 1 usable shows for 2026-08-16, trying next country...
+fetchSidebarTVShowsForDate @ (index):3629
+(index):3467 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=US&date=2026-08-16
+(index):3479 [TVMaze] ✅ Fetched 48 episodes from US (2026-08-16)
+(index):3508 [TVMaze] ✅ Unique shows from US: 47
+(index):3632 [Sidebar-TVMaze] 12 TV shows from "US" for 2026-08-16
+(index):1 [Intervention] Images loaded lazily and replaced with placeholders. Load events are deferred. See https://go.microsoft.com/fwlink/?linkid=2048113
+(index):2997 [API Queue] ✅ [anilist-6090] Completed in 5102ms
+(index):7142 [Safety Net] ⏱️ 8s elapsed, force-loading 8 remaining sections...
+(index):3232 [Lazy Loader] ⚡ Force-loading 8 remaining sections...
+(index):3176 [Lazy Loader] 🚀 Loading #upcomingSection...
+(index):5255 [Upcoming] Starting fetch with 30 pages each for movies & TV...
+(index):5257 [Upcoming] Today's date: 2026-08-16
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=2) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=3) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=4) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=5) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=6) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=7) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=8) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=9) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=10) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=11) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=12) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=13) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=14) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=15) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=16) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=17) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=18) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=19) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=20) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=21) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=22) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=23) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=24) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=25) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=26) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=27) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=28) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=29) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=30) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=2) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=3) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=4) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=5) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=6) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=7) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=8) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=9) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=10) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=11) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=12) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=13) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=14) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=15) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=16) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=17) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=18) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=19) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=20) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=21) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=22) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=23) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=24) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=25) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=26) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=27) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=28) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=29) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=30) - known caching bug
+(index):3176 [Lazy Loader] 🚀 Loading #completedGrid...
+(index):5604 [Completed] 📄 Loading page 1 (tmdbPages: 4, range: 2026-02-17 to 2026-08-16)
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=2) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=3) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=4) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=2) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=3) - known caching bug
+(index):2467 [TMDB] ⏭️ Skipping t-umi for paginated request (page=4) - known caching bug
+(index):5636 [Completed] 🎌 Fetching TV anime finished in 2026 (dynamic year)
+(index):2985 [API Queue] ▶️ [tvmaze-6090] Priority 4 | Active: 1/3 | Queue: 0
+(index):3825 [TVMaze] 🚀 Starting TVMaze + TMDB bridge pipeline...
+(index):3533 [TVMaze-🔄] Rotation: using "IN" this load (time-based, no storage)
+(index):3467 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=IN
+(index):3479 [TVMaze] ✅ Fetched 0 episodes from IN
+(index):3508 [TVMaze] ✅ Unique shows from IN: 0
+(index):3566 [TVMaze-🔄] "IN" only had 0 scripted shows (< 6, likely a weekend/light day), trying "CN"...
+getTVMazeShowsRotatingCountry @ (index):3566
+(index):3467 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=CN
+(index):3479 [TVMaze] ✅ Fetched 16 episodes from CN
+(index):3508 [TVMaze] ✅ Unique shows from CN: 10
+(index):3570 [TVMaze-🔄] Final: 10 scripted shows from "CN"
+(index):3837 [TVMaze-🔄] Rotation result: 10 shows from "CN"
+(index):3854 [TVMaze] 📊 Total shows to bridge: 10
+(index):3759 [TVMaze→TMDB] 🔍 No external ID for "An End Is Also A Beginning" - trying search...
+(index):3759 [TVMaze→TMDB] 🔍 No external ID for "Love as Bait" - trying search...
+(index):3759 [TVMaze→TMDB] 🔍 No external ID for "The Outlaw" - trying search...
+(index):3759 [TVMaze→TMDB] 🔍 No external ID for "Hanyi Enters the Heart" - trying search...
+(index):2482 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 3)
+(index):2482 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 2)
+(index):2482 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 5)
+(index):2482 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 4)
+(index):2482 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 7)
+(index):2482 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 10)
+(index):2482 [TMDB] ✅ Legacy proxy success: /tv/on_the_air (returned page: 3)
+(index):2482 [TMDB] ✅ Legacy proxy success: /tv/on_the_air (returned page: 2)
+(index):2482 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 6)
+(index):2482 [TMDB] ✅ Legacy proxy success: /tv/on_the_air (returned page: 6)
+(index):2482 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 8)
+(index):2482 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 9)
+(index):2482 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 15)
+(index):2482 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 17)
+(index):2458 [TMDB] ✅ t-umi proxy success: /tv/on_the_air
+(index):2482 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 16)
+(index):2482 [TMDB] ✅ Legacy proxy success: /tv/on_the_air (returned page: 4)
+(index):2482 [TMDB] ✅ Legacy proxy success: /tv/on_the_air (returned page: 5)
+(index):2482 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 13)
+(index):2482 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 11)
+(index):2482 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 14)
+(index):2482 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 28)
+(index):2482 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 21)
+(index):2482 [TMDB] ✅ Legacy proxy success: /tv/on_the_air (returned page: 10)
+(index):2482 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 23)
+(index):2482 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 12)
+(index):2482 [TMDB] ✅ Legacy proxy success: /tv/on_the_air (returned page: 11)
+(index):2482 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 24)
+(index):2482 [TMDB] ✅ Legacy proxy success: /tv/on_the_air (returned page: 16)
+(index):2482 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 30)
+(index):2482 [TMDB] ✅ Legacy proxy success: /discover/tv (returned page: 2)
+(index):2482 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 25)
+(index):2482 [TMDB] ✅ Legacy proxy success: /discover/movie (returned page: 2)
+(index):2482 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 22)
+(index):2482 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 18)
+(index):2482 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 19)
+(index):2482 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 20)
+(index):2482 [TMDB] ✅ Legacy proxy success: /tv/on_the_air (returned page: 9)
+(index):2482 [TMDB] ✅ Legacy proxy success: /tv/on_the_air (returned page: 17)
+(index):2482 [TMDB] ✅ Legacy proxy success: /tv/on_the_air (returned page: 12)
+(index):2482 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 26)
+(index):2482 [TMDB] ✅ Legacy proxy success: /tv/on_the_air (returned page: 21)
+(index):2482 [TMDB] ✅ Legacy proxy success: /tv/on_the_air (returned page: 24)
+(index):2482 [TMDB] ✅ Legacy proxy success: /tv/on_the_air (returned page: 7)
+(index):2458 [TMDB] ✅ t-umi proxy success: /movie/upcoming
+(index):2458 [TMDB] ✅ t-umi proxy success: /discover/tv
+(index):2458 [TMDB] ✅ t-umi proxy success: /discover/movie
+(index):2482 [TMDB] ✅ Legacy proxy success: /discover/movie (returned page: 3)
+(index):2482 [TMDB] ✅ Legacy proxy success: /tv/on_the_air (returned page: 19)
+(index):2482 [TMDB] ✅ Legacy proxy success: /tv/on_the_air (returned page: 30)
+(index):2482 [TMDB] ✅ Legacy proxy success: /tv/on_the_air (returned page: 15)
+(index):2482 [TMDB] ✅ Legacy proxy success: /tv/on_the_air (returned page: 20)
+(index):2458 [TMDB] ✅ t-umi proxy success: /search/tv
+(index):2482 [TMDB] ✅ Legacy proxy success: /tv/on_the_air (returned page: 29)
+(index):2482 [TMDB] ✅ Legacy proxy success: /tv/on_the_air (returned page: 18)
+(index):2482 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 29)
+(index):2482 [TMDB] ✅ Legacy proxy success: /tv/on_the_air (returned page: 14)
+(index):2482 [TMDB] ✅ Legacy proxy success: /discover/tv (returned page: 4)
+(index):2482 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 27)
+(index):2458 [TMDB] ✅ t-umi proxy success: /find/tt33501934
+(index):2482 [TMDB] ✅ Legacy proxy success: /tv/on_the_air (returned page: 22)
+(index):2482 [TMDB] ✅ Legacy proxy success: /tv/on_the_air (returned page: 28)
+(index):2482 [TMDB] ✅ Legacy proxy success: /tv/on_the_air (returned page: 8)
+(index):2482 [TMDB] ✅ Legacy proxy success: /tv/on_the_air (returned page: 23)
+(index):2482 [TMDB] ✅ Legacy proxy success: /tv/on_the_air (returned page: 13)
+(index):2482 [TMDB] ✅ Legacy proxy success: /discover/movie (returned page: 4)
+(index):2482 [TMDB] ✅ Legacy proxy success: /tv/on_the_air (returned page: 27)
+(index):2482 [TMDB] ✅ Legacy proxy success: /tv/on_the_air (returned page: 26)
+(index):3789 [TVMaze→TMDB] ✅ Search exact match: "Love as Bait" → TMDB:314830
+(index):2458 [TMDB] ✅ t-umi proxy success: /search/tv
+(index):2482 [TMDB] ✅ Legacy proxy success: /discover/tv (returned page: 3)
+(index):3736 [TVMaze→TMDB] ✅ IMDb bridge: "Mushen Ji" → TMDB:236534
+(index):2482 [TMDB] ✅ Legacy proxy success: /tv/on_the_air (returned page: 25)
+(index):3795 [TVMaze→TMDB] ✅ Search year match: "The Outlaw" (2026) → TMDB:221436 (2025)
+(index):2458 [TMDB] ✅ t-umi proxy success: /search/tv
+(index):3789 [TVMaze→TMDB] ✅ Search exact match: "Hanyi Enters the Heart" → TMDB:331549
+2(index):2458 [TMDB] ✅ t-umi proxy success: /search/tv
+(index):3808 [TVMaze→TMDB] ❌ No TMDB match found for "An End Is Also A Beginning"
+(index):3759 [TVMaze→TMDB] 🔍 No external ID for "My Mr. Ostrich" - trying search...
+(index):3759 [TVMaze→TMDB] 🔍 No external ID for "Forging Justice" - trying search...
+(index):3759 [TVMaze→TMDB] 🔍 No external ID for "A Father's Debt" - trying search...
+(index):3759 [TVMaze→TMDB] 🔍 No external ID for "The Silent Frontline" - trying search...
+(index):7153 [System Status] Object
+(index):2458 [TMDB] ✅ t-umi proxy success: /find/tt27432264
+2(index):2458 [TMDB] ✅ t-umi proxy success: /search/tv
+(index):3736 [TVMaze→TMDB] ✅ IMDb bridge: "Xian Ni" → TMDB:223911
+(index):2458 [TMDB] ✅ t-umi proxy success: /search/tv
+(index):3789 [TVMaze→TMDB] ✅ Search exact match: "Forging Justice" → TMDB:291856
+(index):3789 [TVMaze→TMDB] ✅ Search exact match: "A Father's Debt" → TMDB:331662
+(index):2458 [TMDB] ✅ t-umi proxy success: /search/tv
+(index):3789 [TVMaze→TMDB] ✅ Search exact match: "My Mr. Ostrich" → TMDB:294635
+(index):2458 [TMDB] ✅ t-umi proxy success: /search/tv
+(index):3808 [TVMaze→TMDB] ❌ No TMDB match found for "The Silent Frontline"
+(index):3886 [TVMaze] ✅ Successfully bridged 8/10 shows to TMDB
+(index):2997 [API Queue] ✅ [tvmaze-6090] Completed in 2362ms
+(index):4906 [New Releases] 📅 Filtered movies: keeping only 2026 releases (38 passed)
+(index):4915 [New Releases] 📺 Using TVMaze for TV: 8 shows
+(index):4932 [New Releases] ✅ TVMaze TV ready: 8 shows
+(index):4954 [New Releases] 🎌 Anilist success! Got 50 anime
+(index):4984 [New Releases] 📊 Content breakdown:
+(index):4985   • Anilist Airing Anime: 48 shows
+(index):4986   • TVMaze TV Shows: 8 shows
+(index):4987   • TMDB Movies (2026): 38 shows
+(index):5007 [New Releases] ✅ Completed in 10615ms (with API queue optimization)
+(index):3181 [Lazy Loader] ✅ #newReleasesGrid loaded in 10625ms
+(index):5368 [Upcoming] Raw fetch complete: 600 movies, 600 TV shows
+(index):5426 [Upcoming] 📅 Filtering 600 movies: keeping only 2026 releases...
+(index):5460 [Upcoming] Filtering 600 TV shows from /tv/on_the_air...
+(index):5498 [Upcoming Filter] ✅ RESULTS: 50 movies (from 452 passed, 106 not-2026, 42 no-poster) + 50 TV (from 526 passed, 8 no-poster, deduped) + 50 anime
+(index):3181 [Lazy Loader] ✅ #upcomingSection loaded in 3089ms
+(index):3181 [Lazy Loader] ✅ #popularAnimeList loaded in 10148ms
+(index):7153 [System Status] Object
+(index):7153 [System Status] Object
+(index):2622 [AniList] Direct fetch failed: TimeoutError: signal timed out
+fetchAniList @ (index):2622
+(index):1 Access to fetch at 'https://aniumi.bionmovies47.workers.dev/anilist' from origin 'https://aniumi.vercel.app' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+aniumi.bionmovies47.workers.dev/anilist:1  Failed to load resource: net::ERR_FAILED
+(index):2638 [AniList] Proxy fallback failed: TypeError: Failed to fetch
+    at fetchAniList ((index):2627:29)
+    at async Promise.all (index 2)
+    at async loadCompleted ((index):5615:56)
+    at async SectionLazyLoader.executeLoad ((index):3179:13)
+fetchAniList @ (index):2638
+(index):5659 [Completed] 📺 TV page 1: 20 results | First: "我们的少年时代2" (id:331830)
+(index):5659 [Completed] 📺 TV page 2: 20 results | First: "Something's Not Right" (id:331708)
+(index):5659 [Completed] 📺 TV page 3: 20 results | First: "An Amputation Obsession: The Monster and the Surgeon" (id:331701)
+(index):5659 [Completed] 📺 TV page 4: 20 results | First: "Spy Next Door: The Anna Chapman Story" (id:331102)
+(index):5662 [Completed] 🎬 Movie page 1: 20 results | First: "The Next Ordinary Television TV Movie" (id:1750513)
+(index):5662 [Completed] 🎬 Movie page 2: 20 results | First: "On Ye Monkey's Branch (or pink sands unlimited)" (id:1747017)
+(index):5662 [Completed] 🎬 Movie page 3: 20 results | First: "Despicable Nights in Heaven" (id:1750684)
+(index):5662 [Completed] 🎬 Movie page 4: 20 results | First: "Adored" (id:1748345)
+(index):3181 [Lazy Loader] ✅ #completedGrid loaded in 15157ms
+(index):7153 [System Status] Object
+(index):7153 [System Status] Object
+(index):7153 [System Status] Object
+(index):7153 [System Status] Object
+(index):7153 [System Status] Object
+(index):7153 [System Status] Object
+(index):7153 [System Status] Object
+(index):7153 [System Status] Object
+(index):7153 [System Status] Object
+(index):7153 [System Status] Object
+(index):7153 [System Status] Object
+(index):7153 [System Status] Object
+(index):7153 [System Status] Object
+(index):7153 [System Status] Object
+(index):7153 [System Status] Object
+(index):7153 [System Status] Object
+(index):7153 [System Status] Object
+(index):7153 [System Status] Object
+(index):7153 [System Status] Object
+[NEW] Explain Console errors by using Copilot in Edge: click  to explain an error. Learn moreDon't show again
+(index):7153 [System Status] {apiQueue: {…}, lazyLoader: {…}}
+(index):7153 [System Status] {apiQueue: {…}, lazyLoader: {…}}
+(index):7153 [System Status] {apiQueue: {…}, lazyLoader: {…}}
+(index):7153 [System Status] {apiQueue: {…}, lazyLoader: {…}}
+(index):7153 [System Status] {apiQueue: {…}, lazyLoader: {…}}
+(index):7153 [System Status] {apiQueue: {…}, lazyLoader: {…}}
