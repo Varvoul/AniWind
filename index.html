@@ -4327,10 +4327,10 @@ titleEl.style.color = 'transparent';
           if (isFromTVMaze) {
             // Show episode info (S#E#) for TVMaze shows
             posterBadge = s.episodeInfo || s.country || 'TV';
-            metaLine = `${s.type} · ${s.status} · ${s.country} · ${s.episodeNumber != null ? s.episodeNumber : 'N/A'}`;
+            metaLine = `${s.type} · ${s.status} · ${s.country} · ${s.episodeNumber != null ? s.episodeNumber + ' EP' : 'N/A'}`;
           } else if (isTmdbTv) {
             posterBadge = s.country || 'TV';
-            metaLine = `${s.type} · ${s.status} · ${s.country} · ${s.episodeNumber != null ? s.episodeNumber : 'N/A'}`;
+            metaLine = `${s.type} · ${s.status} · ${s.country} · ${s.episodeNumber != null ? s.episodeNumber + ' EP' : 'N/A'}`;
           } else {
             // Anilist anime: show episode count
             posterBadge = `EP ${s.episodes||'?'}`;
