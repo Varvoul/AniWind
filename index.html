@@ -2601,6 +2601,9 @@
       `;
       
       async function fetchAniList(query, variables = {}) {
+        // DEBUG: Log query info for troubleshooting
+        const isCompletedQuery = query.includes('seasonYear') && query.includes('FINISHED');
+        
         // Try direct AniList API first (fast, reliable)
         try {
           const res = await fetch(ANILIST_ENDPOINT, {
@@ -2612,11 +2615,35 @@
             body: JSON.stringify({ query, variables }),
             signal: AbortSignal.timeout(15000)
           });
+          
+          // DEBUG: Log response details for Completed section queries
+          if (isCompletedQuery) {
+            console.log(`[AniList] 📡 Direct response status: ${res.status} ${res.statusText}`);
+          }
+          
           if (res.ok) {
             const json = await res.json();
+            
+            // DEBUG: Log raw response for Completed section
+            if (isCompletedQuery) {
+              console.log(`[AniList] 🔍 Raw JSON keys:`, Object.keys(json));
+              console.log(`[AniList] 🔍 Has .data:`, !!json.data);
+              console.log(`[AniList] 🔍 Has .errors:`, !!json.errors);
+              if (json.errors) {
+                console.error(`[AniList] ❌ GraphQL Errors:`, JSON.stringify(json.errors));
+              }
+              if (json.data?.Page) {
+                console.log(`[AniList] ✅ .data.Page.media count:`, json.data.Page.media?.length || 0);
+              }
+            }
+            
             if (json.data) return json.data;
             console.warn('[AniList] GraphQL error:', json.errors);
             return null;
+          } else {
+            if (isCompletedQuery) {
+              console.warn(`[AniList] ⚠️ HTTP Error: ${res.status} ${res.statusText}`);
+            }
           }
         } catch(e) {
           console.warn('[AniList] Direct fetch failed:', e);
@@ -2630,12 +2657,30 @@
             body: JSON.stringify({ query, variables }),
             signal: AbortSignal.timeout(15000)
           });
+          
+          if (isCompletedQuery) {
+            console.log(`[AniList] 📡 Proxy response status: ${res.status} ${res.statusText}`);
+          }
+          
           if (res.ok) {
             const json = await res.json();
+            
+            if (isCompletedQuery) {
+              console.log(`[AniList] 🔍 Proxy JSON keys:`, Object.keys(json));
+              console.log(`[AniList] 🔍 Proxy has .data:`, !!json.data);
+              if (json.data?.Page) {
+                console.log(`[AniList] ✅ Proxy .data.Page.media count:`, json.data.Page.media?.length || 0);
+              }
+            }
+            
             return json?.data || null;
           }
         } catch(e) {
           console.error('[AniList] Proxy fallback failed:', e);
+        }
+        
+        if (isCompletedQuery) {
+          console.error('[AniList] ❌ Both direct and proxy failed - returning null');
         }
         return null;
       }
