@@ -5667,10 +5667,21 @@ titleEl.style.color = 'transparent';
           var anilistComp = null; // Will show empty anime but TV/Movies still work!
         } else {
           var anilistComp = anilistResult.value;
+          console.log(`[Completed] 🔍 Raw anilistComp response:`, JSON.stringify(anilistComp)?.substring(0, 500));
+          
           if (anilistComp?.Page?.media) {
             console.log(`[Completed] 🎌 Anilist success! Got ${anilistComp.Page.media.length} anime`);
+          } else if (anilistComp?.errors) {
+            console.error(`[Completed] ❌ Anilist returned errors:`, JSON.stringify(anilistComp.errors));
+          } else if (anilistComp?.data) {
+            // Might be wrapped in a data property
+            console.log(`[Completed] 📦 Response has .data property:`, Object.keys(anilistComp.data));
+            if (anilistComp.data.Page?.media) {
+              console.log(`[Completed] 🎌 Found media in data.Page! Got ${anilistComp.data.Page.media.length} anime`);
+              anilistComp = anilistComp.data; // Fix the structure
+            }
           } else {
-            console.warn(`[Completed] ⚠️ Anilist returned no media data`);
+            console.warn(`[Completed] ⚠️ Anilist returned no media data. Full response keys:`, Object.keys(anilistComp || {}));
           }
         }
 
