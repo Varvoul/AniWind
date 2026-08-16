@@ -2601,9 +2601,6 @@
       `;
       
       async function fetchAniList(query, variables = {}) {
-        // DEBUG: Log query info for troubleshooting
-        const isCompletedQuery = query.includes('seasonYear') && query.includes('FINISHED');
-        
         // Try direct AniList API first (fast, reliable)
         try {
           const res = await fetch(ANILIST_ENDPOINT, {
@@ -2616,42 +2613,13 @@
             signal: AbortSignal.timeout(15000)
           });
           
-          // DEBUG: Log response details for Completed section queries
-          if (isCompletedQuery) {
-            console.log(`[AniList] 📡 Direct response status: ${res.status} ${res.statusText}`);
-          }
-          
           if (res.ok) {
             const json = await res.json();
-            
-            // DEBUG: Log raw response for Completed section
-            if (isCompletedQuery) {
-              console.log(`[AniList] 🔍 Raw JSON keys:`, Object.keys(json));
-              console.log(`[AniList] 🔍 Has .data:`, !!json.data);
-              console.log(`[AniList] 🔍 Has .errors:`, !!json.errors);
-              if (json.errors) {
-                console.error(`[AniList] ❌ GraphQL Errors:`, JSON.stringify(json.errors, null, 2));
-              }
-              if (json.data?.Page) {
-                console.log(`[AniList] ✅ .data.Page.media count:`, json.data.Page.media?.length || 0);
-              }
-            }
-            
             if (json.data) return json.data;
             console.warn('[AniList] GraphQL error:', json.errors);
             return null;
           } else {
-            if (isCompletedQuery) {
-              // Try to read error response body for debugging
-              try {
-                const errorBody = await res.json();
-                console.error(`[AniList] ❌ HTTP ${res.status} Error Response:`, JSON.stringify(errorBody, null, 2));
-              } catch (e) {
-                console.warn(`[AniList] ⚠️ HTTP Error: ${res.status} ${res.statusText} (could not read body)`);
-              }
-            } else {
-              console.warn(`[AniList] ⚠️ HTTP Error: ${res.status} ${res.statusText}`);
-            }
+            console.warn(`[AniList] HTTP Error: ${res.status} ${res.statusText}`);
           }
         } catch(e) {
           console.warn('[AniList] Direct fetch failed:', e);
@@ -2666,30 +2634,14 @@
             signal: AbortSignal.timeout(15000)
           });
           
-          if (isCompletedQuery) {
-            console.log(`[AniList] 📡 Proxy response status: ${res.status} ${res.statusText}`);
-          }
-          
           if (res.ok) {
             const json = await res.json();
-            
-            if (isCompletedQuery) {
-              console.log(`[AniList] 🔍 Proxy JSON keys:`, Object.keys(json));
-              console.log(`[AniList] 🔍 Proxy has .data:`, !!json.data);
-              if (json.data?.Page) {
-                console.log(`[AniList] ✅ Proxy .data.Page.media count:`, json.data.Page.media?.length || 0);
-              }
-            }
-            
             return json?.data || null;
           }
         } catch(e) {
           console.error('[AniList] Proxy fallback failed:', e);
         }
         
-        if (isCompletedQuery) {
-          console.error('[AniList] ❌ Both direct and proxy failed - returning null');
-        }
         return null;
       }
 
@@ -5688,9 +5640,7 @@ titleEl.style.color = 'transparent';
               targetYear = currentYear - 1;
             }
             
-            console.log(`[Completed] 🎌 Fetching TV anime finished in ${targetYear} (dynamic year)`);
-            
-            // Build query and log it for debugging
+            // Build query for recently completed TV anime
             const completedQuery = `
               query ($year: Int, $page: Int, $perPage: Int) {
                 Page(page: $page, perPage: $perPage) {
@@ -5710,10 +5660,6 @@ titleEl.style.color = 'transparent';
             
             const completedVars = { year: targetYear, page: page, perPage: 100 };
             
-            // DEBUG: Log exact query and variables being sent!
-            console.log(`[Completed] 🔬 Query being sent (first 200 chars):`, completedQuery.trim().substring(0, 200));
-            console.log(`[Completed] 🔬 Variables:`, JSON.stringify(completedVars));
-            
             // Use QUEUED fetch with retry logic (fixes CORS/timeout issues!)
             return await queuedFetchAniList(completedQuery, completedVars);
           })()
@@ -5729,7 +5675,6 @@ titleEl.style.color = 'transparent';
           var anilistComp = null; // Will show empty anime but TV/Movies still work!
         } else {
           var anilistComp = anilistResult.value;
-          console.log(`[Completed] 🔍 Raw anilistComp response:`, JSON.stringify(anilistComp)?.substring(0, 500));
           
           if (anilistComp?.Page?.media) {
             console.log(`[Completed] 🎌 Anilist success! Got ${anilistComp.Page.media.length} anime`);
@@ -5737,13 +5682,9 @@ titleEl.style.color = 'transparent';
             console.error(`[Completed] ❌ Anilist returned errors:`, JSON.stringify(anilistComp.errors));
           } else if (anilistComp?.data) {
             // Might be wrapped in a data property
-            console.log(`[Completed] 📦 Response has .data property:`, Object.keys(anilistComp.data));
             if (anilistComp.data.Page?.media) {
-              console.log(`[Completed] 🎌 Found media in data.Page! Got ${anilistComp.data.Page.media.length} anime`);
               anilistComp = anilistComp.data; // Fix the structure
             }
-          } else {
-            console.warn(`[Completed] ⚠️ Anilist returned no media data. Full response keys:`, Object.keys(anilistComp || {}));
           }
         }
 
@@ -5776,9 +5717,7 @@ titleEl.style.color = 'transparent';
         // final anime count nearly as much.
         let anilistItems = [];
         if (anilistComp?.Page?.media) {
-          console.log(`[Completed] 🎌 Anilist returned ${anilistComp.Page.media.length} raw anime`);
           const candidates = anilistComp.Page.media.slice(0, TARGET_SHOWS * 2).filter(m => !m.isAdult);
-          console.log(`[Completed] 📋 After adult filter: ${candidates.length} candidates (TARGET_SHOWS=${TARGET_SHOWS})`);
           const resolved = await mapWithConcurrency(candidates, 3, async (m) => {
             let malId = m.idMal || null;
             if (!malId) {
@@ -5786,14 +5725,8 @@ titleEl.style.color = 'transparent';
             }
             // Still no confident mal_id after backfill attempt — skip this
             // one rather than risk a broken or (worse) wrong-anime link.
-            if (!malId) {
-              console.warn(`[Completed] ⚠️ Skipping "${m.title?.romaji}" - no MAL ID`);
-              return null;
-            }
+            if (!malId) return null;
             const internal = anilistToInternal(m);
-            
-            // DEBUG: Log each successful conversion
-            console.log(`[Completed] ✅ Converted: ${internal.title} (MAL:${malId}, poster:${internal.poster ? 'YES' : 'NO'})`);
             
             return {
               id:`anilist-comp-${m.id}`,
@@ -5807,9 +5740,6 @@ titleEl.style.color = 'transparent';
             };
           });
           anilistItems = resolved.filter(Boolean);
-          console.log(`[Completed] 🎊 Final anilistItems count: ${anilistItems.length}`);
-        } else {
-          console.error(`[Completed] ❌ No anilistComp.Page.media! anilistComp=`, anilistComp);
         }
 
         if (requestId !== _completedRequestId) return;
@@ -5838,21 +5768,15 @@ titleEl.style.color = 'transparent';
         const anilistItemsFiltered = anilistItems.filter(a =>
           a.poster && a.poster !== '' && a.poster !== 'null' && a.poster !== 'undefined'
         );
-        
-        console.log(`[Completed] 📊 After poster filter: ${anilistItemsFiltered.length}/${anilistItems.length} anime`);
-        console.log(`[Completed] 📺 TMDB TV items: ${tmdbTvItems.length}`);
-        console.log(`[Completed] 🎬 TMDB Movie items: ${tmdbMovieItems.length}`);
 
         // Interleave in [Anime][TV][Movie] ratio, repeating.
         const interleaved = [];
         const maxLen = Math.max(anilistItemsFiltered.length, tmdbTvItems.length, tmdbMovieItems.length);
-        console.log(`[Completed] 🔀 Interleaving (maxLen=${maxLen})...`);
         for (let i = 0; i < maxLen; i++) {
           if (i < anilistItemsFiltered.length) interleaved.push(anilistItemsFiltered[i]);
           if (i < tmdbTvItems.length)          interleaved.push(tmdbTvItems[i]);
           if (i < tmdbMovieItems.length)        interleaved.push(tmdbMovieItems[i]);
         }
-        console.log(`[Completed] ✅ Total interleaved items: ${interleaved.length}`);
         // Trim to exactly 6 complete rows (no incomplete last row!)
         const trimTo = Math.min(Math.floor(interleaved.length/cols)*cols, TARGET_SHOWS);
         const list = interleaved.slice(0, trimTo || TARGET_SHOWS);
