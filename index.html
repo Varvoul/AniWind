@@ -2630,7 +2630,7 @@
               console.log(`[AniList] 🔍 Has .data:`, !!json.data);
               console.log(`[AniList] 🔍 Has .errors:`, !!json.errors);
               if (json.errors) {
-                console.error(`[AniList] ❌ GraphQL Errors:`, JSON.stringify(json.errors));
+                console.error(`[AniList] ❌ GraphQL Errors:`, JSON.stringify(json.errors, null, 2));
               }
               if (json.data?.Page) {
                 console.log(`[AniList] ✅ .data.Page.media count:`, json.data.Page.media?.length || 0);
@@ -2642,6 +2642,14 @@
             return null;
           } else {
             if (isCompletedQuery) {
+              // Try to read error response body for debugging
+              try {
+                const errorBody = await res.json();
+                console.error(`[AniList] ❌ HTTP ${res.status} Error Response:`, JSON.stringify(errorBody, null, 2));
+              } catch (e) {
+                console.warn(`[AniList] ⚠️ HTTP Error: ${res.status} ${res.statusText} (could not read body)`);
+              }
+            } else {
               console.warn(`[AniList] ⚠️ HTTP Error: ${res.status} ${res.statusText}`);
             }
           }
@@ -5682,23 +5690,32 @@ titleEl.style.color = 'transparent';
             
             console.log(`[Completed] 🎌 Fetching TV anime finished in ${targetYear} (dynamic year)`);
             
-            // Use QUEUED fetch with retry logic (fixes CORS/timeout issues!)
-            return await queuedFetchAniList(`
+            // Build query and log it for debugging
+            const completedQuery = `
               query ($year: Int, $page: Int, $perPage: Int) {
                 Page(page: $page, perPage: $perPage) {
                   media(
                     type: ANIME, 
                     status: FINISHED, 
-                    format_in: [TV, TV_SHORT],        // ← TV ONLY (no music/specials!)
-                    seasonYear: $year,                  // ← DYNAMIC YEAR
+                    format_in: [TV, TV_SHORT],
+                    seasonYear: $year,
                     isAdult: false, 
-                    sort: [END_DATE_DESC]               // ← Recent → Old
+                    sort: [END_DATE_DESC]
                   ) {
                     ${ANILIST_ANIME_FIELDS}
                   }
                 }
               }
-            `, { year: targetYear, page: page, perPage: 100 });
+            `;
+            
+            const completedVars = { year: targetYear, page: page, perPage: 100 };
+            
+            // DEBUG: Log exact query and variables being sent!
+            console.log(`[Completed] 🔬 Query being sent (first 200 chars):`, completedQuery.trim().substring(0, 200));
+            console.log(`[Completed] 🔬 Variables:`, JSON.stringify(completedVars));
+            
+            // Use QUEUED fetch with retry logic (fixes CORS/timeout issues!)
+            return await queuedFetchAniList(completedQuery, completedVars);
           })()
         ]);
 
