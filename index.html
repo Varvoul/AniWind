@@ -2167,7 +2167,7 @@
         <div class="esw-head">
           <div class="esw-head-title">
             <i class="fas fa-calendar-alt"></i>
-            <span>Schedule</span>
+            <span>Estimate Schedule</span>
           </div>
           <div class="esw-clock-container">
             <i class="fas fa-globe-americas esw-clock-icon"></i>
@@ -4270,7 +4270,7 @@ titleEl.style.color = 'transparent';
               episodeNumber: item.tvmaze._episode ? item.tvmaze._episode.number : null,
               voteCount: item.tmdb.vote_count || 0,
               _source: 'tvmaze',
-              episodeInfo: item.tvmaze._episode ? `S${item.tvmaze._episode.season}E${item.tvmaze._episode.number}` : null
+              episodeInfo: item.tvmaze._episode ? `E${item.tvmaze._episode.number}` : null
             }))
             .slice(0, 20);
             
@@ -4547,7 +4547,7 @@ titleEl.style.color = 'transparent';
               poster:tmdbImg(item.tmdb.poster_path), 
               type:'TV',
               score:(item.tmdb.vote_average||0).toFixed(1), 
-              details: item.tvmaze._episode ? `S${item.tvmaze._episode.season}E${item.tvmaze._episode.number}` : 'S?', 
+              details: item.tvmaze._episode ? `E${item.tvmaze._episode.number}` : 'E?', 
               cert:'PG-13', 
               quality:'HD',
               _source: 'tvmaze'
@@ -6381,7 +6381,7 @@ titleEl.style.color = 'transparent';
           const poster = show.image?.medium || show.image?.original || '';
           const watchUrl = show.url || '#';
           const time = ep.airtime && ep.airtime.trim() ? ep.airtime : '—';
-          const epLabel = (ep.season && ep.number) ? `S${ep.season}E${ep.number}` : 'TV';
+          const epLabel = (ep.number) ? `E${ep.number}` : 'TV';
           const subtitle = `TV · ${show._sourceCountry || tvResult.country || ''}`;
 
           return {
