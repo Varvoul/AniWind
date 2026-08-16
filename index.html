@@ -5620,7 +5620,8 @@ titleEl.style.color = 'transparent';
           // not music videos, specials, or random ONAs.
           // DYNAMIC YEAR: Automatically uses current/recent season year
           // SORT: END_DATE_DESC = newest completions first (page 1 = most recent)
-          (() => {
+          // Uses QUEUED fetch with automatic retry on timeout!
+          (async () => {
             const now = new Date();
             const currentYear = now.getFullYear();
             const currentMonth = now.getMonth() + 1; // 1-12
@@ -5635,7 +5636,8 @@ titleEl.style.color = 'transparent';
             
             console.log(`[Completed] 🎌 Fetching TV anime finished in ${targetYear} (dynamic year)`);
             
-            return fetchAniList(`
+            // Use QUEUED fetch with retry logic (fixes CORS/timeout issues!)
+            return await queuedFetchAniList(`
               query ($year: Int, $page: Int, $perPage: Int) {
                 Page(page: $page, perPage: $perPage) {
                   media(
