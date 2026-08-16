@@ -5612,7 +5612,8 @@ titleEl.style.color = 'transparent';
         const movieFetches = Array.from({length: tmdbPagesNeeded}, (_, i) =>
           fetchTMDB('/discover/movie', `sort_by=release_date.desc&with_release_type=2|3&release_date.gte=${sixMonthsAgo}&release_date.lte=${today}&page=${page+i}`));
 
-        const [tvResults, movieResults, anilistComp] = await Promise.all([
+        // Use Promise.allSettled so Anilist failure doesn't kill TV/Movie data!
+        const [tvResult, movieResult, anilistResult] = await Promise.allSettled([
           Promise.all(tvFetches),
           Promise.all(movieFetches),
           // AniList: Pure recently completed TV ANIME only!
@@ -5655,6 +5656,23 @@ titleEl.style.color = 'transparent';
             `, { year: targetYear, page: page, perPage: 100 });
           })()
         ]);
+
+        // Extract results safely (handle both success and failure)
+        const tvResults = tvResult.status === 'fulfilled' ? tvResult.value : [];
+        const movieResults = movieResult.status === 'fulfilled' ? movieResult.value : [];
+        
+        // Log Anilist status specifically
+        if (anilistResult.status === 'rejected') {
+          console.error(`[Completed] ❌ Anilist fetch FAILED:`, anilistResult.reason?.message || anilistResult.reason);
+          var anilistComp = null; // Will show empty anime but TV/Movies still work!
+        } else {
+          var anilistComp = anilistResult.value;
+          if (anilistComp?.Page?.media) {
+            console.log(`[Completed] 🎌 Anilist success! Got ${anilistComp.Page.media.length} anime`);
+          } else {
+            console.warn(`[Completed] ⚠️ Anilist returned no media data`);
+          }
+        }
 
         // DEBUG: Log first item from each TMDB page to verify pagination works
         tvResults.forEach((r, i) => {
