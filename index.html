@@ -5703,7 +5703,9 @@ titleEl.style.color = 'transparent';
         // final anime count nearly as much.
         let anilistItems = [];
         if (anilistComp?.Page?.media) {
+          console.log(`[Completed] 🎌 Anilist returned ${anilistComp.Page.media.length} raw anime`);
           const candidates = anilistComp.Page.media.slice(0, TARGET_SHOWS * 2).filter(m => !m.isAdult);
+          console.log(`[Completed] 📋 After adult filter: ${candidates.length} candidates (TARGET_SHOWS=${TARGET_SHOWS})`);
           const resolved = await mapWithConcurrency(candidates, 3, async (m) => {
             let malId = m.idMal || null;
             if (!malId) {
@@ -5711,8 +5713,15 @@ titleEl.style.color = 'transparent';
             }
             // Still no confident mal_id after backfill attempt — skip this
             // one rather than risk a broken or (worse) wrong-anime link.
-            if (!malId) return null;
+            if (!malId) {
+              console.warn(`[Completed] ⚠️ Skipping "${m.title?.romaji}" - no MAL ID`);
+              return null;
+            }
             const internal = anilistToInternal(m);
+            
+            // DEBUG: Log each successful conversion
+            console.log(`[Completed] ✅ Converted: ${internal.title} (MAL:${malId}, poster:${internal.poster ? 'YES' : 'NO'})`);
+            
             return {
               id:`anilist-comp-${m.id}`,
               mal_id: malId,
@@ -5725,6 +5734,9 @@ titleEl.style.color = 'transparent';
             };
           });
           anilistItems = resolved.filter(Boolean);
+          console.log(`[Completed] 🎊 Final anilistItems count: ${anilistItems.length}`);
+        } else {
+          console.error(`[Completed] ❌ No anilistComp.Page.media! anilistComp=`, anilistComp);
         }
 
         if (requestId !== _completedRequestId) return;
@@ -5753,15 +5765,21 @@ titleEl.style.color = 'transparent';
         const anilistItemsFiltered = anilistItems.filter(a =>
           a.poster && a.poster !== '' && a.poster !== 'null' && a.poster !== 'undefined'
         );
+        
+        console.log(`[Completed] 📊 After poster filter: ${anilistItemsFiltered.length}/${anilistItems.length} anime`);
+        console.log(`[Completed] 📺 TMDB TV items: ${tmdbTvItems.length}`);
+        console.log(`[Completed] 🎬 TMDB Movie items: ${tmdbMovieItems.length}`);
 
         // Interleave in [Anime][TV][Movie] ratio, repeating.
         const interleaved = [];
         const maxLen = Math.max(anilistItemsFiltered.length, tmdbTvItems.length, tmdbMovieItems.length);
+        console.log(`[Completed] 🔀 Interleaving (maxLen=${maxLen})...`);
         for (let i = 0; i < maxLen; i++) {
           if (i < anilistItemsFiltered.length) interleaved.push(anilistItemsFiltered[i]);
           if (i < tmdbTvItems.length)          interleaved.push(tmdbTvItems[i]);
           if (i < tmdbMovieItems.length)        interleaved.push(tmdbMovieItems[i]);
         }
+        console.log(`[Completed] ✅ Total interleaved items: ${interleaved.length}`);
         // Trim to exactly 6 complete rows (no incomplete last row!)
         const trimTo = Math.min(Math.floor(interleaved.length/cols)*cols, TARGET_SHOWS);
         const list = interleaved.slice(0, trimTo || TARGET_SHOWS);
