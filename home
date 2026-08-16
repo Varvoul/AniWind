@@ -2167,7 +2167,7 @@
         <div class="esw-head">
           <div class="esw-head-title">
             <i class="fas fa-calendar-alt"></i>
-            <span>Schedule</span>
+            <span>Estimate Schedule</span>
           </div>
           <div class="esw-clock-container">
             <i class="fas fa-globe-americas esw-clock-icon"></i>
@@ -2896,6 +2896,359 @@
         await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
         return results;
       }
+
+      /* ═════════════════════════════════════════════════════════════════════
+         OPTIMIZED API QUEUE SYSTEM v2.0
+         - Scroll-based lazy loading (IntersectionObserver)
+         - Request throttling (max 3 concurrent)
+         - Automatic retry with exponential backoff
+         - Respectful delays between requests
+         ═════════════════════════════════════════════════════════════════════ */
+
+      // ─── GLOBAL CONFIGURATION ─────────────────────────────────────────────
+      const API_QUEUE_CONFIG = {
+        maxConcurrent: 3,          // Max simultaneous API calls
+        delayBetweenMs: 800,       // Delay between request batches
+        retryMaxAttempts: 3,       // Max retries per failed request
+        retryBaseDelayMs: 1000,    // Initial retry delay (doubles each attempt)
+        lazyLoadRootMargin: '200px', // Start loading 200px before visible
+        prioritySections: {
+          hero: { priority: 1, immediate: true },       // Load immediately
+          topAiring: { priority: 2, delay: 300 },       // After hero + 300ms
+          newReleases: { priority: 3, lazy: true },     // When visible
+          newAniocean: { priority: 4, lazy: true },     // When visible
+          upcoming: { priority: 5, lazy: true },        // When visible
+          completed: { priority: 6, lazy: true },       // When visible
+          trending: { priority: 7, lazy: true },       // When visible
+          popular: { priority: 8, lazy: true },        // When visible
+          popularAnime: { priority: 9, lazy: true },   // When visible
+          schedule: { priority: 10, lazy: true }       // When visible (heaviest!)
+        }
+      };
+
+      // ─── API REQUEST QUEUE MANAGER ─────────────────────────────────────────
+      class ApiQueueManager {
+        constructor() {
+          this.queue = [];
+          this.activeCount = 0;
+          this.isProcessing = false;
+          this.requestLog = []; // For debugging
+          
+          console.log('[API Queue] 🚀 Initialized with maxConcurrent=' + API_QUEUE_CONFIG.maxConcurrent);
+        }
+
+        // Add a request to the queue
+        async enqueue(fetchFn, options = {}) {
+          const {
+            id = `req-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+            priority = 5,
+            retryCount = 0,
+            originalFn = fetchFn
+          } = options;
+
+          return new Promise((resolve, reject) => {
+            this.queue.push({
+              id,
+              fetchFn,
+              originalFn,
+              priority,
+              retryCount,
+              resolve,
+              reject,
+              addedAt: Date.now()
+            });
+            
+            // Sort by priority (lower = higher priority)
+            this.queue.sort((a, b) => a.priority - b.priority);
+            
+            this.processQueue();
+          });
+        }
+
+        // Process the queue with throttling
+        async processQueue() {
+          if (this.isProcessing) return;
+          this.isProcessing = true;
+
+          while (this.queue.length > 0) {
+            // Wait for slot availability
+            while (this.activeCount >= API_QUEUE_CONFIG.maxConcurrent) {
+            await this.delay(API_QUEUE_CONFIG.delayBetweenMs);
+            }
+
+            const request = this.queue.shift();
+            if (!request) break;
+
+            this.activeCount++;
+            const startTime = Date.now();
+            
+            console.log(`[API Queue] ▶️ [${request.id}] Priority ${request.priority} | Active: ${this.activeCount}/${API_QUEUE_CONFIG.maxConcurrent} | Queue: ${this.queue.length}`);
+
+            // Execute with timeout protection
+            try {
+              const result = await Promise.race([
+                request.fetchFn(),
+                new Promise((_, reject) => 
+                  setTimeout(() => reject(new Error('REQUEST_TIMEOUT')), 15000)
+                )
+              ]);
+              
+              const duration = Date.now() - startTime;
+              console.log(`[API Queue] ✅ [${request.id}] Completed in ${duration}ms`);
+              
+              request.resolve(result);
+              this.logRequest(request.id, 'success', duration);
+            } catch (error) {
+              const duration = Date.now() - startTime;
+              console.warn(`[API Queue] ❌ [${request.id}] Failed: ${error.message} (${duration}ms)`);
+              
+              // Retry logic with exponential backoff
+              if (request.retryCount < API_QUEUE_CONFIG.retryMaxAttempts) {
+                const retryDelay = API_QUEUE_CONFIG.retryBaseDelayMs * Math.pow(2, request.retryCount);
+                console.log(`[API Queue] 🔄 [${request.id}] Retry ${request.retryCount + 1}/${API_QUEUE_CONFIG.retryMaxAttempts} in ${retryDelay}ms...`);
+                
+                await this.delay(retryDelay);
+                
+                // Re-enqueue with incremented retry count
+                this.queue.push({
+                  ...request,
+                  retryCount: request.retryCount + 1,
+                  priority: request.priority + 0.1 // Slightly lower priority
+                });
+                
+                this.logRequest(request.id, 'retry', duration, request.retryCount + 1);
+              } else {
+                console.error(`[API Queue] 💀 [${request.id}] All retries exhausted`);
+                this.logRequest(request.id, 'failed', duration, -1);
+                request.reject(error);
+              }
+            } finally {
+              this.activeCount--;
+            }
+
+            // Respectful delay between requests
+            if (this.queue.length > 0 && this.activeCount < API_QUEUE_CONFIG.maxConcurrent) {
+            await this.delay(API_QUEUE_CONFIG.delayBetweenMs / 2);
+            }
+          }
+
+          this.isProcessing = false;
+        }
+
+        // Utility delay helper
+        delay(ms) {
+          return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // Log request for debugging
+        logRequest(id, status, duration, retry = 0) {
+          this.requestLog.push({
+            id,
+            status,
+            duration,
+            retry,
+            timestamp: new Date().toISOString()
+          });
+          
+          // Keep only last 50 entries
+          if (this.requestLog.length > 50) {
+            this.requestLog = this.requestLog.slice(-50);
+          }
+        }
+
+        // Get queue status for debugging
+        getStatus() {
+          return {
+            queueLength: this.queue.length,
+            activeCount: this.activeCount,
+            isProcessing: this.isProcessing,
+            totalProcessed: this.requestLog.length,
+            recentRequests: this.requestLog.slice(-10)
+          };
+        }
+      }
+
+      // Global singleton instance
+      const apiQueue = new ApiQueueManager();
+      window.apiQueue = apiQueue; // Expose for debugging
+
+      // ─── WRAPPED FETCH FUNCTIONS WITH RETRY ────────────────────────────────
+      // These wrap existing fetch functions with automatic queuing and retry
+
+      async function queuedFetchTMDB(endpoint, params) {
+        return apiQueue.enqueue(
+          () => fetchTMDB(endpoint, params),
+          { id: `tmdb-${endpoint.replace('/', '-')}`, priority: 2 }
+        );
+      }
+
+      async function queuedFetchAniList(query, variables) {
+        return apiQueue.enqueue(
+          () => fetchAniList(query, variables),
+          { id: `anilist-${Date.now() % 10000}`, priority: 3 }
+        );
+      }
+
+      async function queuedGetTVMazeShows(maxShows, useMultiCountry) {
+        return apiQueue.enqueue(
+          () => getTVMazeShowsWithTMDBData(maxShows, useMultiCountry),
+          { id: `tvmaze-${Date.now() % 10000}`, priority: 4 }
+        );
+      }
+
+      // ─── SCROLL-BASED LAZY LOADER ─────────────────────────────────────────
+      class SectionLazyLoader {
+        constructor() {
+          this.observer = null;
+          this.loadedSections = new Set();
+          this.pendingSections = new Map();
+          
+          console.log('[Lazy Loader] 📜 Initialized');
+        }
+
+        init() {
+          // Create Intersection Observer with root margin for early triggering
+          this.observer = new IntersectionObserver(
+            (entries) => this.handleIntersection(entries),
+            {
+              root: null, // viewport
+              rootMargin: API_QUEUE_CONFIG.lazyLoadRootMargin,
+              threshold: 0 // Trigger as soon as any part is near viewport
+            }
+          );
+          
+          console.log('[Lazy Loader] 👁️ Observer created with rootMargin=' + API_QUEUE_CONFIG.lazyLoadRootMargin);
+        }
+
+        // Register a section for lazy loading
+        register(sectionId, loadFn, options = {}) {
+          const element = document.getElementById(sectionId);
+          if (!element) {
+            console.warn(`[Lazy Loader] ⚠️ Element #${sectionId} not found`);
+            return;
+          }
+
+          const config = {
+            sectionId,
+            loadFn,
+            immediate: options.immediate || false,
+            delay: options.delay || 0,
+            priority: options.priority || 5,
+            loaded: false
+          };
+
+          if (config.immediate) {
+            // Load immediately with optional delay
+            if (config.delay > 0) {
+              setTimeout(() => this.executeLoad(config), config.delay);
+            } else {
+              this.executeLoad(config);
+            }
+          } else {
+            // Observe for lazy loading
+            this.pendingSections.set(sectionId, config);
+            this.observer.observe(element);
+            console.log(`[Lazy Loader] 📋 Registered #${sectionId} for lazy loading (priority ${config.priority})`);
+          }
+        }
+
+        handleIntersection(entries) {
+          entries.forEach(entry => {
+            if (entry.isIntersecting) {
+              const sectionId = entry.target.id;
+              const config = this.pendingSections.get(sectionId);
+              
+              if (config && !config.loaded) {
+                console.log(`[Lazy Loader] 👀 #${sectionId} is visible, loading now...`);
+                this.executeLoad(config);
+                this.observer.unobserve(entry.target);
+              }
+            }
+          });
+        }
+
+        async executeLoad(config) {
+          if (this.loadedSections.has(config.sectionId)) return;
+          this.loadedSections.add(config.sectionId);
+          config.loaded = true;
+          
+          const startTime = Date.now();
+          console.log(`[Lazy Loader] 🚀 Loading #${config.sectionId}...`);
+          
+          try {
+            await config.loadFn();
+            const duration = Date.now() - startTime;
+            console.log(`[Lazy Loader] ✅ #${config.sectionId} loaded in ${duration}ms`);
+          } catch (error) {
+            const duration = Date.now() - startTime;
+            console.error(`[Lazy Loader] ❌ #${config.sectionId} failed after ${duration}ms:`, error);
+            
+// Show error state in section
+            this.showErrorState(config.sectionId, error.message);
+          }
+        }
+
+        showErrorState(sectionId, message) {
+          // Find container and show error/retry UI
+          const containers = {
+            topAiringList: 'topAiringScroll',
+            newReleasesList: 'newReleasesGrid',
+            upcomingList: 'upcomingScroll',
+            popularAnimeList: 'popularAnimeList'
+          };
+          
+          const containerId = containers[sectionId] || `${sectionId}Container`;
+          const container = document.getElementById(containerId) || document.getElementById(sectionId);
+          
+          if (container) {
+            container.innerHTML = `
+              <div style="flex:0 0 auto;width:100%;text-align:center;padding:40px 20px;color:var(--text-muted);">
+                <div style="font-size:2rem;margin-bottom:12px;">⚠️</div>
+                <div style="margin-bottom:8px;">Failed to load content</div>
+                <div style="font-size:0.8rem;opacity:0.7;">${message}</div>
+                <button onclick="window.lazyLoader.reloadSection('${sectionId}')" 
+                        style="margin-top:16px;padding:8px 20px;background:var(--btn-primary);color:#fff;border:none;border-radius:var(--radius-md);cursor:pointer;">
+                  Try Again
+                </button>
+              </div>
+            `;
+          }
+        }
+
+        // Manual reload for failed sections
+        async reloadSection(sectionId) {
+          this.loadedSections.delete(sectionId);
+          const config = Array.from(this.pendingSections.values()).find(c => c.sectionId === sectionId);
+          if (config) {
+            config.loaded = false;
+            // Re-inject skeleton then reload
+            injectSkeletons();
+            await this.executeLoad(config);
+          }
+        }
+
+        // Force load all remaining sections (for users who scroll very fast)
+        loadAllRemaining() {
+          console.log(`[Lazy Loader] ⚡ Force-loading ${this.pendingSections.size} remaining sections...`);
+          this.pendingSections.forEach((config, sectionId) => {
+            if (!config.loaded) {
+              this.executeLoad(config);
+            }
+          });
+        }
+
+        getStatus() {
+          return {
+            loadedSections: Array.from(this.loadedSections),
+            pendingSections: Array.from(this.pendingSections.keys()),
+            totalRegistered: this.loadedSections.size + this.pendingSections.size
+          };
+        }
+      }
+
+      // Global singleton instance
+      const lazyLoader = new SectionLazyLoader();
+      window.lazyLoader = lazyLoader; // Expose for debugging
 
       /* ── NEW ON ANIOCEAN ── */
      /* Store fetched data for popup lookup */
@@ -4270,7 +4623,7 @@ titleEl.style.color = 'transparent';
               episodeNumber: item.tvmaze._episode ? item.tvmaze._episode.number : null,
               voteCount: item.tmdb.vote_count || 0,
               _source: 'tvmaze',
-              episodeInfo: item.tvmaze._episode ? `S${item.tvmaze._episode.season}E${item.tvmaze._episode.number}` : null
+              episodeInfo: item.tvmaze._episode ? `E${item.tvmaze._episode.number}` : null
             }))
             .slice(0, 20);
             
@@ -4479,6 +4832,9 @@ titleEl.style.color = 'transparent';
 
       async function loadNewReleases() {
         
+        console.log('[New Releases] 🚀 Starting optimized fetch with API queue...');
+        const startTime = Date.now();
+        
         // Calculate target shows for 6 complete rows
         function calcColsForGrid() {
           const w = window.innerWidth;
@@ -4493,28 +4849,47 @@ titleEl.style.color = 'transparent';
         const cols = calcColsForGrid();
         const TARGET_SHOWS = TARGET_ROWS * cols; // 42-48 shows
         
-        // Fetch using TVMaze for TV (PRIMARY!) + TMDB for movies + AniList for anime
-        const [nowMovies, nowMovies2, tvmazeTvShows, anilistNow] = await Promise.all([
-          fetchTMDB('/movie/now_playing', `page=1`),
-          fetchTMDB('/movie/now_playing', `page=2`),
-          // PRIMARY: TVMaze for truly airing TV shows!
-          getTVMazeShowsWithTMDBData(30),
-          // AniList: Current season anime (replacing Jikan seasons/now)
-          fetchAniList(`
-            query ($perPage: Int) {
-              Page(page: 1, perPage: $perPage) {
-                media(type: ANIME, status: RELEASING, isAdult: false, sort: [TRENDING_DESC, POPULARITY_DESC]) {
-                  ${ANILIST_ANIME_FIELDS}
+        // ─── OPTIMIZED: Use queued API calls with automatic retry ───
+        // Each call goes through the API Queue Manager which:
+        // - Limits concurrent requests to 3
+        // - Adds 800ms delay between batches
+        // - Retries failed requests up to 3 times with exponential backoff
+        
+        try {
+          // Fetch all sources using QUEUED calls (throttled + retry)
+          const [nowMovies, nowMovies2, tvmazeTvShows, anilistNow] = await Promise.allSettled([
+            queuedFetchTMDB('/movie/now_playing', `page=1`),
+            queuedFetchTMDB('/movie/now_playing', `page=2`),
+            // PRIMARY: TVMaze for truly airing TV shows!
+            queuedGetTVMazeShows(30),
+            // AniList: Current season anime (HIGHEST PRIORITY - was timing out!)
+            queuedFetchAniList(`
+              query ($perPage: Int) {
+                Page(page: 1, perPage: $perPage) {
+                  media(type: ANIME, status: RELEASING, isAdult: false, sort: [TRENDING_DESC, POPULARITY_DESC]) {
+                    ${ANILIST_ANIME_FIELDS}
+                  }
                 }
               }
-            }
-          `, { perPage: 50 })
-        ]);
+            `, { perPage: 50 })
+          ]);
+          // Extract results safely (handle both settled and direct values)
+          const extractResult = (result) => result.status === 'fulfilled' ? result.value : null;
+          const movies1 = extractResult(nowMovies);
+          const movies2 = extractResult(nowMovies2);
+          const tvmazeRaw = extractResult(tvmazeTvShows);
+          const anilistRaw = extractResult(anilistNow);
+          
+          // Log any failures for debugging
+          if (nowMovies.status === 'rejected') console.warn('[New Releases] ⚠️ TMDB Movies Page 1 failed:', nowMovies.reason?.message);
+          if (nowMovies2.status === 'rejected') console.warn('[New Releases] ⚠️ TMDB Movies Page 2 failed:', nowMovies2.reason?.message);
+          if (tvmazeTvShows.status === 'rejected') console.warn('[New Releases] ⚠️ TVMaze failed:', tvmazeTvShows.reason?.message);
+          if (anilistNow.status === 'rejected') console.error('[New Releases] ❌ Anilist FAILED (this was causing empty anime!):', anilistNow.reason?.message);
         
         // Merge multiple pages for each source
         // 🎯 MOVIE FILTER: Only keep movies released in CURRENT YEAR (fresh content!)
         const currentYearForMovies = new Date().getFullYear().toString();
-        const allMovies = [...(nowMovies.results||[]), ...(nowMovies2.results||[])]
+        const allMovies = [...(movies1?.results||[]), ...(movies2?.results||[])]
           .filter(i => {
             // Must have poster image
             if (!i.poster_path) return false;
@@ -4534,7 +4909,7 @@ titleEl.style.color = 'transparent';
         let allTv = [];
         
         // Handle both Promise.allSettled format AND direct array result
-        const tvmazeResult = tvmazeTvShows.status ? tvmazeTvShows.value : tvmazeTvShows;
+        const tvmazeResult = tvmazeRaw?.status ? tvmazeRaw.value : tvmazeRaw;
         
         if (Array.isArray(tvmazeResult) && tvmazeResult.length > 0) {
           console.log(`[New Releases] 📺 Using TVMaze for TV: ${tvmazeResult.length} shows`);
@@ -4547,7 +4922,7 @@ titleEl.style.color = 'transparent';
               poster:tmdbImg(item.tmdb.poster_path), 
               type:'TV',
               score:(item.tmdb.vote_average||0).toFixed(1), 
-              details: item.tvmaze._episode ? `S${item.tvmaze._episode.season}E${item.tvmaze._episode.number}` : 'S?', 
+              details: item.tvmaze._episode ? `E${item.tvmaze._episode.number}` : 'E?', 
               cert:'PG-13', 
               quality:'HD',
               _source: 'tvmaze'
@@ -4575,8 +4950,9 @@ titleEl.style.color = 'transparent';
         
         // Convert AniList data (replacing Jikan seasons/now)
         const anime = [];
-        if (anilistNow?.Page?.media) {
-          for (const m of anilistNow.Page.media.slice(0, TARGET_SHOWS)) {
+        if (anilistRaw?.Page?.media) {
+          console.log(`[New Releases] 🎌 Anilist success! Got ${anilistRaw.Page.media.length} anime`);
+          for (const m of anilistRaw.Page.media.slice(0, TARGET_SHOWS)) {
             if (!m.isAdult) {
               const internal = anilistToInternal(m);
               anime.push({
@@ -4626,6 +5002,35 @@ titleEl.style.color = 'transparent';
         _newReleasesCache = allReleases;
         updateNewReleasesCounts();
         renderNewReleases('all');
+        
+        const duration = Date.now() - startTime;
+        console.log(`[New Releases] ✅ Completed in ${duration}ms (with API queue optimization)`);
+        
+        // Note: If anilistRaw is null, anime array will be empty but TV/Movies will still show
+        if (!anilistRaw?.Page?.media) {
+          console.error('[New Releases] 💀 Anilist completely failed after all retries! Anime will be missing.');
+        }
+        
+        } catch (error) {
+          const duration = Date.now() - startTime;
+          console.error(`[New Releases] ❌ Failed after ${duration}ms:`, error);
+          
+          // Show error state in the grid
+          const gridContainer = document.getElementById('newReleasesGrid');
+          if (gridContainer) {
+            gridContainer.innerHTML = `
+              <div style="grid-column:1/-1;text-align:center;padding:60px 20px;color:var(--text-muted);">
+                <div style="font-size:2.5rem;margin-bottom:16px;">⚠️</div>
+                <div style="font-size:1.1rem;margin-bottom:8px;">Failed to load New Releases</div>
+                <div style="font-size:0.85rem;opacity:0.7;margin-bottom:20px;">${error.message}</div>
+                <button onclick="window.lazyLoader.reloadSection('newReleasesGrid')" 
+                        style="padding:10px 24px;background:var(--btn-primary);color:#fff;border:none;border-radius:var(--radius-md);cursor:pointer;font-size:0.9rem;">
+                  <i class="fas fa-redo" style="margin-right:8px;"></i>Try Again
+                </button>
+              </div>
+            `;
+          }
+        }
       }
       function updateNewReleasesCounts() {
         const setCount = (id, n) => { const el = document.getElementById(id); if (el) el.textContent = n > 0 ? n : ''; };
@@ -6381,7 +6786,7 @@ titleEl.style.color = 'transparent';
           const poster = show.image?.medium || show.image?.original || '';
           const watchUrl = show.url || '#';
           const time = ep.airtime && ep.airtime.trim() ? ep.airtime : '—';
-          const epLabel = (ep.season && ep.number) ? `S${ep.season}E${ep.number}` : 'TV';
+          const epLabel = (ep.number) ? `E${ep.number}` : 'TV';
           const subtitle = `TV · ${show._sourceCountry || tvResult.country || ''}`;
 
           return {
@@ -6632,20 +7037,104 @@ titleEl.style.color = 'transparent';
       });
 
       function init() {
+        console.log('═══════════════════════════════════════════════════════════');
+        console.log('  🚀 AniUmi Optimized Loading System v2.0');
+        console.log('  • Scroll-based lazy loading enabled');
+        console.log('  • API queue throttling (max 3 concurrent)');
+        console.log('  • Automatic retry with exponential backoff');
+        console.log('═══════════════════════════════════════════════════════════');
+        
+        // Step 1: Show skeletons immediately for instant visual feedback
         injectSkeletons();
-        loadHero();
-        loadTopAiring();
-        loadNewReleases();
-        loadNewAniocean();
-        loadUpcoming();
-        loadCompleted(1);
-        loadTrending('today');
-        loadPopular();
-        loadPopularAnime();
-        loadSchedule();
-        // Initialize sliding tab gliders
+        
+        // Step 2: Initialize the lazy loader observer
+        lazyLoader.init();
+        
+        // Step 3: Register sections with priority-based loading
+        // ─── IMMEDIATE LOAD (Above fold / Critical) ──────────────
+        lazyLoader.register('heroSlider', loadHero, { 
+          immediate: true, 
+          delay: 0,
+          priority: 1 
+        });
+        
+        // ─── PRIORITY LOAD (Visible after hero) ──────────────────
+        lazyLoader.register('topAiringSection', loadTopAiring, { 
+          immediate: true, 
+          delay: 400,  // Start after hero begins loading
+          priority: 2 
+        });
+        
+        // ─── LAZY LOAD (When scrolled into view) ─────────────────
+        // These sections load when they're ~200px from viewport
+        lazyLoader.register('newReleasesGrid', loadNewReleases, {
+          immediate: false,
+          priority: 3
+        });
+        
+        lazyLoader.register('newAnioceanGrid', loadNewAniocean, {
+          immediate: false,
+          priority: 4
+        });
+        
+        lazyLoader.register('upcomingSection', loadUpcoming, {
+          immediate: false,
+          priority: 5
+        });
+        
+        lazyLoader.register('completedGrid', () => loadCompleted(1), {
+          immediate: false,
+          priority: 6
+        });
+        
+        lazyLoader.register('trendingList', () => loadTrending('today'), {
+          immediate: false,
+          priority: 7
+        });
+        
+        lazyLoader.register('popularList', loadPopular, {
+          immediate: false,
+          priority: 8
+        });
+        
+        lazyLoader.register('popularAnimeList', loadPopularAnime, {
+          immediate: false,
+          priority: 9
+        });
+        
+        // Schedule is HEAVIEST (7 parallel day fetches + TVMaze)
+        // Load last to avoid blocking other sections!
+        lazyLoader.register('eswWidget', loadSchedule, {
+          immediate: false,
+          priority: 10
+        });
+        
+        // Step 4: Initialize UI components that don't need data
         initGliders();
+        
+        // Step 5: Safety net - if user scrolls very fast, load all after 8s
+        setTimeout(() => {
+          const status = lazyLoader.getStatus();
+          if (status.pendingSections.length > 0) {
+            console.log(`[Safety Net] ⏱️ 8s elapsed, force-loading ${status.pendingSections.length} remaining sections...`);
+            lazyLoader.loadAllRemaining();
+          }
+        }, 8000);
+        
+        // Debug: Log system status every 5 seconds (dev only)
+        setInterval(() => {
+          const queueStatus = apiQueue.getStatus();
+          const loaderStatus = lazyLoader.getStatus();
+          
+          if (queueStatus.activeCount > 0 || loaderStatus.pendingSections.length > 0) {
+            console.log('[System Status]', {
+              apiQueue: queueStatus,
+              lazyLoader: loaderStatus
+            });
+          }
+        }, 5000);
       }
+      
       window.addEventListener('DOMContentLoaded', init);
     })();
   </script>
