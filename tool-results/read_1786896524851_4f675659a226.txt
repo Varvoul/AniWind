@@ -1,0 +1,2002 @@
+     1→<!DOCTYPE html>
+     2→<html lang="en">
+     3→<head>
+     4→  <meta charset="UTF-8">
+     5→  <link rel="icon" type="image/png" href="https://i.postimg.cc/BvwTjXgv/image-359e594e.png">
+     6→  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
+     7→  
+     8→  <!-- Minimal fallback title (enhanced by shared.js MetadataManager for hybrid site) -->
+     9→  <title>AniUmi · Watch Anime, Movies & TV Shows Online Free in HD</title>
+    10→  
+    11→  <!-- Scripts (shared.js auto-injects full SEO metadata) -->
+    12→  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    13→  <script src="shared.js"></script>
+    14→  <link rel="preconnect" href="https://fonts.googleapis.com">
+    15→  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    16→  <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:opsz,wght@14..32,400..700&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    17→  <!-- Font Awesome 6 -->
+    18→  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    19→  <style>
+    20→    :root {
+    21→      --bg-body: #0a1929;
+    22→      --bg-header: #0f2440;
+    23→      --bg-card: #132f4c;
+    24→      --bg-surface: #1a3a5c;
+    25→      --bg-popup: #102a44;
+    26→      --text-primary: #ffffff;
+    27→      --text-secondary: #b0c7e3;
+    28→      --text-muted: #94a3b8;
+    29→      --text-widget-title: #a2c4de;
+    30→      --btn-primary: #2b6cb0;
+    31→      --btn-primary-hover: #1d4e89;
+    32→      --btn-primary-text: #ffffff;
+    33→      --btn-secondary: #334e68;
+    34→      --btn-secondary-hover: #243b53;
+    35→      --popup-btn: #5c6ac4;
+    36→      --popup-btn-text: #ffffff;
+    37→      --popup-btn-hover: #4955b5;
+    38→      --genre-tag-bg: #4c51bf;
+    39→      --link-accent: #ed64a6;
+    40→      --accent-gold: #ecc94b;
+    41→      --accent-blue: #4299e1;
+    42→      --border-subtle: rgba(255, 255, 255, 0.08);
+    43→      --border-medium: rgba(255, 255, 255, 0.16);
+    44→      --font-title: 'Archivo Black', sans-serif;
+    45→      --font-body: 'Inter', sans-serif;
+    46→      --font-meta: 'Poppins', sans-serif;
+    47→      --radius-sm: 6px;
+    48→      --radius-md: 12px;
+    49→      --radius-lg: 18px;
+    50→      --radius-pill: 50px;
+    51→      --radius-circle: 50%;
+    52→      --shadow-lg: 0 20px 60px rgba(0,0,0,0.5);
+    53→      --transition-fast: 0.18s ease;
+    54→    }
+    55→    * { margin:0; padding:0; box-sizing:border-box; }
+    56→    body {
+    57→      background: var(--bg-body);
+    58→      font-family: var(--font-body);
+    59→      color: var(--text-primary);
+    60→      line-height: 1.5;
+    61→      overflow-x: hidden;
+    62→      min-height: 100vh;
+    63→    }
+    64→    a { text-decoration: none; color: inherit; cursor: pointer; }
+    65→    img { max-width: 100%; display: block; }
+    66→    button, .btn-heart, .btn-watch { cursor: pointer; font-family: inherit; }
+    67→
+    68→    /* ── HERO SLIDER ── */
+    69→    .hero-slider {
+    70→      position: relative;
+    71→      width: 100%;
+    72→      aspect-ratio: 16 / 9;
+    73→      overflow: hidden;
+    74→      background: #000;
+    75→    }
+    76→    .slides-container {
+    77→      display: flex;
+    78→      transition: transform 0.55s ease-in-out;
+    79→      height: 100%;
+    80→    }
+    81→    .slide {
+    82→      min-width: 100%;
+    83→      height: 100%;
+    84→      background-size: cover;
+    85→      background-position: center center;
+    86→      position: relative;
+    87→      display: flex;
+    88→      align-items: flex-end;
+    89→      padding: 0 5%;
+    90→      overflow: hidden;
+    91→      animation: kenburns 12s ease-in-out infinite alternate;
+    92→      /* Sharpen images for better clarity on desktop */
+    93→      image-rendering: -webkit-optimize-contrast;
+    94→      image-rendering: crisp-edges;
+    95→    }
+    96→    /* Special handling for anime poster images - focus on upper portion */
+    97→    .slide[data-anime="true"] {
+    98→      background-position: center 20%;
+    99→    }
+   100→    
+   101→    /* ════════════════════════════════════════════════════════════
+   102→       ANILIST BANNER DISPLAY - Default Size (No Stretch!)
+   103→       Anilist banners are ~1000x380px (wide but short)
+   104→       Show at natural aspect ratio, no vertical stretching
+   105→       ════════════════════════════════════════════════════════════ */
+   106→    .slide[data-image-source*="anilist"] {
+   107→      background-size: auto 100%;        /* Fit width, maintain aspect ratio */
+   108→      background-repeat: no-repeat;
+   109→      background-position: center top;   /* Align to top */
+   110→      animation: kenburns-banner 14s ease-in-out infinite alternate;
+   111→    }
+   112→    
+   113→    /* Gradient overlay for area below Anilist banner (fills empty space) */
+   114→    .slide[data-image-source*="anilist"]::before {
+   115→      content: '';
+   116→      position: absolute;
+   117→      bottom: 0; left: 0; right: 0;
+   118→      height: 60%;  /* Cover lower portion where banner doesn't reach */
+   119→      background: linear-gradient(
+   120→        to top,
+   121→        var(--bg-body) 0%,
+   122→        rgba(10, 25, 41, 0.95) 30%,
+   123→        rgba(10, 25, 41, 0.7) 60%,
+   124→        transparent 100%
+   125→      );
+   126→      z-index: 1;
+   127→      pointer-events: none;
+   128→    }
+   129→    
+   130→    /* Subtle Ken Burns effect for banners (horizontal pan only) */
+   131→    @keyframes kenburns-banner {
+   132→      0%   { background-size: auto 100%; transform: translateX(0); }
+   133→      100% { background-size: auto 105%; transform: translateX(-2%); }  /* Gentle right pan */
+   134→    }
+   135→    
+   136→    /* Anime slide enhancement for non-Anilist sources (TMDB/Jikan fallback) */
+   137→    .slide-anime:not([data-image-source*="anilist"]) {
+   138→      filter: contrast(1.05) saturate(1.1);
+   139→    }
+   140→    .slide::after {
+   141→      content: '';
+   142→      position: absolute;
+   143→      top: 0; left: 0; right: 0; bottom: 0;
+   144→      background:
+   145→        linear-gradient(to top, var(--bg-body) 0%, transparent 22%),
+   146→        linear-gradient(to right, rgba(10,25,41,0.55) 0%, rgba(10,25,41,0.15) 45%, rgba(10,25,41,0.55) 100%);
+   147→      z-index: 1;
+   148→    }
+   149→    @keyframes kenburns {
+   150→      0%   { background-size: cover; transform: scale(1); }
+   151→      100% { background-size: cover; transform: scale(1.05); }
+   152→    }
+   153→    .slide-content {
+   154→      position: relative;
+   155→      z-index: 2;
+   156→      max-width: 650px;
+   157→      width: 100%;
+   158→      margin-bottom: 6%;
+   159→      background: rgba(15, 36, 64, 0.38);
+   160→      backdrop-filter: blur(18px) saturate(140%);
+   161→      -webkit-backdrop-filter: blur(18px) saturate(140%);
+   162→      border: 1px solid rgba(255,255,255,0.12);
+   163→      border-radius: var(--radius-lg);
+   164→      padding: clamp(14px, 2.5vw, 28px);
+   165→      box-shadow: var(--shadow-lg);
+   166→    }
+   167→    .slide-title {
+   168→      font-family: var(--font-title);
+   169→      font-size: clamp(18px, 4.5vw, 38px);
+   170→      margin-bottom: 6px;
+   171→      line-height: 1.2;
+   172→      display: -webkit-box;
+   173→      -webkit-line-clamp: 2;
+   174→      -webkit-box-orient: vertical;
+   175→      overflow: hidden;
+   176→    }
+   177→    .slide-meta {
+   178→      display: flex;
+   179→      flex-wrap: wrap;
+   180→      gap: 6px;
+   181→      margin-bottom: 10px;
+   182→      align-items: center;
+   183→    }
+   184→    .meta-badge {
+   185→      background: rgba(255,255,255,0.14);
+   186→      border: 1px solid rgba(255,255,255,0.2);
+   187→      border-radius: 4px;
+   188→      padding: 2px 6px;
+   189→      font-size: clamp(0.55rem, 1.4vw, 0.72rem);
+   190→      font-weight: 500;
+   191→      display: flex;
+   192→      align-items: center;
+   193→      gap: 3px;
+   194→      backdrop-filter: blur(4px);
+   195→    }
+   196→    .slide-synopsis {
+   197→      font-size: clamp(0.55rem, 1.4vw, 0.82rem);
+   198→      color: rgba(255,255,255,0.78);
+   199→      margin-bottom: 14px;
+   200→      line-height: 1.45;
+   201→      max-height: 60px;
+   202→      overflow: hidden;
+   203→      display: -webkit-box;
+   204→      -webkit-line-clamp: 3;
+   205→      -webkit-box-orient: vertical;
+   206→    }
+   207→    .slide-actions {
+   208→      display: flex;
+   209→      gap: 10px;
+   210→      align-items: center;
+   211→    }
+   212→    .btn-watch {
+   213→      background: var(--btn-primary);
+   214→      color: #fff;
+   215→      padding: clamp(8px, 1.5vw, 12px) clamp(14px, 2.5vw, 26px);
+   216→      border-radius: var(--radius-pill);
+   217→      font-weight: 700;
+   218→      font-size: clamp(0.7rem, 1.5vw, 0.9rem);
+   219→      display: inline-flex;
+   220→      align-items: center;
+   221→      gap: 5px;
+   222→      transition: all var(--transition-fast);
+   223→    }
+   224→    .btn-watch:hover {
+   225→      background: var(--btn-primary-hover);
+   226→      transform: scale(1.02);
+   227→    }
+   228→    .btn-heart-slide {
+   229→      width: clamp(32px, 5vw, 44px);
+   230→      height: clamp(32px, 5vw, 44px);
+   231→      background: rgba(255,255,255,0.08);
+   232→      border: 1px solid var(--border-medium);
+   233→      border-radius: 50%;
+   234→      display: flex;
+   235→      align-items: center;
+   236→      justify-content: center;
+   237→      transition: all var(--transition-fast);
+   238→      color: #fff;
+   239→      font-size: clamp(0.8rem, 2vw, 1.2rem);
+   240→    }
+   241→    .btn-heart-slide:hover {
+   242→      background: rgba(255,255,255,0.2);
+   243→    }
+   244→    
+   245→    /* ── Card Action Buttons (for sections) ── */
+   246→    .card-actions {
+   247→      display: flex;
+   248→      gap: 8px;
+   249→      margin-top: 10px;
+   250→      flex-wrap: wrap;
+   251→      align-items: center;
+   252→    }
+   253→    
+   254→    .btn-bookmark-slide {
+   255→      width: clamp(32px, 5vw, 44px);
+   256→      height: clamp(32px, 5vw, 44px);
+   257→      background: rgba(255,255,255,0.08);
+   258→      border: 1px solid var(--border-medium);
+   259→      border-radius: 50%;
+   260→      display: flex;
+   261→      align-items: center;
+   262→      justify-content: center;
+   263→      transition: all var(--transition-fast);
+   264→      color: #fff;
+   265→      font-size: clamp(0.75rem, 1.8vw, 1.1rem);
+   266→    }
+   267→    .btn-bookmark-slide:hover {
+   268→      background: rgba(255,255,255,0.2);
+   269→      color: var(--accent-gold);
+   270→    }
+   271→    
+   272→    .btn-details {
+   273→      background: transparent;
+   274→      color: var(--text-secondary);
+   275→      padding: clamp(6px, 1.2vw, 10px) clamp(12px, 2vw, 20px);
+   276→      border: 1px solid var(--border-medium);
+   277→      border-radius: var(--radius-pill);
+   278→      font-weight: 600;
+   279→      font-size: clamp(0.65rem, 1.3vw, 0.85rem);
+   280→      display: inline-flex;
+   281→      align-items: center;
+   282→      gap: 4px;
+   283→      transition: all var(--transition-fast);
+   284→    }
+   285→    .btn-details:hover {
+   286→      background: rgba(255,255,255,0.08);
+   287→      border-color: var(--btn-primary);
+   288→      color: var(--btn-primary);
+   289→    }
+   290→
+   291→    /* ── Compact Overlay Actions (for horizontal cards) ── */
+   292→    .card-actions-overlay {
+   293→      position: absolute;
+   294→      bottom: 0;
+   295→      left: 0;
+   296→      right: 0;
+   297→      background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, transparent 100%);
+   298→      padding: 30px 10px 10px;
+   299→      opacity: 0;
+   300→      transition: opacity 0.3s ease;
+   301→    }
+   302→    
+   303→    .show-card-horiz:hover .card-actions-overlay,
+   304→    .show-card-grid:hover .card-actions-overlay {
+   305→      opacity: 1;
+   306→    }
+   307→    
+   308→    .action-btns-row {
+   309→      display: flex;
+   310→      gap: 6px;
+   311→      justify-content: center;
+   312→    }
+   313→    
+   314→    .action-btn {
+   315→      width: 32px;
+   316→      height: 32px;
+   317→      background: rgba(255,255,255,0.15);
+   318→      border: 1px solid rgba(255,255,255,0.25);
+   319→      border-radius: 50%;
+   320→      display: flex;
+   321→      align-items: center;
+   322→      justify-content: center;
+   323→      color: #fff;
+   324→      font-size: 0.8rem;
+   325→      transition: all 0.2s ease;
+   326→    }
+   327→    .action-btn:hover {
+   328→      background: var(--btn-primary);
+   329→      border-color: var(--btn-primary);
+   330→      transform: scale(1.1);
+   331→    }
+   332→    .action-watch:hover { background: #22c55e; border-color: #22c55e; }
+   333→    .action-heart:hover { background: #ec4899; border-color: #ec4899; }
+   334→    .action-bookmark:hover { background: var(--accent-gold); border-color: var(--accent-gold); }
+   335→    .action-details:hover { background: #3b82f6; border-color: #3b82f6; }
+   336→    .slider-nav {
+   337→      position: absolute;
+   338→      bottom: 12px;
+   339→      left: 50%;
+   340→      transform: translateX(-50%);
+   341→      display: flex;
+   342→      gap: 14px;
+   343→      background: rgba(0,0,0,0.55);
+   344→      backdrop-filter: blur(10px);
+   345→      border-radius: 30px;
+   346→      padding: 4px 16px;
+   347→      z-index: 5;
+   348→      border: 1px solid var(--border-subtle);
+   349→    }
+   350→    .slider-arrow {
+   351→      background: none;
+   352→      border: none;
+   353→      color: #fff;
+   354→      font-size: clamp(1.2rem, 2.5vw, 1.6rem);
+   355→      cursor: pointer;
+   356→      padding: 0 2px;
+   357→      line-height: 1;
+   358→    }
+   359→    .slider-arrow:hover {
+   360→      color: var(--btn-primary);
+   361→    }
+   362→    .slide-counter {
+   363→      font-size: clamp(0.65rem, 1.5vw, 0.85rem);
+   364→      color: rgba(255,255,255,0.85);
+   365→    }
+   366→    .slider-dots {
+   367→      position: absolute;
+   368→      right: 10px;
+   369→      top: 50%;
+   370→      transform: translateY(-50%);
+   371→      display: flex;
+   372→      flex-direction: column;
+   373→      gap: 4px;
+   374→      z-index: 5;
+   375→    }
+   376→    .dot {
+   377→      width: clamp(5px, 0.8vw, 7px);
+   378→      height: clamp(5px, 0.8vw, 7px);
+   379→      background: rgba(255,255,255,0.3);
+   380→      border-radius: 50%;
+   381→      cursor: pointer;
+   382→    }
+   383→    .dot.active {
+   384→      background: #fff;
+   385→      transform: scale(1.3);
+   386→    }
+   387→
+   388→    /* ── GRID & CARD ── */
+   389→    .card-title {
+   390→      font-size: 0.875rem; font-weight:600; color:#fff;
+   391→      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+   392→      line-height: 1.3;
+   393→    }
+   394→    .card-meta-sm { font-size:0.75rem; font-weight:500; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+   395→    .card-info-grid .card-title { font-size:0.85rem; }
+   396→    .card-info-grid .card-meta-sm { font-size:0.7rem; }
+   397→    .badge { font-size:0.625rem; font-weight:700; text-transform:uppercase; }
+   398→    /* Status badge - PINK color - TOP LEFT POSITION */
+   399→    .poster-status-badge { position:absolute; top:6px; left:6px; background:linear-gradient(135deg, rgba(236,72,153,0.9), rgba(244,114,182,0.9)); color:#fff; font-size:0.6rem; padding:2px 6px; border-radius:3px; z-index:2; font-weight:600; backdrop-filter:blur(4px); }
+   400→    
+   401→    /* Genre tags on cards */
+   402→    .card-genres { display:flex; flex-wrap:wrap; gap:3px; margin-top:4px; }
+   403→    .genre-tag { font-size:0.55rem; padding:1px 5px; border-radius:3px; background:rgba(99,102,241,0.18); color:#a5b4fc; border:1px solid rgba(99,102,241,0.25); white-space:nowrap; font-weight:500; }
+   404→    .genre-tag:nth-child(n+5) { display:none; } /* Max 4 genres visible */
+   405→    .poster-rating-badge { position:absolute; top:6px; right:6px; background:rgba(0,0,0,0.7); color:var(--accent-gold); font-size:0.6rem; padding:2px 5px; border-radius:3px; z-index:2; display:flex; align-items:center; gap:3px; }
+   406→
+   407→    /* ── LAYOUT (scrolls together) ── */
+   408→    .main-layout { display:flex; gap:20px; max-width:1920px; margin:0 auto; align-items:flex-start; }
+   409→    .main-content { flex:1; min-width:0; padding:0 20px 20px; max-width:calc(100% - 380px); }
+   410→    .sidebar-right { flex:0 0 420px; width:420px; padding:0 12px 0 0; position:relative; }
+   411→    @media (min-width:1600px) {
+   412→      .sidebar-right { flex:0 0 460px; width:460px; }
+   413→      .main-content { max-width:calc(100% - 480px); }
+   414→    }
+   415→    .section { margin:30px 0; }
+   416→    .section-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:8px; }
+   417→    .section-title { font-family:var(--font-title); font-size:1.35rem; color:var(--text-widget-title); }
+   418→    .section-controls { display:flex; align-items:center; gap:8px; }
+   419→    .view-all { font-size:0.75rem; font-weight:600; color:var(--link-accent); border:1px solid var(--link-accent); border-radius:var(--radius-pill); padding:5px 12px; white-space:nowrap; transition:all var(--transition-fast); }
+   420→    .view-all:hover { background:rgba(237,100,166,0.15); }
+   421→    .scroll-arrow { width:32px; height:32px; border-radius:50%; background:rgba(255,255,255,0.06); border:1px solid var(--border-medium); display:flex; align-items:center; justify-content:center; cursor:pointer; color:#fff; font-size:1rem; }
+   422→    .scroll-arrow-disabled, .scroll-arrow:disabled { opacity:0.3; cursor:default; pointer-events:none; }
+   423→    .scroll-arrow:hover { background:rgba(255,255,255,0.14); }
+   424→    @media (max-width:1024px) { .scroll-arrow { display:none; } }
+   425→
+   426→    .horizontal-scroll { display:flex; gap:14px; overflow-x:auto; scroll-behavior:smooth; padding-bottom:8px; }
+   427→    .horizontal-scroll::-webkit-scrollbar { display:none; }
+   428→    .show-card-horiz { flex:0 0 auto; width:165px; cursor:pointer; transition:transform var(--transition-fast); }
+   429→    .show-card-horiz:hover { transform:translateY(-4px); }
+   430→    .card-poster { width:100%; aspect-ratio:3/4.5; background-size:cover; background-position:center; border-radius:var(--radius-md); position:relative; overflow:hidden; margin-bottom:6px; background-color:var(--bg-card); }
+   431→    .play-overlay { position:absolute; inset:0; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; opacity:0; transition:opacity var(--transition-fast); border-radius:var(--radius-md); }
+   432→    .play-overlay svg { width:36px; height:36px; fill:#fff; }
+   433→    .show-card-horiz:hover .play-overlay, .show-card-grid:hover .play-overlay { opacity:1; }
+   434→    .ranking-badge { position:absolute; top:6px; right:6px; background:rgba(0,0,0,0.6); backdrop-filter:blur(10px); color:#fff; font-weight:700; font-size:0.7rem; padding:2px 7px; border-radius:4px; z-index:2; }
+   435→    .quality-badge { position:absolute; top:6px; left:6px; background:rgba(0,0,0,0.7); color:#fff; font-size:0.62rem; padding:2px 5px; border-radius:3px; z-index:2; font-weight:600; }
+   436→    .score-badge { position:absolute; top:6px; right:6px; background:rgba(0,0,0,0.7); color:var(--accent-gold); font-size:0.65rem; padding:2px 5px; border-radius:3px; z-index:2; font-weight:600; display:flex; align-items:center; gap:3px; }
+   437→    
+   438→    /* No Image placeholder - vertically stacked text */
+   439→    .card-poster.no-image::before { content:'No'; position:absolute; top:40%; left:50%; transform:translate(-50%,-50%); color:#94a3b8; font-size:0.75rem; font-weight:600; letter-spacing:2px; text-transform:uppercase; z-index:1; user-select:none; }
+   440→    .card-poster.no-image::after { content:'Image'; position:absolute; top:55%; left:50%; transform:translate(-50%,-50%); color:#94a3b8; font-size:0.7rem; font-weight:600; letter-spacing:1px; text-transform:uppercase; z-index:1; user-select:none; }
+   441→
+   442→    /* NEW ON ANIOCEAN SECTION - 3-Row Horizontal Scroll Shelf (Netflix-style), computer only */
+   443→    .new-aniocean-shelf {
+   444→      /* Use CSS Grid for true 3-row horizontal scroll */
+   445→      display: grid;
+   446→      /* Create 40 columns of 165px each (cards fill left-to-right, top-to-bottom) */
+   447→      grid-template-columns: repeat(40, 165px);
+   448→      /* Exactly 3 rows (desktop only) */
+   449→      grid-template-rows: repeat(3, auto);
+   450→      /* CRITICAL: fill column-by-column (row1,row2,row3 triples) instead of the default
+   451→         row-by-row flow, which was stacking every card into row 1 only */
+   452→      grid-auto-flow: column;
+   453→      /* Safety net: if more cards arrive than the explicit repeat() count below
+   454→         provides columns for (e.g. API returns 100 items), any overflow cards land
+   455→         in implicit columns. Without this they'd default to grid-auto-columns:auto
+   456→         and collapse to a tiny width — force them to match the explicit track size. */
+   457→      grid-auto-columns: 165px;
+   458→      gap: 12px;
+   459→      /* Horizontal scroll only */
+   460→      overflow-x: auto;
+   461→      overflow-y: hidden;
+   462→      scroll-behavior: smooth;
+   463→      /* Height for 3 full rows: poster(~248px) + info(~75px) + 2 gaps */
+   464→      height: calc(((165px * 4.5 / 3) + 75px) * 3 + 24px);
+   465→      max-height: 1000px;
+   466→      /* Hide scrollbar like other sections */
+   467→      scrollbar-width: none;
+   468→      -ms-overflow-style: none;
+   469→    }
+   470→    .new-aniocean-shelf::-webkit-scrollbar { display: none; }
+   471→
+   472→    /* Upcoming Shows — desktop-only 2-row grid: row 1 = anime, row 2 = movies+TV.
+   473→       Same column-flow pattern as .new-aniocean-shelf but rows are assigned
+   474→       explicitly per-card in JS (grid-row 1/2) instead of relying on
+   475→       auto-flow, since the two rows hold different content types rather
+   476→       than an even split of one list. */
+   477→    /* Upcoming section - single interleaved row [TV] [Anime] [Movie] */
+   478→    #upcomingScroll {
+   479→      display: flex;
+   480→      flex-direction: row;
+   481→      flex-wrap: nowrap;
+   482→      gap: 12px;
+   483→      overflow-x: auto;
+   484→      overflow-y: hidden;
+   485→      scroll-behavior: smooth;
+   486→      scrollbar-width: none;
+   487→      -ms-overflow-style: none;
+   488→      padding-bottom: 8px;
+   489→    }
+   490→    #upcomingScroll::-webkit-scrollbar { display: none; }
+   491→    #upcomingScroll .show-card-horiz { 
+   492→      flex: 0 0 auto; 
+   493→      width: 165px; 
+   494→    }
+   495→    
+   496→    /* Card sizing for grid */
+   497→    .new-aniocean-shelf .aniocean-card {
+   498→      width: 165px;
+   499→      min-width: 165px;
+   500→      max-width: 165px;
+   501→      /* No flex properties needed - grid controls layout */
+   502→    }
+   503→
+   504→    .aniocean-card {
+   505→      position: relative;
+   506→      cursor: pointer;
+   507→      transition: transform var(--transition-fast);
+   508→      display: flex;
+   509→      flex-direction: column;
+   510→    }
+   511→    .aniocean-card:hover {
+   512→      transform: translateY(-4px);
+   513→    }
+   514→    .aniocean-poster {
+   515→      position: relative;
+   516→      aspect-ratio: 3/4.5;
+   517→      border-radius: var(--radius-md);
+   518→      overflow: hidden;
+   519→      background: var(--bg-card);
+   520→    }
+   521→    .aniocean-poster img {
+   522→      width: 100%;
+   523→      height: 100%;
+   524→      object-fit: cover;
+   525→    }
+   526→    /* Score Badge - Top Right */
+   527→    .aniocean-badge-score {
+   528→      position: absolute;
+   529→      top: 6px;
+   530→      right: 6px;
+   531→      background: rgba(0,0,0,0.85);
+   532→      backdrop-filter: blur(8px);
+   533→      color: var(--accent-gold, #fbbf24);
+   534→      padding: 3px 7px;
+   535→      border-radius: 4px;
+   536→      font-size: 0.72rem;
+   537→      font-weight: 700;
+   538→      display: flex;
+   539→      align-items: center;
+   540→      gap: 4px;
+   541→      z-index: 2;
+   542→      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+   543→    }
+   544→    .aniocean-badge-score i {
+   545→      font-size: 0.65rem;
+   546→    }
+   547→    
+   548→    /* Sub/Dub Badges Container - Bottom Left */
+   549→    .aniocean-badge-lang {
+   550→      position: absolute;
+   551→      bottom: 6px;
+   552→      left: 6px;
+   553→      display: flex;
+   554→      gap: 5px;
+   555→      z-index: 2;
+   556→    }
+   557→    
+   558→    /* Individual Language Badge */
+   559→    .aniocean-lang-badge {
+   560→      padding: 3px 6px;
+   561→      border-radius: 4px;
+   562→      font-size: 0.62rem;
+   563→      font-weight: 700;
+   564→      display: flex;
+   565→      align-items: center;
+   566→      gap: 3px;
+   567→      backdrop-filter: blur(8px);
+   568→      box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+   569→      letter-spacing: 0.3px;
+   570→    }
+   571→    .aniocean-lang-badge i {
+   572→      font-size: 0.6rem;
+   573→    }
+   574→    
+   575→    /* Sub Badge - Cyan/Blue theme (matches site accent) */
+   576→    .aniocean-lang-badge.sub-badge {
+   577→      background: rgba(6, 182, 212, 0.85);
+   578→      color: #ffffff;
+   579→      border: 1px solid rgba(34, 211, 238, 0.9);
+   580→    }
+   581→    
+   582→    /* Dub Badge - Purple/Violet theme (complementary) */
+   583→    .aniocean-lang-badge.dub-badge {
+   584→      background: rgba(139, 92, 246, 0.85);
+   585→      color: #ffffff;
+   586→      border: 1px solid rgba(167, 139, 250, 0.9);
+   587→    }
+   588→    
+   589→    /* Title Section - Below Poster (not overlaid) */
+   590→    .aniocean-title-section {
+   591→      padding: 8px 4px 2px;
+   592→      text-align: center;
+   593→    }
+   594→    .aniocean-meta {
+   595→      font-size: 0.62rem;
+   596→      color: var(--text-muted, #94a3b8);
+   597→      margin-bottom: 3px;
+   598→      font-weight: 500;
+   599→      white-space: nowrap;
+   600→      overflow: hidden;
+   601→      text-overflow: ellipsis;
+   602→    }
+   603→    .aniocean-title {
+   604→      font-size: 0.78rem;
+   605→      font-weight: 600;
+   606→      color: #fff;
+   607→      line-height: 1.3;
+   608→      display: -webkit-box;
+   609→      -webkit-line-clamp: 2;
+   610→      -webkit-box-orient: vertical;
+   611→      overflow: hidden;
+   612→      text-overflow: ellipsis;
+   613→    }
+   614→
+   615→    /* Grid containers with balanced rows - New Releases section */
+   616→    .grid-container { 
+   617→      display:grid; 
+   618→      grid-template-columns:repeat(7, 1fr); 
+   619→      gap:14px;
+   620→    }
+   621→    /* Large desktop (>1800px): 7 cols × 6 rows = 42 shows */
+   622→    @media (max-width:1800px) { .grid-container { grid-template-columns:repeat(7, 1fr); gap:12px; } }
+   623→    /* Desktop (1400-1800px): 6 cols × 6 rows = 36 shows */
+   624→    @media (max-width:1600px) { .grid-container { grid-template-columns:repeat(6, 1fr); } }
+   625→    /* Medium desktop (1200-1400px): 6 cols */
+   626→    @media (max-width:1400px) { .grid-container { grid-template-columns:repeat(6, 1fr); } }
+   627→    /* Small desktop/large tablet (992-1200px): 5 cols */
+   628→    @media (max-width:1200px) { .grid-container { grid-template-columns:repeat(5, 1fr); } }
+   629→    /* Tablet (768-992px): 4 cols */
+   630→    @media (max-width:992px) { .grid-container { grid-template-columns:repeat(4, 1fr); gap:10px; } }
+   631→    /* Tablet portrait (600-768px): 3 cols */
+   632→    @media (max-width:768px) { .grid-container { grid-template-columns:repeat(3, 1fr); gap:10px; } }
+   633→    /* Mobile landscape (520-600px): 3 cols */
+   634→    @media (max-width:600px) and (orientation:landscape) { .grid-container { grid-template-columns:repeat(3, 1fr); } }
+   635→    /* Mobile landscape (<520px): 2 cols */
+   636→    @media (max-width:520px) and (orientation:landscape) { .grid-container { grid-template-columns:repeat(2, 1fr); } }
+   637→    /* Mobile portrait (<520px): 2 cols */
+   638→    @media (max-width:520px) and (orientation:portrait) { .grid-container { grid-template-columns:repeat(2, 1fr); } }
+   639→    @media (max-width:520px) { .grid-container { grid-template-columns:repeat(2, 1fr); } }
+   640→    .show-card-grid { border-radius:var(--radius-md); overflow:hidden; cursor:pointer; transition:transform var(--transition-fast); position:relative; }
+   641→    .show-card-grid:hover { transform:translateY(-3px); }
+   642→    .show-card-grid .card-poster {
+   643→      aspect-ratio: 3/4.5;
+   644→      border-radius: 0;
+   645→      margin-bottom: 0;
+   646→    }
+   647→    .card-info-grid {
+   648→      position: absolute;
+   649→      bottom: 0;
+   650→      left: 0;
+   651→      right: 0;
+   652→      padding: 24px 8px 8px;
+   653→      background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%);
+   654→      border-radius: 0 0 var(--radius-md) var(--radius-md);
+   655→      color: #fff;
+   656→      pointer-events: none;
+   657→    }
+   658→
+   659→    /* Sliding Toggle Tabs with Glider Effect */
+   660→    .toggle-tabs {
+   661→      display: flex;
+   662→      position: relative;
+   663→      background: rgba(15, 23, 42, 0.6);
+   664→      backdrop-filter: blur(12px);
+   665→      padding: 4px;
+   666→      border-radius: var(--radius-pill, 50px);
+   667→      border: 1px solid rgba(148, 163, 184, 0.1);
+   668→      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+   669→      gap: 0;
+   670→    }
+   671→    .toggle-tab {
+   672→      display: flex;
+   673→      align-items: center;
+   674→      justify-content: center;
+   675→      height: 32px;
+   676→      padding: 0 16px;
+   677→      border-radius: var(--radius-pill, 50px);
+   678→      font-size: 0.75rem;
+   679→      font-weight: 500;
+   680→      cursor: pointer;
+   681→      transition: color 0.25s ease-in-out;
+   682→      position: relative;
+   683→      z-index: 2;
+   684→      background: transparent;
+   685→      border: none;
+   686→      color: var(--text-secondary, #94a3b8);
+   687→      white-space: nowrap;
+   688→    }
+   689→    .toggle-tab:hover {
+   690→      color: #e2e8f0;
+   691→    }
+   692→    .toggle-tab.active {
+   693→      color: #ffffff;
+   694→      font-weight: 600;
+   695→    }
+   696→    /* Glider/Slider Background */
+   697→    .tabs-glider {
+   698→      position: absolute;
+   699→      height: 32px;
+   700→      background: linear-gradient(135deg, var(--btn-primary, #3b82f6), rgba(59, 130, 246, 0.85));
+   701→      border-radius: var(--radius-pill, 50px);
+   702→      z-index: 1;
+   703→      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+   704→      box-shadow: 0 2px 8px rgba(59, 130, 246, 0.35);
+   705→    }
+   706→    /* Responsive tabs scaling */
+   707→    @media (max-width: 768px) {
+   708→      .toggle-tabs {
+   709→        transform: scale(0.9);
+   710→        transform-origin: right center;
+   711→      }
+   712→      /* Fix: Keep tabs inline with title on mobile - prevent wrapping */
+   713→      .section-header:has(.toggle-tabs) {
+   714→        flex-wrap: nowrap !important;
+   715→        gap: 6px !important;
+   716→      }
+   717→      .section-header:has(.toggle-tabs) .section-title {
+   718→        font-size: 1.1rem !important;
+   719→        white-space: nowrap !important;
+   720→        flex-shrink: 1 !important;
+   721→        min-width: 0 !important;
+   722→      }
+   723→      .section-header:has(.toggle-tabs) .toggle-tabs {
+   724→        flex-shrink: 0 !important;
+   725→      }
+   726→      /* #releaseTabs opts out of the transform-scale approach below —
+   727→         CSS transform: scale() distorts the box that getBoundingClientRect()
+   728→         reports, and since the glider is a child of the same scaled element,
+   729→         its width/position get scaled a second time. That's what causes the
+   730→         glider to land in the wrong spot in mobile portrait. Sizing directly
+   731→         via padding/font instead keeps the glider math 1:1 at every width. */
+   732→      #releaseTabs.toggle-tabs {
+   733→        transform: none !important;
+   734→      }
+   735→      #releaseTabs .toggle-tab {
+   736→        padding: 0 11px;
+   737→        font-size: 0.7rem;
+   738→        height: 29px;
+   739→      }
+   740→      #releaseTabs .tabs-glider {
+   741→        height: 29px;
+   742→      }
+   743→    }
+   744→    @media (max-width: 480px) {
+   745→      .toggle-tabs {
+   746→        transform: scale(0.78);
+   747→        transform-origin: right center;
+   748→      }
+   749→      .toggle-tab {
+   750→        padding: 0 10px;
+   751→        font-size: 0.65rem;
+   752→        height: 26px;
+   753→      }
+   754→      .tabs-glider {
+   755→        height: 26px;
+   756→      }
+   757→      /* Extra compact for very small screens */
+   758→      .section-header:has(.toggle-tabs) .section-title {
+   759→        font-size: 1rem !important;
+   760→      }
+   761→      /* Drop icons at the smallest breakpoint — text + count stay legible */
+   762→      #releaseTabs .toggle-tab i { display: none; }
+   763→      #releaseTabs .toggle-tab { gap: 4px; }
+   764→      /* Same reasoning as the 768px override above — keep #releaseTabs
+   765→         un-transformed so the glider's rect math stays accurate. */
+   766→      #releaseTabs.toggle-tabs { transform: none !important; }
+   767→      #releaseTabs .toggle-tab { padding: 0 9px; font-size: 0.62rem; height: 25px; }
+   768→      #releaseTabs .tabs-glider { height: 25px; }
+   769→    }
+   770→
+   771→    /* ════════════════════════════════════════════════════════════
+   772→       NEW RELEASES — enhanced tabs, spotlight card, badges, actions
+   773→       (scoped to #releaseTabs / #newReleasesGrid so no other
+   774→       section's shared classes are affected)
+   775→       ════════════════════════════════════════════════════════════ */
+   776→
+   777→    /* Tabs: icon + live count pill */
+   778→    #releaseTabs .toggle-tab { gap: 6px; }
+   779→    #releaseTabs .toggle-tab i { font-size: 0.72em; opacity: 0.85; }
+   780→    #releaseTabs .tab-count {
+   781→      font-size: 0.62em;
+   782→      font-weight: 700;
+   783→      background: rgba(255,255,255,0.14);
+   784→      border-radius: 20px;
+   785→      padding: 1px 6px;
+   786→      min-width: 16px;
+   787→      text-align: center;
+   788→      line-height: 1.5;
+   789→    }
+   790→    #releaseTabs .toggle-tab.active .tab-count {
+   791→      background: rgba(255,255,255,0.28);
+   792→    }
+   793→    #releaseTabs .tab-count:empty { display: none; }
+   794→
+   795→    /* Section actions row: View All beside tabs */
+   796→    .nr-header-controls { display: flex; align-items: center; gap: 10px; flex-wrap: nowrap; }
+   797→
+   798→    /* Keep "View All" beside the tabs on narrow screens instead of it
+   799→       wrapping onto its own row — collapse to an icon-only circular
+   800→       button, same footprint as the section's scroll-arrow controls. */
+   801→    @media (max-width: 768px) {
+   802→      #nrViewAll {
+   803→        flex-shrink: 0;
+   804→        width: 30px;
+   805→        height: 30px;
+   806→        min-width: 30px;
+   807→        padding: 0;
+   808→        display: inline-flex;
+   809→        align-items: center;
+   810→        justify-content: center;
+   811→        gap: 0;
+   812→      }
+   813→      #nrViewAll .nr-viewall-text { display: none; }
+   814→    }
+   815→    @media (max-width: 480px) {
+   816→      #nrViewAll { width: 26px; height: 26px; min-width: 26px; font-size: 0.65rem; }
+   817→    }
+   818→
+   819→    /* ── Mobile PORTRAIT only: title + View All share row 1, tabs move to
+   820→       their own centered row 2 below. Landscape mobile keeps the single-row
+   821→       layout above (icon-only View All) since that already renders fine. ── */
+   822→    @media (max-width: 768px) and (orientation: portrait) {
+   823→      .section-header:has(.nr-header-controls) {
+   824→        display: grid;
+   825→        grid-template-columns: 1fr auto;
+   826→        grid-template-areas:
+   827→          "nr-title nr-viewall"
+   828→          "nr-tabs  nr-tabs";
+   829→        row-gap: 12px;
+   830→        column-gap: 10px;
+   831→        align-items: center;
+   832→        flex-wrap: unset;
+   833→      }
+   834→      .section-header:has(.nr-header-controls) .section-title {
+   835→        grid-area: nr-title;
+   836→      }
+   837→      /* Let the tabs + View All join the grid directly as their own items,
+   838→         instead of staying nested inside .nr-header-controls */
+   839→      .nr-header-controls {
+   840→        display: contents;
+   841→      }
+   842→      #releaseTabs.toggle-tabs {
+   843→        grid-area: nr-tabs;
+   844→        justify-self: center;
+   845→        transform: none !important;
+   846→      }
+   847→      /* Restore the full "View All" pill — plenty of room now the tabs
+   848→         have their own row */
+   849→      #nrViewAll {
+   850→        grid-area: nr-viewall;
+   851→        justify-self: end;
+   852→        width: auto;
+   853→        height: auto;
+   854→        min-width: 0;
+   855→        padding: 6px 14px;
+   856→        gap: 5px;
+   857→      }
+   858→      #nrViewAll .nr-viewall-text {
+   859→        display: inline;
+   860→      }
+   861→    }
+   862→
+   863→    /* Grid fade-transition on tab switch */
+   864→    .new-releases-grid { transition: opacity 0.18s ease; }
+   865→    .new-releases-grid.nr-fading { opacity: 0; }
+   866→
+   867→    /* Type accent dot — color-coded by content type (matches site's existing token colors) */
+   868→    .nr-type-dot { display:inline-block; width:6px; height:6px; border-radius:50%; margin-right:5px; vertical-align:middle; flex-shrink:0; }
+   869→    .nr-type-dot.nr-anime  { background: var(--genre-tag-bg, #4c51bf); box-shadow:0 0 6px rgba(76,81,191,0.7); }
+   870→    .nr-type-dot.nr-movie  { background: var(--accent-gold, #ecc94b); box-shadow:0 0 6px rgba(236,201,75,0.6); }
+   871→    .nr-type-dot.nr-tv     { background: var(--accent-blue, #4299e1); box-shadow:0 0 6px rgba(66,153,225,0.6); }
+   872→    .new-releases-grid .card-meta-sm { display:flex; align-items:center; }
+   873→
+   874→    /* Card lift + shadow on hover (adds depth beyond the base translateY) */
+   875→    .new-releases-grid .show-card-grid {
+   876→      box-shadow: 0 0 0 rgba(0,0,0,0);
+   877→      transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+   878→    }
+   879→    .new-releases-grid .show-card-grid:hover {
+   880→      box-shadow: 0 14px 34px rgba(0,0,0,0.55);
+   881→    }
+   882→    .new-releases-grid .card-poster { transition: filter var(--transition-fast); }
+   883→    .new-releases-grid .show-card-grid:hover .card-poster { filter: brightness(1.05); }
+   884→
+   885→    /* ── Spotlight / featured card — first item in "All" view ── */
+   886→    .new-releases-grid .nr-featured {
+   887→      grid-column: span 2;
+   888→      grid-row: span 2;
+   889→    }
+   890→    .new-releases-grid .nr-featured .card-poster {
+   891→      border-radius: var(--radius-lg);
+   892→    }
+   893→    .new-releases-grid .nr-featured .card-info-grid {
+   894→      padding: 46px 16px 18px;
+   895→      border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+   896→    }
+   897→    .new-releases-grid .nr-featured .card-title {
+   898→      font-size: clamp(1rem, 1.6vw, 1.3rem);
+   899→      -webkit-line-clamp: 2;
+   900→      margin-bottom: 4px;
+   901→    }
+   902→    .new-releases-grid .nr-featured .card-meta-sm { font-size: 0.78rem; }
+   903→    .nr-featured-ribbon {
+   904→      position: absolute;
+   905→      top: 10px;
+   906→      left: 10px;
+   907→      z-index: 3;
+   908→      background: linear-gradient(135deg, var(--link-accent, #ed64a6), #d53f8c);
+   909→      color: #fff;
+   910→      font-size: 0.62rem;
+   911→      font-weight: 800;
+   912→      letter-spacing: 0.6px;
+   913→      text-transform: uppercase;
+   914→      padding: 4px 9px;
+   915→      border-radius: 4px;
+   916→      box-shadow: 0 3px 10px rgba(237,100,166,0.4);
+   917→    }
+   918→    .new-releases-grid .nr-featured .play-overlay svg { width: 52px; height: 52px; }
+   919→    @media (max-width: 600px) {
+   920→      /* Collapse spotlight to a normal card on small phones so the grid
+   921→         rhythm and column count aren't disrupted on narrow screens */
+   922→      .new-releases-grid .nr-featured { grid-column: span 1; grid-row: span 1; }
+   923→      .new-releases-grid .nr-featured .card-info-grid { padding: 24px 8px 8px; }
+   924→      .new-releases-grid .nr-featured .card-title { font-size: 0.85rem; -webkit-line-clamp:2; }
+   925→      .new-releases-grid .nr-featured .play-overlay svg { width: 36px; height: 36px; }
+   926→    }
+   927→
+   928→    /* ── Action buttons: Play = primary/filled, Heart = secondary/outline ── */
+   929→    #newReleasesGrid .action-btn.action-watch {
+   930→      background: var(--btn-primary);
+   931→      border-color: var(--btn-primary);
+   932→      width: 38px; height: 38px; font-size: 0.92rem;
+   933→      box-shadow: 0 4px 14px rgba(43,108,176,0.5);
+   934→    }
+   935→    #newReleasesGrid .action-btn.action-watch:hover {
+   936→      background: var(--btn-primary-hover);
+   937→      border-color: var(--btn-primary-hover);
+   938→      transform: scale(1.08);
+   939→    }
+   940→    #newReleasesGrid .action-btn.action-heart {
+   941→      background: rgba(255,255,255,0.06);
+   942→      border: 1.5px solid rgba(255,255,255,0.35);
+   943→      width: 32px; height: 32px; font-size: 0.75rem;
+   944→      align-self: center;
+   945→    }
+   946→    #newReleasesGrid .action-btn.action-heart:hover {
+   947→      background: rgba(237,100,166,0.16);
+   948→      border-color: var(--link-accent);
+   949→      color: var(--link-accent);
+   950→    }
+   951→    #newReleasesGrid .action-btns-row { align-items: center; }
+   952→
+   953→    /* ── Recently Completed: match New Releases play/heart button colors ── */
+   954→    #completedGrid .action-btn.action-watch {
+   955→      background: var(--btn-primary);
+   956→      border-color: var(--btn-primary);
+   957→      width: 38px; height: 38px; font-size: 0.92rem;
+   958→      box-shadow: 0 4px 14px rgba(43,108,176,0.5);
+   959→    }
+   960→    #completedGrid .action-btn.action-watch:hover {
+   961→      background: var(--btn-primary-hover);
+   962→      border-color: var(--btn-primary-hover);
+   963→      transform: scale(1.08);
+   964→    }
+   965→    #completedGrid .action-btn.action-heart {
+   966→      background: rgba(255,255,255,0.06);
+   967→      border: 1.5px solid rgba(255,255,255,0.35);
+   968→      width: 32px; height: 32px; font-size: 0.75rem;
+   969→      align-self: center;
+   970→    }
+   971→    #completedGrid .action-btn.action-heart:hover {
+   972→      background: rgba(237,100,166,0.16);
+   973→      border-color: var(--link-accent);
+   974→      color: var(--link-accent);
+   975→    }
+   976→    #completedGrid .action-btns-row { align-items: center; }
+   977→
+   978→    /* ════════════════════════════════════════════════════════════
+   979→       NEW RELEASES — "All" tab, desktop-only 3-row horizontal layout
+   980→       Row 1: anime · Row 2: TMDB TV · Row 3: TMDB movies. Column count
+   981→       adapts to screen width; chevrons + keyboard arrows scroll by one
+   982→       full page of columns so edges are always exactly aligned.
+   983→       ════════════════════════════════════════════════════════════ */
+   984→    .nr-scroll-controls { display: none; align-items: center; gap: 8px; }
+   985→    /* Only show the chevrons once JS confirms the horizontal layout is active */
+   986→    .nr-header-controls.nr-horiz-active .nr-scroll-controls { display: flex; }
+   987→    @media (max-width: 1024px) {
+   988→      .nr-scroll-controls { display: none !important; }
+   989→    }
+   990→
+   991→    #newReleasesGrid.nr-horizontal {
+   992→      display: grid;
+   993→      /* Reset the explicit column tracks set by .grid-container (repeat(7,1fr) etc.)
+   994→         so ONLY grid-auto-columns governs sizing — mixing the two caused the
+   995→         next column to bleed partially into view instead of staying off-screen. */
+   996→      grid-template-columns: none;
+   997→      grid-auto-flow: column;
+   998→      grid-template-rows: repeat(3, auto);
+   999→      grid-auto-columns: var(--nr-col-width, 200px);
+  1000→      gap: 14px;
+  1001→      overflow-x: auto;
+  1002→      overflow-y: hidden;
+  1003→      scroll-behavior: smooth;
+  1004→      scroll-snap-type: x mandatory;
+  1005→      padding-bottom: 8px;
+  1006→    }
+  1007→    #newReleasesGrid.nr-horizontal::-webkit-scrollbar { display: none; }
+  1008→    #newReleasesGrid.nr-horizontal .show-card-grid {
+  1009→      scroll-snap-align: start;
+  1010→      width: 100%;
+  1011→    }
+  1012→    /* Featured spotlight card only makes sense in the vertical grid —
+  1013→       never let it span rows/cols here, or it breaks the anime/other split */
+  1014→    #newReleasesGrid.nr-horizontal .nr-featured {
+  1015→      grid-column: auto;
+  1016→      grid-row: auto;
+  1017→    }
+  1018→
+  1019→    /* ── Upcoming Shows: match New Releases' play/heart button styling ── */
+  1020→    #upcomingScroll .action-btn.action-watch {
+  1021→      background: var(--btn-primary);
+  1022→      border-color: var(--btn-primary);
+  1023→      width: 38px; height: 38px; font-size: 0.92rem;
+  1024→      box-shadow: 0 4px 14px rgba(43,108,176,0.5);
+  1025→    }
+  1026→    #upcomingScroll .action-btn.action-watch:hover {
+  1027→      background: var(--btn-primary-hover);
+  1028→      border-color: var(--btn-primary-hover);
+  1029→      transform: scale(1.08);
+  1030→    }
+  1031→    #upcomingScroll .action-btn.action-heart {
+  1032→      background: rgba(255,255,255,0.06);
+  1033→      border: 1.5px solid rgba(255,255,255,0.35);
+  1034→      width: 32px; height: 32px; font-size: 0.75rem;
+  1035→      align-self: center;
+  1036→    }
+  1037→    #upcomingScroll .action-btn.action-heart:hover {
+  1038→      background: rgba(237,100,166,0.16);
+  1039→      border-color: var(--link-accent);
+  1040→      color: var(--link-accent);
+  1041→    }
+  1042→    #upcomingScroll .action-btns-row { align-items: center; }
+  1043→
+  1044→    /* Empty state per tab */
+  1045→    .nr-empty-state {
+  1046→      grid-column: 1 / -1;
+  1047→      text-align: center;
+  1048→      padding: 60px 20px;
+  1049→      color: var(--text-muted);
+  1050→    }
+  1051→    .nr-empty-state i { font-size: 1.8rem; opacity: 0.35; margin-bottom: 10px; display: block; }
+  1052→    .nr-empty-state span { font-size: 0.85rem; }
+  1053→
+  1054→    /* sidebar - wider and improved */
+  1055→    .sidebar-list-item { display:flex; gap:12px; align-items:center; padding:10px 8px; border-radius:var(--radius-sm); cursor:pointer; transition:background var(--transition-fast); margin-bottom:2px; }
+  1056→    .sidebar-list-item:hover { background:var(--bg-surface); transform:translateX(2px); }
+  1057→    .sidebar-rank { font-size:1.5rem; font-weight:700; color:rgba(255,255,255,0.15); width:32px; text-align:center; flex-shrink:0; font-family:var(--font-title); }
+  1058→    .sidebar-poster { width:58px; height:82px; object-fit:cover; border-radius:var(--radius-sm); flex-shrink:0; background:var(--bg-card); box-shadow:0 2px 8px rgba(0,0,0,0.3); }
+  1059→    .sidebar-info h4 { 
+  1060→      font-size: 0.85rem;
+  1061→      font-weight: 600;
+  1062→      color: #fff;
+  1063→      display: -webkit-box;
+  1064→      -webkit-line-clamp: 2;
+  1065→      -webkit-box-orient: vertical;
+  1066→      overflow: hidden;
+  1067→      white-space: normal;
+  1068→      line-height: 1.3;
+  1069→    }
+  1070→    .side-meta { font-size:0.7rem; color:var(--text-muted); margin-top:3px; }
+  1071→
+  1072→    /* ── POPULAR ANIME LIST (Miruro-style) ── */
+  1073→    /* ── SKELETON WAVE ANIMATION ── */
+  1074→    @keyframes skeletonWave {
+  1075→      0%   { background-position: -400px 0; }
+  1076→      100% { background-position: 400px 0; }
+  1077→    }
+  1078→    .skeleton {
+  1079→      background: linear-gradient(90deg,
+  1080→        rgba(255,255,255,0.04) 25%,
+  1081→        rgba(255,255,255,0.10) 37%,
+  1082→        rgba(255,255,255,0.04) 63%);
+  1083→      background-size: 800px 100%;
+  1084→      animation: skeletonWave 1.4s ease infinite;
+  1085→      border-radius: 6px;
+  1086→    }
+  1087→    /* Skeleton placeholders for cards */
+  1088→    .skeleton-card {
+  1089→      background:var(--bg-card,#0f1923);
+  1090→      border-radius:10px; overflow:hidden;
+  1091→      flex-shrink:0;
+  1092→    }
+  1093→    .skeleton-card .sk-poster  { width:100%; aspect-ratio:2/3; }
+  1094→    .skeleton-card .sk-line    { height:10px; margin:8px 8px 4px; border-radius:4px; }
+  1095→    .skeleton-card .sk-line.w60{ width:60%; }
+  1096→    .skeleton-card .sk-line.w80{ width:80%; }
+  1097→    /* Skeleton for PA rows */
+  1098→    .sk-pa-row {
+  1099→      display:flex; align-items:center; gap:12px;
+  1100→      background:var(--bg-card,#0f1923);
+  1101→      border-radius:10px; padding:10px 14px;
+  1102→      min-height:88px; overflow:hidden;
+  1103→    }
+  1104→    .sk-pa-rank { width:28px; height:20px; flex-shrink:0; border-radius:4px; }
+  1105→    .sk-pa-img  { width:56px; height:78px; border-radius:6px; flex-shrink:0; }
+  1106→    .sk-pa-body { flex:1; display:flex; flex-direction:column; gap:7px; }
+  1107→    .sk-pa-title{ height:13px; width:70%; border-radius:4px; }
+  1108→    .sk-pa-meta { display:flex; gap:5px; flex-wrap:wrap; }
+  1109→    .sk-pa-tag  { height:18px; border-radius:20px; }
+  1110→    /* Skeleton for sidebar rows */
+  1111→    .sk-side-row {
+  1112→      display:flex; align-items:center; gap:10px;
+  1113→      padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.05);
+  1114→    }
+  1115→    .sk-side-rank { width:20px; height:16px; border-radius:3px; flex-shrink:0; }
+  1116→    .sk-side-img  { width:38px; height:54px; border-radius:5px; flex-shrink:0; }
+  1117→    .sk-side-body { flex:1; display:flex; flex-direction:column; gap:6px; }
+  1118→    .sk-side-t    { height:11px; width:80%; border-radius:3px; }
+  1119→    .sk-side-m    { height:9px; width:50%; border-radius:3px; }
+  1120→    /* Skeleton for hero */
+  1121→    .sk-hero { width:100%; aspect-ratio:16/7; border-radius:12px; min-height:200px; }
+  1122→    /* Skeleton for schedule */
+  1123→    .sk-sched-row {
+  1124→      display:flex; align-items:center; gap:10px; padding:9px 0;
+  1125→      border-bottom:1px solid rgba(255,255,255,0.05);
+  1126→    }
+  1127→    .sk-sched-img  { width:44px; height:60px; border-radius:6px; flex-shrink:0; }
+  1128→    .sk-sched-body { flex:1; display:flex; flex-direction:column; gap:6px; }
+  1129→    .sk-sched-t    { height:11px; width:75%; border-radius:3px; }
+  1130→    .sk-sched-m    { height:9px; width:45%; border-radius:3px; }
+  1131→
+  1132→    /* ── POPULAR ANIME LIST (Miruro-style improved) ── */
+  1133→    .pa-list {
+  1134→      display:flex; flex-direction:column; gap:5px;
+  1135→      /* Fixed height showing 7 rows by default */
+  1136→      height: calc((88px + 5px) * 7 - 5px);
+  1137→      max-height: calc((88px + 5px) * 7 - 5px);
+  1138→      overflow-y: auto;
+  1139→      overflow-x: hidden;
+  1140→      scroll-behavior: smooth;
+  1141→      scroll-snap-type: y mandatory;
+  1142→      scrollbar-width: none; /* Firefox */
+  1143→      -ms-overflow-style: none; /* IE/Edge */
+  1144→    }
+  1145→    
+  1146→    /* Mobile: Show Popular Anime scrollable with smaller height */
+  1147→    @media (max-width: 768px) {
+  1148→      .pa-list {
+  1149→        height: calc((78px + 4px) * 6 - 4px);
+  1150→        max-height: calc((78px + 4px) * 6 - 4px);
+  1151→        overscroll-behavior: contain;
+  1152→        -webkit-overflow-scrolling: touch; /* Smooth iOS scrolling */
+  1153→      }
+  1154→      .pa-row { min-height:78px; }
+  1155→      .pa-poster { width:50px; height:70px; margin:4px 10px 4px 5px; }
+  1156→    }
+  1157→    
+  1158→    /* Show scroll arrows ONLY on mobile for Popular Anime */
+  1159→    @media (max-width: 768px) {
+  1160→      #popularAnimeSec .scroll-arrow { 
+  1161→        display:flex !important; 
+  1162→        width:28px; 
+  1163→        height:28px; 
+  1164→        font-size:.85rem;
+  1165→        background:rgba(59,130,246,0.15);
+  1166→        border-color:rgba(59,130,246,0.3);
+  1167→      }
+  1168→      #popularAnimeSec .scroll-arrow:hover {
+  1169→        background:rgba(59,130,246,0.25);
+  1170→      }
+  1171→    }
+  1172→
+  1173→    /* Popular Anime: Show chevron arrows on BOTH desktop AND mobile */
+  1174→    .pa-list::-webkit-scrollbar { display: none; } /* Chrome/Safari */
+  1175→    .pa-list .pa-row { scroll-snap-align: start; }
+  1176→    .pa-row {
+  1177→      display:flex; align-items:center; gap:0;
+  1178→      position:relative; overflow:hidden;
+  1179→      border-radius:10px;
+  1180→      cursor:pointer; text-decoration:none; color:#fff;
+  1181→      min-height:88px;
+  1182→      transition:transform .2s ease, box-shadow .2s ease, z-index 0s;
+  1183→      background-color: var(--bg-card, #0f1923);
+  1184→    }
+  1185→    /* RIGHT SIDE: actual bg image — visible on right, fades left */
+  1186→    .pa-row::before {
+  1187→      content:''; position:absolute; inset:0;
+  1188→      background-image:var(--pa-bg);
+  1189→      background-size:cover; background-position:center 20%;
+  1190→      filter:blur(1.5px) brightness(0.35) saturate(1.4);
+  1191→      transition:filter .3s ease;
+  1192→      z-index:0;
+  1193→    }
+  1194→    /* LEFT SIDE: dark overlay that fades to transparent right — Miruro look */
+  1195→    .pa-row::after {
+  1196→      content:''; position:absolute; inset:0;
+  1197→      background:linear-gradient(to right,
+  1198→        var(--bg-card,#0f1923) 0%,
+  1199→        var(--bg-card,#0f1923) 38%,
+  1200→        rgba(10,18,28,0.72) 62%,
+  1201→        rgba(10,18,28,0.0) 100%);
+  1202→      z-index:1;
+  1203→      transition:opacity .3s ease;
+  1204→    }
+  1205→    .pa-row:hover::before { filter:blur(1px) brightness(0.48) saturate(1.6); }
+  1206→    .pa-row:hover::after  { opacity:0.82; }
+  1207→    /* "Pop" hover: card lifts + scales up above its neighbors, title enlarges */
+  1208→    .pa-row:hover {
+  1209→      transform:translateY(-2px) scale(1.035);
+  1210→      box-shadow:0 10px 32px rgba(0,0,0,.65);
+  1211→      z-index:5;
+  1212→    }
+  1213→    .pa-title { transition:font-size .2s ease, color .2s ease; }
+  1214→    .pa-row:hover .pa-title { font-size:0.88rem; color:#fff; }
+  1215→    /* Rank number */
+  1216→    .pa-rank {
+  1217→      position:relative; z-index:2;
+  1218→      width:38px; flex-shrink:0; text-align:center;
+  1219→      font-size:1rem; font-weight:800; opacity:.2;
+  1220→      font-family:var(--font-title); padding-left:6px;
+  1221→    }
+  1222→    .pa-row.rank-1 .pa-rank { opacity:1; color:#fbbf24; font-size:1.2rem; text-shadow:0 0 14px rgba(251,191,36,.7); }
+  1223→    .pa-row.rank-2 .pa-rank { opacity:1; color:#cbd5e1; font-size:1.12rem; }
+  1224→    .pa-row.rank-3 .pa-rank { opacity:1; color:#fb923c; font-size:1.06rem; }
+  1225→    .pa-row.rank-1 { border-left:3px solid #fbbf24; }
+  1226→    .pa-row.rank-2 { border-left:3px solid #94a3b8; }
+  1227→    .pa-row.rank-3 { border-left:3px solid #fb923c; }
+  1228→    /* Poster — bigger, like Miruro */
+  1229→    .pa-poster {
+  1230→      position:relative; z-index:2; flex-shrink:0;
+  1231→      width:56px; height:78px; margin:5px 12px 5px 6px;
+  1232→      border-radius:7px; object-fit:cover;
+  1233→      box-shadow:0 4px 14px rgba(0,0,0,.65);
+  1234→    }
+  1235→    /* Info block — left side content */
+  1236→    .pa-info { position:relative; z-index:2; flex:1; min-width:0; padding:10px 14px 10px 0; }
+  1237→    .pa-title {
+  1238→      font-size:0.82rem; font-weight:700; color:#fff;
+  1239→      display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+  1240→      overflow:hidden; line-height:1.38; margin-bottom:6px;
+  1241→    }
+  1242→    .pa-meta { display:flex; flex-wrap:wrap; gap:4px; align-items:center; }
+  1243→    .pa-tag {
+  1244→      font-size:0.59rem; font-weight:600;
+  1245→      background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.16);
+  1246→      border-radius:20px; padding:2px 8px; color:#cbd5e1; white-space:nowrap;
+  1247→    }
+  1248→    .pa-score {
+  1249→      font-size:0.64rem; font-weight:700; color:#fbbf24;
+  1250→      display:inline-flex; align-items:center; gap:3px;
+  1251→    }
+  1252→    .pa-score i { font-size:0.54rem; }
+  1253→
+  1254→    /* popup - Anchored next to card (Netflix/Anikoto style) */
+  1255→    .popup-overlay { position:fixed; inset:0; z-index:500; pointer-events:none; }
+  1256→    .popup-card { 
+  1257→      position:fixed; /* JS sets top/left based on anchor element */
+  1258→      background:var(--bg-popup); 
+  1259→      border:1px solid var(--border-medium);
+  1260→      border-radius:var(--radius-lg); 
+  1261→      padding:20px; 
+  1262→      width:340px; 
+  1263→      max-width:90vw;
+  1264→      max-height:70vh; 
+  1265→      overflow-y:auto; 
+  1266→      box-shadow:var(--shadow-lg);
+  1267→      pointer-events:auto; 
+  1268→      display:none; 
+  1269→      color:#fff;
+  1270→      opacity:0; 
+  1271→      transform:scale(0.97); 
+  1272→      transition:opacity 0.15s ease, transform 0.15s ease;
+  1273→      z-index:501;
+  1274→    }
+  1275→    .popup-card.active { display:block; opacity:1; transform:scale(1); }
+  1276→    
+  1277→    /* MOBILE: Hide popup cards entirely - users click directly to info page */
+  1278→    @media (max-width: 768px) {
+  1279→      .popup-overlay { display:none !important; pointer-events:none !important; }
+  1280→      .popup-card { display:none !important; }
+  1281→    }
+  1282→    .popup-close { position:absolute; top:12px; right:16px; font-size:1.4rem; cursor:pointer; color:#cbd5e1; line-height:1; z-index:2; }
+  1283→    .modal-poster-wrap { width:120px; flex-shrink:0; border-radius:10px; overflow:hidden; float:left; margin-right:16px; margin-bottom:12px; }
+  1284→    .modal-poster-wrap img { width:100%; height:auto; display:block; }
+  1285→    .modal-title { font-weight:700; font-size:1.1rem; line-height:1.3; margin-bottom:4px; color:#fff; word-break:break-word; }
+  1286→    .modal-subtitle { font-size:0.85rem; color:var(--text-muted); margin-bottom:12px; }
+  1287→    .meta-pills-row { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
+  1288→    .meta-pill { background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.3); border-radius:20px; padding:3px 10px; font-size:0.7rem; font-weight:500; color:#e0f0ff; white-space:nowrap; display:flex; align-items:center; gap:4px; }
+  1289→    .meta-pill svg { width:12px; height:12px; }
+  1290→    .genre-pills-row { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:16px; }
+  1291→    .genre-pill { background:rgba(126,200,224,0.2); border:1px solid #7ec8e0; border-radius:20px; padding:2px 10px; font-size:0.65rem; font-weight:600; color:#7ec8e0; cursor:pointer; text-decoration:none; transition:background 0.2s; }
+  1292→    .genre-pill:hover { background:rgba(126,200,224,0.4); }
+  1293→    .watch-btn { display:inline-block; background:var(--accent-gold); color:#1a1a1a; font-weight:700; padding:10px 24px; border-radius:40px; text-decoration:none; font-size:0.9rem; margin:0 0 16px 0; transition:background 0.2s, transform 0.1s; border:none; cursor:pointer; }
+  1294→    .watch-btn:hover { background:#f59e0b; transform:scale(1.02); }
+  1295→    .modal-synopsis { font-size:0.8rem; line-height:1.5; color:#ddd; white-space:pre-wrap; clear:both; }
+  1296→
+  1297→    /* ANIKOTO STYLE POPUP */
+  1298→    .anikoto-popup {
+  1299→      display: flex;
+  1300→      gap: 16px;
+  1301→      align-items: flex-start;
+  1302→    }
+  1303→    .anikoto-popup-poster {
+  1304→      width: 110px;
+  1305→      flex-shrink: 0;
+  1306→      border-radius: 8px;
+  1307→      overflow: hidden;
+  1308→    }
+  1309→    .anikoto-popup-poster img {
+  1310→      width: 100%;
+  1311→      height: auto;
+  1312→      display: block;
+  1313→    }
+  1314→    .anikoto-popup-content {
+  1315→      flex: 1;
+  1316→      min-width: 0;
+  1317→    }
+  1318→    .anikoto-popup-title {
+  1319→      font-size: 1.05rem;
+  1320→      font-weight: 700;
+  1321→      color: #fff;
+  1322→      margin-bottom: 6px;
+  1323→      line-height: 1.3;
+  1324→    }
+  1325→    .anikoto-popup-meta {
+  1326→      display: flex;
+  1327→      flex-wrap: wrap;
+  1328→      gap: 8px;
+  1329→      margin-bottom: 10px;
+  1330→    }
+  1331→    .anikoto-meta-item {
+  1332→      font-size: 0.7rem;
+  1333→      color: var(--text-muted);
+  1334→      display: flex;
+  1335→      align-items: center;
+  1336→      gap: 4px;
+  1337→    }
+  1338→    .anikoto-popup-synopsis {
+  1339→      font-size: 0.75rem;
+  1340→      color: var(--text-secondary);
+  1341→      line-height: 1.5;
+  1342→      margin-bottom: 12px;
+  1343→      display: -webkit-box;
+  1344→      -webkit-line-clamp: 3;
+  1345→      -webkit-box-orient: vertical;
+  1346→      overflow: hidden;
+  1347→    }
+  1348→    .anikoto-popup-actions {
+  1349→      display: flex;
+  1350→      gap: 8px;
+  1351→    }
+  1352→    .anikoto-btn {
+  1353→      padding: 6px 14px;
+  1354→      border-radius: var(--radius-pill);
+  1355→      font-size: 0.75rem;
+  1356→      font-weight: 600;
+  1357→      cursor: pointer;
+  1358→      transition: all var(--transition-fast);
+  1359→      border: none;
+  1360→      display: inline-flex;
+  1361→      align-items: center;
+  1362→      gap: 5px;
+  1363→    }
+  1364→    .anikoto-btn-primary {
+  1365→      background: var(--btn-primary);
+  1366→      color: #fff;
+  1367→    }
+  1368→    .anikoto-btn-primary:hover {
+  1369→      background: var(--btn-primary-hover);
+  1370→    }
+  1371→    .anikoto-btn-secondary {
+  1372→      background: rgba(255,255,255,0.1);
+  1373→      color: #fff;
+  1374→      border: 1px solid var(--border-medium);
+  1375→    }
+  1376→    .anikoto-btn-secondary:hover {
+  1377→      background: rgba(255,255,255,0.2);
+  1378→    }
+  1379→
+  1380→    /* SCHEDULE */
+  1381→    @keyframes schedSpin { to { transform: rotate(360deg); } }
+  1382→    /* ════════════════════════════════════════════════════════════
+  1383→       SCHEDULE WIDGET - REDESIGNED (Vertical Day Cards)
+  1384→       ════════════════════════════════════════════════════════════ */
+  1385→    .esw-widget {
+  1386→      background: var(--bg-card);
+  1387→      border: 1px solid var(--border-subtle);
+  1388→      border-radius: var(--radius-lg);
+  1389→      overflow: hidden;
+  1390→      margin-top: 20px;
+  1391→      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+  1392→    }
+  1393→    .esw-head {
+  1394→      padding: 12px 16px;
+  1395→      display: flex;
+  1396→      justify-content: space-between;
+  1397→      align-items: center;
+  1398→      border-bottom: 1px solid var(--border-subtle);
+  1399→      background: linear-gradient(135deg, var(--bg-surface) 0%, var(--bg-card) 100%);
+  1400→      font-size: 0.85rem;
+  1401→      font-weight: 700;
+  1402→      color: #fff;
+  1403→    }
+  1404→    .esw-head-title {
+  1405→      display: flex;
+  1406→      align-items: center;
+  1407→      gap: 8px;
+  1408→    }
+  1409→    .esw-head-title i {
+  1410→      color: var(--accent-blue);
+  1411→      font-size: 1rem;
+  1412→    }
+  1413→    .esw-clock-container {
+  1414→      display: flex;
+  1415→      align-items: center;
+  1416→      gap: 6px;
+  1417→    }
+  1418→    .esw-clock-icon {
+  1419→      color: var(--accent-gold);
+  1420→      font-size: 0.85rem;
+  1421→    }
+  1422→    .esw-clock-pill {
+  1423→      display: flex;
+  1424→      align-items: center;
+  1425→      gap: 5px;
+  1426→      background: var(--bg-body);
+  1427→      border: 1px solid var(--border-medium);
+  1428→      border-radius: var(--radius-pill);
+  1429→      padding: 4px 10px;
+  1430→      font-size: 0.65rem;
+  1431→      color: var(--text-muted);
+  1432→    }
+  1433→    /* Week Navigation */
+  1434→    .esw-week-nav {
+  1435→      display: flex;
+  1436→      justify-content: space-between;
+  1437→      align-items: center;
+  1438→      padding: 8px 12px;
+  1439→      background: var(--bg-body);
+  1440→      border-bottom: 1px solid var(--border-subtle);
+  1441→    }
+  1442→    .esw-week-label {
+  1443→      font-size: 0.7rem;
+  1444→      color: var(--text-secondary);
+  1445→      font-weight: 600;
+  1446→    }
+  1447→    .esw-nav-btn {
+  1448→      background: var(--bg-surface);
+  1449→      border: 1px solid var(--border-subtle);
+  1450→      color: var(--text-secondary);
+  1451→      cursor: pointer;
+  1452→      width: 28px;
+  1453→      height: 28px;
+  1454→      display: flex;
+  1455→      align-items: center;
+  1456→      justify-content: center;
+  1457→      border-radius: var(--radius-sm);
+  1458→      transition: all var(--transition-fast);
+  1459→      font-size: 0.9rem;
+  1460→    }
+  1461→    .esw-nav-btn:hover:not(:disabled) {
+  1462→      background: var(--btn-primary);
+  1463→      border-color: var(--btn-primary);
+  1464→      color: #fff;
+  1465→      transform: scale(1.05);
+  1466→    }
+  1467→    .esw-nav-btn:disabled {
+  1468→      opacity: 0.4;
+  1469→      cursor: not-allowed;
+  1470→    }
+  1471→    /* Days Row - Vertical Cards */
+  1472→    .esw-days-row {
+  1473→      display: flex;
+  1474→      align-items: stretch;
+  1475→      padding: 8px;
+  1476→      gap: 6px;
+  1477→      border-bottom: 1px solid var(--border-subtle);
+  1478→      overflow-x: auto;
+  1479→      scrollbar-width: none;
+  1480→    }
+  1481→    .esw-days-row::-webkit-scrollbar {
+  1482→      display: none;
+  1483→    }
+  1484→    /* Vertical Day Card */
+  1485→    .esw-day-card {
+  1486→      flex: 1;
+  1487→      min-width: 60px;
+  1488→      max-width: 90px;
+  1489→      background: var(--bg-surface);
+  1490→      border: 2px solid var(--border-subtle);
+  1491→      border-radius: var(--radius-md);
+  1492→      padding: 8px 4px;
+  1493→      text-align: center;
+  1494→      cursor: pointer;
+  1495→      font-size: 0.6rem;
+  1496→      transition: all 0.25s ease;
+  1497→      display: flex;
+  1498→      flex-direction: column;
+  1499→      align-items: center;
+  1500→      gap: 2px;
+  1501→      position: relative;
+  1502→    }
+  1503→    .esw-day-card:hover {
+  1504→      transform: translateY(-3px);
+  1505→      box-shadow: 0 4px 12px rgba(66, 153, 225, 0.2);
+  1506→      border-color: var(--accent-blue);
+  1507→    }
+  1508→    .esw-day-card.active {
+  1509→      background: linear-gradient(135deg, var(--btn-primary) 0%, #2563eb 100%);
+  1510→      border-color: var(--btn-primary);
+  1511→      box-shadow: 0 4px 15px rgba(43, 108, 176, 0.4);
+  1512→    }
+  1513→    .esw-day-card.active .esw-dc-month,
+  1514→    .esw-day-card.active .esw-dc-day,
+  1515→    .esw-day-card.active .esw-dc-weekday {
+  1516→      color: #fff;
+  1517→    }
+  1518→    .esw-day-card.today {
+  1519→      border-color: var(--accent-gold);
+  1520→      position: relative;
+  1521→    }
+  1522→    .esw-day-card.today::after {
+  1523→      content: '';
+  1524→      position: absolute;
+  1525→      top: -2px;
+  1526→      right: -2px;
+  1527→      width: 8px;
+  1528→      height: 8px;
+  1529→      background: var(--accent-gold);
+  1530→      border-radius: 50%;
+  1531→      border: 2px solid var(--bg-card);
+  1532→    }
+  1533→    /* Vertical Date Parts */
+  1534→    .esw-dc-month {
+  1535→      font-size: 0.55rem;
+  1536→      font-weight: 600;
+  1537→      color: var(--accent-blue);
+  1538→      text-transform: uppercase;
+  1539→      letter-spacing: 0.5px;
+  1540→    }
+  1541→    .esw-dc-day {
+  1542→      font-size: 1.1rem;
+  1543→      font-weight: 800;
+  1544→      color: #fff;
+  1545→      line-height: 1.1;
+  1546→    }
+  1547→    .esw-dc-weekday {
+  1548→      font-size: 0.5rem;
+  1549→      font-weight: 500;
+  1550→      color: var(--text-muted);
+  1551→      text-transform: uppercase;
+  1552→      letter-spacing: 0.3px;
+  1553→    }
+  1554→      background:var(--bg-card); 
+  1555→      border:1px solid var(--border-subtle); 
+  1556→      border-radius:var(--radius-md); 
+  1557→      overflow:hidden; 
+  1558→      margin-top:20px; 
+  1559→    }
+  1560→    .esw-head { 
+  1561→      padding:10px 12px; 
+  1562→      display:flex; 
+  1563→      justify-content:space-between; 
+  1564→      align-items: center;
+  1565→      border-bottom:1px solid var(--border-subtle); 
+  1566→      background:var(--bg-surface); 
+  1567→      font-size:0.78rem; 
+  1568→      font-weight:700; 
+  1569→      color:#fff; 
+  1570→    }
+  1571→    .esw-clock-container {
+  1572→      display: flex;
+  1573→      align-items: center;
+  1574→      gap: 6px;
+  1575→    }
+  1576→    .esw-clock-icon {
+  1577→      color: var(--accent-blue);
+  1578→      font-size: 0.85rem;
+  1579→    }
+  1580→    .esw-clock-pill { 
+  1581→      display:flex; 
+  1582→      align-items:center; 
+  1583→      gap:5px; 
+  1584→      background:var(--bg-body); 
+  1585→      border:1px solid var(--border-medium); 
+  1586→      border-radius:var(--radius-pill); 
+  1587→      padding:3px 8px; 
+  1588→      font-size:0.65rem; 
+  1589→      color:var(--text-muted); 
+  1590→    }
+  1591→    .esw-days-row { 
+  1592→      display:flex; 
+  1593→      align-items:center; 
+  1594→      padding:6px 4px; 
+  1595→      border-bottom:1px solid var(--border-subtle); 
+  1596→    }
+  1597→    .esw-nav-btn { 
+  1598→      background:none; 
+  1599→      border:none; 
+  1600→      color:var(--text-muted); 
+  1601→      cursor:pointer; 
+  1602→      width:24px; 
+  1603→      height:24px; 
+  1604→      display:flex; 
+  1605→      align-items:center; 
+  1606→      justify-content:center; 
+  1607→    }
+  1608→    .esw-day-card { 
+  1609→      flex:1; 
+  1610→      background:var(--bg-surface); 
+  1611→      border:1px solid var(--border-subtle); 
+  1612→      border-radius:var(--radius-sm); 
+  1613→      padding:4px 1px; 
+  1614→      text-align:center; 
+  1615→      cursor:pointer; 
+  1616→      font-size:0.55rem; 
+  1617→      transition:all var(--transition-fast); 
+  1618→    }
+  1619→    .esw-day-card.active { 
+  1620→      background:var(--btn-primary); 
+  1621→      border-color:var(--btn-primary); 
+  1622→    }
+  1623→    .esw-day-card.today { 
+  1624→      border-color:var(--accent-gold); 
+  1625→    }
+  1626→
+  1627→    .esw-body {
+  1628→      padding: 10px 12px;
+  1629→      max-height: 420px;
+  1630→      overflow-y: auto;
+  1631→      min-height: 200px;
+  1632→    }
+  1633→    .esw-body::-webkit-scrollbar {
+  1634→      width: 4px;
+  1635→    }
+  1636→    .esw-body::-webkit-scrollbar-thumb {
+  1637→      background: var(--border-medium);
+  1638→      border-radius: 3px;
+  1639→    }
+  1640→    .esw-body::-webkit-scrollbar-track {
+  1641→      background: transparent;
+  1642→    }
+  1643→    .esw-row { 
+  1644→      display:flex; 
+  1645→      align-items:center; 
+  1646→      gap:8px; 
+  1647→      background:var(--bg-surface); 
+  1648→      border:1px solid var(--border-subtle); 
+  1649→      border-radius:var(--radius-sm); 
+  1650→      padding:8px; 
+  1651→      margin-bottom:6px; 
+  1652→      cursor:pointer; 
+  1653→      text-decoration:none; 
+  1654→      color:inherit; 
+  1655→      transition:all var(--transition-fast); 
+  1656→    }
+  1657→    .esw-row:hover { 
+  1658→      border-color:var(--btn-primary); 
+  1659→      transform: translateX(2px);
+  1660→    }
+  1661→    .esw-row.aired {
+  1662→      opacity: 0.6;
+  1663→      background: rgba(0,0,0,0.2);
+  1664→    }
+  1665→    .esw-row.airing {
+  1666→      border-color: var(--accent-gold);
+  1667→      background: rgba(236, 201, 75, 0.1);
+  1668→    }
+  1669→    .esw-row-poster {
+  1670→      width: 40px;
+  1671→      height: 55px;
+  1672→      object-fit: cover;
+  1673→      border-radius: 4px;
+  1674→      flex-shrink: 0;
+  1675→    }
+  1676→    .esw-row-content {
+  1677→      flex: 1;
+  1678→      min-width: 0;
+  1679→    }
+  1680→    .esw-row-time { 
+  1681→      font-size:0.7rem; 
+  1682→      font-weight:700; 
+  1683→      color:var(--accent-blue);
+  1684→      margin-bottom: 2px;
+  1685→    }
+  1686→    .esw-row-title { 
+  1687→      font-size:0.75rem; 
+  1688→      font-weight: 600;
+  1689→      overflow:hidden; 
+  1690→      text-overflow:ellipsis; 
+  1691→      white-space:nowrap;
+  1692→      color: #fff;
+  1693→    }
+  1694→    .esw-row-ep { 
+  1695→      font-size:0.65rem; 
+  1696→      color:var(--text-muted); 
+  1697→      background:var(--bg-body); 
+  1698→      padding:2px 6px; 
+  1699→      border-radius:4px;
+  1700→      font-weight: 600;
+  1701→    }
+  1702→    .esw-more-btn {
+  1703→      width: 100%;
+  1704→      padding: 10px 14px;
+  1705→      background: linear-gradient(135deg, var(--bg-surface) 0%, rgba(43, 108, 176, 0.15) 100%);
+  1706→      border: 1px dashed var(--btn-primary);
+  1707→      border-radius: var(--radius-md);
+  1708→      color: var(--accent-blue);
+  1709→      font-size: 0.75rem;
+  1710→      font-weight: 600;
+  1711→      cursor: pointer;
+  1712→      transition: all 0.3s ease;
+  1713→      margin-top: 10px;
+  1714→      display: flex;
+  1715→      align-items: center;
+  1716→      justify-content: center;
+  1717→      gap: 8px;
+  1718→      letter-spacing: 0.3px;
+  1719→    }
+  1720→    .esw-more-btn i {
+  1721→      transition: transform 0.3s ease;
+  1722→    }
+  1723→    .esw-more-btn:hover {
+  1724→      background: var(--btn-primary);
+  1725→      color: #fff;
+  1726→      border-style: solid;
+  1727→      transform: translateY(-2px);
+  1728→      box-shadow: 0 4px 12px rgba(43, 108, 176, 0.3);
+  1729→    }
+  1730→    .esw-more-btn:hover i {
+  1731→      transform: rotate(180deg);
+  1732→    }
+  1733→    .esw-more-btn.expanded {
+  1734→      background: var(--btn-primary);
+  1735→      color: #fff;
+  1736→      border-style: solid;
+  1737→    }
+  1738→    .esw-more-btn.expanded i {
+  1739→      transform: rotate(180deg);
+  1740→    }
+  1741→
+  1742→    /* New schedule 4-column layout */
+  1743→.schedule-row {
+  1744→  display: grid;
+  1745→  grid-template-columns: 70px 45px 1fr auto;
+  1746→  align-items: center;
+  1747→  gap: 10px;
+  1748→  background: var(--bg-surface);
+  1749→  border: 1px solid var(--border-subtle);
+  1750→  border-radius: var(--radius-md);
+  1751→  padding: 10px 12px;
+  1752→  margin-bottom: 8px;
+  1753→  text-decoration: none;
+  1754→  color: inherit;
+  1755→  transition: all var(--transition-fast);
+  1756→}
+  1757→.schedule-row:hover {
+  1758→  border-color: var(--btn-primary);
+  1759→  transform: translateX(2px);
+  1760→}
+  1761→.schedule-time {
+  1762→  font-size: 0.7rem;
+  1763→  font-weight: 700;
+  1764→  color: var(--accent-blue);
+  1765→}
+  1766→.schedule-poster img {
+  1767→  width: 40px;
+  1768→  height: 56px;
+  1769→  object-fit: cover;
+  1770→  border-radius: 4px;
+  1771→  background: var(--bg-card);
+  1772→}
+  1773→.schedule-title {
+  1774→  font-size: 0.75rem;
+  1775→  font-weight: 600;
+  1776→  overflow: hidden;
+  1777→  text-overflow: ellipsis;
+  1778→  white-space: nowrap;
+  1779→  color: #fff;
+  1780→}
+  1781→.schedule-title-wrap {
+  1782→  display: flex;
+  1783→  flex-direction: column;
+  1784→  gap: 2px;
+  1785→  overflow: hidden;
+  1786→  min-width: 0;
+  1787→}
+  1788→.schedule-subtitle {
+  1789→  font-size: 0.62rem;
+  1790→  font-weight: 600;
+  1791→  color: var(--text-muted);
+  1792→  text-transform: uppercase;
+  1793→  letter-spacing: 0.3px;
+  1794→  overflow: hidden;
+  1795→  text-overflow: ellipsis;
+  1796→  white-space: nowrap;
+  1797→}
+  1798→.schedule-ep {
+  1799→  font-size: 0.65rem;
+  1800→  font-weight: 600;
+  1801→  background: var(--bg-body);
+  1802→  padding: 2px 6px;
+  1803→  border-radius: 4px;
+  1804→  text-align: center;
+  1805→  white-space: nowrap;
+  1806→}
+  1807→.schedule-more-btn {
+  1808→  width: 95% !important;
+  1809→  max-width: 320px !important;
+  1810→  min-width: 200px;
+  1811→  padding: 14px 24px !important;
+  1812→  background: linear-gradient(135deg, var(--bg-surface) 0%, rgba(43, 108, 176, 0.15) 100%);
+  1813→  border: 1px dashed var(--btn-primary);
+  1814→  border-radius: var(--radius-md);
+  1815→  color: var(--accent-blue);
+  1816→  font-size: 0.85rem !important;
+  1817→  font-weight: 600;
+  1818→  cursor: pointer;
+  1819→  transition: all 0.3s ease;
+  1820→  margin-top: 12px;
+  1821→  display: flex !important;
+  1822→  align-items: center;
+  1823→  justify-content: center;
+  1824→  gap: 10px;
+  1825→  margin-left: auto !important;
+  1826→  margin-right: auto !important;
+  1827→  letter-spacing: 0.4px;
+  1828→  box-sizing: border-box !important;
+  1829→  text-align: center;
+  1830→  white-space: nowrap;
+  1831→}
+  1832→.schedule-more-btn i {
+  1833→  transition: transform 0.3s ease;
+  1834→}
+  1835→.schedule-more-btn:hover {
+  1836→  background: var(--btn-primary);
+  1837→  color: #fff;
+  1838→  border-style: solid;
+  1839→  transform: translateY(-2px);
+  1840→  box-shadow: 0 4px 12px rgba(43, 108, 176, 0.3);
+  1841→}
+  1842→.schedule-more-btn:hover i {
+  1843→  transform: rotate(180deg);
+  1844→}
+  1845→.esw-body {
+  1846→  padding: 10px 12px;
+  1847→  max-height: 580px;
+  1848→  overflow-y: auto;
+  1849→}
+  1850→
+  1851→    /* pagination */
+  1852→    .pagination-nav { display:flex; gap:6px; justify-content:center; margin-top:18px; flex-wrap:wrap; align-items:center; }
+  1853→    .pagination-nav button {
+  1854→      padding:6px 12px; border-radius:var(--radius-sm);
+  1855→      background:var(--bg-surface); border:1px solid var(--border-subtle);
+  1856→      color:var(--text-secondary); font-size:0.75rem; cursor:pointer; transition:all var(--transition-fast);
+  1857→    }
+  1858→    .pagination-nav button:hover:not(:disabled) { background:var(--btn-primary); border-color:var(--btn-primary); color:#fff; }
+  1859→    .pagination-nav button.active { background:var(--btn-primary); border-color:var(--btn-primary); color:#fff; font-weight:700; }
+  1860→    .pagination-nav button:disabled { opacity:0.4; cursor:not-allowed; }
+  1861→
+  1862→    @media (max-width:1100px) {
+  1863→      .main-layout { flex-direction:column; }
+  1864→      .main-content, .sidebar-right { flex:1; max-width:100%; padding:0 16px; }
+  1865→      .sidebar-right { position:static; width:100%; padding:0 16px; }
+  1866→      /* Tablet: keep 2-row grid — the 3-row layout is desktop/computer only */
+  1867→      .new-aniocean-shelf {
+  1868→        /* 60 columns × 2 rows = 120 cells — comfortably covers the up-to-100
+  1869→           items the API can return, so nothing overflows into shrunken
+  1870→           implicit columns (see grid-auto-columns fallback below too). */
+  1871→        grid-template-columns: repeat(60, 150px);
+  1872→        grid-template-rows: repeat(2, auto);
+  1873→        grid-auto-columns: 150px;
+  1874→        height: calc(((150px * 4.5 / 3) + 70px) * 2 + 12px);
+  1875→        max-height: 600px;
+  1876→      }
+  1877→      .new-aniocean-shelf .aniocean-card {
+  1878→        width: 150px;
+  1879→        min-width: 150px;
+  1880→        max-width: 150px;
+  1881→      }
+  1882→    }
+  1883→    @media (max-width:768px) {
+  1884→      .horizontal-scroll { gap:10px; }
+  1885→      .show-card-horiz { width:150px; }
+  1886→      .grid-container { grid-template-columns:repeat(2, 1fr); gap:10px; } /* Mobile portrait: 2 per row */
+  1887→      .new-aniocean-shelf { 
+  1888→        gap: 8px;
+  1889→        /* Mobile: 2 cards visible per "page" of the scroll, 2 rows tall.
+  1890→           60 columns × 2 rows = 120 cells — was only 20 columns (40 cells)
+  1891→           before, so cards past #40 (the API can return up to 100) fell into
+  1892→           implicit columns sized by grid-auto-columns:auto and shrank to
+  1893→           almost nothing. That's the "cards get tiny after scrolling" bug. */
+  1894→        grid-template-columns: repeat(60, calc((100vw - 32px - 8px) / 2));
+  1895→        grid-auto-columns: calc((100vw - 32px - 8px) / 2);
+  1896→        grid-template-rows: repeat(2, auto);
+  1897→        height: auto;
+  1898→        max-height: none;
+  1899→      }
+  1900→      .new-aniocean-shelf .aniocean-card { 
+  1901→        width: auto;
+  1902→        min-width: auto;
+  1903→        max-width: auto;
+  1904→      }
+  1905→      
+  1906→      /* Schedule Widget - Mobile Responsive */
+  1907→      .esw-widget { margin-top: 15px; border-radius: var(--radius-md); }
+  1908→      .esw-head { padding: 10px 12px; font-size: 0.8rem; }
+  1909→      .esw-head-title i { font-size: 0.9rem; }
+  1910→      .esw-week-nav { padding: 6px 10px; }
+  1911→      .esw-nav-btn { width: 26px; height: 26px; font-size: 0.8rem; }
+  1912→      .esw-days-row { padding: 6px 4px; gap: 4px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  1913→      .esw-day-card { 
+  1914→        min-width: 52px; 
+  1915→        max-width: 75px; 
+  1916→        padding: 6px 3px;
+  1917→        border-radius: var(--radius-sm);
+  1918→      }
+  1919→      .esw-dc-month { font-size: 0.5rem; }
+  1920→      .esw-dc-day { font-size: 1rem; }
+  1921→      .esw-dc-weekday { font-size: 0.45rem; }
+  1922→      .esw-body { 
+  1923→        max-height: 420px; 
+  1924→        min-height: 180px;
+  1925→        padding: 8px 8px;
+  1926→      }
+  1927→      .schedule-row {
+  1928→        grid-template-columns: 60px 40px 1fr auto;
+  1929→        gap: 8px;
+  1930→        padding: 8px;
+  1931→        margin-bottom: 6px;
+  1932→      }
+  1933→      .schedule-poster img { width: 36px; height: 50px; }
+  1934→      .schedule-title { font-size: 0.75rem; }
+  1935→      .schedule-time { font-size: 0.7rem; padding: 3px 6px; }
+  1936→      .schedule-ep { font-size: 0.65rem; padding: 3px 8px; }
+  1937→      .esw-more-btn { padding: 8px 12px; font-size: 0.7rem; }
+  1938→      .schedule-more-btn {
+  1939→        width: 96% !important;
+  1940→        max-width: 280px !important;
+  1941→        min-width: 180px !important;
+  1942→        padding: 12px 20px !important;
+  1943→        font-size: 0.8rem !important;
+  1944→      }
+  1945→    }
+  1946→    
+  1947→    @media (max-width: 480px) {
+  1948→      /* Schedule - Extra Small Screens */
+  1949→      .esw-head-title span { display: none; } /* Hide text, keep icon only */
+  1950→      .esw-clock-pill { font-size: 0.6rem; padding: 2px 6px; }
+  1951→      .esw-day-card { 
+  1952→        min-width: 46px; 
+  1953→        max-width: 65px; 
+  1954→        padding: 5px 2px;
+  1955→        gap: 1px;
+  1956→      }
+  1957→      .esw-dc-month { font-size: 0.45rem; letter-spacing: 0.3px; }
+  1958→      .esw-dc-day { font-size: 0.95rem; }
+  1959→      .esw-dc-weekday { font-size: 0.4rem; }
+  1960→      .schedule-row {
+  1961→        grid-template-columns: 55px 35px 1fr auto;
+  1962→        gap: 6px;
+  1963→        padding: 7px;
+  1964→      }
+  1965→      .schedule-poster img { width: 32px; height: 44px; }
+  1966→      .schedule-title { font-size: 0.72rem; }
+  1967→      .esw-body { max-height: 360px; padding: 6px; }
+  1968→    }
+  1969→    .country-link:hover {
+  1970→      color: #3675a8 !important;
+  1971→    }
+  1972→    .nav-link-item:hover {
+  1973→      color: #1d6a96 !important;
+  1974→    }
+  1975→    .genre-link:hover {
+  1976→      color: #3675a8 !important;
+  1977→    }
+  1978→    /* Desktop: limit hero slider height - lowered for Anilist banner sharpness */
+  1979→@media (min-width: 1024px) {
+  1980→  .hero-slider {
+  1981→    aspect-ratio: auto;      /* remove 16/9 ratio */
+  1982→    height: 550px;           /* fixed height – optimized for Anilist banners (~1000x380px) */
+  1983→  }
+  1984→}
+  1985→    .hero-slider {
+  1986→  transition: height 0.2s ease, aspect-ratio 0.2s ease;
+  1987→}
+  1988→    @media (max-width: 768px) {
+  1989→  .hero-slider {
+  1990→    aspect-ratio: auto;
+  1991→    height: 300px;
+  1992→  }
+  1993→  /* ═══ MOBILE HERO - COMPACT METADATA CARD ═══ */
+  1994→  .slide-content {
+  1995→    margin-bottom: 3%;
+  1996→    padding: 10px 14px !important;
+  1997→    background: rgba(15, 36, 64, 0.82) !important;
+  1998→    backdrop-filter: blur(14px) saturate(130%) !important;
+  1999→    border-radius: var(--radius-md) !important;
+  2000→    max-width: 94% !important;
+
+[showing lines 1-2000 of 7142; use offset=2001 with limit to continue reading]
