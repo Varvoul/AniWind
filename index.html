@@ -5315,114 +5315,134 @@ titleEl.style.color = 'transparent';
         return collected;
       }
 
+      /**
+       * Format a Date as YYYY-MM-DD (local time) — used for TMDB date-filter params.
+       */
+      function todayISODate() {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      }
+
+      /**
+       * Paginated, rate-limited, queue-managed fetch of genuinely upcoming TMDB movies.
+       * - Fetches pages SEQUENTIALLY (one at a time), never concurrently — a real queue,
+       *   not a burst of 30 simultaneous requests.
+       * - Stops as soon as `targetCount` valid results (poster + truly future release_date)
+       *   are collected — no wasted requests once we have enough.
+       * - Dynamic date filter: release_date >= today (computed fresh every call), not a
+       *   hardcoded year string — so a movie released earlier this year but already out
+       *   is correctly excluded, and nothing has to change when the year rolls over.
+       * - 250ms gap between pages to stay well clear of TMDB's rate limits.
+       */
+      async function fetchUpcomingMoviesTMDB(targetCount = 50, maxPages = 10) {
+        const collected = [];
+        const seenIds = new Set();
+        const todayStr = todayISODate();
+        const todayDate = new Date(todayStr);
+        let page = 1;
+        let totalPages = maxPages;
+
+        while (collected.length < targetCount && page <= Math.min(maxPages, totalPages)) {
+          if (page > 1) await new Promise(r => setTimeout(r, 250));
+
+          let data;
+          try {
+            data = await fetchTMDB('/movie/upcoming', `page=${page}`);
+          } catch (err) {
+            console.warn(`[Upcoming Movies] page ${page} failed:`, err.message);
+            break;
+          }
+
+          const results = data?.results || [];
+          if (data?.total_pages) totalPages = data.total_pages;
+          if (!results.length) break;
+
+          for (const item of results) {
+            if (seenIds.has(item.id)) continue;
+            const hasPoster = item.poster_path && item.poster_path !== 'null' && item.poster_path !== 'undefined';
+            // Dynamic: genuinely upcoming = release_date is today or later (not "same year")
+            const isFuture = item.release_date && new Date(item.release_date) >= todayDate;
+            if (!hasPoster || !isFuture) continue;
+            seenIds.add(item.id);
+            collected.push(item);
+            if (collected.length >= targetCount) break;
+          }
+
+          console.log(`[Upcoming Movies] page ${page}/${totalPages}: ${results.length} raw → ${collected.length}/${targetCount} collected`);
+          page++;
+        }
+
+        return collected;
+      }
+
+      /**
+       * Paginated, rate-limited, queue-managed fetch of genuinely upcoming TMDB TV shows.
+       * IMPORTANT FIELD-NAME NOTE: TMDB's TV date field is `first_air_date` (confirmed against
+       * TMDB's own docs) — same field used before, so no rename needed there.
+       * ENDPOINT CHANGE: switched from /tv/on_the_air to /discover/tv with
+       * first_air_date.gte={today}. /tv/on_the_air is "currently airing right now" by
+       * definition — its first_air_date is always in the past, so a "future date" filter
+       * on it can never return anything. /discover/tv + first_air_date.gte is the correct
+       * way to ask TMDB for shows that haven't premiered yet.
+       */
+      async function fetchUpcomingTVTMDB(targetCount = 50, maxPages = 10) {
+        const collected = [];
+        const seenIds = new Set();
+        const todayStr = todayISODate();
+        const todayDate = new Date(todayStr);
+        let page = 1;
+        let totalPages = maxPages;
+
+        while (collected.length < targetCount && page <= Math.min(maxPages, totalPages)) {
+          if (page > 1) await new Promise(r => setTimeout(r, 250));
+
+          let data;
+          try {
+            data = await fetchTMDB('/discover/tv', `page=${page}&sort_by=popularity.desc&first_air_date.gte=${todayStr}`);
+          } catch (err) {
+            console.warn(`[Upcoming TV] page ${page} failed:`, err.message);
+            break;
+          }
+
+          const results = data?.results || [];
+          if (data?.total_pages) totalPages = data.total_pages;
+          if (!results.length) break;
+
+          for (const item of results) {
+            if (seenIds.has(item.id)) continue;
+            const hasPoster = item.poster_path && item.poster_path !== 'null' && item.poster_path !== 'undefined';
+            const isFuture = item.first_air_date && new Date(item.first_air_date) >= todayDate;
+            if (!hasPoster || !isFuture) continue;
+            seenIds.add(item.id);
+            collected.push(item);
+            if (collected.length >= targetCount) break;
+          }
+
+          console.log(`[Upcoming TV] page ${page}/${totalPages}: ${results.length} raw → ${collected.length}/${targetCount} collected`);
+          page++;
+        }
+
+        return collected;
+      }
+
       async function loadUpcoming() {
         
-        // Using NEW t-umi proxy + AniList (replacing Jikan)
-        // INCREASED to 30 pages each (user request!) - /tv/on_the_air is primary TV source now
-        console.log('[Upcoming] Starting fetch: 30 pages movies/TV each + up to 50 JP TV anime (paginated, rate-limited)...');
+        console.log('[Upcoming] Starting queue-managed fetch: movies + TV + anime, each sequential/rate-limited, stopping once 50 collected...');
         const todayDebug = new Date();
         console.log(`[Upcoming] Today's date: ${todayDebug.toISOString().split('T')[0]}`);
         
-        const [tmdbUp1, tmdbUp2, tmdbUp3, tmdbUp4, tmdbUp5, tmdbUp6, tmdbUp7, tmdbUp8, tmdbUp9, tmdbUp10,
-               tmdbUp11, tmdbUp12, tmdbUp13, tmdbUp14, tmdbUp15, tmdbUp16, tmdbUp17, tmdbUp18, tmdbUp19, tmdbUp20,
-               tmdbUp21, tmdbUp22, tmdbUp23, tmdbUp24, tmdbUp25, tmdbUp26, tmdbUp27, tmdbUp28, tmdbUp29, tmdbUp30,
-               tmdbTv1, tmdbTv2, tmdbTv3, tmdbTv4, tmdbTv5, tmdbTv6, tmdbTv7, tmdbTv8, tmdbTv9, tmdbTv10,
-               tmdbTv11, tmdbTv12, tmdbTv13, tmdbTv14, tmdbTv15, tmdbTv16, tmdbTv17, tmdbTv18, tmdbTv19, tmdbTv20,
-               tmdbTv21, tmdbTv22, tmdbTv23, tmdbTv24, tmdbTv25, tmdbTv26, tmdbTv27, tmdbTv28, tmdbTv29, tmdbTv30,
-               anilistUpcomingAnime] = await Promise.all([
-          // MOVIES: 30 pages = 600 results (direct /movie/upcoming endpoint)
-          fetchTMDB('/movie/upcoming', `page=1`),
-          fetchTMDB('/movie/upcoming', `page=2`),
-          fetchTMDB('/movie/upcoming', `page=3`),
-          fetchTMDB('/movie/upcoming', `page=4`),
-          fetchTMDB('/movie/upcoming', `page=5`),
-          fetchTMDB('/movie/upcoming', `page=6`),
-          fetchTMDB('/movie/upcoming', `page=7`),
-          fetchTMDB('/movie/upcoming', `page=8`),
-          fetchTMDB('/movie/upcoming', `page=9`),
-          fetchTMDB('/movie/upcoming', `page=10`),
-          fetchTMDB('/movie/upcoming', `page=11`),
-          fetchTMDB('/movie/upcoming', `page=12`),
-          fetchTMDB('/movie/upcoming', `page=13`),
-          fetchTMDB('/movie/upcoming', `page=14`),
-          fetchTMDB('/movie/upcoming', `page=15`),
-          fetchTMDB('/movie/upcoming', `page=16`),
-          fetchTMDB('/movie/upcoming', `page=17`),
-          fetchTMDB('/movie/upcoming', `page=18`),
-          fetchTMDB('/movie/upcoming', `page=19`),
-          fetchTMDB('/movie/upcoming', `page=20`),
-          fetchTMDB('/movie/upcoming', `page=21`),
-          fetchTMDB('/movie/upcoming', `page=22`),
-          fetchTMDB('/movie/upcoming', `page=23`),
-          fetchTMDB('/movie/upcoming', `page=24`),
-          fetchTMDB('/movie/upcoming', `page=25`),
-          fetchTMDB('/movie/upcoming', `page=26`),
-          fetchTMDB('/movie/upcoming', `page=27`),
-          fetchTMDB('/movie/upcoming', `page=28`),
-          fetchTMDB('/movie/upcoming', `page=29`),
-          fetchTMDB('/movie/upcoming', `page=30`),
-          // TV SHOWS: 30 pages = 600 results (DIRECT /tv/on_the_air endpoint - user requested!)
-          fetchTMDB('/tv/on_the_air', `page=1`),
-          fetchTMDB('/tv/on_the_air', `page=2`),
-          fetchTMDB('/tv/on_the_air', `page=3`),
-          fetchTMDB('/tv/on_the_air', `page=4`),
-          fetchTMDB('/tv/on_the_air', `page=5`),
-          fetchTMDB('/tv/on_the_air', `page=6`),
-          fetchTMDB('/tv/on_the_air', `page=7`),
-          fetchTMDB('/tv/on_the_air', `page=8`),
-          fetchTMDB('/tv/on_the_air', `page=9`),
-          fetchTMDB('/tv/on_the_air', `page=10`),
-          fetchTMDB('/tv/on_the_air', `page=11`),
-          fetchTMDB('/tv/on_the_air', `page=12`),
-          fetchTMDB('/tv/on_the_air', `page=13`),
-          fetchTMDB('/tv/on_the_air', `page=14`),
-          fetchTMDB('/tv/on_the_air', `page=15`),
-          fetchTMDB('/tv/on_the_air', `page=16`),
-          fetchTMDB('/tv/on_the_air', `page=17`),
-          fetchTMDB('/tv/on_the_air', `page=18`),
-          fetchTMDB('/tv/on_the_air', `page=19`),
-          fetchTMDB('/tv/on_the_air', `page=20`),
-          fetchTMDB('/tv/on_the_air', `page=21`),
-          fetchTMDB('/tv/on_the_air', `page=22`),
-          fetchTMDB('/tv/on_the_air', `page=23`),
-          fetchTMDB('/tv/on_the_air', `page=24`),
-          fetchTMDB('/tv/on_the_air', `page=25`),
-          fetchTMDB('/tv/on_the_air', `page=26`),
-          fetchTMDB('/tv/on_the_air', `page=27`),
-          fetchTMDB('/tv/on_the_air', `page=28`),
-          fetchTMDB('/tv/on_the_air', `page=29`),
-          fetchTMDB('/tv/on_the_air', `page=30`),
+        const [moviesRaw, tvRaw, anilistUpcomingAnime] = await Promise.all([
+          // MOVIES: paginated sequentially, stops once 50 genuinely-upcoming results found
+          fetchUpcomingMoviesTMDB(50),
+          // TV: paginated sequentially via /discover/tv (first_air_date.gte=today), stops once 50 found
+          fetchUpcomingTVTMDB(50),
           // AniList: Upcoming JAPANESE TV/TV_SHORT anime only — paginated, rate-limited,
           // stops as soon as 50 valid results are collected (see fetchUpcomingAnimeAniList above)
           fetchUpcomingAnimeAniList(50)
         ]);
         
-        // Merge TMDB movie pages (30 pages = up to 600 results)
-        const allTmdbMovies = [
-          ...(tmdbUp1.results||[]), ...(tmdbUp2.results||[]), ...(tmdbUp3.results||[]), 
-          ...(tmdbUp4.results||[]), ...(tmdbUp5.results||[]), ...(tmdbUp6.results||[]), 
-          ...(tmdbUp7.results||[]), ...(tmdbUp8.results||[]), ...(tmdbUp9.results||[]), 
-          ...(tmdbUp10.results||[]), ...(tmdbUp11.results||[]), ...(tmdbUp12.results||[]),
-          ...(tmdbUp13.results||[]), ...(tmdbUp14.results||[]), ...(tmdbUp15.results||[]),
-          ...(tmdbUp16.results||[]), ...(tmdbUp17.results||[]), ...(tmdbUp18.results||[]),
-          ...(tmdbUp19.results||[]), ...(tmdbUp20.results||[]), ...(tmdbUp21.results||[]),
-          ...(tmdbUp22.results||[]), ...(tmdbUp23.results||[]), ...(tmdbUp24.results||[]),
-          ...(tmdbUp25.results||[]), ...(tmdbUp26.results||[]), ...(tmdbUp27.results||[]),
-          ...(tmdbUp28.results||[]), ...(tmdbUp29.results||[]), ...(tmdbUp30.results||[])
-        ];
-        // Merge TMDB TV pages (30 pages from /tv/on_the_air = up to 600 results)
-        const allTmdbTV = [
-          ...(tmdbTv1.results||[]), ...(tmdbTv2.results||[]), ...(tmdbTv3.results||[]), 
-          ...(tmdbTv4.results||[]), ...(tmdbTv5.results||[]), ...(tmdbTv6.results||[]), 
-          ...(tmdbTv7.results||[]), ...(tmdbTv8.results||[]), ...(tmdbTv9.results||[]), 
-          ...(tmdbTv10.results||[]), ...(tmdbTv11.results||[]), ...(tmdbTv12.results||[]),
-          ...(tmdbTv13.results||[]), ...(tmdbTv14.results||[]), ...(tmdbTv15.results||[]),
-          ...(tmdbTv16.results||[]), ...(tmdbTv17.results||[]), ...(tmdbTv18.results||[]),
-          ...(tmdbTv19.results||[]), ...(tmdbTv20.results||[]), ...(tmdbTv21.results||[]),
-          ...(tmdbTv22.results||[]), ...(tmdbTv23.results||[]), ...(tmdbTv24.results||[]),
-          ...(tmdbTv25.results||[]), ...(tmdbTv26.results||[]), ...(tmdbTv27.results||[]),
-          ...(tmdbTv28.results||[]), ...(tmdbTv29.results||[]), ...(tmdbTv30.results||[])
-        ];
+        const allTmdbMovies = moviesRaw;
+        const allTmdbTV = tvRaw;
         
         console.log(`[Upcoming] Raw fetch complete: ${allTmdbMovies.length} movies, ${allTmdbTV.length} TV shows`);
         
@@ -5461,46 +5481,17 @@ titleEl.style.color = 'transparent';
         }
         
         // ════════════════════════════════════════════════════════════
-        // FRONTEND FILTERING: Date + Poster validation
+        // SHAPE TO INTERNAL FORMAT
+        // (Poster validity + genuinely-future-date filtering already happened
+        // inside fetchUpcomingMoviesTMDB/fetchUpcomingTVTMDB while paginating —
+        // no need to re-filter or re-fetch extra pages here.)
         // ════════════════════════════════════════════════════════════
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);  // Start of today
-        
-        const isFutureDate = (dateStr) => {
-          if (!dateStr || dateStr === '' || dateStr === 'TBA') return false;
-          const date = new Date(dateStr);
-          return !isNaN(date.getTime()) && date >= today;
-        };
-        
         const hasValidPoster = (posterUrl) => {
           return posterUrl && posterUrl !== '' && posterUrl !== 'null' && 
                  posterUrl !== 'undefined' && posterUrl !== 'none';
         };
         
-        // 🎯 Map and filter TMDB MOVIES - Current Year Filter (same as hero slider!)
-        // Only keep movies with release_date in CURRENT YEAR → guarantees fresh content!
-        const upcomingCurrentYear = new Date().getFullYear().toString();
-        console.log(`[Upcoming] 📅 Filtering ${allTmdbMovies.length} movies: keeping only ${upcomingCurrentYear} releases...`);
-        
-        let moviesPassed = 0, moviesDroppedYear = 0, moviesDroppedPoster = 0;
         const tmdbMovieShows = allTmdbMovies
-          .filter(i => {
-            const hasPoster = hasValidPoster(i.poster_path);
-            // NEW: Check if release_date starts with current year (e.g., "2026")
-            const isCurrentYear = i.release_date && i.release_date.startsWith(upcomingCurrentYear);
-            
-            if (!isCurrentYear || !hasPoster) {
-              if (!isCurrentYear) moviesDroppedYear++;
-              else moviesDroppedPoster++;
-              if (moviesPassed + moviesDroppedYear <= 10) { // Log first 10 drops only
-                console.log(`[Upcoming Filter] ❌ Movie dropped: "${i?.title}" - ${!isCurrentYear ? 'not '+upcomingCurrentYear+': '+i.release_date : 'no poster'}`);
-              }
-            } else {
-              moviesPassed++;
-            }
-            return hasPoster && isCurrentYear;
-          })
-          .slice(0, 50)  // Take more since we filter
           .map(i => ({
             id:`tmdb-up-${i.id}`, title:i.title, original_title:i.original_title||i.title,
             type:'Movie', poster:tmdbImg(i.poster_path), score:(i.vote_average||0).toFixed(1),
@@ -5509,32 +5500,8 @@ titleEl.style.color = 'transparent';
             studio:'?', backdrop:tmdbBack(i.backdrop_path), duration:'2h 10m'
           }));
         
-        // Map and filter TMDB TV (from /tv/on_the_air endpoint)
-        // IMPORTANT: /tv/on_the_air ONLY returns: id, name, overview, poster_path, backdrop_path,
-        //   first_air_date, vote_average, vote_count, popularity, genre_ids, origin_country, original_language
-        // It does NOT return: status, next_episode_to_air, last_air_date
-        // Since this endpoint BY DEFINITION returns "on the air" shows, we trust it and only filter by poster!
-        console.log(`[Upcoming] Filtering ${allTmdbTV.length} TV shows from /tv/on_the_air...`);
-        let tvPassed = 0, tvDroppedNoPoster = 0;
+        // Map TMDB TV (from /discover/tv, first_air_date.gte filter — genuinely upcoming premieres)
         const tmdbTVShows = allTmdbTV
-          .filter((item, index) => {
-            const hasPoster = hasValidPoster(item.poster_path);
-            // Deduplicate by ID (same show can appear across pages)
-            const isFirstOccurrence = allTmdbTV.findIndex(t => t.id === item.id) === index;
-            if (!hasPoster) {
-              tvDroppedNoPoster++;
-              if (tvPassed + tvDroppedNoPoster <= 10) {
-                console.log(`[Upcoming Filter] ❌ TV no poster: "${item?.name}" (id:${item.id})`);
-              }
-            } else if (!isFirstOccurrence) {
-              // Skip duplicate silently
-              return false;
-            } else {
-              tvPassed++;
-            }
-            return hasPoster && isFirstOccurrence;
-          })
-          .slice(0, 50)  // Limit to 50 TV shows
           .map(i => ({
             id:`tmdb-uptv-${i.id}`, tmdb_id: i.id, title:i.name, original_title:i.original_name||i.name,
             type:'TV', poster:tmdbImg(i.poster_path), score:(i.vote_average||0).toFixed(1),
@@ -5552,7 +5519,7 @@ titleEl.style.color = 'transparent';
           return hasPoster;
         });
         
-        console.log(`[Upcoming Filter] ✅ RESULTS: ${tmdbMovieShows.length} movies (from ${moviesPassed} passed, ${moviesDroppedYear} not-2026, ${moviesDroppedPoster} no-poster) + ${tmdbTVShows.length} TV (from ${tvPassed} passed, ${tvDroppedNoPoster} no-poster, deduped) + ${anilistFiltered.length} anime`);
+        console.log(`[Upcoming Filter] ✅ RESULTS: ${tmdbMovieShows.length} movies + ${tmdbTVShows.length} TV + ${anilistFiltered.length} anime`);
         
         upcomingShows = dedupById([
           ...anilistFiltered.slice(0, 50),  // Anime FIRST — JP TV/TV_SHORT, guaranteed up to 50, never truncated by the movie/TV slice below
