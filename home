@@ -2612,11 +2612,14 @@
             body: JSON.stringify({ query, variables }),
             signal: AbortSignal.timeout(15000)
           });
+          
           if (res.ok) {
             const json = await res.json();
             if (json.data) return json.data;
             console.warn('[AniList] GraphQL error:', json.errors);
             return null;
+          } else {
+            console.warn(`[AniList] HTTP Error: ${res.status} ${res.statusText}`);
           }
         } catch(e) {
           console.warn('[AniList] Direct fetch failed:', e);
@@ -2630,6 +2633,7 @@
             body: JSON.stringify({ query, variables }),
             signal: AbortSignal.timeout(15000)
           });
+          
           if (res.ok) {
             const json = await res.json();
             return json?.data || null;
@@ -2637,6 +2641,7 @@
         } catch(e) {
           console.error('[AniList] Proxy fallback failed:', e);
         }
+        
         return null;
       }
 
@@ -5612,24 +5617,76 @@ titleEl.style.color = 'transparent';
         const movieFetches = Array.from({length: tmdbPagesNeeded}, (_, i) =>
           fetchTMDB('/discover/movie', `sort_by=release_date.desc&with_release_type=2|3&release_date.gte=${sixMonthsAgo}&release_date.lte=${today}&page=${page+i}`));
 
-        const [tvResults, movieResults, anilistComp] = await Promise.all([
+        // Use Promise.allSettled so Anilist failure doesn't kill TV/Movie data!
+        const [tvResult, movieResult, anilistResult] = await Promise.allSettled([
           Promise.all(tvFetches),
           Promise.all(movieFetches),
-          // AniList: Recently completed anime (replacing Jikan status=complete)
-          // perPage bumped 50→100 so there's a bigger pool of candidates to
-          // draw from — more raw anime for the MAL-ID backfill step below to
-          // work with, since not every candidate successfully resolves a
-          // confident mal_id and gets kept.
-          fetchAniList(`
-            query ($page: Int, $perPage: Int) {
-              Page(page: $page, perPage: $perPage) {
-                media(type: ANIME, status: FINISHED, isAdult: false, sort: [END_DATE_DESC]) {
-                  ${ANILIST_ANIME_FIELDS}
+          // AniList: Pure recently completed TV ANIME only!
+          // FIXED: Now fetches actual TV/TV_SHORT anime that recently finished,
+          // not music videos, specials, or random ONAs.
+          // DYNAMIC YEAR: Automatically uses current/recent season year
+          // SORT: END_DATE_DESC = newest completions first (page 1 = most recent)
+          // Uses QUEUED fetch with automatic retry on timeout!
+          (async () => {
+            const now = new Date();
+            const currentYear = now.getFullYear();
+            const currentMonth = now.getMonth() + 1; // 1-12
+            
+            // Determine which season years to include (current + previous for overlap)
+            // Anime seasons: Winter (Jan-Mar), Spring (Apr-Jun), Jul-Sep, Oct-Dec
+            let targetYear = currentYear;
+            if (currentMonth === 1) {
+              // In January, mostly still showing previous year's anime ending
+              targetYear = currentYear - 1;
+            }
+            
+            // Build query for recently completed TV anime
+            const completedQuery = `
+              query ($year: Int, $page: Int, $perPage: Int) {
+                Page(page: $page, perPage: $perPage) {
+                  media(
+                    type: ANIME, 
+                    status: FINISHED, 
+                    format_in: [TV, TV_SHORT],
+                    seasonYear: $year,
+                    isAdult: false, 
+                    sort: [END_DATE_DESC]
+                  ) {
+                    ${ANILIST_ANIME_FIELDS}
+                  }
                 }
               }
-            }
-          `, { page: page, perPage: 100 })
+            `;
+            
+            const completedVars = { year: targetYear, page: page, perPage: 100 };
+            
+            // Use QUEUED fetch with retry logic (fixes CORS/timeout issues!)
+            return await queuedFetchAniList(completedQuery, completedVars);
+          })()
         ]);
+
+        // Extract results safely (handle both success and failure)
+        const tvResults = tvResult.status === 'fulfilled' ? tvResult.value : [];
+        const movieResults = movieResult.status === 'fulfilled' ? movieResult.value : [];
+        
+        // Log Anilist status specifically
+        if (anilistResult.status === 'rejected') {
+          console.error(`[Completed] ❌ Anilist fetch FAILED:`, anilistResult.reason?.message || anilistResult.reason);
+          var anilistComp = null; // Will show empty anime but TV/Movies still work!
+        } else {
+          var anilistComp = anilistResult.value;
+          
+          if (anilistComp?.Page?.media) {
+            console.log(`[Completed] 🎌 Anilist success! Got ${anilistComp.Page.media.length} anime`);
+          } else if (anilistComp?.errors) {
+            console.error(`[Completed] ❌ Anilist returned errors:`, JSON.stringify(anilistComp.errors));
+          } else if (anilistComp?.data) {
+            // Might be wrapped in a data property
+            if (anilistComp.data.Page?.media) {
+              anilistComp = anilistComp.data; // Fix the structure
+            }
+          }
+        }
 
         // DEBUG: Log first item from each TMDB page to verify pagination works
         tvResults.forEach((r, i) => {
@@ -5670,6 +5727,7 @@ titleEl.style.color = 'transparent';
             // one rather than risk a broken or (worse) wrong-anime link.
             if (!malId) return null;
             const internal = anilistToInternal(m);
+            
             return {
               id:`anilist-comp-${m.id}`,
               mal_id: malId,
@@ -5726,7 +5784,7 @@ titleEl.style.color = 'transparent';
         renderPagination(page, false);
       }
       function renderPagination(page, isLoading=false) {
-        const total = Math.ceil(1000/20);
+        const total = 30; // Max 30 pages of recently completed anime
         const nav = document.getElementById('completedPagination');
         
         // Responsive: Desktop shows 6 pages, Mobile shows 4 pages
