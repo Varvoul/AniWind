@@ -5248,21 +5248,131 @@ titleEl.style.color = 'transparent';
 
       /* ── UPCOMING ── */
       let upcomingShows=[];
+      
+      /**
+       * OPTIMIZED: Fetch upcoming anime from AniList with multi-page support
+       * - Filters for TV + TV_SHORT format only (pure Japanese anime)
+       * - Respects rate limits with delays between page fetches
+       * - Fetches multiple pages until we have enough items after filtering
+       * - Uses existing API queue system for throttling
+       */
+      async function fetchAniListUpcomingTV(targetCount = 50) {
+        const TARGET_FORMATS = ['TV', 'TV_SHORT'];
+        const MAX_PAGES = 4;  // Safety limit (4 pages × 50 = 200 max raw items)
+        const PAGE_DELAY_MS = 400;  // Delay between pages to respect rate limits
+        
+        console.log(`[Upcoming Anime] 🎯 Fetching pure Japanese anime (TV/TV_SHORT format)...`);
+        console.log(`[Upcoming Anime] Target: ${targetCount} anime | Max pages: ${MAX_PAGES} | Page delay: ${PAGE_DELAY_MS}ms`);
+        
+        const allMedia = [];
+        let currentPage = 1;
+        let totalFetched = 0;
+        
+        while (currentPage <= MAX_PAGES) {
+          // Use API queue for rate limiting
+          const result = await apiQueue.enqueue(
+            () => fetchAniList(`
+              query ($page: Int, $perPage: Int) {
+                Page(page: $page, perPage: $perPage) {
+                  pageInfo {
+                    total
+                    currentPage
+                    lastPage
+                    hasNextPage
+                  }
+                  media(type: ANIME, status: NOT_YET_RELEASED, format_in: [TV, TV_SHORT], isAdult: false, sort: [POPULARITY_DESC]) {
+                    ${ANILIST_ANIME_FIELDS}
+                  }
+                }
+              }
+            `, { page: currentPage, perPage: 50 }),
+            { id: `anilist-upcoming-tv-p${currentPage}`, priority: 5 }
+          );
+          
+          if (!result?.Page?.media) {
+            console.warn(`[Upcoming Anime] ⚠️ Page ${currentPage} returned no data`);
+            break;
+          }
+          
+          const pageMedia = result.Page.media;
+          const pageInfo = result.Page.pageInfo;
+          totalFetched += pageMedia.length;
+          
+          console.log(`[Upcoming Anime] 📄 Page ${currentPage}: Got ${pageMedia.length} items (Total fetched: ${totalFetched})`);
+          
+          // Add valid items to our collection
+          for (const m of pageMedia) {
+            if (!m.isAdult && TARGET_FORMATS.includes(m.format)) {
+              allMedia.push(m);
+            }
+          }
+          
+          const tvCount = allMedia.filter(m => TARGET_FORMATS.includes(m.format)).length;
+          console.log(`[Upcoming Anime] ✅ Valid TV/TV_SHORT so far: ${tvCount}/${targetCount} needed`);
+          
+          // Check if we have enough or there are no more pages
+          if (allMedia.length >= targetCount || !pageInfo.hasNextPage) {
+            break;
+          }
+          
+          currentPage++;
+          
+          // Respectful delay before next page (rate limiting)
+          if (currentPage <= MAX_PAGES) {
+            await new Promise(resolve => setTimeout(resolve, PAGE_DELAY_MS));
+          }
+        }
+        
+        console.log(`[Upcoming Anime] 📊 Total raw items: ${totalFetched} | Valid TV/TV_SHORT: ${allMedia.length}`);
+        
+        // Convert to internal format
+        const convertedAnime = [];
+        for (const m of allMedia.slice(0, targetCount + 10)) {  // Get extra for poster filtering
+          const internal = anilistToInternal(m);
+          const studioName = internal.studio && internal.studio !== '?' ? internal.studio : 'TBA';
+          const durValue = internal.duration && internal.duration !== '?' ? internal.duration : '24m';
+          const yearVal = internal.year && internal.year !== '?' ? internal.year : 
+            (m.startDate?.year || m.seasonYear || 'TBA');
+          
+          convertedAnime.push({
+            id: `anilist-up-${m.id}`,
+            title: internal.title,
+            original_title: internal.title_jp || internal.title,
+            type: 'Anime',
+            poster: internal.poster,
+            score: internal.score,
+            genres: internal.genres || [],
+            releaseDate: yearVal,
+            synopsis: internal.description || 'No synopsis available.',
+            certification: internal.rating || 'PG-13',
+            studio: studioName,
+            duration: durValue,
+            year: yearVal,
+            episodes: m.episodes || '?',
+            format: m.format || 'TV',
+            mal_id: internal.mal_id,
+            anilist_id: m.id
+          });
+        }
+        
+        return convertedAnime;
+      }
+      
       async function loadUpcoming() {
         
         // Using NEW t-umi proxy + AniList (replacing Jikan)
-        // INCREASED to 30 pages each (user request!) - /tv/on_the_air is primary TV source now
-        console.log('[Upcoming] Starting fetch with 30 pages each for movies & TV...');
+        // TMDB data for Movies & Western TV shows
+        console.log('[Upcoming] Starting optimized fetch...');
         const todayDebug = new Date();
         console.log(`[Upcoming] Today's date: ${todayDebug.toISOString().split('T')[0]}`);
         
+        // Fetch TMDB data in parallel (Movies + TV Shows)
         const [tmdbUp1, tmdbUp2, tmdbUp3, tmdbUp4, tmdbUp5, tmdbUp6, tmdbUp7, tmdbUp8, tmdbUp9, tmdbUp10,
                tmdbUp11, tmdbUp12, tmdbUp13, tmdbUp14, tmdbUp15, tmdbUp16, tmdbUp17, tmdbUp18, tmdbUp19, tmdbUp20,
                tmdbUp21, tmdbUp22, tmdbUp23, tmdbUp24, tmdbUp25, tmdbUp26, tmdbUp27, tmdbUp28, tmdbUp29, tmdbUp30,
                tmdbTv1, tmdbTv2, tmdbTv3, tmdbTv4, tmdbTv5, tmdbTv6, tmdbTv7, tmdbTv8, tmdbTv9, tmdbTv10,
                tmdbTv11, tmdbTv12, tmdbTv13, tmdbTv14, tmdbTv15, tmdbTv16, tmdbTv17, tmdbTv18, tmdbTv19, tmdbTv20,
-               tmdbTv21, tmdbTv22, tmdbTv23, tmdbTv24, tmdbTv25, tmdbTv26, tmdbTv27, tmdbTv28, tmdbTv29, tmdbTv30,
-               anilistUpcoming] = await Promise.all([
+               tmdbTv21, tmdbTv22, tmdbTv23, tmdbTv24, tmdbTv25, tmdbTv26, tmdbTv27, tmdbTv28, tmdbTv29, tmdbTv30] = await Promise.all([
           // MOVIES: 30 pages = 600 results (direct /movie/upcoming endpoint)
           fetchTMDB('/movie/upcoming', `page=1`),
           fetchTMDB('/movie/upcoming', `page=2`),
@@ -5324,19 +5434,12 @@ titleEl.style.color = 'transparent';
           fetchTMDB('/tv/on_the_air', `page=27`),
           fetchTMDB('/tv/on_the_air', `page=28`),
           fetchTMDB('/tv/on_the_air', `page=29`),
-          fetchTMDB('/tv/on_the_air', `page=30`),
-          // AniList: Upcoming anime (replacing Jikan top/anime filter=upcoming)
-          // INCREASED to 60 to match TMDB row length (user request!)
-          fetchAniList(`
-            query ($perPage: Int) {
-              Page(page: 1, perPage: $perPage) {
-                media(type: ANIME, status: NOT_YET_RELEASED, isAdult: false, sort: [POPULARITY_DESC]) {
-                  ${ANILIST_ANIME_FIELDS}
-                }
-              }
-            }
-          `, { perPage: 60 })
+          fetchTMDB('/tv/on_the_air', `page=30`)
         ]);
+        
+        // Fetch AniList upcoming anime (OPTIMIZED: multi-page, TV/TV_SHORT only)
+        // This runs AFTER TMDB fetches complete to avoid overwhelming the API queue
+        const anilistUpAnime = await fetchAniListUpcomingTV(55);  // Request 55 to account for poster filtering
         
         // Merge TMDB movie pages (30 pages = up to 600 results)
         const allTmdbMovies = [
@@ -5365,43 +5468,7 @@ titleEl.style.color = 'transparent';
           ...(tmdbTv28.results||[]), ...(tmdbTv29.results||[]), ...(tmdbTv30.results||[])
         ];
         
-        console.log(`[Upcoming] Raw fetch complete: ${allTmdbMovies.length} movies, ${allTmdbTV.length} TV shows`);
-        
-        // Convert AniList upcoming anime
-        const anilistUpAnime = [];
-        if (anilistUpcoming?.Page?.media) {
-          for (const m of anilistUpcoming.Page.media) {
-            if (!m.isAdult) {
-              const internal = anilistToInternal(m);
-              // Better fallbacks for upcoming anime where some data may be TBA
-              const studioName = internal.studio && internal.studio !== '?' ? internal.studio : 'TBA';
-              const durValue = internal.duration && internal.duration !== '?' ? internal.duration : 
-                (m.format === 'MOVIE' ? '1h 30m' : m.format === 'ONA' ? '24m' : '24m');
-              const yearVal = internal.year && internal.year !== '?' ? internal.year : 
-                (m.startDate?.year || m.seasonYear || 'TBA');
-              
-              anilistUpAnime.push({
-                id:`anilist-up-${m.id}`,
-                title: internal.title,
-                original_title: internal.title_jp || internal.title,
-                type:'Anime',
-                poster: internal.poster,
-                score: internal.score,
-                genres: internal.genres || [],
-                releaseDate: yearVal,
-                synopsis: internal.description || 'No synopsis available.',
-                certification: internal.rating || 'PG-13',
-                studio: studioName,
-                duration: durValue,
-                year: yearVal,
-                episodes: m.episodes || '?',
-                format: m.format || 'TV',
-                mal_id: internal.mal_id,
-                anilist_id: m.id
-              });
-            }
-          }
-        }
+        console.log(`[Upcoming] Raw fetch complete: ${allTmdbMovies.length} movies, ${allTmdbTV.length} TV shows, ${anilistUpAnime.length} anime`);
         
         // ════════════════════════════════════════════════════════════
         // FRONTEND FILTERING: Date + Poster validation
@@ -5486,22 +5553,24 @@ titleEl.style.color = 'transparent';
             studio:(i.networks||[])[0]?.name||'?', backdrop:tmdbBack(i.backdrop_path), duration:'45m'
           }));
         
-        // Filter Anilist anime (must have valid poster)
+        // Filter Anilist anime (must have valid poster) - Already filtered for TV/TV_SHORT format!
         const anilistFiltered = anilistUpAnime.filter(a => {
           const hasPoster = hasValidPoster(a.poster);
           if (!hasPoster) {
             console.log(`[Upcoming Filter] ❌ Anime dropped: "${a?.title}" - no poster`);
           }
           return hasPoster;
-        });
+        }).slice(0, 50);  // Ensure exactly 50 anime max
         
-        console.log(`[Upcoming Filter] ✅ RESULTS: ${tmdbMovieShows.length} movies (from ${moviesPassed} passed, ${moviesDroppedYear} not-2026, ${moviesDroppedPoster} no-poster) + ${tmdbTVShows.length} TV (from ${tvPassed} passed, ${tvDroppedNoPoster} no-poster, deduped) + ${anilistFiltered.length} anime`);
+        console.log(`[Upcoming Filter] ✅ RESULTS: ${tmdbMovieShows.length} movies (from ${moviesPassed} passed, ${moviesDroppedYear} not-2026, ${moviesDroppedPoster} no-poster) + ${tmdbTVShows.length} TV (from ${tvPassed} passed, ${tvDroppedNoPoster} no-poster, deduped) + ${anilistFiltered.length} anime (TV/TV_SHORT only)`);
         
+        // Build final array: Prioritize showing 50 anime, then add movies/TV
         upcomingShows = dedupById([
-          ...tmdbMovieShows,
-          ...tmdbTVShows,
-          ...anilistFiltered.slice(0, 60)  // Increased to 60 to match TMDB row length
-        ], 'id').slice(0,120);
+          ...anilistFiltered,  // 50 pure Japanese anime FIRST
+          ...tmdbMovieShows.slice(0, 25),  // Then 25 movies
+          ...tmdbTVShows.slice(0, 25)     // Then 25 TV shows
+        ], 'id').slice(0, 100);  // Total 100 items (50 anime + 25 movies + 25 TV)
+        
         renderUpcoming();
       }
       function upcomingCardHtml(s, gridRow) {
