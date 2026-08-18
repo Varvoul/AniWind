@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
   
   <!-- Minimal fallback title (enhanced by shared.js MetadataManager for hybrid site) -->
-  <title>Zuno · Watch Anime, Movies & TV Shows Online Free in HD</title>
+  <title>Rowana · Watch Anime, Movies & TV Shows Online Free in HD</title>
   
   <!-- Scripts (shared.js auto-injects full SEO metadata) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -2105,9 +2105,9 @@
       </section>
 
       <!-- NEW ON ANIOCEAN SECTION -->
-      <section class="section" id="newOnZunoSection">
+      <section class="section" id="newOnRowanaSection">
         <div class="section-header">
-          <h2 class="section-title">New on Zuno</h2>
+          <h2 class="section-title">New on Rowana</h2>
           <div class="section-controls">
             <button class="scroll-arrow" id="newAnioceanLeft">‹</button>
             <button class="scroll-arrow" id="newAnioceanRight">›</button>
@@ -2196,7 +2196,7 @@
   <script>
     (function() {
       /* ── Universal proxy — single CF Worker for all API traffic ── */
-      const ZUNO_PROXY  = 'https://aniumi.bionmovies47.workers.dev';
+      const ROWANA_PROXY  = 'https://aniumi.bionmovies47.workers.dev';
       /* Direct fallback URLs (used if proxy is unavailable) */
       const JIKAN_BASE    = 'https://api.jikan.moe/v4';
       const TMDB_PROXY    = 'https://t-umi.bionmovies47.workers.dev'; // NEW primary TMDB proxy
@@ -2415,7 +2415,7 @@
         // 1) Try universal proxy (cached, CORS-safe)
         try {
           const proxyPath = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-          const res = await fetch(`${ZUNO_PROXY}/anikoto${proxyPath}`, {
+          const res = await fetch(`${ROWANA_PROXY}/anikoto${proxyPath}`, {
             headers: { Accept: 'application/json' },
             signal: AbortSignal.timeout(8000)
           });
@@ -2508,18 +2508,18 @@
           console.warn(`[TMDB] ⚠️ Direct API failed: ${lastError}`);
         }
         
-        // 4) zuno universal proxy (last resort — may not have TMDB_API_KEY set)
+        // 4) rowana universal proxy (last resort — may not have TMDB_API_KEY set)
         try {
-          const res = await fetch(`${ZUNO_PROXY}/tmdb${endpoint}${qs}`, {
+          const res = await fetch(`${ROWANA_PROXY}/tmdb${endpoint}${qs}`, {
             headers: { Accept: 'application/json' },
             signal: AbortSignal.timeout(5000)
           });
           if (res.ok) {
-            console.log(`[TMDB] ✅ Zuno proxy success: ${endpoint}`);
+            console.log(`[TMDB] ✅ Rowana proxy success: ${endpoint}`);
             return await res.json();
           }
         } catch(e) {
-          console.warn(`[TMDB] ⚠️ Zuno proxy also failed`);
+          console.warn(`[TMDB] ⚠️ Rowana proxy also failed`);
         }
         
         // All sources failed - return empty result
@@ -2530,7 +2530,7 @@
         const qs = params ? `?${params}` : '';
         // 1) Universal proxy — cached 5 min at CF edge, absorbs 429s server-side
         try {
-          const res = await fetch(`${ZUNO_PROXY}/jikan/${endpoint}${qs}`, {
+          const res = await fetch(`${ROWANA_PROXY}/jikan/${endpoint}${qs}`, {
             headers: { Accept: 'application/json' },
             signal: AbortSignal.timeout(10000)
           });
@@ -2539,7 +2539,7 @@
             // Proxy also rate-limited — wait and retry once via proxy
             await new Promise(r => setTimeout(r, 2000));
             try {
-              const r2 = await fetch(`${ZUNO_PROXY}/jikan/${endpoint}${qs}`, {
+              const r2 = await fetch(`${ROWANA_PROXY}/jikan/${endpoint}${qs}`, {
                 headers: { Accept: 'application/json' },
                 signal: AbortSignal.timeout(10000)
               });
@@ -2627,7 +2627,7 @@
         
         // Fallback via proxy
         try {
-          const res = await fetch(`${ZUNO_PROXY}/anilist`, {
+          const res = await fetch(`${ROWANA_PROXY}/anilist`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ query, variables }),
@@ -3338,7 +3338,7 @@ async function loadNewAniocean() {
 
   // ----- PRIMARY: Anikoto proxy (100 items for 6 complete rows) -----
   try {
-    console.log('[New on Zuno] Trying Anikoto API...');
+    console.log('[New on Rowana] Trying Anikoto API...');
     const response = await fetchAnikoto('/recent-anime?page=1&per_page=100');
     if (response.ok && response.data && response.data.length > 0) {
       const data = response.data;
@@ -3392,7 +3392,7 @@ async function loadNewAniocean() {
   }
 
   // ----- FALLBACK: AniList (current season, reliable!) -----
-  console.log('[New on Zuno] Falling back to AniList API...');
+  console.log('[New on Rowana] Falling back to AniList API...');
   try {
     const anilistData = await fetchAniList(`
       query ($perPage: Int) {
@@ -3450,7 +3450,7 @@ async function loadNewAniocean() {
   }
 
   // All sources failed - show error message using renderAnimeList with empty array
-  console.log('[New on Zuno] All APIs failed - showing empty state');
+  console.log('[New on Rowana] All APIs failed - showing empty state');
   renderAnimeList([]);
 }
 
@@ -4813,7 +4813,7 @@ titleEl.style.color = 'transparent';
         });
         
         // Keyboard arrow key support when hovering over section
-        const section = document.getElementById('newOnZunoSection');
+        const section = document.getElementById('newOnRowanaSection');
         if (section) {
           document.addEventListener('keydown', (e) => {
             if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && 
@@ -6352,7 +6352,7 @@ titleEl.style.color = 'transparent';
        `;
      };
 
-     // Anikoto-style popup handler (for New on Zuno section)
+     // Anikoto-style popup handler (for New on Rowana section)
      window.showAnikotoPopupById = function(mal_id, e) {
        const anime = window.anioceanData[mal_id];
        if (!anime) return;
@@ -6586,7 +6586,7 @@ titleEl.style.color = 'transparent';
           </div>`).join('');
       }
 
-      // Skeleton for "New on Zuno" section — matches aniocean-card style EXACTLY
+      // Skeleton for "New on Rowana" section — matches aniocean-card style EXACTLY
       // Uses SAME grid layout (40 columns × 165px, gap:12px) as real data
       function generateAnioceanSkeleton(count=24) {
         const container = document.getElementById('newAnioceanGrid');
@@ -6634,7 +6634,7 @@ titleEl.style.color = 'transparent';
           </a>
         `).join('');
         
-        console.log(`[New on Zuno] 💀 Showing ${count} skeleton cards in grid layout while loading...`);
+        console.log(`[New on Rowana] 💀 Showing ${count} skeleton cards in grid layout while loading...`);
       }
 
       /* ════════════════════════════════════════════════════════════
@@ -7115,7 +7115,7 @@ titleEl.style.color = 'transparent';
 
       function init() {
         console.log('═══════════════════════════════════════════════════════════');
-        console.log('  🚀 Zuno Optimized Loading System v2.0');
+        console.log('  🚀 Rowana Optimized Loading System v2.0');
         console.log('  • Scroll-based lazy loading enabled');
         console.log('  • API queue throttling (max 3 concurrent)');
         console.log('  • Automatic retry with exponential backoff');

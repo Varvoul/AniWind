@@ -5121,7 +5121,7 @@ async function loadSunkenTreasures(page = 1) {
       if (!raw.length) {
         const apiUrl = `https://api.jikan.moe/v4/anime?${params.toString()}`;
         try {
-          // Use zuno proxy (cached, rate-limit safe) with direct Jikan fallback
+          // Use rowana proxy (cached, rate-limit safe) with direct Jikan fallback
           let res;
           try {
             res = await fetch(
