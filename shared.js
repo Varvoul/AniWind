@@ -3357,7 +3357,7 @@
   const MetadataManager = {
     // Base configuration
     siteName: 'Zuno',
-    siteUrl: 'https://zuno.vercel.app',
+    siteUrl: 'https://zunovia.vercel.app',
     logoUrl: 'https://i.postimg.cc/BvwTjXgv/image-359e594e.png',
     defaultImage: 'https://i.postimg.cc/BvwTjXgv/image-359e594e.png',
     twitterHandle: '@zuno_official',
