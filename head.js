@@ -497,7 +497,7 @@
        cannot scroll.  JS toggles this class on <body> in openModal /
        closeModal.  This is what makes "the scrolling should not
        affect the background/page content" actually true. */
-    body.aniumi-modal-open{
+    body.zuno-modal-open{
       overflow:hidden;
       /* On iOS Safari, overflow:hidden alone does NOT prevent
          background scroll — position:fixed + a remembered scroll
@@ -1027,7 +1027,7 @@
 
   <!-- Logo -->
   <a href="/" class="header-logo">
-    <img src="https://i.postimg.cc/X7d0fPtJ/1778142012237-removebg-preview.png" alt="AniOcean">
+    <img src="https://i.postimg.cc/X7d0fPtJ/1778142012237-removebg-preview.png" alt="Zuno">
   </a>
 
   <!-- Desktop Nav -->
@@ -1175,7 +1175,7 @@
   const FOOTER = `
 <footer style="background:var(--bg-header,#0d1117);padding:28px 20px;margin-top:50px;border-top:1px solid var(--border-subtle,rgba(255,255,255,0.07));display:flex;flex-wrap:wrap;gap:24px;justify-content:space-between;align-items:flex-start;">
   <div style="flex:1;min-width:260px;">
-        <img src="https://i.postimg.cc/X7d0fPtJ/1778142012237-removebg-preview.png" alt="AniOcean" style="max-width:190px; height:auto; margin-bottom:8px;">
+        <img src="https://i.postimg.cc/X7d0fPtJ/1778142012237-removebg-preview.png" alt="Zuno" style="max-width:190px; height:auto; margin-bottom:8px;">
     <p style="font-size:0.82rem;color:var(--text-muted,#888);margin-bottom:12px;line-height:1.6;">Stream free anime, movies, and TV shows on AniOcean. Enjoy fast, high-quality streaming with multi-language subtitles and real-time updates.</p>
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
       <span style="font-size:0.78rem;color:#fff;font-weight:600;">Follow us!</span>
@@ -1211,7 +1211,7 @@
 
     <!-- Left image column – DESKTOP ONLY (mobile uses carousel below) -->
     <div class="auth-img-col">
-      <img src="https://i.postimg.cc/pr6CQhM8/e1223c0a1599b039da4ac536a39f0223.jpg" alt="AniOcean">
+      <img src="https://i.postimg.cc/pr6CQhM8/e1223c0a1599b039da4ac536a39f0223.jpg" alt="Zuno">
     </div>
 
     <!-- MOBILE-ONLY landscape image carousel — direct child of .auth-modal
@@ -1280,7 +1280,7 @@
             <button class="auth-back-link" id="backLoginTop" type="button">← Back to Sign In</button>
 
             <div class="auth-heading">Create account ✨</div>
-            <div class="auth-subheading">Join <span>Aniumi</span> — it's free forever.</div>
+            <div class="auth-subheading">Join <span>Zuno</span> — it's free forever.</div>
 
             <!-- Avatar picker — Frieren.jpeg pre-set, click to change
                  (upload from device OR choose from bucket collection). -->
@@ -2559,7 +2559,7 @@
   // Body scroll-lock state — saved so we can restore the exact scroll
   // position when the modal closes (iOS Safari quirk: position:fixed on
   // <body> resets the scroll offset, so we have to put it back manually).
-  let aniumiSavedScrollY = 0;
+  let zunoSavedScrollY = 0;
 
   function openModal(n = 0) {
     document.getElementById('authOverlay').classList.add('open');
@@ -2571,11 +2571,11 @@
     }
     // Lock the body so the page behind the modal cannot scroll.
     // Save the current scroll offset first so we can restore it on close.
-    aniumiSavedScrollY = window.scrollY || window.pageYOffset || 0;
-    document.body.classList.add('aniumi-modal-open');
+    zunoSavedScrollY = window.scrollY || window.pageYOffset || 0;
+    document.body.classList.add('zuno-modal-open');
     // The body is now position:fixed — nudge it so the user still
     // appears to be at the same scroll position rather than the top.
-    document.body.style.top = `-${aniumiSavedScrollY}px`;
+    document.body.style.top = `-${zunoSavedScrollY}px`;
     slideTo(n);
     ['loginErr','signUpErr','resetErr','errUsername','errConfirm'].forEach(id => {
       const el = document.getElementById(id); if (el) el.textContent = '';
@@ -2590,9 +2590,9 @@
     document.getElementById('authOverlay').classList.remove('open');
     stopCarousel();
     // Unlock the body & restore the saved scroll offset.
-    document.body.classList.remove('aniumi-modal-open');
+    document.body.classList.remove('zuno-modal-open');
     document.body.style.top = '';
-    window.scrollTo(0, aniumiSavedScrollY);
+    window.scrollTo(0, zunoSavedScrollY);
   }
 
   function slideTo(n) {
@@ -3237,20 +3237,20 @@
   
   const MetadataManager = {
     // Base configuration
-    siteName: 'AniUmi',
-    siteUrl: 'https://aniumi.vercel.app',
+    siteName: 'Zuno',
+    siteUrl: 'https://zuno.vercel.app',
     logoUrl: 'https://i.postimg.cc/BvwTjXgv/image-359e594e.png',
     defaultImage: 'https://i.postimg.cc/BvwTjXgv/image-359e594e.png',
-    twitterHandle: '@aniumi_official',
+    twitterHandle: '@zuno_official',
     
     // ═══════════════════════════════════════════════════════
     // OG FLYER CARD IMAGES (Dynamic per page type)
-    // Your Canva-designed flyer with "Aniumi" + cyan gradient + pink buttons
+    // Your Canva-designed flyer with "Zuno" + cyan gradient + pink buttons
     // Size: 1200x630px (Facebook/Twitter standard OG image size)
     // ═══════════════════════════════════════════════════════
     flyerImages: {
       // MAIN FLYER - Your Canva design (used for most pages)
-      // Design: Dark navy bg + anime posters left + "Aniumi" cyan gradient + URL + pink buttons
+      // Design: Dark navy bg + anime posters left + "Zuno" cyan gradient + URL + pink buttons
       home: 'https://i.postimg.cc/Fs8y8Wqh/Follow-Ani-Wind-Zone-x-profile-banner.jpg',
       
       // ANIME SECTION PAGES - Uses main brand flyer
@@ -3283,23 +3283,23 @@
     
     // ANIME-SPECIFIC METADATA (For anime niche users)
     animeMeta: {
-      title: 'AniUmi · Watch Anime Online Free in HD · Sub & Dub',
+      title: 'Zuno · Watch Anime Online Free in HD · Sub & Dub',
       description: 'Watch anime online free in HD quality. Stream subbed and dubbed anime episodes with no ads and no signup required. From seasonal hits to classic series, movies & donghua — all in one place. The anime site that actually works.',
       keywords: 'watch anime online, free anime streaming, anime HD, dubbed anime, subbed anime, anime subtitles, anime episodes, no ads anime, anime movies, anime streaming site, watch anime free, anime online, english dub anime, japanese anime, korean anime, chinese anime, donghua, latest anime, seasonal anime, popular anime, anime recommendations, 1080p anime, anime streaming platform, best anime site',
-      ogTitle: 'AniUmi · Watch Anime Online Free in HD · Sub & Dub',
+      ogTitle: 'Zuno · Watch Anime Online Free in HD · Sub & Dub',
       ogDescription: 'Stream subbed and dubbed anime in HD — no ads, no signup walls, no geo-blocks. Just pick a show and watch. Seasonal hits, classics, movies & dongua updated daily.',
-      twitterTitle: 'AniUmi · Watch Anime Online Free in HD · Sub & Dub',
+      twitterTitle: 'Zuno · Watch Anime Online Free in HD · Sub & Dub',
       twitterDescription: 'HD anime streaming that doesn\'t suck. No ad overload, no signup traps — just subbed & dubbed anime that plays when you click it.'
     },
     
     // MOVIE+TV SPECIFIC METADATA (For movie/tv niche users)
     movieTvMeta: {
-      title: 'AniUmi · Watch Movies & TV Shows Online Free in HD',
+      title: 'Zuno · Watch Movies & TV Shows Online Free in HD',
       description: 'Watch movies and TV shows online free in HD quality. Stream the latest films, hit series, Netflix originals and blockbuster movies with no ads and no signup required. Your go-to destination for free movie streaming that actually works.',
       keywords: 'watch movies online, free movie streaming, movies HD, watch tv shows online, free tv series streaming, latest movies, new movies 2025 2026, netflix alternatives, free movies no signup, hd movies, tv shows streaming, binge watch, full movies online, movie streaming site, watch series free, cinema movies, action movies, comedy movies, drama series, best movie site',
-      ogTitle: 'AniUmi · Watch Movies & TV Shows Online Free in HD',
+      ogTitle: 'Zuno · Watch Movies & TV Shows Online Free in HD',
       ogDescription: 'Stream movies and TV shows in HD — no ads, no signup walls, no geo-blocks. Latest releases, hit series, blockbusters updated daily. The streaming site that actually works.',
-      twitterTitle: 'AniUmi · Watch Movies & TV Shows Online Free in HD',
+      twitterTitle: 'Zuno · Watch Movies & TV Shows Online Free in HD',
       twitterDescription: 'Free movie & TV streaming that works. No ad overload, no signup traps — just movies and shows that play when you click them.'
     },
     
@@ -3308,85 +3308,85 @@
       // HOME PAGE (index.html) - HYBRID: Targets BOTH anime AND movie/TV audiences
       // Pattern inspired by Mapplee ("Stream movies, TV shows, anime...") + Cineby (comprehensive listing)
       home: {
-        title: 'AniUmi · Watch Anime, Movies & TV Shows Online Free in HD',
+        title: 'Zuno · Watch Anime, Movies & TV Shows Online Free in HD',
         description: 'Stream anime, movies and TV shows online free in HD. Watch the latest anime episodes in sub or dub, binge-watch hit TV series, and catch new release movies — all in one place with no ads and no signup required. Millions of titles, unlimited entertainment.',
-        keywords: 'watch anime online, free anime streaming, watch movies online, free movie streaming, watch tv shows online, free tv series, anime HD, movies HD, dubbed anime, subbed anime, latest movies, new tv series, no ads streaming, anime movies, tv shows 2025 2026, netflix alternative, free streaming site, AniUmi, watch anime free, watch movies free, english dub anime, japanese anime, korean drama, chinese donghua, binge watch, 1080p streaming, hd movies online',
-        ogTitle: 'AniUmi · Watch Anime, Movies & TV Shows Online Free in HD',
+        keywords: 'watch anime online, free anime streaming, watch movies online, free movie streaming, watch tv shows online, free tv series, anime HD, movies HD, dubbed anime, subbed anime, latest movies, new tv series, no ads streaming, anime movies, tv shows 2025 2026, netflix alternative, free streaming site, Zuno, watch anime free, watch movies free, english dub anime, japanese anime, korean drama, chinese donghua, binge watch, 1080p streaming, hd movies online',
+        ogTitle: 'Zuno · Watch Anime, Movies & TV Shows Online Free in HD',
         ogDescription: 'Stream anime, movies and TV shows in HD — no ads, no signup walls, no geo-blocks. Anime (sub & dub), hit series, new releases. Millions of titles, one site.',
-        twitterTitle: 'AniUmi · Free Streaming: Anime, Movies & TV Shows in HD',
+        twitterTitle: 'Zuno · Free Streaming: Anime, Movies & TV Shows in HD',
         twitterDescription: 'The only streaming site you need. Anime (sub/dub), movies, TV shows — all free, all HD, no ads. Actually works.',
         type: 'website'
       },
       
       // ANIME SECTION PAGES (anime listings, genres, etc.)
       animeSection: {
-        title: 'Anime · Watch Anime Online Free | AniUmi',
+        title: 'Anime · Watch Anime Online Free | Zuno',
         description: 'Browse and watch thousands of anime series and movies online free in HD. Stream subbed and dubbed anime from Japan, Korea and China. Seasonal hits, classic series, and ongoing anime updated daily.',
         keywords: 'anime list, browse anime, anime genres, anime categories, subbed anime, dubbed anime, anime series, anime movies, japanese anime, korean anime, chinese anime donghua, seasonal anime, ongoing anime, completed anime, anime recommendations, watch anime free, anime streaming',
-        ogTitle: 'Anime · Watch Anime Online Free in HD | AniUmi',
+        ogTitle: 'Anime · Watch Anime Online Free in HD | Zuno',
         ogDescription: 'Thousands of free anime to stream in HD. Subbed, dubbed, movies, series — from Japan, Korea & China. Updated daily.',
-        twitterTitle: 'Free Anime Streaming · Sub & Dub HD | AniUmi',
+        twitterTitle: 'Free Anime Streaming · Sub & Dub HD | Zuno',
         twitterDescription: 'Browse thousands of anime. Subbed, dubbed, movies, series. All free, all HD. Start watching now.',
         type: 'website'
       },
       
       // MOVIES SECTION PAGES (movie listings, genres, etc.)
       moviesSection: {
-        title: 'Movies · Watch Movies Online Free | AniUmi',
+        title: 'Movies · Watch Movies Online Free | Zuno',
         description: 'Watch movies online free in HD. Stream the latest Hollywood blockbusters, action films, comedies, dramas, horror movies and international cinema. New releases added daily with no ads and no signup required.',
         keywords: 'watch movies online, free movies, latest movies, new movies 2025 2026, hollywood movies, action movies, comedy movies, drama movies, horror movies, thriller movies, romance movies, sci-fi movies, netflix movies, disney movies, marvel movies, dc movies, anime movies, animated movies, hd movies, cinema movies, full movies online',
-        ogTitle: 'Movies · Watch Movies Online Free in HD | AniUmi',
+        ogTitle: 'Movies · Watch Movies Online Free in HD | Zuno',
         ogDescription: 'Stream thousands of movies free in HD. New releases, blockbusters, classics, international films. No ads, no signup.',
-        twitterTitle: 'Free Movie Streaming · HD Movies Online | AniUmi',
+        twitterTitle: 'Free Movie Streaming · HD Movies Online | Zuno',
         twitterDescription: 'Latest movies, blockbusters, classics — all free in HD. No ads, no signup. Start watching now.',
         type: 'website'
       },
       
       // TV SHOWS SECTION PAGES
       tvSection: {
-        title: 'TV Shows · Watch Series Online Free | AniUmi',
+        title: 'TV Shows · Watch Series Online Free | Zuno',
         description: 'Watch TV shows and series online free in HD. Binge-watch the latest hit series, Netflix originals, HBO shows, crime dramas, sitcoms and reality TV. Full seasons with no ads and no signup required.',
         keywords: 'watch tv shows online, free tv series, tv shows streaming, binge watch, latest tv series, netflix shows, hbo series, crime dramas, sitcoms, reality tv, documentary series, anime series, korean drama, full seasons, tv episodes, watch series free, television shows, popular tv shows, new series 2025 2026',
-        ogTitle: 'TV Shows · Watch Series Online Free in HD | AniUmi',
+        ogTitle: 'TV Shows · Watch Series Online Free in HD | Zuno',
         ogDescription: 'Binge-watch hit TV series free in HD. Latest shows, full seasons, no ads, no signup. Start watching now.',
-        twitterTitle: 'Free TV Show Streaming · Binge Watch Series | AniUmi',
+        twitterTitle: 'Free TV Show Streaming · Binge Watch Series | Zuno',
         twitterDescription: 'Hit series, full seasons, latest episodes — all free in HD. Perfect for binge-watching.',
         type: 'website'
       },
       
       // INFO PAGE (info.html) - Dynamic based on URL params
       info: {
-        titleTemplate: '{title} - Watch {type} Online Free | AniUmi',
-        descriptionTemplate: 'Watch {title} online free in HD on AniUmi. {meta} Stream now with no ads and no signup required.',
-        keywordsTemplate: '{title}, watch {title} online, {title} streaming, {title} free, {title} HD, {title} episodes, {title} full, watch {type} online, free {type} streaming, AniUmi',
-        ogTitleTemplate: '{title} - Watch {type} Online Free | AniUmi',
-        ogDescriptionTemplate: 'Watch {title} online free in HD. {meta} No ads, no signup — just watch on AniUmi.',
-        twitterTitleTemplate: '{title} | Watch on AniUmi',
-        twitterDescriptionTemplate: 'Stream {title} free in HD on AniUmi. {meta}',
+        titleTemplate: '{title} - Watch {type} Online Free | Zuno',
+        descriptionTemplate: 'Watch {title} online free in HD on Zuno. {meta} Stream now with no ads and no signup required.',
+        keywordsTemplate: '{title}, watch {title} online, {title} streaming, {title} free, {title} HD, {title} episodes, {title} full, watch {type} online, free {type} streaming, Zuno',
+        ogTitleTemplate: '{title} - Watch {type} Online Free | Zuno',
+        ogDescriptionTemplate: 'Watch {title} online free in HD. {meta} No ads, no signup — just watch on Zuno.',
+        twitterTitleTemplate: '{title} | Watch on Zuno',
+        twitterDescriptionTemplate: 'Stream {title} free in HD on Zuno. {meta}',
         type: 'video.other' // For individual show/movie pages
       },
       
       // SEARCH RESULTS PAGE
       search: {
-        titleTemplate: 'Search Results for "{query}" | AniUmi',
-        descriptionTemplate: 'Search results for "{query}" on AniUmi. Find and watch anime, movies and TV shows matching your search. Free HD streaming with no ads.',
-        keywordsTemplate: '{query}, watch {query} online, {query} streaming, {query} free, search anime, search movies, search tv shows, AniUmi search',
-        ogTitleTemplate: '"{query}" - Search Results | AniUmi',
-        ogDescriptionTemplate: 'Find "{query}" and stream free on AniUmi. Anime, movies, TV shows — all in HD.',
-        twitterTitleTemplate: 'Search: "{query}" | AniUmi',
-        twitterDescriptionTemplate: 'Search results for "{query}" on AniUmi. Watch free in HD.',
+        titleTemplate: 'Search Results for "{query}" | Zuno',
+        descriptionTemplate: 'Search results for "{query}" on Zuno. Find and watch anime, movies and TV shows matching your search. Free HD streaming with no ads.',
+        keywordsTemplate: '{query}, watch {query} online, {query} streaming, {query} free, search anime, search movies, search tv shows, Zuno search',
+        ogTitleTemplate: '"{query}" - Search Results | Zuno',
+        ogDescriptionTemplate: 'Find "{query}" and stream free on Zuno. Anime, movies, TV shows — all in HD.',
+        twitterTitleTemplate: 'Search: "{query}" | Zuno',
+        twitterDescriptionTemplate: 'Search results for "{query}" on Zuno. Watch free in HD.',
         type: 'website'
       },
       
       // GENERIC FALLBACK
       fallback: {
-        title: 'AniUmi · Watch Anime, Movies & TV Shows Online Free',
+        title: 'Zuno · Watch Anime, Movies & TV Shows Online Free',
         description: 'Stream anime, movies and TV shows online free in HD quality. No ads, no signup required. Your ultimate free streaming destination.',
-        keywords: 'streaming, watch online, free movies, free anime, free tv shows, HD streaming, AniUmi, no ads streaming',
-        ogTitle: 'AniUmi · Free Streaming: Anime, Movies & TV Shows',
+        keywords: 'streaming, watch online, free movies, free anime, free tv shows, HD streaming, Zuno, no ads streaming',
+        ogTitle: 'Zuno · Free Streaming: Anime, Movies & TV Shows',
         ogDescription: 'Your ultimate free streaming destination. Anime, movies, TV shows in HD. No ads, no signup.',
-        twitterTitle: 'AniUmi · Free Online Streaming',
-        twitterDescription: 'Stream anime, movies and TV shows free on AniUmi. HD quality, no ads.',
+        twitterTitle: 'Zuno · Free Online Streaming',
+        twitterDescription: 'Stream anime, movies and TV shows free on Zuno. HD quality, no ads.',
         type: 'website'
       }
     },
@@ -3465,7 +3465,7 @@
       // Fallback: try to get from page title element or h1
       if (!title) {
         // Try document title first
-        if (document.title && !document.title.includes('AniUmi') && document.title !== 'Aniocean - Show Details') {
+        if (document.title && !document.title.includes('Zuno') && document.title !== 'Aniocean - Show Details') {
           title = document.title.trim();
         }
         // Try h1 element
@@ -3712,7 +3712,7 @@
           '@context': 'https://schema.org',
           '@type': 'WebSite',
           name: this.siteName,
-          alternateName: ['AniUmi', 'Aniumi', 'AniOcean', 'AniUmi TV', 'AniUmi Streaming'],
+          alternateName: ['Zuno', 'AniOcean', 'Zuno TV', 'Zuno Streaming'],
           url: this.siteUrl,
           description: meta.description,
           inLanguage: ['en-US', 'ja', 'ko'],  // Multi-language support like Cineby
