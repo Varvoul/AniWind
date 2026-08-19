@@ -272,6 +272,7 @@
     .tag-mal{background:rgba(99,179,237,0.15);color:#63b3ed;border:1px solid rgba(99,179,237,0.25);}
     .tag-al{background:rgba(168,85,247,0.15);color:#c084fc;border:1px solid rgba(168,85,247,0.25);}
     .tag-tmdb{background:rgba(245,158,11,0.15);color:#fbbf24;border:1px solid rgba(245,158,11,0.25);}
+    .tag-anikoto{background:rgba(236,72,153,0.15);color:#f472b6;border:1px solid rgba(236,72,153,0.25);}
     .view-all-btn{
       display:flex!important;align-items:center;justify-content:center;gap:6px;
       padding:10px 0;margin:0;border-top:1px solid var(--border-medium,rgba(255,255,255,0.08));
@@ -1906,9 +1907,10 @@
   const CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache
   
   // ⏱️ TIMING FALLBACK CONSTANTS (in milliseconds) - REALISTIC VALUES
-  const DB_TIMEOUT_MS = 1200;     // Max wait for DB before triggering Jikan (DB usually 100-500ms)
-  const JIKAN_TIMEOUT_MS = 2500;  // Max wait for Jikan before triggering AniList (Jikan is slow: 300-2000ms)
-  const ANILIST_TIMEOUT_MS = 2000;// Max wait for AniList (final fallback, usually 200-800ms)
+  const DB_TIMEOUT_MS = 1200;      // Max wait for anime_data before trying anikoto_data
+  const ANIKOTO_TIMEOUT_MS = 1200; // Max wait for anikoto_data before trying AniList
+  const ANILIST_TIMEOUT_MS = 2000; // Max wait for AniList before trying Jikan
+  const JIKAN_TIMEOUT_MS = 2500;   // Max wait for Jikan (last resort, public API)
   
   // API endpoints
   const JIKAN_API_BASE = 'https://jikan-api-bohb.onrender.com/v4/search/anime';
@@ -1929,6 +1931,16 @@
     ]);
   }
   
+  /**
+   * Anime search fallback chain (in priority order):
+   *   1. Supabase anime_data   — primary DB, fastest & most complete
+   *   2. Supabase anikoto_data — secondary DB, fills gaps anime_data is missing
+   *   3. AniList GraphQL       — external, broad coverage
+   *   4. Jikan API             — external, last resort (slowest / most rate-limit sensitive)
+   * Each tier only runs if the previous tier didn't already return >= 3 results,
+   * so a healthy DB responds fast and the external APIs rarely get hit at all —
+   * important for staying fast and not overloading anything at high traffic.
+   */
   async function fetchAnimeWithFallbacks(q) {
     const cacheKey = `anime:${q}`;
     const overallStart = performance.now();
@@ -1952,83 +1964,73 @@
     lastApiCallTime = Date.now();
     
     let results = [];
-    let dbCompleted = false;
-    let jikanStarted = false;
     
-    // ── SOURCE 1: SUPABASE DB (Primary) - 20ms timeout ──
-    console.log(`[Search] Starting DB search for "${q}" (timeout: ${DB_TIMEOUT_MS}ms)`);
+    // ── SOURCE 1: SUPABASE anime_data (Primary) ──
+    console.log(`[Search] Starting anime_data search for "${q}" (timeout: ${DB_TIMEOUT_MS}ms)`);
     const dbStart = performance.now();
     
     const dbResult = await withTimeout(
       searchAnimeFromDB(q).catch(err => {
-        console.warn(`[Search] DB error: ${err.message}`);
+        console.warn(`[Search] anime_data error: ${err.message}`);
         return [];
       }),
       DB_TIMEOUT_MS,
-      'DB'
+      'anime_data'
     );
     
     const dbElapsed = (performance.now() - dbStart).toFixed(0);
     
     if (!dbResult.timedOut && dbResult.result && dbResult.result.length > 0) {
-      // DB responded within timeout
       results = dbResult.result;
-      dbCompleted = true;
-      console.log(`[Search] ✅ DB returned ${results.length} results in ${dbElapsed}ms`);
+      console.log(`[Search] ✅ anime_data returned ${results.length} results in ${dbElapsed}ms`);
       
-      // If we have enough results, cache and return early
       if (results.length >= 3) {
         animeSearchCache.set(cacheKey, { results, timestamp: Date.now() });
-        console.log(`[Search] ✅ Sufficient results from DB (${results.length}), returning early [${(performance.now() - overallStart).toFixed(0)}ms total]`);
+        console.log(`[Search] ✅ Sufficient results from anime_data (${results.length}), returning early [${(performance.now() - overallStart).toFixed(0)}ms total]`);
         return results;
       }
     } else if (dbResult.timedOut) {
-      // DB took too long - will continue to fallbacks
-      console.log(`[Search] ⏰ DB timed out after ${DB_TIMEOUT_MS}ms, triggering Jikan fallback...`);
-      dbCompleted = false;
+      console.log(`[Search] ⏰ anime_data timed out after ${DB_TIMEOUT_MS}ms, trying anikoto_data...`);
     } else {
-      // DB returned but no results or error
-      dbCompleted = true;
-      console.log(`[Search] ⚠️ DB returned 0 results in ${dbElapsed}ms, trying fallbacks...`);
+      console.log(`[Search] ⚠️ anime_data returned 0 results in ${dbElapsed}ms, trying anikoto_data...`);
     }
     
-    // ── SOURCE 2: JIKAN API (Fallback #1) - 15ms timeout ──
-    console.log(`[Search] Starting Jikan search for "${q}" (timeout: ${JIKAN_TIMEOUT_MS}ms)`);
-    jikanStarted = true;
-    const jikanStart = performance.now();
+    // ── SOURCE 2: SUPABASE anikoto_data (Fallback #1) ──
+    console.log(`[Search] Starting anikoto_data search for "${q}" (timeout: ${ANIKOTO_TIMEOUT_MS}ms)`);
+    const anikotoStart = performance.now();
     
-    const jikanResult = await withTimeout(
-      searchAnimeFromJikan(q).catch(err => {
-        console.warn(`[Search] Jikan error: ${err.message}`);
+    const anikotoResult = await withTimeout(
+      searchAnimeFromAnikoto(q).catch(err => {
+        console.warn(`[Search] anikoto_data error: ${err.message}`);
         return [];
       }),
-      JIKAN_TIMEOUT_MS,
-      'Jikan'
+      ANIKOTO_TIMEOUT_MS,
+      'anikoto_data'
     );
     
-    const jikanElapsed = (performance.now() - jikanStart).toFixed(0);
+    const anikotoElapsed = (performance.now() - anikotoStart).toFixed(0);
     
-    if (!jikanResult.timedOut && jikanResult.result && jikanResult.result.length > 0) {
-      // Jikan responded within timeout
+    if (!anikotoResult.timedOut && anikotoResult.result && anikotoResult.result.length > 0) {
+      // Dedupe against anime_data results by mal_id where both have one;
+      // anikoto rows without a mal_id (mal_id null/empty) are always kept
+      // since they can't collide with anything already in `results`.
       const existingIds = new Set(results.map(r => r.mal_id).filter(Boolean));
-      const newResults = jikanResult.result.filter(r => !existingIds.has(r.mal_id));
+      const newResults = anikotoResult.result.filter(r => !r.mal_id || !existingIds.has(r.mal_id));
       results = [...results, ...newResults];
-      console.log(`[Search] ✅ Jikan returned ${jikanResult.result.length} results (${newResults.length} new) in ${jikanElapsed}ms`);
+      console.log(`[Search] ✅ anikoto_data returned ${anikotoResult.result.length} results (${newResults.length} new) in ${anikotoElapsed}ms`);
       
-      // If we have enough results, cache and return
       if (results.length >= 3) {
         animeSearchCache.set(cacheKey, { results, timestamp: Date.now() });
-        console.log(`[Search] ✅ Sufficient results from DB+Jikan (${results.length}), returning [${(performance.now() - overallStart).toFixed(0)}ms total]`);
+        console.log(`[Search] ✅ Sufficient results from anime_data+anikoto_data (${results.length}), returning [${(performance.now() - overallStart).toFixed(0)}ms total]`);
         return results;
       }
-    } else if (jikanResult.timedOut) {
-      // Jikan took too long
-      console.log(`[Search] ⏰ Jikan timed out after ${JIKAN_TIMEOUT_MS}ms, triggering AniList fallback...`);
+    } else if (anikotoResult.timedOut) {
+      console.log(`[Search] ⏰ anikoto_data timed out after ${ANIKOTO_TIMEOUT_MS}ms, trying AniList...`);
     } else {
-      console.log(`[Search] ⚠️ Jikan returned 0 results in ${jikanElapsed}ms, trying AniList...`);
+      console.log(`[Search] ⚠️ anikoto_data returned 0 results in ${anikotoElapsed}ms, trying AniList...`);
     }
     
-    // ── SOURCE 3: ANILIST GRAPHQL (Fallback #2) - Final safety net ──
+    // ── SOURCE 3: ANILIST GRAPHQL (Fallback #2) ──
     console.log(`[Search] Starting AniList search for "${q}" (timeout: ${ANILIST_TIMEOUT_MS}ms)`);
     const anilistStart = performance.now();
     
@@ -2044,15 +2046,46 @@
     const anilistElapsed = (performance.now() - anilistStart).toFixed(0);
     
     if (!anilistResult.timedOut && anilistResult.result && anilistResult.result.length > 0) {
-      // AniList responded
       const existingIds = new Set(results.map(r => r.mal_id || r.anilistId).filter(Boolean));
-      const newResults = anilistResult.result.filter(r => !existingIds.has(r.anilistId));
+      const newResults = anilistResult.result.filter(r => !existingIds.has(r.anilistId) && !existingIds.has(r.mal_id));
       results = [...results, ...newResults];
       console.log(`[Search] ✅ AniList returned ${anilistResult.result.length} results (${newResults.length} new) in ${anilistElapsed}ms`);
+      
+      if (results.length >= 3) {
+        animeSearchCache.set(cacheKey, { results, timestamp: Date.now() });
+        console.log(`[Search] ✅ Sufficient results (${results.length}), returning [${(performance.now() - overallStart).toFixed(0)}ms total]`);
+        return results;
+      }
     } else if (anilistResult.timedOut) {
-      console.log(`[Search] ⏰ AniList timed out after ${ANILIST_TIMEOUT_MS}ms`);
+      console.log(`[Search] ⏰ AniList timed out after ${ANILIST_TIMEOUT_MS}ms, trying Jikan...`);
     } else {
-      console.log(`[Search] ⚠️ AniList returned 0 results in ${anilistElapsed}ms`);
+      console.log(`[Search] ⚠️ AniList returned 0 results in ${anilistElapsed}ms, trying Jikan...`);
+    }
+    
+    // ── SOURCE 4: JIKAN API (Final fallback — public API, slowest) ──
+    console.log(`[Search] Starting Jikan search for "${q}" (timeout: ${JIKAN_TIMEOUT_MS}ms)`);
+    const jikanStart = performance.now();
+    
+    const jikanResult = await withTimeout(
+      searchAnimeFromJikan(q).catch(err => {
+        console.warn(`[Search] Jikan error: ${err.message}`);
+        return [];
+      }),
+      JIKAN_TIMEOUT_MS,
+      'Jikan'
+    );
+    
+    const jikanElapsed = (performance.now() - jikanStart).toFixed(0);
+    
+    if (!jikanResult.timedOut && jikanResult.result && jikanResult.result.length > 0) {
+      const existingIds = new Set(results.map(r => r.mal_id).filter(Boolean));
+      const newResults = jikanResult.result.filter(r => !existingIds.has(r.mal_id));
+      results = [...results, ...newResults];
+      console.log(`[Search] ✅ Jikan returned ${jikanResult.result.length} results (${newResults.length} new) in ${jikanElapsed}ms`);
+    } else if (jikanResult.timedOut) {
+      console.log(`[Search] ⏰ Jikan timed out after ${JIKAN_TIMEOUT_MS}ms`);
+    } else {
+      console.log(`[Search] ⚠️ Jikan returned 0 results in ${jikanElapsed}ms`);
     }
     
     // Cache final results (even if empty - avoids repeated slow queries)
@@ -2218,7 +2251,82 @@
     }
   }
 
-  /* ── SOURCE 2: JIKAN API SEARCH ── */
+  /* ── SOURCE 2: SUPABASE anikoto_data (fallback when anime_data has nothing) ──
+     Uses the search_anikoto_fuzzy RPC (SQL function, trigram-indexed) instead
+     of building .or()/ilike filters client-side — one indexed round trip,
+     safe under very high request volume since Postgres does all the matching
+     work via the trgm GIN indexes rather than the client shaping the query. */
+  const anikotoSearchCache = new Map();
+  const ANIKOTO_CACHE_TTL = 3 * 60 * 1000;
+
+  async function searchAnimeFromAnikoto(q) {
+    const cacheKey = `anikoto:${q}`;
+    if (anikotoSearchCache.has(cacheKey)) {
+      const cached = anikotoSearchCache.get(cacheKey);
+      if (Date.now() - cached.timestamp < ANIKOTO_CACHE_TTL) {
+        console.log(`[Anikoto Search] Cache hit for:`, q);
+        return cached.results;
+      }
+      anikotoSearchCache.delete(cacheKey);
+    }
+
+    const startTime = performance.now();
+    try {
+      const { data, error } = await supabase.rpc('search_anikoto_fuzzy', {
+        p_query: q,
+        p_limit: 8
+      });
+
+      if (error) {
+        console.warn('[Anikoto Search] RPC error:', error.message);
+        return [];
+      }
+      if (!data || !data.length) {
+        console.log(`[Anikoto Search] No results for:`, q, `(${(performance.now() - startTime).toFixed(0)}ms)`);
+        return [];
+      }
+
+      console.log(`[Anikoto Search] Found ${data.length} results for:`, q, `(${(performance.now() - startTime).toFixed(0)}ms)`);
+
+      const results = data.map(item => {
+        // mal_id is stored as text in anikoto_data and can be null/empty for
+        // some rows — only use it if it's genuinely a valid number, otherwise
+        // leave it unset so the UI falls back to an anikoto-{id} link instead.
+        const parsedMalId = item.mal_id && /^\d+$/.test(String(item.mal_id).trim())
+          ? parseInt(item.mal_id, 10)
+          : null;
+
+        return {
+          poster: item.poster || '',
+          title: item.title || 'Unknown Title',
+          original: item.alternative && item.alternative !== item.title ? item.alternative : '',
+          meta: [
+            item.anime_type ? item.anime_type.toUpperCase() : null,
+            item.year,
+            item.episodes ? `${item.episodes} eps` : null,
+            item.status
+          ].filter(Boolean).join(' · '),
+          score: item.score ? `★ ${item.score}` : null,
+          mal_id: parsedMalId,
+          anikoto_id: item.anikoto_id,
+          slug: item.slug || null,
+          source: 'anikoto',
+          year: item.year,
+          episodes: item.episodes,
+          status: item.status
+        };
+      });
+
+      anikotoSearchCache.set(cacheKey, { results, timestamp: Date.now() });
+      return results;
+    } catch (err) {
+      console.error('[Anikoto Search] Failed:', err.message);
+      return [];
+    }
+  }
+
+  /* ── SOURCE 4: JIKAN API SEARCH (last resort — public API, slowest & most
+     rate-limit-sensitive of the four sources) ── */
   async function searchAnimeFromJikan(q) {
     const response = await fetch(`${JIKAN_API_BASE}?q=${encodeURIComponent(q)}&page=1&limit=8&sfw=true`, {
       headers: { 'Accept': 'application/json' },
@@ -2472,10 +2580,19 @@
       const slug = slugify(r.title);
 
       // ── ANIME: /info/anime/jikan-{mal_id}/slug ──
-      // All anime sources (db/jikan/anilist) MUST have mal_id
+      // db/jikan/anilist sources always have mal_id.
       if (r.mal_id) {
         detailsUrl = `/info/anime/jikan-${r.mal_id}`;
         if (slug) detailsUrl += `/${slug}`;
+      }
+
+      // ── ANIME (anikoto_data, no mal_id on this row): fallback to anikoto-{id} ──
+      // Some anikoto_data rows are missing a mal_id — link by anikoto_id instead
+      // so the suggestion is still clickable and lands on a valid info page.
+      else if (r.source === 'anikoto' && r.anikoto_id) {
+        detailsUrl = `/info/anime/anikoto-${r.anikoto_id}`;
+        const anikotoSlug = r.slug || slug;
+        if (anikotoSlug) detailsUrl += `/${anikotoSlug}`;
       }
       
       // ── TMDB MOVIE/TV: Link to TMDB info pages ──
@@ -2512,6 +2629,8 @@
         metaTag = '<span class="meta-tag tag-mal">Mal</span>';
       } else if (r.source === 'anilist') {
         metaTag = '<span class="meta-tag tag-al">AL</span>';
+      } else if (r.source === 'anikoto') {
+        metaTag = '<span class="meta-tag tag-anikoto">Anikoto</span>';
       } else if (r.source === 'tmdb' || r.source === 'tmdb-fallback') {
         // TMDB tag - show media type (same display for both t-umi and mapplee)
         const tmdbType = r.mediaType === 'movie' ? 'Movie' : 'TV';
