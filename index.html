@@ -1016,6 +1016,30 @@
       grid-row: auto;
     }
 
+    /* ── "Hidden" tab: 3 always-horizontal-scroll rows, grouped by country ──
+       Unlike All/Anime/Movie/Series (which switch between grid/horizontal by
+       screen width), this tab is horizontal-scroll on every device, matching
+       how Top Airing / New on Aniumi already behave responsively. */
+    .nr-hidden-rows { display:flex; flex-direction:column; gap:22px; margin-top:4px; }
+    .nr-hidden-row-label {
+      font-size:0.78rem; font-weight:600; color:var(--text-muted, #94a3b8);
+      margin-bottom:8px; letter-spacing:0.2px;
+    }
+    .nr-hidden-scroll { padding-bottom:8px; }
+    .nr-hidden-scroll .show-card-grid {
+      flex: 0 0 auto;
+      width: 200px;
+      scroll-snap-align: start;
+    }
+    .nr-hidden-scroll { scroll-snap-type: x mandatory; }
+    @media (max-width: 1024px) {
+      .nr-hidden-scroll .show-card-grid { width: 165px; }
+    }
+    @media (max-width: 640px) {
+      .nr-hidden-scroll .show-card-grid { width: 140px; }
+      .nr-hidden-rows { gap:16px; }
+    }
+
     /* ── Upcoming Shows: match New Releases' play/heart button styling ── */
     #upcomingScroll .action-btn.action-watch {
       background: var(--btn-primary);
@@ -2093,6 +2117,7 @@
               <button class="toggle-tab" data-filter="anime"><i class="fas fa-dragon"></i> Anime <span class="tab-count" id="nrCountAnime"></span></button>
               <button class="toggle-tab" data-filter="movie"><i class="fas fa-film"></i> Movies <span class="tab-count" id="nrCountMovie"></span></button>
               <button class="toggle-tab" data-filter="tv"><i class="fas fa-tv"></i> Series <span class="tab-count" id="nrCountTv"></span></button>
+              <button class="toggle-tab" data-filter="hidden"><i class="fas fa-eye-slash"></i> Hidden <span class="tab-count" id="nrCountHidden"></span></button>
             </div>
             <div class="nr-scroll-controls" id="nrScrollControls">
               <button class="scroll-arrow" id="nrScrollLeft" title="Scroll left">‹</button>
@@ -2102,6 +2127,20 @@
           </div>
         </div>
         <div class="grid-container new-releases-grid" id="newReleasesGrid"></div>
+        <div class="nr-hidden-rows" id="newReleasesHidden" style="display:none;">
+          <div class="nr-hidden-row">
+            <div class="nr-hidden-row-label">🇰🇷🇯🇵 South Korea &amp; Japan</div>
+            <div class="horizontal-scroll nr-hidden-scroll" id="nrHiddenRow1"></div>
+          </div>
+          <div class="nr-hidden-row">
+            <div class="nr-hidden-row-label">🇵🇰🇮🇳 Pakistan &amp; India</div>
+            <div class="horizontal-scroll nr-hidden-scroll" id="nrHiddenRow2"></div>
+          </div>
+          <div class="nr-hidden-row">
+            <div class="nr-hidden-row-label">🇹🇷 Turkey</div>
+            <div class="horizontal-scroll nr-hidden-scroll" id="nrHiddenRow3"></div>
+          </div>
+        </div>
       </section>
 
       <!-- NEW ON ANIOCEAN SECTION -->
@@ -5224,6 +5263,183 @@ titleEl.style.color = 'transparent';
           grid.style.removeProperty('--nr-col-width');
         }
       }
+      /* ══════════════════════════════════════════════════════════════════
+         "HIDDEN" TAB — country-grouped Movies+TV, TMDB /discover
+         Row 1: South Korea + Japan   Row 2: Pakistan + India   Row 3: Turkey
+         ══════════════════════════════════════════════════════════════════ */
+      const nrHiddenSleep = (ms) => new Promise(r => setTimeout(r, ms));
+      const NR_HIDDEN_RATE_LIMIT_MS = 350; // gap between sequential t-umi calls
+
+      /**
+       * Fetch up to `targetPerType` valid (poster + name/title present) movies
+       * AND `targetPerType` valid TV shows for one country, for the CURRENT
+       * calendar year — date range is computed from `new Date()` every call,
+       * never hardcoded, so it always covers "this year" automatically.
+       * Paginates only as far as needed to fill the quota (stops early),
+       * and respects rate limits with a delay between every page/call.
+       */
+      async function fetchCountryMoviesAndTV(countryCode, targetPerType = 20, maxPages = 5) {
+        const year = new Date().getFullYear();
+        const movies = [], tvShows = [];
+        const seenMovieIds = new Set(), seenTvIds = new Set();
+
+        // ── Movies ──
+        for (let page = 1; page <= maxPages && movies.length < targetPerType; page++) {
+          if (page > 1) await nrHiddenSleep(NR_HIDDEN_RATE_LIMIT_MS);
+          let data;
+          try {
+            data = await fetchTMDB('/discover/movie',
+              `with_origin_country=${countryCode}&release_date.gte=${year}-01-01&release_date.lte=${year}-12-31&page=${page}`);
+          } catch (e) {
+            console.warn(`[Hidden] Movie fetch failed (${countryCode} p${page}):`, e.message);
+            break;
+          }
+          const results = data?.results || [];
+          for (const m of results) {
+            if (!m.poster_path || !(m.title || m.original_title)) continue;
+            if (seenMovieIds.has(m.id)) continue;
+            seenMovieIds.add(m.id);
+            movies.push(m);
+            if (movies.length >= targetPerType) break;
+          }
+          if (!results.length || page >= (data?.total_pages || 1)) break;
+        }
+
+        await nrHiddenSleep(NR_HIDDEN_RATE_LIMIT_MS);
+
+        // ── TV ──
+        for (let page = 1; page <= maxPages && tvShows.length < targetPerType; page++) {
+          if (page > 1) await nrHiddenSleep(NR_HIDDEN_RATE_LIMIT_MS);
+          let data;
+          try {
+            data = await fetchTMDB('/discover/tv',
+              `with_origin_country=${countryCode}&first_air_date.gte=${year}-01-01&first_air_date.lte=${year}-12-31&page=${page}`);
+          } catch (e) {
+            console.warn(`[Hidden] TV fetch failed (${countryCode} p${page}):`, e.message);
+            break;
+          }
+          const results = data?.results || [];
+          for (const t of results) {
+            if (!t.poster_path || !(t.name || t.original_name)) continue;
+            if (seenTvIds.has(t.id)) continue;
+            seenTvIds.add(t.id);
+            tvShows.push(t);
+            if (tvShows.length >= targetPerType) break;
+          }
+          if (!results.length || page >= (data?.total_pages || 1)) break;
+        }
+
+        console.log(`[Hidden] ${countryCode}: ${movies.length} movies + ${tvShows.length} TV (target ${targetPerType} each)`);
+        return { movies, tvShows, country: countryCode };
+      }
+
+      // Map raw TMDB results to the same card shape buildReleaseCardHTML/infoUrl/
+      // watchUrl already understand — so URLs, hover effects, and buttons are
+      // automatically correct with zero extra code.
+      function nrHiddenMovieCard(m, countryCode) {
+        return {
+          id: `tmdb-hd-movie-${m.id}`,
+          tmdb_id: m.id,
+          title: m.title || m.original_title,
+          type: 'Movie',
+          poster: tmdbImg(m.poster_path),
+          score: (m.vote_average || 0).toFixed(1),
+          details: (m.release_date || '').slice(0, 4) || 'TBA',
+          cert: m.adult ? '18+' : 'PG-13',
+          quality: 'HD',
+          country: countryCode
+        };
+      }
+      function nrHiddenTvCard(t, countryCode) {
+        return {
+          id: `tmdb-hd-tv-${t.id}`,
+          tmdb_id: t.id,
+          title: t.name || t.original_name,
+          type: 'TV',
+          poster: tmdbImg(t.poster_path),
+          score: (t.vote_average || 0).toFixed(1),
+          details: (t.first_air_date || '').slice(0, 4) || 'TBA',
+          cert: 'PG-13',
+          quality: 'HD',
+          country: countryCode
+        };
+      }
+
+      /** Fetches + builds one row's card list for a group of countries, sequentially. */
+      async function nrFetchHiddenRow(countries, targetPerType = 20) {
+        const items = [];
+        for (let i = 0; i < countries.length; i++) {
+          if (i > 0) await nrHiddenSleep(NR_HIDDEN_RATE_LIMIT_MS);
+          const { movies, tvShows, country } = await fetchCountryMoviesAndTV(countries[i], targetPerType);
+          // Interleave movie/TV per country instead of "all movies then all TV"
+          const n = Math.max(movies.length, tvShows.length);
+          for (let j = 0; j < n; j++) {
+            if (movies[j]) items.push(nrHiddenMovieCard(movies[j], country));
+            if (tvShows[j]) items.push(nrHiddenTvCard(tvShows[j], country));
+          }
+        }
+        return items;
+      }
+
+      function nrHiddenSkeletonRow(containerId) {
+        const el = document.getElementById(containerId);
+        if (el) el.innerHTML = skCards(8, '200px');
+      }
+
+      function nrRenderHiddenRow(containerId, items) {
+        const el = document.getElementById(containerId);
+        if (!el) return;
+        if (!items.length) {
+          el.innerHTML = `<div class="nr-empty-state"><i class="fas fa-inbox"></i><span>No releases available right now</span></div>`;
+          return;
+        }
+        el.innerHTML = items.map(s => buildReleaseCardHTML(s)).join('');
+      }
+
+      let hiddenReleasesLoaded = false;
+      let hiddenReleasesLoading = false;
+      /** Loads all 3 rows ONE AT A TIME (never in parallel) — spreads out load
+       *  on the t-umi proxy and lets the user see content progressively instead
+       *  of waiting for everything before anything appears. Only ever runs once
+       *  per page visit — switching tabs back and forth after the first load
+       *  just re-shows the cached rows, no re-fetching. */
+      async function loadHiddenReleases() {
+        if (hiddenReleasesLoaded || hiddenReleasesLoading) return;
+        hiddenReleasesLoading = true;
+        nrHiddenSkeletonRow('nrHiddenRow1');
+        nrHiddenSkeletonRow('nrHiddenRow2');
+        nrHiddenSkeletonRow('nrHiddenRow3');
+
+        try {
+          console.log('[Hidden] Row 1/3: South Korea + Japan...');
+          const row1 = await nrFetchHiddenRow(['KR', 'JP'], 20);
+          nrRenderHiddenRow('nrHiddenRow1', row1);
+
+          await nrHiddenSleep(400);
+
+          console.log('[Hidden] Row 2/3: Pakistan + India...');
+          const row2 = await nrFetchHiddenRow(['PK', 'IN'], 20);
+          nrRenderHiddenRow('nrHiddenRow2', row2);
+
+          await nrHiddenSleep(400);
+
+          console.log('[Hidden] Row 3/3: Turkey...');
+          const row3 = await nrFetchHiddenRow(['TR'], 20);
+          nrRenderHiddenRow('nrHiddenRow3', row3);
+
+          const totalCount = row1.length + row2.length + row3.length;
+          const countEl = document.getElementById('nrCountHidden');
+          if (countEl) countEl.textContent = totalCount > 0 ? totalCount : '';
+
+          hiddenReleasesLoaded = true;
+          console.log(`[Hidden] ✅ Complete: ${totalCount} total items across 3 rows`);
+        } catch (e) {
+          console.error('[Hidden] Failed:', e.message);
+        } finally {
+          hiddenReleasesLoading = false;
+        }
+      }
+
       document.getElementById('releaseTabs').addEventListener('click', e => {
         const tabBtn = e.target.closest('.toggle-tab');
         if (tabBtn) {
@@ -5237,7 +5453,24 @@ titleEl.style.color = 'transparent';
           const filter = tabBtn.dataset.filter;
           currentNewReleasesFilter = filter;
           const grid = document.getElementById('newReleasesGrid');
-          const label = tabBtn.dataset.filter === 'all' ? 'All' : tabBtn.dataset.filter === 'anime' ? 'Anime' : tabBtn.dataset.filter === 'movie' ? 'Movies' : 'Series';
+          const hiddenContainer = document.getElementById('newReleasesHidden');
+          const label = filter === 'all' ? 'All' : filter === 'anime' ? 'Anime' : filter === 'movie' ? 'Movies' : filter === 'tv' ? 'Series' : 'Hidden';
+
+          if (filter === 'hidden') {
+            // Swap to the 3-row country layout; API calls only fire the FIRST
+            // time this tab is opened (loadHiddenReleases guards against repeats).
+            grid.style.display = 'none';
+            hiddenContainer.style.display = '';
+            document.getElementById('newReleasesTitle').textContent = 'Latest Hidden';
+            const viewAll = document.getElementById('nrViewAll');
+            if (viewAll) viewAll.href = '/new-releases?type=hidden';
+            loadHiddenReleases();
+            return;
+          }
+
+          // Any other tab: restore the normal grid, hide the hidden-rows container
+          hiddenContainer.style.display = 'none';
+          grid.style.display = '';
 
           // Fade out, swap content, fade in — avoids an abrupt flash on switch
           grid.classList.add('nr-fading');
