@@ -6001,7 +6001,7 @@ titleEl.style.color = 'transparent';
         const tmdbTvItems = allTmdbTv
           .filter(i => i.poster_path && i.poster_path !== 'null' && i.poster_path !== 'undefined')
           .map(i=>({
-            id:`tmdb-comp-${i.id}`,title:i.name,poster:tmdbImg(i.poster_path),
+            id:`tmdb-comp-${i.id}`,tmdb_id:i.id,title:i.name,poster:tmdbImg(i.poster_path),
             type:'TV',year:(i.first_air_date||'').slice(0,4),
             score:(i.vote_average||0).toFixed(1),quality:'HD'
           }))
@@ -6010,7 +6010,7 @@ titleEl.style.color = 'transparent';
         const tmdbMovieItems = allTmdbMovies
           .filter(i => i.poster_path && i.poster_path !== 'null' && i.poster_path !== 'undefined')
           .map(i=>({
-            id:`tmdb-movie-comp-${i.id}`,title:i.title,poster:tmdbImg(i.poster_path),
+            id:`tmdb-movie-comp-${i.id}`,tmdb_id:i.id,title:i.title,poster:tmdbImg(i.poster_path),
             type:'Movie',year:(i.release_date||'').slice(0,4),
             score:(i.vote_average||0).toFixed(1),quality:'HD'
           }))
