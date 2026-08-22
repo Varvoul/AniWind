@@ -1,0 +1,2002 @@
+     1→[NEW] Explain Console errors by using Copilot in Edge: click  to explain an error. Learn moreDon't show again
+     2→shared.js:3644 [MetadataManager] 📄 Using flyer image for home : https://i.postimg.cc/Fs8y8Wqh/Follow-Ani-Wind-Zone-x-profile-banner.jpg
+     3→shared.js:3970 [MetadataManager] ✓ Injected SEO metadata for page: home
+     4→cache-integration.js:285 ✅ Cache integration module loaded
+     5→cache-integration.js:286    Use: window.CacheIntegration.initialize() to manually start
+     6→cache-integration.js:287    Use: window.CacheIntegration.forceRefresh() to force cache refresh
+     7→
+     8→(index):2985 [API Queue] 🚀 Initialized with maxConcurrent=3
+     9→(index):3154 [Lazy Loader] 📜 Initialized
+    10→cache-integration.js:146 ======================================================================
+    11→cache-integration.js:147 🚀 INITIALIZING PAGE WITH PROFESSIONAL CACHE SYSTEM
+    12→cache-integration.js:148 ======================================================================
+    13→cache-client.js:47 [Cache Client] 🚀 Initializing professional cache system...
+    14→(index):7354 ═══════════════════════════════════════════════════════════
+    15→(index):7355   🚀 Rowana Optimized Loading System v2.0
+    16→(index):7356   • Scroll-based lazy loading enabled
+    17→(index):7357   • API queue throttling (max 3 concurrent)
+    18→(index):7358   • Automatic retry with exponential backoff
+    19→(index):7359 ═══════════════════════════════════════════════════════════
+    20→(index):3168 [Lazy Loader] 👁️ Observer created with rootMargin=200px
+    21→(index):3224 [Lazy Loader] 🚀 Loading #heroSlider...
+    22→(index):2510 [TMDB] ⏭️ Skipping t-umi for paginated request (page=2) - known caching bug
+    23→(index):2510 [TMDB] ⏭️ Skipping t-umi for paginated request (page=3) - known caching bug
+    24→(index):2510 [TMDB] ⏭️ Skipping t-umi for paginated request (page=4) - known caching bug
+    25→(index):2510 [TMDB] ⏭️ Skipping t-umi for paginated request (page=5) - known caching bug
+    26→(index):2510 [TMDB] ⏭️ Skipping t-umi for paginated request (page=6) - known caching bug
+    27→(index):3199 [Lazy Loader] 📋 Registered #newReleasesGrid for lazy loading (priority 3)
+    28→(index):3199 [Lazy Loader] 📋 Registered #newAnioceanGrid for lazy loading (priority 4)
+    29→(index):3199 [Lazy Loader] 📋 Registered #upcomingSection for lazy loading (priority 5)
+    30→(index):3199 [Lazy Loader] 📋 Registered #completedGrid for lazy loading (priority 6)
+    31→(index):3199 [Lazy Loader] 📋 Registered #trendingList for lazy loading (priority 7)
+    32→(index):3199 [Lazy Loader] 📋 Registered #popularList for lazy loading (priority 8)
+    33→(index):3199 [Lazy Loader] 📋 Registered #popularAnimeList for lazy loading (priority 9)
+    34→(index):3199 [Lazy Loader] 📋 Registered #eswWidget for lazy loading (priority 10)
+    35→(index):3210 [Lazy Loader] 👀 #newReleasesGrid is visible, loading now...
+    36→(index):3224 [Lazy Loader] 🚀 Loading #newReleasesGrid...
+    37→(index):4883 [New Releases] 🚀 Starting optimized fetch with API queue...
+    38→(index):3033 [API Queue] ▶️ [tmdb--movie/now_playing] Priority 2 | Active: 1/3 | Queue: 0
+    39→(index):3210 [Lazy Loader] 👀 #newAnioceanGrid is visible, loading now...
+    40→(index):3224 [Lazy Loader] 🚀 Loading #newAnioceanGrid...
+    41→(index):6874 [New on Rowana] 💀 Showing 24 skeleton cards in grid layout while loading...
+    42→(index):3384 [New on Rowana] Trying Anikoto API...
+    43→(index):3210 [Lazy Loader] 👀 #trendingList is visible, loading now...
+    44→(index):3224 [Lazy Loader] 🚀 Loading #trendingList...
+    45→(index):3210 [Lazy Loader] 👀 #popularList is visible, loading now...
+    46→(index):3224 [Lazy Loader] 🚀 Loading #popularList...
+    47→(index):3224 [Lazy Loader] 🚀 Loading #topAiringSection...
+    48→(index):3873 [TVMaze] 🚀 Starting TVMaze + TMDB bridge pipeline...
+    49→(index):3581 [TVMaze-🔄] Rotation: using "VN" this load (time-based, no storage)
+    50→(index):3515 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=VN
+    51→(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/tv/on_the_air?page=1' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+    52→(index):2496  GET https://t-umi.bionmovies47.workers.dev/tv/on_the_air?page=1 net::ERR_FAILED 403 (Forbidden)
+    53→fetchTMDB @ (index):2496
+    54→loadHero @ (index):3973
+    55→executeLoad @ (index):3227
+    56→register @ (index):3193
+    57→init @ (index):7369
+    58→(index):2507 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+    59→fetchTMDB @ (index):2507
+    60→await in fetchTMDB
+    61→loadHero @ (index):3973
+    62→executeLoad @ (index):3227
+    63→register @ (index):3193
+    64→init @ (index):7369
+    65→(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/movie/now_playing?page=1' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+    66→(index):2496  GET https://t-umi.bionmovies47.workers.dev/movie/now_playing?page=1 net::ERR_FAILED 403 (Forbidden)
+    67→fetchTMDB @ (index):2496
+    68→(anonymous) @ (index):3128
+    69→processQueue @ (index):3038
+    70→(anonymous) @ (index):3012
+    71→enqueue @ (index):2997
+    72→queuedFetchTMDB @ (index):3127
+    73→loadNewReleases @ (index):4909
+    74→executeLoad @ (index):3227
+    75→(anonymous) @ (index):3211
+    76→handleIntersection @ (index):3204
+    77→observer.IntersectionObserver.root @ (index):3160
+    78→(index):2507 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+    79→fetchTMDB @ (index):2507
+    80→await in fetchTMDB
+    81→(anonymous) @ (index):3128
+    82→processQueue @ (index):3038
+    83→(anonymous) @ (index):3012
+    84→enqueue @ (index):2997
+    85→queuedFetchTMDB @ (index):3127
+    86→loadNewReleases @ (index):4909
+    87→executeLoad @ (index):3227
+    88→(anonymous) @ (index):3211
+    89→handleIntersection @ (index):3204
+    90→observer.IntersectionObserver.root @ (index):3160
+    91→(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/trending/all/day' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+    92→(index):2496  GET https://t-umi.bionmovies47.workers.dev/trending/all/day net::ERR_FAILED 403 (Forbidden)
+    93→fetchTMDB @ (index):2496
+    94→loadTrending @ (index):6135
+    95→lazyLoader.register.immediate @ (index):7404
+    96→executeLoad @ (index):3227
+    97→(anonymous) @ (index):3211
+    98→handleIntersection @ (index):3204
+    99→observer.IntersectionObserver.root @ (index):3160
+   100→(index):2507 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+   101→fetchTMDB @ (index):2507
+   102→await in fetchTMDB
+   103→loadTrending @ (index):6135
+   104→lazyLoader.register.immediate @ (index):7404
+   105→executeLoad @ (index):3227
+   106→(anonymous) @ (index):3211
+   107→handleIntersection @ (index):3204
+   108→observer.IntersectionObserver.root @ (index):3160
+   109→(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/discover/movie?sort_by=vote_count.desc&vote_count.gte=5000&language=en-US&page=1' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+   110→(index):2496  GET https://t-umi.bionmovies47.workers.dev/discover/movie?sort_by=vote_count.desc&vote_count.gte=5000&language=en-US&page=1 net::ERR_FAILED 403 (Forbidden)
+   111→fetchTMDB @ (index):2496
+   112→loadPopular @ (index):6202
+   113→executeLoad @ (index):3227
+   114→(anonymous) @ (index):3211
+   115→handleIntersection @ (index):3204
+   116→observer.IntersectionObserver.root @ (index):3160
+   117→(index):2507 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+   118→fetchTMDB @ (index):2507
+   119→await in fetchTMDB
+   120→loadPopular @ (index):6202
+   121→executeLoad @ (index):3227
+   122→(anonymous) @ (index):3211
+   123→handleIntersection @ (index):3204
+   124→observer.IntersectionObserver.root @ (index):3160
+   125→(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/discover/tv?sort_by=vote_count.desc&vote_count.gte=2000&language=en-US&page=1' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+   126→(index):2496  GET https://t-umi.bionmovies47.workers.dev/discover/tv?sort_by=vote_count.desc&vote_count.gte=2000&language=en-US&page=1 net::ERR_FAILED 403 (Forbidden)
+   127→fetchTMDB @ (index):2496
+   128→loadPopular @ (index):6203
+   129→executeLoad @ (index):3227
+   130→(anonymous) @ (index):3211
+   131→handleIntersection @ (index):3204
+   132→observer.IntersectionObserver.root @ (index):3160
+   133→(index):2507 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+   134→fetchTMDB @ (index):2507
+   135→await in fetchTMDB
+   136→loadPopular @ (index):6203
+   137→executeLoad @ (index):3227
+   138→(anonymous) @ (index):3211
+   139→handleIntersection @ (index):3204
+   140→observer.IntersectionObserver.root @ (index):3160
+   141→(index):1 Access to fetch at 'https://aniumi.bionmovies47.workers.dev/anikoto/recent-anime?page=1&per_page=100' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+   142→(index):2461  GET https://aniumi.bionmovies47.workers.dev/anikoto/recent-anime?page=1&per_page=100 net::ERR_FAILED 404 (Not Found)
+   143→fetchAnikoto @ (index):2461
+   144→loadNewAniocean @ (index):3385
+   145→executeLoad @ (index):3227
+   146→(anonymous) @ (index):3211
+   147→handleIntersection @ (index):3204
+   148→observer.IntersectionObserver.root @ (index):3160
+   149→cache-client.js:459 [Cache Client 6:27:48 PM] Checked in 1878ms | Valid: false
+   150→cache-client.js:66 [Cache Client] ⚠️ Cache INVALID | Reason: expired
+   151→cache-client.js:67 [Cache Client] 🔄 Will fetch fresh data and populate cache
+   152→cache-integration.js:167 
+   153→🔄 CACHE EXPIRED OR EMPTY - Starting refresh cycle...
+   154→cache-integration.js:168    Strategy: Fetch from APIs → Store in cache → Serve
+   155→cache-integration.js:169    This happens once every 6 hours
+   156→
+   157→cache-integration.js:184 ──────────────────────────────────────────────────────────────────────
+   158→cache-integration.js:185 📊 INITIAL CACHE STATUS:
+   159→cache-integration.js:186    Valid: ❌ NO
+   160→cache-integration.js:187    Version: 1
+   161→cache-integration.js:190    Sections: 0/10
+   162→cache-integration.js:191    Expires: 19356s
+   163→cache-integration.js:193 ──────────────────────────────────────────────────────────────────────
+   164→
+   165→(index):3429 ✓ Loaded 100 anime from Anikoto proxy for "New on Aniocean"
+   166→(index):3229 [Lazy Loader] ✅ #newAnioceanGrid loaded in 1957ms
+   167→(index):2525 [TMDB] ✅ Legacy proxy success: /tv/on_the_air (returned page: 3)
+   168→(index):2525 [TMDB] ✅ Legacy proxy success: /tv/on_the_air (returned page: 2)
+   169→(index):2525 [TMDB] ✅ Legacy proxy success: /tv/on_the_air (returned page: 5)
+   170→(index):2525 [TMDB] ✅ Legacy proxy success: /tv/on_the_air (returned page: 6)
+   171→(index):2525 [TMDB] ✅ Legacy proxy success: /tv/on_the_air (returned page: 4)
+   172→(index):2525 [TMDB] ✅ Legacy proxy success: /tv/on_the_air (returned page: 1)
+   173→(index):2525 [TMDB] ✅ Legacy proxy success: /movie/now_playing (returned page: 1)
+   174→(index):3045 [API Queue] ✅ [tmdb--movie/now_playing] Completed in 1964ms
+   175→(index):2525 [TMDB] ✅ Legacy proxy success: /discover/movie (returned page: 1)
+   176→(index):2525 [TMDB] ✅ Legacy proxy success: /discover/tv (returned page: 1)
+   177→(index):3229 [Lazy Loader] ✅ #popularList loaded in 1957ms
+   178→(index):3527 [TVMaze] ✅ Fetched 0 episodes from VN
+   179→(index):3556 [TVMaze] ✅ Unique shows from VN: 0
+   180→(index):3614 [TVMaze-🔄] "VN" only had 0 scripted shows (< 6, likely a weekend/light day), trying "MM"...
+   181→getTVMazeShowsRotatingCountry @ (index):3614
+   182→await in getTVMazeShowsRotatingCountry
+   183→getTVMazeShowsWithTMDBData @ (index):3882
+   184→loadTopAiring @ (index):4638
+   185→executeLoad @ (index):3227
+   186→(anonymous) @ (index):3191
+   187→setTimeout
+   188→register @ (index):3191
+   189→init @ (index):7376
+   190→(index):3515 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=MM
+   191→(index):2525 [TMDB] ✅ Legacy proxy success: /trending/all/day (returned page: 1)
+   192→(index):3033 [API Queue] ▶️ [tmdb--movie/now_playing] Priority 2 | Active: 1/3 | Queue: 2
+   193→(index):2510 [TMDB] ⏭️ Skipping t-umi for paginated request (page=2) - known caching bug
+   194→(index):3527 [TVMaze] ✅ Fetched 0 episodes from MM
+   195→(index):3556 [TVMaze] ✅ Unique shows from MM: 0
+   196→(index):3614 [TVMaze-🔄] "MM" only had 0 scripted shows (< 6, likely a weekend/light day), trying "GB"...
+   197→getTVMazeShowsRotatingCountry @ (index):3614
+   198→await in getTVMazeShowsRotatingCountry
+   199→getTVMazeShowsWithTMDBData @ (index):3882
+   200→loadTopAiring @ (index):4638
+   201→executeLoad @ (index):3227
+   202→(anonymous) @ (index):3191
+   203→setTimeout
+   204→register @ (index):3191
+   205→init @ (index):7376
+   206→(index):3515 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=GB
+   207→(index):3229 [Lazy Loader] ✅ #trendingList loaded in 2871ms
+   208→(index):3210 [Lazy Loader] 👀 #popularAnimeList is visible, loading now...
+   209→(index):3224 [Lazy Loader] 🚀 Loading #popularAnimeList...
+   210→(index):3210 [Lazy Loader] 👀 #eswWidget is visible, loading now...
+   211→(index):3224 [Lazy Loader] 🚀 Loading #eswWidget...
+   212→(index):7258 [Schedule] 🚀 Fetching all 7 days in parallel...
+   213→(index):6928 [Schedule] 🚀 Starting parallel fetch of all 7 days...
+   214→(index):6898 [Schedule] Fetching: https://jikan-api-bohb.onrender.com/v4/schedule/monday?sfw=true
+   215→(index):6898 [Schedule] Fetching: https://jikan-api-bohb.onrender.com/v4/schedule/tuesday?sfw=true
+   216→(index):6898 [Schedule] Fetching: https://jikan-api-bohb.onrender.com/v4/schedule/wednesday?sfw=true
+   217→(index):6898 [Schedule] Fetching: https://jikan-api-bohb.onrender.com/v4/schedule/thursday?sfw=true
+   218→(index):6898 [Schedule] Fetching: https://jikan-api-bohb.onrender.com/v4/schedule/friday?sfw=true
+   219→(index):6898 [Schedule] Fetching: https://jikan-api-bohb.onrender.com/v4/schedule/saturday?sfw=true
+   220→(index):6898 [Schedule] Fetching: https://jikan-api-bohb.onrender.com/v4/schedule/sunday?sfw=true
+   221→(index):3527 [TVMaze] ✅ Fetched 14 episodes from GB
+   222→(index):3556 [TVMaze] ✅ Unique shows from GB: 14
+   223→(index):3614 [TVMaze-🔄] "GB" only had 1 scripted shows (< 6, likely a weekend/light day), trying "US"...
+   224→getTVMazeShowsRotatingCountry @ (index):3614
+   225→await in getTVMazeShowsRotatingCountry
+   226→getTVMazeShowsWithTMDBData @ (index):3882
+   227→loadTopAiring @ (index):4638
+   228→executeLoad @ (index):3227
+   229→(anonymous) @ (index):3191
+   230→setTimeout
+   231→register @ (index):3191
+   232→init @ (index):7376
+   233→(index):3515 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=US
+   234→(index):2525 [TMDB] ✅ Legacy proxy success: /movie/now_playing (returned page: 2)
+   235→(index):3045 [API Queue] ✅ [tmdb--movie/now_playing] Completed in 1508ms
+   236→(index):7444 [System Status] {apiQueue: {…}, lazyLoader: {…}}
+   237→(index):3033 [API Queue] ▶️ [anilist-7611] Priority 3 | Active: 1/3 | Queue: 1
+   238→(index):1 [Intervention] Images loaded lazily and replaced with placeholders. Load events are deferred. See https://go.microsoft.com/fwlink/?linkid=2048113
+   239→(index):3229 [Lazy Loader] ✅ #popularAnimeList loaded in 4035ms
+   240→(index):7433 [Safety Net] ⏱️ 8s elapsed, force-loading 8 remaining sections...
+   241→(index):3280 [Lazy Loader] ⚡ Force-loading 8 remaining sections...
+   242→(index):3224 [Lazy Loader] 🚀 Loading #upcomingSection...
+   243→(index):5667 [Upcoming] Starting queue-managed fetch: movies + TV + anime, each sequential/rate-limited, stopping once 50 collected...
+   244→(index):5669 [Upcoming] Today's date: 2026-08-22
+   245→(index):3224 [Lazy Loader] 🚀 Loading #completedGrid...
+   246→(index):5865 [Completed] 📄 Loading page 1 (tmdbPages: 3, range: 2026-02-23 to 2026-08-22)
+   247→(index):2510 [TMDB] ⏭️ Skipping t-umi for paginated request (page=2) - known caching bug
+   248→(index):2510 [TMDB] ⏭️ Skipping t-umi for paginated request (page=3) - known caching bug
+   249→(index):2510 [TMDB] ⏭️ Skipping t-umi for paginated request (page=2) - known caching bug
+   250→(index):2510 [TMDB] ⏭️ Skipping t-umi for paginated request (page=3) - known caching bug
+   251→(index):3527 [TVMaze] ✅ Fetched 20 episodes from US
+   252→(index):3556 [TVMaze] ✅ Unique shows from US: 19
+   253→(index):3614 [TVMaze-🔄] "US" only had 2 scripted shows (< 6, likely a weekend/light day), trying "KR"...
+   254→getTVMazeShowsRotatingCountry @ (index):3614
+   255→await in getTVMazeShowsRotatingCountry
+   256→getTVMazeShowsWithTMDBData @ (index):3882
+   257→loadTopAiring @ (index):4638
+   258→executeLoad @ (index):3227
+   259→(anonymous) @ (index):3191
+   260→setTimeout
+   261→register @ (index):3191
+   262→init @ (index):7376
+   263→(index):3515 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=KR
+   264→(index):3045 [API Queue] ✅ [anilist-7611] Completed in 3039ms
+   265→(index):6917 [Schedule] ✅ friday: 13 anime
+   266→(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/movie/upcoming?page=1' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+   267→(index):2496  GET https://t-umi.bionmovies47.workers.dev/movie/upcoming?page=1 net::ERR_FAILED 403 (Forbidden)
+   268→fetchTMDB @ (index):2496
+   269→fetchUpcomingMoviesTMDB @ (index):5587
+   270→loadUpcoming @ (index):5673
+   271→executeLoad @ (index):3227
+   272→(anonymous) @ (index):3283
+   273→loadAllRemaining @ (index):3281
+   274→(anonymous) @ (index):7434
+   275→setTimeout
+   276→init @ (index):7430
+   277→(index):2507 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+   278→fetchTMDB @ (index):2507
+   279→await in fetchTMDB
+   280→fetchUpcomingMoviesTMDB @ (index):5587
+   281→loadUpcoming @ (index):5673
+   282→executeLoad @ (index):3227
+   283→(anonymous) @ (index):3283
+   284→loadAllRemaining @ (index):3281
+   285→(anonymous) @ (index):7434
+   286→setTimeout
+   287→init @ (index):7430
+   288→(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/discover/tv?page=1&sort_by=popularity.desc&first_air_date.gte=2026-08-22' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+   289→(index):2496  GET https://t-umi.bionmovies47.workers.dev/discover/tv?page=1&sort_by=popularity.desc&first_air_date.gte=2026-08-22 net::ERR_FAILED 403 (Forbidden)
+   290→fetchTMDB @ (index):2496
+   291→fetchUpcomingTVTMDB @ (index):5638
+   292→loadUpcoming @ (index):5675
+   293→executeLoad @ (index):3227
+   294→(anonymous) @ (index):3283
+   295→loadAllRemaining @ (index):3281
+   296→(anonymous) @ (index):7434
+   297→setTimeout
+   298→init @ (index):7430
+   299→(index):2507 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+   300→fetchTMDB @ (index):2507
+   301→await in fetchTMDB
+   302→fetchUpcomingTVTMDB @ (index):5638
+   303→loadUpcoming @ (index):5675
+   304→executeLoad @ (index):3227
+   305→(anonymous) @ (index):3283
+   306→loadAllRemaining @ (index):3281
+   307→(anonymous) @ (index):7434
+   308→setTimeout
+   309→init @ (index):7430
+   310→(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/discover/tv?sort_by=first_air_date.desc&with_status=ended&first_air_date.gte=2026-02-23&first_air_date.lte=2026-08-22&page=1' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+   311→(index):2496  GET https://t-umi.bionmovies47.workers.dev/discover/tv?sort_by=first_air_date.desc&with_status=ended&first_air_date.gte=2026-02-23&first_air_date.lte=2026-08-22&page=1 net::ERR_FAILED 403 (Forbidden)
+   312→fetchTMDB @ (index):2496
+   313→(anonymous) @ (index):5870
+   314→loadCompleted @ (index):5869
+   315→lazyLoader.register.immediate @ (index):7399
+   316→executeLoad @ (index):3227
+   317→(anonymous) @ (index):3283
+   318→loadAllRemaining @ (index):3281
+   319→(anonymous) @ (index):7434
+   320→setTimeout
+   321→init @ (index):7430
+   322→(index):2507 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+   323→fetchTMDB @ (index):2507
+   324→await in fetchTMDB
+   325→(anonymous) @ (index):5870
+   326→loadCompleted @ (index):5869
+   327→lazyLoader.register.immediate @ (index):7399
+   328→executeLoad @ (index):3227
+   329→(anonymous) @ (index):3283
+   330→loadAllRemaining @ (index):3281
+   331→(anonymous) @ (index):7434
+   332→setTimeout
+   333→init @ (index):7430
+   334→(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/discover/movie?sort_by=release_date.desc&with_release_type=2|3&release_date.gte=2026-02-23&release_date.lte=2026-08-22&page=1' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+   335→(index):2496  GET https://t-umi.bionmovies47.workers.dev/discover/movie?sort_by=release_date.desc&with_release_type=2|3&release_date.gte=2026-02-23&release_date.lte=2026-08-22&page=1 net::ERR_FAILED 403 (Forbidden)
+   336→fetchTMDB @ (index):2496
+   337→(anonymous) @ (index):5874
+   338→loadCompleted @ (index):5873
+   339→lazyLoader.register.immediate @ (index):7399
+   340→executeLoad @ (index):3227
+   341→(anonymous) @ (index):3283
+   342→loadAllRemaining @ (index):3281
+   343→(anonymous) @ (index):7434
+   344→setTimeout
+   345→init @ (index):7430
+   346→(index):2507 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+   347→fetchTMDB @ (index):2507
+   348→await in fetchTMDB
+   349→(anonymous) @ (index):5874
+   350→loadCompleted @ (index):5873
+   351→lazyLoader.register.immediate @ (index):7399
+   352→executeLoad @ (index):3227
+   353→(anonymous) @ (index):3283
+   354→loadAllRemaining @ (index):3281
+   355→(anonymous) @ (index):7434
+   356→setTimeout
+   357→init @ (index):7430
+   358→(index):2525 [TMDB] ✅ Legacy proxy success: /discover/tv (returned page: 2)
+   359→(index):3527 [TVMaze] ✅ Fetched 6 episodes from KR
+   360→(index):3556 [TVMaze] ✅ Unique shows from KR: 6
+   361→(index):3614 [TVMaze-🔄] "KR" only had 4 scripted shows (< 6, likely a weekend/light day), trying "TR"...
+   362→getTVMazeShowsRotatingCountry @ (index):3614
+   363→await in getTVMazeShowsRotatingCountry
+   364→getTVMazeShowsWithTMDBData @ (index):3882
+   365→loadTopAiring @ (index):4638
+   366→executeLoad @ (index):3227
+   367→(anonymous) @ (index):3191
+   368→setTimeout
+   369→register @ (index):3191
+   370→init @ (index):7376
+   371→(index):3515 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=TR
+   372→(index):2525 [TMDB] ✅ Legacy proxy success: /discover/tv (returned page: 3)
+   373→(index):2525 [TMDB] ✅ Legacy proxy success: /discover/movie (returned page: 3)
+   374→(index):2525 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 1)
+   375→(index):5608 [Upcoming Movies] page 1/70: 20 raw → 1/50 collected
+   376→(index):3033 [API Queue] ▶️ [anilist-4952] Priority 3 | Active: 1/3 | Queue: 1
+   377→(index):2525 [TMDB] ✅ Legacy proxy success: /discover/tv (returned page: 1)
+   378→(index):5658 [Upcoming TV] page 1/23: 20 raw → 20/50 collected
+   379→(index):2525 [TMDB] ✅ Legacy proxy success: /discover/movie (returned page: 1)
+   380→(index):2525 [TMDB] ✅ Legacy proxy success: /discover/movie (returned page: 2)
+   381→(index):2525 [TMDB] ✅ Legacy proxy success: /discover/tv (returned page: 1)
+   382→(index):2510 [TMDB] ⏭️ Skipping t-umi for paginated request (page=2) - known caching bug
+   383→(index):3527 [TVMaze] ✅ Fetched 0 episodes from TR
+   384→(index):3556 [TVMaze] ✅ Unique shows from TR: 0
+   385→(index):3614 [TVMaze-🔄] "TR" only had 0 scripted shows (< 6, likely a weekend/light day), trying "PK"...
+   386→getTVMazeShowsRotatingCountry @ (index):3614
+   387→await in getTVMazeShowsRotatingCountry
+   388→getTVMazeShowsWithTMDBData @ (index):3882
+   389→loadTopAiring @ (index):4638
+   390→executeLoad @ (index):3227
+   391→(anonymous) @ (index):3191
+   392→setTimeout
+   393→register @ (index):3191
+   394→init @ (index):7376
+   395→(index):3515 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=PK
+   396→(index):2510 [TMDB] ⏭️ Skipping t-umi for paginated request (page=2) - known caching bug
+   397→(index):3527 [TVMaze] ✅ Fetched 0 episodes from PK
+   398→(index):3556 [TVMaze] ✅ Unique shows from PK: 0
+   399→(index):3614 [TVMaze-🔄] "PK" only had 0 scripted shows (< 6, likely a weekend/light day), trying "IN"...
+   400→getTVMazeShowsRotatingCountry @ (index):3614
+   401→await in getTVMazeShowsRotatingCountry
+   402→getTVMazeShowsWithTMDBData @ (index):3882
+   403→loadTopAiring @ (index):4638
+   404→executeLoad @ (index):3227
+   405→(anonymous) @ (index):3191
+   406→setTimeout
+   407→register @ (index):3191
+   408→init @ (index):7376
+   409→(index):3515 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=IN
+   410→(index):2525 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 2)
+   411→(index):5608 [Upcoming Movies] page 2/70: 20 raw → 1/50 collected
+   412→(index):2525 [TMDB] ✅ Legacy proxy success: /discover/tv (returned page: 2)
+   413→(index):5658 [Upcoming TV] page 2/23: 20 raw → 39/50 collected
+   414→(index):5548 [Upcoming Anime] Page 1: +50 raw → 50/50 collected (hasNextPage: true)
+   415→(index):3527 [TVMaze] ✅ Fetched 1 episodes from IN
+   416→(index):3556 [TVMaze] ✅ Unique shows from IN: 1
+   417→(index):3614 [TVMaze-🔄] "IN" only had 0 scripted shows (< 6, likely a weekend/light day), trying "CN"...
+   418→getTVMazeShowsRotatingCountry @ (index):3614
+   419→await in getTVMazeShowsRotatingCountry
+   420→getTVMazeShowsWithTMDBData @ (index):3882
+   421→loadTopAiring @ (index):4638
+   422→executeLoad @ (index):3227
+   423→(anonymous) @ (index):3191
+   424→setTimeout
+   425→register @ (index):3191
+   426→init @ (index):7376
+   427→(index):3515 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=CN
+   428→(index):2510 [TMDB] ⏭️ Skipping t-umi for paginated request (page=3) - known caching bug
+   429→(index):2510 [TMDB] ⏭️ Skipping t-umi for paginated request (page=3) - known caching bug
+   430→(index):3527 [TVMaze] ✅ Fetched 23 episodes from CN
+   431→(index):3556 [TVMaze] ✅ Unique shows from CN: 15
+   432→(index):3618 [TVMaze-🔄] Final: 15 scripted shows from "CN"
+   433→(index):3885 [TVMaze-🔄] Rotation result: 15 shows from "CN"
+   434→(index):3902 [TVMaze] 📊 Total shows to bridge: 15
+   435→(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/find/330774?external_source=tvdb_id' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+   436→(index):2496  GET https://t-umi.bionmovies47.workers.dev/find/330774?external_source=tvdb_id net::ERR_FAILED 403 (Forbidden)
+   437→fetchTMDB @ (index):2496
+   438→bridgeTVMazeToTMDB @ (index):3795
+   439→(anonymous) @ (index):3913
+   440→getTVMazeShowsWithTMDBData @ (index):3912
+   441→await in getTVMazeShowsWithTMDBData
+   442→loadTopAiring @ (index):4638
+   443→executeLoad @ (index):3227
+   444→(anonymous) @ (index):3191
+   445→setTimeout
+   446→register @ (index):3191
+   447→init @ (index):7376
+   448→(index):2507 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+   449→fetchTMDB @ (index):2507
+   450→await in fetchTMDB
+   451→bridgeTVMazeToTMDB @ (index):3795
+   452→(anonymous) @ (index):3913
+   453→getTVMazeShowsWithTMDBData @ (index):3912
+   454→await in getTVMazeShowsWithTMDBData
+   455→loadTopAiring @ (index):4638
+   456→executeLoad @ (index):3227
+   457→(anonymous) @ (index):3191
+   458→setTimeout
+   459→register @ (index):3191
+   460→init @ (index):7376
+   461→(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/find/tt28022382?external_source=imdb_id' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+   462→(index):2496  GET https://t-umi.bionmovies47.workers.dev/find/tt28022382?external_source=imdb_id net::ERR_FAILED 403 (Forbidden)
+   463→fetchTMDB @ (index):2496
+   464→bridgeTVMazeToTMDB @ (index):3781
+   465→(anonymous) @ (index):3913
+   466→getTVMazeShowsWithTMDBData @ (index):3912
+   467→await in getTVMazeShowsWithTMDBData
+   468→loadTopAiring @ (index):4638
+   469→executeLoad @ (index):3227
+   470→(anonymous) @ (index):3191
+   471→setTimeout
+   472→register @ (index):3191
+   473→init @ (index):7376
+   474→(index):2507 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+   475→fetchTMDB @ (index):2507
+   476→await in fetchTMDB
+   477→bridgeTVMazeToTMDB @ (index):3781
+   478→(anonymous) @ (index):3913
+   479→getTVMazeShowsWithTMDBData @ (index):3912
+   480→await in getTVMazeShowsWithTMDBData
+   481→loadTopAiring @ (index):4638
+   482→executeLoad @ (index):3227
+   483→(anonymous) @ (index):3191
+   484→setTimeout
+   485→register @ (index):3191
+   486→init @ (index):7376
+   487→(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/find/tt31608637?external_source=imdb_id' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+   488→(index):2496  GET https://t-umi.bionmovies47.workers.dev/find/tt31608637?external_source=imdb_id net::ERR_FAILED 403 (Forbidden)
+   489→fetchTMDB @ (index):2496
+   490→bridgeTVMazeToTMDB @ (index):3781
+   491→(anonymous) @ (index):3913
+   492→getTVMazeShowsWithTMDBData @ (index):3912
+   493→await in getTVMazeShowsWithTMDBData
+   494→loadTopAiring @ (index):4638
+   495→executeLoad @ (index):3227
+   496→(anonymous) @ (index):3191
+   497→setTimeout
+   498→register @ (index):3191
+   499→init @ (index):7376
+   500→(index):2507 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+   501→fetchTMDB @ (index):2507
+   502→await in fetchTMDB
+   503→bridgeTVMazeToTMDB @ (index):3781
+   504→(anonymous) @ (index):3913
+   505→getTVMazeShowsWithTMDBData @ (index):3912
+   506→await in getTVMazeShowsWithTMDBData
+   507→loadTopAiring @ (index):4638
+   508→executeLoad @ (index):3227
+   509→(anonymous) @ (index):3191
+   510→setTimeout
+   511→register @ (index):3191
+   512→init @ (index):7376
+   513→(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/find/tt34882755?external_source=imdb_id' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+   514→(index):2496  GET https://t-umi.bionmovies47.workers.dev/find/tt34882755?external_source=imdb_id net::ERR_FAILED 403 (Forbidden)
+   515→fetchTMDB @ (index):2496
+   516→bridgeTVMazeToTMDB @ (index):3781
+   517→(anonymous) @ (index):3913
+   518→getTVMazeShowsWithTMDBData @ (index):3912
+   519→await in getTVMazeShowsWithTMDBData
+   520→loadTopAiring @ (index):4638
+   521→executeLoad @ (index):3227
+   522→(anonymous) @ (index):3191
+   523→setTimeout
+   524→register @ (index):3191
+   525→init @ (index):7376
+   526→(index):2507 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+   527→fetchTMDB @ (index):2507
+   528→await in fetchTMDB
+   529→bridgeTVMazeToTMDB @ (index):3781
+   530→(anonymous) @ (index):3913
+   531→getTVMazeShowsWithTMDBData @ (index):3912
+   532→await in getTVMazeShowsWithTMDBData
+   533→loadTopAiring @ (index):4638
+   534→executeLoad @ (index):3227
+   535→(anonymous) @ (index):3191
+   536→setTimeout
+   537→register @ (index):3191
+   538→init @ (index):7376
+   539→(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/find/tt28210907?external_source=imdb_id' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+   540→(index):2496  GET https://t-umi.bionmovies47.workers.dev/find/tt28210907?external_source=imdb_id net::ERR_FAILED 403 (Forbidden)
+   541→fetchTMDB @ (index):2496
+   542→bridgeTVMazeToTMDB @ (index):3781
+   543→(anonymous) @ (index):3913
+   544→getTVMazeShowsWithTMDBData @ (index):3912
+   545→await in getTVMazeShowsWithTMDBData
+   546→loadTopAiring @ (index):4638
+   547→executeLoad @ (index):3227
+   548→(anonymous) @ (index):3191
+   549→setTimeout
+   550→register @ (index):3191
+   551→init @ (index):7376
+   552→(index):2507 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+   553→fetchTMDB @ (index):2507
+   554→await in fetchTMDB
+   555→bridgeTVMazeToTMDB @ (index):3781
+   556→(anonymous) @ (index):3913
+   557→getTVMazeShowsWithTMDBData @ (index):3912
+   558→await in getTVMazeShowsWithTMDBData
+   559→loadTopAiring @ (index):4638
+   560→executeLoad @ (index):3227
+   561→(anonymous) @ (index):3191
+   562→setTimeout
+   563→register @ (index):3191
+   564→init @ (index):7376
+   565→(index):2525 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 3)
+   566→(index):5608 [Upcoming Movies] page 3/70: 20 raw → 3/50 collected
+   567→(index):2525 [TMDB] ✅ Legacy proxy success: /discover/tv (returned page: 3)
+   568→(index):5658 [Upcoming TV] page 3/23: 20 raw → 50/50 collected
+   569→(index):6917 [Schedule] ✅ tuesday: 10 anime
+   570→(index):2525 [TMDB] ✅ Legacy proxy success: /find/tt28210907 (returned page: N/A)
+   571→(index):3784 [TVMaze→TMDB] ✅ IMDb bridge: "Lian Qi Shi Wan Nian" → TMDB:220850
+   572→(index):2525 [TMDB] ✅ Legacy proxy success: /find/tt34882755 (returned page: N/A)
+   573→(index):3784 [TVMaze→TMDB] ✅ IMDb bridge: "Wan Jie Du Zun" → TMDB:122612
+   574→(index):2525 [TMDB] ✅ Legacy proxy success: /find/330774 (returned page: N/A)
+   575→(index):3798 [TVMaze→TMDB] ✅ TheTVDB bridge: "Tales of Demons and Gods" → TMDB:76806
+   576→(index):2525 [TMDB] ✅ Legacy proxy success: /find/tt31608637 (returned page: N/A)
+   577→(index):3784 [TVMaze→TMDB] ✅ IMDb bridge: "Legend of Xianwu" → TMDB:222608
+   578→(index):2510 [TMDB] ⏭️ Skipping t-umi for paginated request (page=4) - known caching bug
+   579→(index):3045 [API Queue] ✅ [anilist-4952] Completed in 1428ms
+   580→(index):5936 [Completed] 🎌 Anilist success! Got 50 anime
+   581→(index):5949 [Completed] 📺 TV page 1: 20 results | First: "Abhishek is a Mumma's Boy" (id:332433)
+   582→(index):5949 [Completed] 📺 TV page 2: 20 results | First: "My AI Partner: Strange Love" (id:330741)
+   583→(index):5949 [Completed] 📺 TV page 3: 20 results | First: "OK! Let's Get Divorced" (id:276470)
+   584→(index):5952 [Completed] 🎬 Movie page 1: 20 results | First: "Santa, le concert événement" (id:1754215)
+   585→(index):5952 [Completed] 🎬 Movie page 2: 20 results | First: "The Fourth-Dimensional Devil" (id:1750273)
+   586→(index):5952 [Completed] 🎬 Movie page 3: 20 results | First: "Twin Leaf" (id:1745228)
+   587→(index):3229 [Lazy Loader] ✅ #completedGrid loaded in 1957ms
+   588→(index):2525 [TMDB] ✅ Legacy proxy success: /find/tt28022382 (returned page: N/A)
+   589→(index):3784 [TVMaze→TMDB] ✅ IMDb bridge: "Soul Land 2: The Unrivaled Tang Sect" → TMDB:228429
+   590→(index):7444 [System Status] {apiQueue: {…}, lazyLoader: {…}}
+   591→(index):3807 [TVMaze→TMDB] 🔍 No external ID for "Hanyi Enters the Heart" - trying search...
+   592→(index):3807 [TVMaze→TMDB] 🔍 No external ID for "My Years as the Dragon-Seeking Master" - trying search...
+   593→(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/find/tt12879782?external_source=imdb_id' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+   594→(index):2496  GET https://t-umi.bionmovies47.workers.dev/find/tt12879782?external_source=imdb_id net::ERR_FAILED 403 (Forbidden)
+   595→fetchTMDB @ (index):2496
+   596→bridgeTVMazeToTMDB @ (index):3781
+   597→(anonymous) @ (index):3913
+   598→getTVMazeShowsWithTMDBData @ (index):3912
+   599→await in getTVMazeShowsWithTMDBData
+   600→loadTopAiring @ (index):4638
+   601→executeLoad @ (index):3227
+   602→(anonymous) @ (index):3191
+   603→setTimeout
+   604→register @ (index):3191
+   605→init @ (index):7376
+   606→(index):2507 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+   607→fetchTMDB @ (index):2507
+   608→await in fetchTMDB
+   609→bridgeTVMazeToTMDB @ (index):3781
+   610→(anonymous) @ (index):3913
+   611→getTVMazeShowsWithTMDBData @ (index):3912
+   612→await in getTVMazeShowsWithTMDBData
+   613→loadTopAiring @ (index):4638
+   614→executeLoad @ (index):3227
+   615→(anonymous) @ (index):3191
+   616→setTimeout
+   617→register @ (index):3191
+   618→init @ (index):7376
+   619→(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/search/tv?query=Hanyi%20Enters%20the%20Heart&page=1' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+   620→(index):2496  GET https://t-umi.bionmovies47.workers.dev/search/tv?query=Hanyi%20Enters%20the%20Heart&page=1 net::ERR_FAILED 403 (Forbidden)
+   621→fetchTMDB @ (index):2496
+   622→searchTMDBFallback @ (index):3825
+   623→bridgeTVMazeToTMDB @ (index):3808
+   624→(anonymous) @ (index):3913
+   625→getTVMazeShowsWithTMDBData @ (index):3912
+   626→await in getTVMazeShowsWithTMDBData
+   627→loadTopAiring @ (index):4638
+   628→executeLoad @ (index):3227
+   629→(anonymous) @ (index):3191
+   630→setTimeout
+   631→register @ (index):3191
+   632→init @ (index):7376
+   633→(index):2507 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+   634→fetchTMDB @ (index):2507
+   635→await in fetchTMDB
+   636→searchTMDBFallback @ (index):3825
+   637→bridgeTVMazeToTMDB @ (index):3808
+   638→(anonymous) @ (index):3913
+   639→getTVMazeShowsWithTMDBData @ (index):3912
+   640→await in getTVMazeShowsWithTMDBData
+   641→loadTopAiring @ (index):4638
+   642→executeLoad @ (index):3227
+   643→(anonymous) @ (index):3191
+   644→setTimeout
+   645→register @ (index):3191
+   646→init @ (index):7376
+   647→(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/find/tt7126882?external_source=imdb_id' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+   648→(index):2496  GET https://t-umi.bionmovies47.workers.dev/find/tt7126882?external_source=imdb_id net::ERR_FAILED 403 (Forbidden)
+   649→fetchTMDB @ (index):2496
+   650→bridgeTVMazeToTMDB @ (index):3781
+   651→(anonymous) @ (index):3913
+   652→getTVMazeShowsWithTMDBData @ (index):3912
+   653→await in getTVMazeShowsWithTMDBData
+   654→loadTopAiring @ (index):4638
+   655→executeLoad @ (index):3227
+   656→(anonymous) @ (index):3191
+   657→setTimeout
+   658→register @ (index):3191
+   659→init @ (index):7376
+   660→(index):2507 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+   661→fetchTMDB @ (index):2507
+   662→await in fetchTMDB
+   663→bridgeTVMazeToTMDB @ (index):3781
+   664→(anonymous) @ (index):3913
+   665→getTVMazeShowsWithTMDBData @ (index):3912
+   666→await in getTVMazeShowsWithTMDBData
+   667→loadTopAiring @ (index):4638
+   668→executeLoad @ (index):3227
+   669→(anonymous) @ (index):3191
+   670→setTimeout
+   671→register @ (index):3191
+   672→init @ (index):7376
+   673→(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/search/tv?query=My%20Years%20as%20the%20Dragon-Seeking%20Master&page=1' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+   674→(index):2496  GET https://t-umi.bionmovies47.workers.dev/search/tv?query=My%20Years%20as%20the%20Dragon-Seeking%20Master&page=1 net::ERR_FAILED 403 (Forbidden)
+   675→fetchTMDB @ (index):2496
+   676→searchTMDBFallback @ (index):3825
+   677→bridgeTVMazeToTMDB @ (index):3808
+   678→(anonymous) @ (index):3913
+   679→getTVMazeShowsWithTMDBData @ (index):3912
+   680→await in getTVMazeShowsWithTMDBData
+   681→loadTopAiring @ (index):4638
+   682→executeLoad @ (index):3227
+   683→(anonymous) @ (index):3191
+   684→setTimeout
+   685→register @ (index):3191
+   686→init @ (index):7376
+   687→(index):2507 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+   688→fetchTMDB @ (index):2507
+   689→await in fetchTMDB
+   690→searchTMDBFallback @ (index):3825
+   691→bridgeTVMazeToTMDB @ (index):3808
+   692→(anonymous) @ (index):3913
+   693→getTVMazeShowsWithTMDBData @ (index):3912
+   694→await in getTVMazeShowsWithTMDBData
+   695→loadTopAiring @ (index):4638
+   696→executeLoad @ (index):3227
+   697→(anonymous) @ (index):3191
+   698→setTimeout
+   699→register @ (index):3191
+   700→init @ (index):7376
+   701→(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/find/tt37231342?external_source=imdb_id' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+   702→(index):2496  GET https://t-umi.bionmovies47.workers.dev/find/tt37231342?external_source=imdb_id net::ERR_FAILED 403 (Forbidden)
+   703→fetchTMDB @ (index):2496
+   704→bridgeTVMazeToTMDB @ (index):3781
+   705→(anonymous) @ (index):3913
+   706→getTVMazeShowsWithTMDBData @ (index):3912
+   707→await in getTVMazeShowsWithTMDBData
+   708→loadTopAiring @ (index):4638
+   709→executeLoad @ (index):3227
+   710→(anonymous) @ (index):3191
+   711→setTimeout
+   712→register @ (index):3191
+   713→init @ (index):7376
+   714→(index):2507 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+   715→fetchTMDB @ (index):2507
+   716→await in fetchTMDB
+   717→bridgeTVMazeToTMDB @ (index):3781
+   718→(anonymous) @ (index):3913
+   719→getTVMazeShowsWithTMDBData @ (index):3912
+   720→await in getTVMazeShowsWithTMDBData
+   721→loadTopAiring @ (index):4638
+   722→executeLoad @ (index):3227
+   723→(anonymous) @ (index):3191
+   724→setTimeout
+   725→register @ (index):3191
+   726→init @ (index):7376
+   727→(index):3033 [API Queue] ▶️ [tvmaze-7611] Priority 4 | Active: 1/3 | Queue: 0
+   728→(index):3873 [TVMaze] 🚀 Starting TVMaze + TMDB bridge pipeline...
+   729→(index):3581 [TVMaze-🔄] Rotation: using "VN" this load (time-based, no storage)
+   730→(index):3515 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=VN
+   731→(index):2525 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 4)
+   732→(index):5608 [Upcoming Movies] page 4/70: 20 raw → 10/50 collected
+   733→(index):2525 [TMDB] ✅ Legacy proxy success: /search/tv (returned page: 1)
+   734→(index):3837 [TVMaze→TMDB] ✅ Search exact match: "My Years as the Dragon-Seeking Master" → TMDB:331756
+   735→(index):2525 [TMDB] ✅ Legacy proxy success: /find/tt7126882 (returned page: N/A)
+   736→(index):3784 [TVMaze→TMDB] ✅ IMDb bridge: "Boy Hood" → TMDB:119538
+   737→(index):2525 [TMDB] ✅ Legacy proxy success: /find/tt12879782 (returned page: N/A)
+   738→(index):3784 [TVMaze→TMDB] ✅ IMDb bridge: "Fanren Xiu Xian Chuan Zhi Fanren Feng Qi Tian Nan" → TMDB:106449
+   739→(index):2525 [TMDB] ✅ Legacy proxy success: /find/tt37231342 (returned page: N/A)
+   740→(index):3784 [TVMaze→TMDB] ✅ IMDb bridge: "Pull Strings" → TMDB:272938
+   741→(index):2510 [TMDB] ⏭️ Skipping t-umi for paginated request (page=5) - known caching bug
+   742→(index):3527 [TVMaze] ✅ Fetched 0 episodes from VN
+   743→(index):3556 [TVMaze] ✅ Unique shows from VN: 0
+   744→(index):3614 [TVMaze-🔄] "VN" only had 0 scripted shows (< 6, likely a weekend/light day), trying "MM"...
+   745→getTVMazeShowsRotatingCountry @ (index):3614
+   746→await in getTVMazeShowsRotatingCountry
+   747→getTVMazeShowsWithTMDBData @ (index):3882
+   748→(anonymous) @ (index):3142
+   749→processQueue @ (index):3038
+   750→await in processQueue
+   751→(anonymous) @ (index):3012
+   752→enqueue @ (index):2997
+   753→queuedFetchTMDB @ (index):3127
+   754→loadNewReleases @ (index):4909
+   755→executeLoad @ (index):3227
+   756→(anonymous) @ (index):3211
+   757→handleIntersection @ (index):3204
+   758→observer.IntersectionObserver.root @ (index):3160
+   759→(index):3515 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=MM
+   760→(index):2525 [TMDB] ✅ Legacy proxy success: /search/tv (returned page: 1)
+   761→(index):3837 [TVMaze→TMDB] ✅ Search exact match: "Hanyi Enters the Heart" → TMDB:331549
+   762→(index):3527 [TVMaze] ✅ Fetched 0 episodes from MM
+   763→(index):3556 [TVMaze] ✅ Unique shows from MM: 0
+   764→(index):3614 [TVMaze-🔄] "MM" only had 0 scripted shows (< 6, likely a weekend/light day), trying "GB"...
+   765→getTVMazeShowsRotatingCountry @ (index):3614
+   766→await in getTVMazeShowsRotatingCountry
+   767→getTVMazeShowsWithTMDBData @ (index):3882
+   768→(anonymous) @ (index):3142
+   769→processQueue @ (index):3038
+   770→await in processQueue
+   771→(anonymous) @ (index):3012
+   772→enqueue @ (index):2997
+   773→queuedFetchTMDB @ (index):3127
+   774→loadNewReleases @ (index):4909
+   775→executeLoad @ (index):3227
+   776→(anonymous) @ (index):3211
+   777→handleIntersection @ (index):3204
+   778→observer.IntersectionObserver.root @ (index):3160
+   779→(index):3515 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=GB
+   780→(index):2525 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 5)
+   781→(index):5608 [Upcoming Movies] page 5/70: 20 raw → 15/50 collected
+   782→(index):3807 [TVMaze→TMDB] 🔍 No external ID for "Born Again" - trying search...
+   783→(index):3807 [TVMaze→TMDB] 🔍 No external ID for "Forging Justice" - trying search...
+   784→(index):3807 [TVMaze→TMDB] 🔍 No external ID for "Cicada" - trying search...
+   785→(index):3807 [TVMaze→TMDB] 🔍 No external ID for "A Father's Debt" - trying search...
+   786→(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/search/tv?query=Born%20Again&page=1' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+   787→(index):2496  GET https://t-umi.bionmovies47.workers.dev/search/tv?query=Born%20Again&page=1 net::ERR_FAILED 403 (Forbidden)
+   788→fetchTMDB @ (index):2496
+   789→searchTMDBFallback @ (index):3825
+   790→bridgeTVMazeToTMDB @ (index):3808
+   791→(anonymous) @ (index):3913
+   792→getTVMazeShowsWithTMDBData @ (index):3912
+   793→await in getTVMazeShowsWithTMDBData
+   794→loadTopAiring @ (index):4638
+   795→executeLoad @ (index):3227
+   796→(anonymous) @ (index):3191
+   797→setTimeout
+   798→register @ (index):3191
+   799→init @ (index):7376
+   800→(index):2507 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+   801→fetchTMDB @ (index):2507
+   802→await in fetchTMDB
+   803→searchTMDBFallback @ (index):3825
+   804→bridgeTVMazeToTMDB @ (index):3808
+   805→(anonymous) @ (index):3913
+   806→getTVMazeShowsWithTMDBData @ (index):3912
+   807→await in getTVMazeShowsWithTMDBData
+   808→loadTopAiring @ (index):4638
+   809→executeLoad @ (index):3227
+   810→(anonymous) @ (index):3191
+   811→setTimeout
+   812→register @ (index):3191
+   813→init @ (index):7376
+   814→(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/find/467181?external_source=tvdb_id' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+   815→(index):2496  GET https://t-umi.bionmovies47.workers.dev/find/467181?external_source=tvdb_id net::ERR_FAILED 403 (Forbidden)
+   816→fetchTMDB @ (index):2496
+   817→bridgeTVMazeToTMDB @ (index):3795
+   818→(anonymous) @ (index):3913
+   819→getTVMazeShowsWithTMDBData @ (index):3912
+   820→await in getTVMazeShowsWithTMDBData
+   821→loadTopAiring @ (index):4638
+   822→executeLoad @ (index):3227
+   823→(anonymous) @ (index):3191
+   824→setTimeout
+   825→register @ (index):3191
+   826→init @ (index):7376
+   827→(index):2507 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+   828→fetchTMDB @ (index):2507
+   829→await in fetchTMDB
+   830→bridgeTVMazeToTMDB @ (index):3795
+   831→(anonymous) @ (index):3913
+   832→getTVMazeShowsWithTMDBData @ (index):3912
+   833→await in getTVMazeShowsWithTMDBData
+   834→loadTopAiring @ (index):4638
+   835→executeLoad @ (index):3227
+   836→(anonymous) @ (index):3191
+   837→setTimeout
+   838→register @ (index):3191
+   839→init @ (index):7376
+   840→(index):4066 [Hero] 📺 TMDB TV with 2026 filter: 15 shows ready
+   841→(index):4112 [Hero] 🎬 Fetched 15 TV (TMDB Current-Year) + 45 Anilist airing anime
+   842→(index):4113 [Hero] 📅 Source: TMDB Current-Year - current-year filter applied for fresh content
+   843→(index):4348 [Hero Image] Mapping 45 Anilist anime with banner images...
+   844→(index):4395 [Hero Image] Resolution complete: {anilist-banner: 45}
+   845→(index):4423 [Hero] 15 TMDB + 45 Jikan = 60 total slides
+   846→(index):3229 [Lazy Loader] ✅ #heroSlider loaded in 11425ms
+   847→(index):2510 [TMDB] ⏭️ Skipping t-umi for paginated request (page=6) - known caching bug
+   848→(index):3527 [TVMaze] ✅ Fetched 14 episodes from GB
+   849→(index):3556 [TVMaze] ✅ Unique shows from GB: 14
+   850→(index):3614 [TVMaze-🔄] "GB" only had 1 scripted shows (< 6, likely a weekend/light day), trying "US"...
+   851→getTVMazeShowsRotatingCountry @ (index):3614
+   852→await in getTVMazeShowsRotatingCountry
+   853→getTVMazeShowsWithTMDBData @ (index):3882
+   854→(anonymous) @ (index):3142
+   855→processQueue @ (index):3038
+   856→await in processQueue
+   857→(anonymous) @ (index):3012
+   858→enqueue @ (index):2997
+   859→queuedFetchTMDB @ (index):3127
+   860→loadNewReleases @ (index):4909
+   861→executeLoad @ (index):3227
+   862→(anonymous) @ (index):3211
+   863→handleIntersection @ (index):3204
+   864→observer.IntersectionObserver.root @ (index):3160
+   865→(index):3515 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=US
+   866→(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/search/tv?query=A%20Father%27s%20Debt&page=1' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+   867→(index):2496  GET https://t-umi.bionmovies47.workers.dev/search/tv?query=A%20Father%27s%20Debt&page=1 net::ERR_FAILED 403 (Forbidden)
+   868→fetchTMDB @ (index):2496
+   869→searchTMDBFallback @ (index):3825
+   870→bridgeTVMazeToTMDB @ (index):3808
+   871→(anonymous) @ (index):3913
+   872→getTVMazeShowsWithTMDBData @ (index):3912
+   873→await in getTVMazeShowsWithTMDBData
+   874→loadTopAiring @ (index):4638
+   875→executeLoad @ (index):3227
+   876→(anonymous) @ (index):3191
+   877→setTimeout
+   878→register @ (index):3191
+   879→init @ (index):7376
+   880→(index):2507 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+   881→fetchTMDB @ (index):2507
+   882→await in fetchTMDB
+   883→searchTMDBFallback @ (index):3825
+   884→bridgeTVMazeToTMDB @ (index):3808
+   885→(anonymous) @ (index):3913
+   886→getTVMazeShowsWithTMDBData @ (index):3912
+   887→await in getTVMazeShowsWithTMDBData
+   888→loadTopAiring @ (index):4638
+   889→executeLoad @ (index):3227
+   890→(anonymous) @ (index):3191
+   891→setTimeout
+   892→register @ (index):3191
+   893→init @ (index):7376
+   894→(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/search/tv?query=Cicada&page=1' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+   895→(index):2496  GET https://t-umi.bionmovies47.workers.dev/search/tv?query=Cicada&page=1 net::ERR_FAILED 403 (Forbidden)
+   896→fetchTMDB @ (index):2496
+   897→searchTMDBFallback @ (index):3825
+   898→bridgeTVMazeToTMDB @ (index):3808
+   899→(anonymous) @ (index):3913
+   900→getTVMazeShowsWithTMDBData @ (index):3912
+   901→await in getTVMazeShowsWithTMDBData
+   902→loadTopAiring @ (index):4638
+   903→executeLoad @ (index):3227
+   904→(anonymous) @ (index):3191
+   905→setTimeout
+   906→register @ (index):3191
+   907→init @ (index):7376
+   908→(index):2507 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+   909→fetchTMDB @ (index):2507
+   910→await in fetchTMDB
+   911→searchTMDBFallback @ (index):3825
+   912→bridgeTVMazeToTMDB @ (index):3808
+   913→(anonymous) @ (index):3913
+   914→getTVMazeShowsWithTMDBData @ (index):3912
+   915→await in getTVMazeShowsWithTMDBData
+   916→loadTopAiring @ (index):4638
+   917→executeLoad @ (index):3227
+   918→(anonymous) @ (index):3191
+   919→setTimeout
+   920→register @ (index):3191
+   921→init @ (index):7376
+   922→(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/search/tv?query=Forging%20Justice&page=1' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+   923→(index):2496  GET https://t-umi.bionmovies47.workers.dev/search/tv?query=Forging%20Justice&page=1 net::ERR_FAILED 403 (Forbidden)
+   924→fetchTMDB @ (index):2496
+   925→searchTMDBFallback @ (index):3825
+   926→bridgeTVMazeToTMDB @ (index):3808
+   927→(anonymous) @ (index):3913
+   928→getTVMazeShowsWithTMDBData @ (index):3912
+   929→await in getTVMazeShowsWithTMDBData
+   930→loadTopAiring @ (index):4638
+   931→executeLoad @ (index):3227
+   932→(anonymous) @ (index):3191
+   933→setTimeout
+   934→register @ (index):3191
+   935→init @ (index):7376
+   936→(index):2507 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+   937→fetchTMDB @ (index):2507
+   938→await in fetchTMDB
+   939→searchTMDBFallback @ (index):3825
+   940→bridgeTVMazeToTMDB @ (index):3808
+   941→(anonymous) @ (index):3913
+   942→getTVMazeShowsWithTMDBData @ (index):3912
+   943→await in getTVMazeShowsWithTMDBData
+   944→loadTopAiring @ (index):4638
+   945→executeLoad @ (index):3227
+   946→(anonymous) @ (index):3191
+   947→setTimeout
+   948→register @ (index):3191
+   949→init @ (index):7376
+   950→(index):2525 [TMDB] ✅ Legacy proxy success: /search/tv (returned page: 1)
+   951→(index):3843 [TVMaze→TMDB] ✅ Search year match: "Born Again" (2026) → TMDB:202555 (2025)
+   952→(index):2525 [TMDB] ✅ Legacy proxy success: /find/467181 (returned page: N/A)
+   953→(index):3798 [TVMaze→TMDB] ✅ TheTVDB bridge: "The Road to Splendor" → TMDB:287496
+   954→(index):6917 [Schedule] ✅ thursday: 12 anime
+   955→(index):3527 [TVMaze] ✅ Fetched 20 episodes from US
+   956→(index):3556 [TVMaze] ✅ Unique shows from US: 19
+   957→(index):3614 [TVMaze-🔄] "US" only had 2 scripted shows (< 6, likely a weekend/light day), trying "KR"...
+   958→getTVMazeShowsRotatingCountry @ (index):3614
+   959→await in getTVMazeShowsRotatingCountry
+   960→getTVMazeShowsWithTMDBData @ (index):3882
+   961→(anonymous) @ (index):3142
+   962→processQueue @ (index):3038
+   963→await in processQueue
+   964→(anonymous) @ (index):3012
+   965→enqueue @ (index):2997
+   966→queuedFetchTMDB @ (index):3127
+   967→loadNewReleases @ (index):4909
+   968→executeLoad @ (index):3227
+   969→(anonymous) @ (index):3211
+   970→handleIntersection @ (index):3204
+   971→observer.IntersectionObserver.root @ (index):3160
+   972→(index):3515 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=KR
+   973→(index):1 Access to image at 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/196017-qB1xhp5PO10x.jpg' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+   974→(index):4481  GET https://s4.anilist.co/file/anilistcdn/media/anime/banner/196017-qB1xhp5PO10x.jpg net::ERR_FAILED
+   975→(anonymous) @ (index):4481
+   976→extractAccentColorLocal @ (index):4455
+   977→getAccentColor @ (index):4499
+   978→await in getAccentColor
+   979→(anonymous) @ (index):4521
+   980→applyHeroAccentColors @ (index):4510
+   981→requestAnimationFrame
+   982→renderHero @ (index):4594
+   983→loadHero @ (index):4424
+   984→await in loadHero
+   985→executeLoad @ (index):3227
+   986→register @ (index):3193
+   987→init @ (index):7369
+   988→(index):1 Access to image at 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/206249-gKJUJDCbMjDT.jpg' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+   989→(index):4481  GET https://s4.anilist.co/file/anilistcdn/media/anime/banner/206249-gKJUJDCbMjDT.jpg net::ERR_FAILED
+   990→(anonymous) @ (index):4481
+   991→extractAccentColorLocal @ (index):4455
+   992→getAccentColor @ (index):4499
+   993→await in getAccentColor
+   994→(anonymous) @ (index):4521
+   995→applyHeroAccentColors @ (index):4510
+   996→requestAnimationFrame
+   997→renderHero @ (index):4594
+   998→loadHero @ (index):4424
+   999→await in loadHero
+  1000→executeLoad @ (index):3227
+  1001→register @ (index):3193
+  1002→init @ (index):7369
+  1003→(index):1 Access to image at 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/202269-u0PTTsiKwrVL.jpg' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+  1004→(index):4481  GET https://s4.anilist.co/file/anilistcdn/media/anime/banner/202269-u0PTTsiKwrVL.jpg net::ERR_FAILED
+  1005→(anonymous) @ (index):4481
+  1006→extractAccentColorLocal @ (index):4455
+  1007→getAccentColor @ (index):4499
+  1008→await in getAccentColor
+  1009→(anonymous) @ (index):4521
+  1010→applyHeroAccentColors @ (index):4510
+  1011→requestAnimationFrame
+  1012→renderHero @ (index):4594
+  1013→loadHero @ (index):4424
+  1014→await in loadHero
+  1015→executeLoad @ (index):3227
+  1016→register @ (index):3193
+  1017→init @ (index):7369
+  1018→(index):1 Access to image at 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/185542-v15vqOvUWSF5.jpg' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+  1019→(index):4481  GET https://s4.anilist.co/file/anilistcdn/media/anime/banner/185542-v15vqOvUWSF5.jpg net::ERR_FAILED
+  1020→(anonymous) @ (index):4481
+  1021→extractAccentColorLocal @ (index):4455
+  1022→getAccentColor @ (index):4499
+  1023→await in getAccentColor
+  1024→(anonymous) @ (index):4521
+  1025→applyHeroAccentColors @ (index):4510
+  1026→requestAnimationFrame
+  1027→renderHero @ (index):4594
+  1028→loadHero @ (index):4424
+  1029→await in loadHero
+  1030→executeLoad @ (index):3227
+  1031→register @ (index):3193
+  1032→init @ (index):7369
+  1033→(index):1 Access to image at 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/185692-FLmhWYEAA7IY.jpg' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+  1034→(index):4481  GET https://s4.anilist.co/file/anilistcdn/media/anime/banner/185692-FLmhWYEAA7IY.jpg net::ERR_FAILED
+  1035→(anonymous) @ (index):4481
+  1036→extractAccentColorLocal @ (index):4455
+  1037→getAccentColor @ (index):4499
+  1038→await in getAccentColor
+  1039→(anonymous) @ (index):4521
+  1040→applyHeroAccentColors @ (index):4510
+  1041→requestAnimationFrame
+  1042→renderHero @ (index):4594
+  1043→loadHero @ (index):4424
+  1044→await in loadHero
+  1045→executeLoad @ (index):3227
+  1046→register @ (index):3193
+  1047→init @ (index):7369
+  1048→(index):1 Access to image at 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/201514-8dAOB0Xw124G.jpg' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+  1049→(index):4481  GET https://s4.anilist.co/file/anilistcdn/media/anime/banner/201514-8dAOB0Xw124G.jpg net::ERR_FAILED
+  1050→(anonymous) @ (index):4481
+  1051→extractAccentColorLocal @ (index):4455
+  1052→getAccentColor @ (index):4499
+  1053→await in getAccentColor
+  1054→(anonymous) @ (index):4521
+  1055→applyHeroAccentColors @ (index):4510
+  1056→requestAnimationFrame
+  1057→renderHero @ (index):4594
+  1058→loadHero @ (index):4424
+  1059→await in loadHero
+  1060→executeLoad @ (index):3227
+  1061→register @ (index):3193
+  1062→init @ (index):7369
+  1063→(index):2525 [TMDB] ✅ Legacy proxy success: /search/tv (returned page: 1)
+  1064→(index):3843 [TVMaze→TMDB] ✅ Search year match: "Cicada" (2026) → TMDB:285250 (2026)
+  1065→(index):2525 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 6)
+  1066→(index):5608 [Upcoming Movies] page 6/70: 20 raw → 21/50 collected
+  1067→(index):2525 [TMDB] ✅ Legacy proxy success: /search/tv (returned page: 1)
+  1068→(index):3837 [TVMaze→TMDB] ✅ Search exact match: "Forging Justice" → TMDB:291856
+  1069→(index):2525 [TMDB] ✅ Legacy proxy success: /search/tv (returned page: 1)
+  1070→(index):3837 [TVMaze→TMDB] ✅ Search exact match: "A Father's Debt" → TMDB:331662
+  1071→(index):3934 [TVMaze] ✅ Successfully bridged 15/15 shows to TMDB
+  1072→(index):4659 [Top Airing] 📺 Using TVMaze Multi-Country: 15 shows
+  1073→(index):4678 [Top Airing] ✅ TVMaze TV ready: 15 shows
+  1074→(index):3229 [Lazy Loader] ✅ #topAiringSection loaded in 12310ms
+  1075→(index):1 Access to image at 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/187538-287evzCezNl0.jpg' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+  1076→(index):4481  GET https://s4.anilist.co/file/anilistcdn/media/anime/banner/187538-287evzCezNl0.jpg net::ERR_FAILED
+  1077→(anonymous) @ (index):4481
+  1078→extractAccentColorLocal @ (index):4455
+  1079→getAccentColor @ (index):4499
+  1080→await in getAccentColor
+  1081→(anonymous) @ (index):4521
+  1082→applyHeroAccentColors @ (index):4510
+  1083→requestAnimationFrame
+  1084→renderHero @ (index):4594
+  1085→loadHero @ (index):4424
+  1086→await in loadHero
+  1087→executeLoad @ (index):3227
+  1088→register @ (index):3193
+  1089→init @ (index):7369
+  1090→(index):1 Access to image at 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/198709-wyZYzcKM5itk.jpg' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+  1091→(index):4481  GET https://s4.anilist.co/file/anilistcdn/media/anime/banner/198709-wyZYzcKM5itk.jpg net::ERR_FAILED
+  1092→(anonymous) @ (index):4481
+  1093→extractAccentColorLocal @ (index):4455
+  1094→getAccentColor @ (index):4499
+  1095→await in getAccentColor
+  1096→(anonymous) @ (index):4521
+  1097→applyHeroAccentColors @ (index):4510
+  1098→requestAnimationFrame
+  1099→renderHero @ (index):4594
+  1100→loadHero @ (index):4424
+  1101→await in loadHero
+  1102→executeLoad @ (index):3227
+  1103→register @ (index):3193
+  1104→init @ (index):7369
+  1105→(index):1 Access to image at 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/177699-5kDbvDBhtSE3.jpg' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+  1106→(index):4481  GET https://s4.anilist.co/file/anilistcdn/media/anime/banner/177699-5kDbvDBhtSE3.jpg net::ERR_FAILED
+  1107→(anonymous) @ (index):4481
+  1108→extractAccentColorLocal @ (index):4455
+  1109→getAccentColor @ (index):4499
+  1110→await in getAccentColor
+  1111→(anonymous) @ (index):4521
+  1112→applyHeroAccentColors @ (index):4510
+  1113→requestAnimationFrame
+  1114→renderHero @ (index):4594
+  1115→loadHero @ (index):4424
+  1116→await in loadHero
+  1117→executeLoad @ (index):3227
+  1118→register @ (index):3193
+  1119→init @ (index):7369
+  1120→(index):1 Access to image at 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/196974-wOXpVEgXm7aR.jpg' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+  1121→(index):4481  GET https://s4.anilist.co/file/anilistcdn/media/anime/banner/196974-wOXpVEgXm7aR.jpg net::ERR_FAILED
+  1122→(anonymous) @ (index):4481
+  1123→extractAccentColorLocal @ (index):4455
+  1124→getAccentColor @ (index):4499
+  1125→await in getAccentColor
+  1126→(anonymous) @ (index):4521
+  1127→applyHeroAccentColors @ (index):4510
+  1128→requestAnimationFrame
+  1129→renderHero @ (index):4594
+  1130→loadHero @ (index):4424
+  1131→await in loadHero
+  1132→executeLoad @ (index):3227
+  1133→register @ (index):3193
+  1134→init @ (index):7369
+  1135→(index):1 Access to image at 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/103303-K73aVOqkCPqL.jpg' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+  1136→(index):4481  GET https://s4.anilist.co/file/anilistcdn/media/anime/banner/103303-K73aVOqkCPqL.jpg net::ERR_FAILED
+  1137→(anonymous) @ (index):4481
+  1138→extractAccentColorLocal @ (index):4455
+  1139→getAccentColor @ (index):4499
+  1140→await in getAccentColor
+  1141→(anonymous) @ (index):4521
+  1142→applyHeroAccentColors @ (index):4510
+  1143→requestAnimationFrame
+  1144→renderHero @ (index):4594
+  1145→loadHero @ (index):4424
+  1146→await in loadHero
+  1147→executeLoad @ (index):3227
+  1148→register @ (index):3193
+  1149→init @ (index):7369
+  1150→(index):1 Access to image at 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/169080-HcBclO97a4SE.jpg' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+  1151→(index):4481  GET https://s4.anilist.co/file/anilistcdn/media/anime/banner/169080-HcBclO97a4SE.jpg net::ERR_FAILED
+  1152→(anonymous) @ (index):4481
+  1153→extractAccentColorLocal @ (index):4455
+  1154→getAccentColor @ (index):4499
+  1155→await in getAccentColor
+  1156→(anonymous) @ (index):4521
+  1157→applyHeroAccentColors @ (index):4510
+  1158→requestAnimationFrame
+  1159→renderHero @ (index):4594
+  1160→loadHero @ (index):4424
+  1161→await in loadHero
+  1162→executeLoad @ (index):3227
+  1163→register @ (index):3193
+  1164→init @ (index):7369
+  1165→(index):1 Access to image at 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/169582-D5p5iRI5XqML.jpg' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+  1166→(index):4481  GET https://s4.anilist.co/file/anilistcdn/media/anime/banner/169582-D5p5iRI5XqML.jpg net::ERR_FAILED
+  1167→(anonymous) @ (index):4481
+  1168→extractAccentColorLocal @ (index):4455
+  1169→getAccentColor @ (index):4499
+  1170→await in getAccentColor
+  1171→(anonymous) @ (index):4521
+  1172→applyHeroAccentColors @ (index):4510
+  1173→requestAnimationFrame
+  1174→renderHero @ (index):4594
+  1175→loadHero @ (index):4424
+  1176→await in loadHero
+  1177→executeLoad @ (index):3227
+  1178→register @ (index):3193
+  1179→init @ (index):7369
+  1180→(index):1 Access to image at 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/169583-wB0yHc7e8Kjk.jpg' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+  1181→(index):4481  GET https://s4.anilist.co/file/anilistcdn/media/anime/banner/169583-wB0yHc7e8Kjk.jpg net::ERR_FAILED
+  1182→(anonymous) @ (index):4481
+  1183→extractAccentColorLocal @ (index):4455
+  1184→getAccentColor @ (index):4499
+  1185→await in getAccentColor
+  1186→(anonymous) @ (index):4521
+  1187→applyHeroAccentColors @ (index):4510
+  1188→requestAnimationFrame
+  1189→renderHero @ (index):4594
+  1190→loadHero @ (index):4424
+  1191→await in loadHero
+  1192→executeLoad @ (index):3227
+  1193→register @ (index):3193
+  1194→init @ (index):7369
+  1195→(index):1 Access to image at 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/204060-3y19sqCToRaN.jpg' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+  1196→(index):4481  GET https://s4.anilist.co/file/anilistcdn/media/anime/banner/204060-3y19sqCToRaN.jpg net::ERR_FAILED
+  1197→(anonymous) @ (index):4481
+  1198→extractAccentColorLocal @ (index):4455
+  1199→getAccentColor @ (index):4499
+  1200→await in getAccentColor
+  1201→(anonymous) @ (index):4521
+  1202→applyHeroAccentColors @ (index):4510
+  1203→requestAnimationFrame
+  1204→renderHero @ (index):4594
+  1205→loadHero @ (index):4424
+  1206→await in loadHero
+  1207→executeLoad @ (index):3227
+  1208→register @ (index):3193
+  1209→init @ (index):7369
+  1210→(index):1 Access to image at 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/196012-BbzGv8DuqVah.jpg' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+  1211→(index):4481  GET https://s4.anilist.co/file/anilistcdn/media/anime/banner/196012-BbzGv8DuqVah.jpg net::ERR_FAILED
+  1212→(anonymous) @ (index):4481
+  1213→extractAccentColorLocal @ (index):4455
+  1214→getAccentColor @ (index):4499
+  1215→await in getAccentColor
+  1216→(anonymous) @ (index):4521
+  1217→applyHeroAccentColors @ (index):4510
+  1218→requestAnimationFrame
+  1219→renderHero @ (index):4594
+  1220→loadHero @ (index):4424
+  1221→await in loadHero
+  1222→executeLoad @ (index):3227
+  1223→register @ (index):3193
+  1224→init @ (index):7369
+  1225→(index):1 Access to image at 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/141953-5o87aOKuZf8c.jpg' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+  1226→(index):4481  GET https://s4.anilist.co/file/anilistcdn/media/anime/banner/141953-5o87aOKuZf8c.jpg net::ERR_FAILED
+  1227→(anonymous) @ (index):4481
+  1228→extractAccentColorLocal @ (index):4455
+  1229→getAccentColor @ (index):4499
+  1230→await in getAccentColor
+  1231→(anonymous) @ (index):4521
+  1232→applyHeroAccentColors @ (index):4510
+  1233→requestAnimationFrame
+  1234→renderHero @ (index):4594
+  1235→loadHero @ (index):4424
+  1236→await in loadHero
+  1237→executeLoad @ (index):3227
+  1238→register @ (index):3193
+  1239→init @ (index):7369
+  1240→(index):1 Access to image at 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/185875-kHVsTIJKPVRJ.jpg' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+  1241→(index):4481  GET https://s4.anilist.co/file/anilistcdn/media/anime/banner/185875-kHVsTIJKPVRJ.jpg net::ERR_FAILED
+  1242→(anonymous) @ (index):4481
+  1243→extractAccentColorLocal @ (index):4455
+  1244→getAccentColor @ (index):4499
+  1245→await in getAccentColor
+  1246→(anonymous) @ (index):4521
+  1247→applyHeroAccentColors @ (index):4510
+  1248→requestAnimationFrame
+  1249→renderHero @ (index):4594
+  1250→loadHero @ (index):4424
+  1251→await in loadHero
+  1252→executeLoad @ (index):3227
+  1253→register @ (index):3193
+  1254→init @ (index):7369
+  1255→(index):1 Access to image at 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/196219-2F64WTRfqRU9.jpg' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+  1256→(index):4481  GET https://s4.anilist.co/file/anilistcdn/media/anime/banner/196219-2F64WTRfqRU9.jpg net::ERR_FAILED
+  1257→(anonymous) @ (index):4481
+  1258→extractAccentColorLocal @ (index):4455
+  1259→getAccentColor @ (index):4499
+  1260→await in getAccentColor
+  1261→(anonymous) @ (index):4521
+  1262→applyHeroAccentColors @ (index):4510
+  1263→requestAnimationFrame
+  1264→renderHero @ (index):4594
+  1265→loadHero @ (index):4424
+  1266→await in loadHero
+  1267→executeLoad @ (index):3227
+  1268→register @ (index):3193
+  1269→init @ (index):7369
+  1270→(index):1 Access to image at 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/128757-kBnCRYXdyw58.jpg' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+  1271→(index):4481  GET https://s4.anilist.co/file/anilistcdn/media/anime/banner/128757-kBnCRYXdyw58.jpg net::ERR_FAILED
+  1272→(anonymous) @ (index):4481
+  1273→extractAccentColorLocal @ (index):4455
+  1274→getAccentColor @ (index):4499
+  1275→await in getAccentColor
+  1276→(anonymous) @ (index):4521
+  1277→applyHeroAccentColors @ (index):4510
+  1278→requestAnimationFrame
+  1279→renderHero @ (index):4594
+  1280→loadHero @ (index):4424
+  1281→await in loadHero
+  1282→executeLoad @ (index):3227
+  1283→register @ (index):3193
+  1284→init @ (index):7369
+  1285→(index):1 Access to image at 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/189046-MDk2CaVuRWpb.jpg' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+  1286→(index):4481  GET https://s4.anilist.co/file/anilistcdn/media/anime/banner/189046-MDk2CaVuRWpb.jpg net::ERR_FAILED
+  1287→(anonymous) @ (index):4481
+  1288→extractAccentColorLocal @ (index):4455
+  1289→getAccentColor @ (index):4499
+  1290→await in getAccentColor
+  1291→(anonymous) @ (index):4521
+  1292→applyHeroAccentColors @ (index):4510
+  1293→requestAnimationFrame
+  1294→renderHero @ (index):4594
+  1295→loadHero @ (index):4424
+  1296→await in loadHero
+  1297→executeLoad @ (index):3227
+  1298→register @ (index):3193
+  1299→init @ (index):7369
+  1300→(index):1 Access to image at 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/140842-kXw5xtsCy8QT.jpg' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+  1301→(index):4481  GET https://s4.anilist.co/file/anilistcdn/media/anime/banner/140842-kXw5xtsCy8QT.jpg net::ERR_FAILED
+  1302→(anonymous) @ (index):4481
+  1303→extractAccentColorLocal @ (index):4455
+  1304→getAccentColor @ (index):4499
+  1305→await in getAccentColor
+  1306→(anonymous) @ (index):4521
+  1307→applyHeroAccentColors @ (index):4510
+  1308→requestAnimationFrame
+  1309→renderHero @ (index):4594
+  1310→loadHero @ (index):4424
+  1311→await in loadHero
+  1312→executeLoad @ (index):3227
+  1313→register @ (index):3193
+  1314→init @ (index):7369
+  1315→(index):1 Access to image at 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/178789-9nHWmoRLlcLu.jpg' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+  1316→(index):4481  GET https://s4.anilist.co/file/anilistcdn/media/anime/banner/178789-9nHWmoRLlcLu.jpg net::ERR_FAILED
+  1317→(anonymous) @ (index):4481
+  1318→extractAccentColorLocal @ (index):4455
+  1319→getAccentColor @ (index):4499
+  1320→await in getAccentColor
+  1321→(anonymous) @ (index):4521
+  1322→applyHeroAccentColors @ (index):4510
+  1323→requestAnimationFrame
+  1324→renderHero @ (index):4594
+  1325→loadHero @ (index):4424
+  1326→await in loadHero
+  1327→executeLoad @ (index):3227
+  1328→register @ (index):3193
+  1329→init @ (index):7369
+  1330→(index):1 Access to image at 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/199408-ouNGkjrw0ohT.jpg' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+  1331→(index):4481  GET https://s4.anilist.co/file/anilistcdn/media/anime/banner/199408-ouNGkjrw0ohT.jpg net::ERR_FAILED
+  1332→(anonymous) @ (index):4481
+  1333→extractAccentColorLocal @ (index):4455
+  1334→getAccentColor @ (index):4499
+  1335→await in getAccentColor
+  1336→(anonymous) @ (index):4521
+  1337→applyHeroAccentColors @ (index):4510
+  1338→requestAnimationFrame
+  1339→renderHero @ (index):4594
+  1340→loadHero @ (index):4424
+  1341→await in loadHero
+  1342→executeLoad @ (index):3227
+  1343→register @ (index):3193
+  1344→init @ (index):7369
+  1345→(index):1 Access to image at 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/177637-2Ok4Pq0SpvHp.jpg' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+  1346→(index):4481  GET https://s4.anilist.co/file/anilistcdn/media/anime/banner/177637-2Ok4Pq0SpvHp.jpg net::ERR_FAILED
+  1347→(anonymous) @ (index):4481
+  1348→extractAccentColorLocal @ (index):4455
+  1349→getAccentColor @ (index):4499
+  1350→await in getAccentColor
+  1351→(anonymous) @ (index):4521
+  1352→applyHeroAccentColors @ (index):4510
+  1353→requestAnimationFrame
+  1354→renderHero @ (index):4594
+  1355→loadHero @ (index):4424
+  1356→await in loadHero
+  1357→executeLoad @ (index):3227
+  1358→register @ (index):3193
+  1359→init @ (index):7369
+  1360→(index):1 Access to image at 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/199066-nmAYnI6uChse.jpg' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+  1361→(index):4481  GET https://s4.anilist.co/file/anilistcdn/media/anime/banner/199066-nmAYnI6uChse.jpg net::ERR_FAILED
+  1362→(anonymous) @ (index):4481
+  1363→extractAccentColorLocal @ (index):4455
+  1364→getAccentColor @ (index):4499
+  1365→await in getAccentColor
+  1366→(anonymous) @ (index):4521
+  1367→applyHeroAccentColors @ (index):4510
+  1368→requestAnimationFrame
+  1369→renderHero @ (index):4594
+  1370→loadHero @ (index):4424
+  1371→await in loadHero
+  1372→executeLoad @ (index):3227
+  1373→register @ (index):3193
+  1374→init @ (index):7369
+  1375→(index):1 Access to image at 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/187260-HMkLPy3ZvzW1.jpg' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+  1376→(index):4481  GET https://s4.anilist.co/file/anilistcdn/media/anime/banner/187260-HMkLPy3ZvzW1.jpg net::ERR_FAILED
+  1377→(anonymous) @ (index):4481
+  1378→extractAccentColorLocal @ (index):4455
+  1379→getAccentColor @ (index):4499
+  1380→await in getAccentColor
+  1381→(anonymous) @ (index):4521
+  1382→applyHeroAccentColors @ (index):4510
+  1383→requestAnimationFrame
+  1384→renderHero @ (index):4594
+  1385→loadHero @ (index):4424
+  1386→await in loadHero
+  1387→executeLoad @ (index):3227
+  1388→register @ (index):3193
+  1389→init @ (index):7369
+  1390→(index):1 Access to image at 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/206521-zCIAGsiIkh6G.jpg' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+  1391→(index):4481  GET https://s4.anilist.co/file/anilistcdn/media/anime/banner/206521-zCIAGsiIkh6G.jpg net::ERR_FAILED
+  1392→(anonymous) @ (index):4481
+  1393→extractAccentColorLocal @ (index):4455
+  1394→getAccentColor @ (index):4499
+  1395→await in getAccentColor
+  1396→(anonymous) @ (index):4521
+  1397→applyHeroAccentColors @ (index):4510
+  1398→requestAnimationFrame
+  1399→renderHero @ (index):4594
+  1400→loadHero @ (index):4424
+  1401→await in loadHero
+  1402→executeLoad @ (index):3227
+  1403→register @ (index):3193
+  1404→init @ (index):7369
+  1405→(index):1 Access to image at 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/200637-q9mehOFbbCgT.jpg' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+  1406→(index):4481  GET https://s4.anilist.co/file/anilistcdn/media/anime/banner/200637-q9mehOFbbCgT.jpg net::ERR_FAILED
+  1407→(anonymous) @ (index):4481
+  1408→extractAccentColorLocal @ (index):4455
+  1409→getAccentColor @ (index):4499
+  1410→await in getAccentColor
+  1411→(anonymous) @ (index):4521
+  1412→applyHeroAccentColors @ (index):4510
+  1413→requestAnimationFrame
+  1414→renderHero @ (index):4594
+  1415→loadHero @ (index):4424
+  1416→await in loadHero
+  1417→executeLoad @ (index):3227
+  1418→register @ (index):3193
+  1419→init @ (index):7369
+  1420→(index):1 Access to image at 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/202957-B9U0hNv2Dqap.jpg' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+  1421→(index):4481  GET https://s4.anilist.co/file/anilistcdn/media/anime/banner/202957-B9U0hNv2Dqap.jpg net::ERR_FAILED
+  1422→(anonymous) @ (index):4481
+  1423→extractAccentColorLocal @ (index):4455
+  1424→getAccentColor @ (index):4499
+  1425→await in getAccentColor
+  1426→(anonymous) @ (index):4521
+  1427→applyHeroAccentColors @ (index):4510
+  1428→requestAnimationFrame
+  1429→renderHero @ (index):4594
+  1430→loadHero @ (index):4424
+  1431→await in loadHero
+  1432→executeLoad @ (index):3227
+  1433→register @ (index):3193
+  1434→init @ (index):7369
+  1435→(index):1 Access to image at 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/210031-M4bt0rAmWk5Q.jpg' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+  1436→(index):4481  GET https://s4.anilist.co/file/anilistcdn/media/anime/banner/210031-M4bt0rAmWk5Q.jpg net::ERR_FAILED
+  1437→(anonymous) @ (index):4481
+  1438→extractAccentColorLocal @ (index):4455
+  1439→getAccentColor @ (index):4499
+  1440→await in getAccentColor
+  1441→(anonymous) @ (index):4521
+  1442→applyHeroAccentColors @ (index):4510
+  1443→requestAnimationFrame
+  1444→renderHero @ (index):4594
+  1445→loadHero @ (index):4424
+  1446→await in loadHero
+  1447→executeLoad @ (index):3227
+  1448→register @ (index):3193
+  1449→init @ (index):7369
+  1450→(index):1 Access to image at 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/199111-Z8y9awn2Zb6v.jpg' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+  1451→(index):4481  GET https://s4.anilist.co/file/anilistcdn/media/anime/banner/199111-Z8y9awn2Zb6v.jpg net::ERR_FAILED
+  1452→(anonymous) @ (index):4481
+  1453→extractAccentColorLocal @ (index):4455
+  1454→getAccentColor @ (index):4499
+  1455→await in getAccentColor
+  1456→(anonymous) @ (index):4521
+  1457→applyHeroAccentColors @ (index):4510
+  1458→requestAnimationFrame
+  1459→renderHero @ (index):4594
+  1460→loadHero @ (index):4424
+  1461→await in loadHero
+  1462→executeLoad @ (index):3227
+  1463→register @ (index):3193
+  1464→init @ (index):7369
+  1465→(index):1 Access to image at 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/2406-ROqXxejQ5bH9.jpg' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+  1466→(index):4481  GET https://s4.anilist.co/file/anilistcdn/media/anime/banner/2406-ROqXxejQ5bH9.jpg net::ERR_FAILED
+  1467→(anonymous) @ (index):4481
+  1468→extractAccentColorLocal @ (index):4455
+  1469→getAccentColor @ (index):4499
+  1470→await in getAccentColor
+  1471→(anonymous) @ (index):4521
+  1472→applyHeroAccentColors @ (index):4510
+  1473→requestAnimationFrame
+  1474→renderHero @ (index):4594
+  1475→loadHero @ (index):4424
+  1476→await in loadHero
+  1477→executeLoad @ (index):3227
+  1478→register @ (index):3193
+  1479→init @ (index):7369
+  1480→(index):1 Access to image at 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/213484-Apezw4iSrrr6.jpg' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+  1481→(index):4481  GET https://s4.anilist.co/file/anilistcdn/media/anime/banner/213484-Apezw4iSrrr6.jpg net::ERR_FAILED
+  1482→(anonymous) @ (index):4481
+  1483→extractAccentColorLocal @ (index):4455
+  1484→getAccentColor @ (index):4499
+  1485→await in getAccentColor
+  1486→(anonymous) @ (index):4521
+  1487→applyHeroAccentColors @ (index):4510
+  1488→requestAnimationFrame
+  1489→renderHero @ (index):4594
+  1490→loadHero @ (index):4424
+  1491→await in loadHero
+  1492→executeLoad @ (index):3227
+  1493→register @ (index):3193
+  1494→init @ (index):7369
+  1495→(index):2510 [TMDB] ⏭️ Skipping t-umi for paginated request (page=7) - known caching bug
+  1496→(index):3527 [TVMaze] ✅ Fetched 6 episodes from KR
+  1497→(index):3556 [TVMaze] ✅ Unique shows from KR: 6
+  1498→(index):3614 [TVMaze-🔄] "KR" only had 4 scripted shows (< 6, likely a weekend/light day), trying "TR"...
+  1499→getTVMazeShowsRotatingCountry @ (index):3614
+  1500→await in getTVMazeShowsRotatingCountry
+  1501→getTVMazeShowsWithTMDBData @ (index):3882
+  1502→(anonymous) @ (index):3142
+  1503→processQueue @ (index):3038
+  1504→await in processQueue
+  1505→(anonymous) @ (index):3012
+  1506→enqueue @ (index):2997
+  1507→queuedFetchTMDB @ (index):3127
+  1508→loadNewReleases @ (index):4909
+  1509→executeLoad @ (index):3227
+  1510→(anonymous) @ (index):3211
+  1511→handleIntersection @ (index):3204
+  1512→observer.IntersectionObserver.root @ (index):3160
+  1513→(index):3515 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=TR
+  1514→(index):3527 [TVMaze] ✅ Fetched 0 episodes from TR
+  1515→(index):3556 [TVMaze] ✅ Unique shows from TR: 0
+  1516→(index):3614 [TVMaze-🔄] "TR" only had 0 scripted shows (< 6, likely a weekend/light day), trying "PK"...
+  1517→getTVMazeShowsRotatingCountry @ (index):3614
+  1518→await in getTVMazeShowsRotatingCountry
+  1519→getTVMazeShowsWithTMDBData @ (index):3882
+  1520→(anonymous) @ (index):3142
+  1521→processQueue @ (index):3038
+  1522→await in processQueue
+  1523→(anonymous) @ (index):3012
+  1524→enqueue @ (index):2997
+  1525→queuedFetchTMDB @ (index):3127
+  1526→loadNewReleases @ (index):4909
+  1527→executeLoad @ (index):3227
+  1528→(anonymous) @ (index):3211
+  1529→handleIntersection @ (index):3204
+  1530→observer.IntersectionObserver.root @ (index):3160
+  1531→(index):3515 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=PK
+  1532→(index):2525 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 7)
+  1533→(index):5608 [Upcoming Movies] page 7/70: 20 raw → 28/50 collected
+  1534→(index):6917 [Schedule] ✅ saturday: 20 anime
+  1535→(index):2510 [TMDB] ⏭️ Skipping t-umi for paginated request (page=8) - known caching bug
+  1536→(index):3527 [TVMaze] ✅ Fetched 0 episodes from PK
+  1537→(index):3556 [TVMaze] ✅ Unique shows from PK: 0
+  1538→(index):3614 [TVMaze-🔄] "PK" only had 0 scripted shows (< 6, likely a weekend/light day), trying "IN"...
+  1539→getTVMazeShowsRotatingCountry @ (index):3614
+  1540→await in getTVMazeShowsRotatingCountry
+  1541→getTVMazeShowsWithTMDBData @ (index):3882
+  1542→(anonymous) @ (index):3142
+  1543→processQueue @ (index):3038
+  1544→await in processQueue
+  1545→(anonymous) @ (index):3012
+  1546→enqueue @ (index):2997
+  1547→queuedFetchTMDB @ (index):3127
+  1548→loadNewReleases @ (index):4909
+  1549→executeLoad @ (index):3227
+  1550→(anonymous) @ (index):3211
+  1551→handleIntersection @ (index):3204
+  1552→observer.IntersectionObserver.root @ (index):3160
+  1553→(index):3515 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=IN
+  1554→(index):7444 [System Status] {apiQueue: {…}, lazyLoader: {…}}
+  1555→(index):3527 [TVMaze] ✅ Fetched 1 episodes from IN
+  1556→(index):3556 [TVMaze] ✅ Unique shows from IN: 1
+  1557→(index):3614 [TVMaze-🔄] "IN" only had 0 scripted shows (< 6, likely a weekend/light day), trying "CN"...
+  1558→getTVMazeShowsRotatingCountry @ (index):3614
+  1559→await in getTVMazeShowsRotatingCountry
+  1560→getTVMazeShowsWithTMDBData @ (index):3882
+  1561→(anonymous) @ (index):3142
+  1562→processQueue @ (index):3038
+  1563→await in processQueue
+  1564→(anonymous) @ (index):3012
+  1565→enqueue @ (index):2997
+  1566→queuedFetchTMDB @ (index):3127
+  1567→loadNewReleases @ (index):4909
+  1568→executeLoad @ (index):3227
+  1569→(anonymous) @ (index):3211
+  1570→handleIntersection @ (index):3204
+  1571→observer.IntersectionObserver.root @ (index):3160
+  1572→(index):3515 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=CN
+  1573→(index):2525 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 8)
+  1574→(index):5608 [Upcoming Movies] page 8/70: 20 raw → 38/50 collected
+  1575→(index):6921 [Schedule] ⚠️ Failed to fetch monday: signal is aborted without reason
+  1576→fetchDayFromJikan @ (index):6921
+  1577→await in fetchDayFromJikan
+  1578→(anonymous) @ (index):6932
+  1579→fetchAllDaysParallel @ (index):6932
+  1580→loadSchedule @ (index):7259
+  1581→executeLoad @ (index):3227
+  1582→(anonymous) @ (index):3211
+  1583→handleIntersection @ (index):3204
+  1584→observer.IntersectionObserver.root @ (index):3160
+  1585→(index):6921 [Schedule] ⚠️ Failed to fetch wednesday: signal is aborted without reason
+  1586→fetchDayFromJikan @ (index):6921
+  1587→await in fetchDayFromJikan
+  1588→(anonymous) @ (index):6932
+  1589→fetchAllDaysParallel @ (index):6932
+  1590→loadSchedule @ (index):7259
+  1591→executeLoad @ (index):3227
+  1592→(anonymous) @ (index):3211
+  1593→handleIntersection @ (index):3204
+  1594→observer.IntersectionObserver.root @ (index):3160
+  1595→(index):6921 [Schedule] ⚠️ Failed to fetch sunday: signal is aborted without reason
+  1596→fetchDayFromJikan @ (index):6921
+  1597→await in fetchDayFromJikan
+  1598→(anonymous) @ (index):6932
+  1599→fetchAllDaysParallel @ (index):6932
+  1600→loadSchedule @ (index):7259
+  1601→executeLoad @ (index):3227
+  1602→(anonymous) @ (index):3211
+  1603→handleIntersection @ (index):3204
+  1604→observer.IntersectionObserver.root @ (index):3160
+  1605→(index):6942 [Schedule] ✅ Complete! Total: 55 anime across 7 days
+  1606→(index):3515 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=KR&date=2026-08-22
+  1607→(index):3229 [Lazy Loader] ✅ #eswWidget loaded in 12057ms
+  1608→(index):2510 [TMDB] ⏭️ Skipping t-umi for paginated request (page=9) - known caching bug
+  1609→(index):3527 [TVMaze] ✅ Fetched 23 episodes from CN
+  1610→(index):3556 [TVMaze] ✅ Unique shows from CN: 15
+  1611→(index):3618 [TVMaze-🔄] Final: 15 scripted shows from "CN"
+  1612→(index):3885 [TVMaze-🔄] Rotation result: 15 shows from "CN"
+  1613→(index):3902 [TVMaze] 📊 Total shows to bridge: 15
+  1614→(index):3527 [TVMaze] ✅ Fetched 6 episodes from KR (2026-08-22)
+  1615→(index):3556 [TVMaze] ✅ Unique shows from KR: 6
+  1616→(index):3677 [Sidebar-TVMaze] "KR" only had 4 usable shows for 2026-08-22, trying next country...
+  1617→fetchSidebarTVShowsForDate @ (index):3677
+  1618→await in fetchSidebarTVShowsForDate
+  1619→renderScheduleForDay @ (index):7034
+  1620→setCurrentDay @ (index):7242
+  1621→loadSchedule @ (index):7269
+  1622→await in loadSchedule
+  1623→executeLoad @ (index):3227
+  1624→(anonymous) @ (index):3211
+  1625→handleIntersection @ (index):3204
+  1626→observer.IntersectionObserver.root @ (index):3160
+  1627→(index):3515 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=TR&date=2026-08-22
+  1628→(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/find/tt34882755?external_source=imdb_id' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+  1629→(index):2496  GET https://t-umi.bionmovies47.workers.dev/find/tt34882755?external_source=imdb_id net::ERR_FAILED 403 (Forbidden)
+  1630→fetchTMDB @ (index):2496
+  1631→bridgeTVMazeToTMDB @ (index):3781
+  1632→(anonymous) @ (index):3913
+  1633→getTVMazeShowsWithTMDBData @ (index):3912
+  1634→await in getTVMazeShowsWithTMDBData
+  1635→(anonymous) @ (index):3142
+  1636→processQueue @ (index):3038
+  1637→await in processQueue
+  1638→(anonymous) @ (index):3012
+  1639→enqueue @ (index):2997
+  1640→queuedFetchTMDB @ (index):3127
+  1641→loadNewReleases @ (index):4909
+  1642→executeLoad @ (index):3227
+  1643→(anonymous) @ (index):3211
+  1644→handleIntersection @ (index):3204
+  1645→observer.IntersectionObserver.root @ (index):3160
+  1646→(index):2507 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+  1647→fetchTMDB @ (index):2507
+  1648→await in fetchTMDB
+  1649→bridgeTVMazeToTMDB @ (index):3781
+  1650→(anonymous) @ (index):3913
+  1651→getTVMazeShowsWithTMDBData @ (index):3912
+  1652→await in getTVMazeShowsWithTMDBData
+  1653→(anonymous) @ (index):3142
+  1654→processQueue @ (index):3038
+  1655→await in processQueue
+  1656→(anonymous) @ (index):3012
+  1657→enqueue @ (index):2997
+  1658→queuedFetchTMDB @ (index):3127
+  1659→loadNewReleases @ (index):4909
+  1660→executeLoad @ (index):3227
+  1661→(anonymous) @ (index):3211
+  1662→handleIntersection @ (index):3204
+  1663→observer.IntersectionObserver.root @ (index):3160
+  1664→(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/find/tt31608637?external_source=imdb_id' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+  1665→(index):2496  GET https://t-umi.bionmovies47.workers.dev/find/tt31608637?external_source=imdb_id net::ERR_FAILED 403 (Forbidden)
+  1666→fetchTMDB @ (index):2496
+  1667→bridgeTVMazeToTMDB @ (index):3781
+  1668→(anonymous) @ (index):3913
+  1669→getTVMazeShowsWithTMDBData @ (index):3912
+  1670→await in getTVMazeShowsWithTMDBData
+  1671→(anonymous) @ (index):3142
+  1672→processQueue @ (index):3038
+  1673→await in processQueue
+  1674→(anonymous) @ (index):3012
+  1675→enqueue @ (index):2997
+  1676→queuedFetchTMDB @ (index):3127
+  1677→loadNewReleases @ (index):4909
+  1678→executeLoad @ (index):3227
+  1679→(anonymous) @ (index):3211
+  1680→handleIntersection @ (index):3204
+  1681→observer.IntersectionObserver.root @ (index):3160
+  1682→(index):2507 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+  1683→fetchTMDB @ (index):2507
+  1684→await in fetchTMDB
+  1685→bridgeTVMazeToTMDB @ (index):3781
+  1686→(anonymous) @ (index):3913
+  1687→getTVMazeShowsWithTMDBData @ (index):3912
+  1688→await in getTVMazeShowsWithTMDBData
+  1689→(anonymous) @ (index):3142
+  1690→processQueue @ (index):3038
+  1691→await in processQueue
+  1692→(anonymous) @ (index):3012
+  1693→enqueue @ (index):2997
+  1694→queuedFetchTMDB @ (index):3127
+  1695→loadNewReleases @ (index):4909
+  1696→executeLoad @ (index):3227
+  1697→(anonymous) @ (index):3211
+  1698→handleIntersection @ (index):3204
+  1699→observer.IntersectionObserver.root @ (index):3160
+  1700→(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/find/tt28022382?external_source=imdb_id' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+  1701→(index):2496  GET https://t-umi.bionmovies47.workers.dev/find/tt28022382?external_source=imdb_id net::ERR_FAILED 403 (Forbidden)
+  1702→fetchTMDB @ (index):2496
+  1703→bridgeTVMazeToTMDB @ (index):3781
+  1704→(anonymous) @ (index):3913
+  1705→getTVMazeShowsWithTMDBData @ (index):3912
+  1706→await in getTVMazeShowsWithTMDBData
+  1707→(anonymous) @ (index):3142
+  1708→processQueue @ (index):3038
+  1709→await in processQueue
+  1710→(anonymous) @ (index):3012
+  1711→enqueue @ (index):2997
+  1712→queuedFetchTMDB @ (index):3127
+  1713→loadNewReleases @ (index):4909
+  1714→executeLoad @ (index):3227
+  1715→(anonymous) @ (index):3211
+  1716→handleIntersection @ (index):3204
+  1717→observer.IntersectionObserver.root @ (index):3160
+  1718→(index):2507 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+  1719→fetchTMDB @ (index):2507
+  1720→await in fetchTMDB
+  1721→bridgeTVMazeToTMDB @ (index):3781
+  1722→(anonymous) @ (index):3913
+  1723→getTVMazeShowsWithTMDBData @ (index):3912
+  1724→await in getTVMazeShowsWithTMDBData
+  1725→(anonymous) @ (index):3142
+  1726→processQueue @ (index):3038
+  1727→await in processQueue
+  1728→(anonymous) @ (index):3012
+  1729→enqueue @ (index):2997
+  1730→queuedFetchTMDB @ (index):3127
+  1731→loadNewReleases @ (index):4909
+  1732→executeLoad @ (index):3227
+  1733→(anonymous) @ (index):3211
+  1734→handleIntersection @ (index):3204
+  1735→observer.IntersectionObserver.root @ (index):3160
+  1736→(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/find/330774?external_source=tvdb_id' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+  1737→(index):2496  GET https://t-umi.bionmovies47.workers.dev/find/330774?external_source=tvdb_id net::ERR_FAILED 403 (Forbidden)
+  1738→fetchTMDB @ (index):2496
+  1739→bridgeTVMazeToTMDB @ (index):3795
+  1740→(anonymous) @ (index):3913
+  1741→getTVMazeShowsWithTMDBData @ (index):3912
+  1742→await in getTVMazeShowsWithTMDBData
+  1743→(anonymous) @ (index):3142
+  1744→processQueue @ (index):3038
+  1745→await in processQueue
+  1746→(anonymous) @ (index):3012
+  1747→enqueue @ (index):2997
+  1748→queuedFetchTMDB @ (index):3127
+  1749→loadNewReleases @ (index):4909
+  1750→executeLoad @ (index):3227
+  1751→(anonymous) @ (index):3211
+  1752→handleIntersection @ (index):3204
+  1753→observer.IntersectionObserver.root @ (index):3160
+  1754→(index):2507 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+  1755→fetchTMDB @ (index):2507
+  1756→await in fetchTMDB
+  1757→bridgeTVMazeToTMDB @ (index):3795
+  1758→(anonymous) @ (index):3913
+  1759→getTVMazeShowsWithTMDBData @ (index):3912
+  1760→await in getTVMazeShowsWithTMDBData
+  1761→(anonymous) @ (index):3142
+  1762→processQueue @ (index):3038
+  1763→await in processQueue
+  1764→(anonymous) @ (index):3012
+  1765→enqueue @ (index):2997
+  1766→queuedFetchTMDB @ (index):3127
+  1767→loadNewReleases @ (index):4909
+  1768→executeLoad @ (index):3227
+  1769→(anonymous) @ (index):3211
+  1770→handleIntersection @ (index):3204
+  1771→observer.IntersectionObserver.root @ (index):3160
+  1772→(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/find/tt28210907?external_source=imdb_id' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+  1773→(index):2496  GET https://t-umi.bionmovies47.workers.dev/find/tt28210907?external_source=imdb_id net::ERR_FAILED 403 (Forbidden)
+  1774→fetchTMDB @ (index):2496
+  1775→bridgeTVMazeToTMDB @ (index):3781
+  1776→(anonymous) @ (index):3913
+  1777→getTVMazeShowsWithTMDBData @ (index):3912
+  1778→await in getTVMazeShowsWithTMDBData
+  1779→(anonymous) @ (index):3142
+  1780→processQueue @ (index):3038
+  1781→await in processQueue
+  1782→(anonymous) @ (index):3012
+  1783→enqueue @ (index):2997
+  1784→queuedFetchTMDB @ (index):3127
+  1785→loadNewReleases @ (index):4909
+  1786→executeLoad @ (index):3227
+  1787→(anonymous) @ (index):3211
+  1788→handleIntersection @ (index):3204
+  1789→observer.IntersectionObserver.root @ (index):3160
+  1790→(index):2507 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+  1791→fetchTMDB @ (index):2507
+  1792→await in fetchTMDB
+  1793→bridgeTVMazeToTMDB @ (index):3781
+  1794→(anonymous) @ (index):3913
+  1795→getTVMazeShowsWithTMDBData @ (index):3912
+  1796→await in getTVMazeShowsWithTMDBData
+  1797→(anonymous) @ (index):3142
+  1798→processQueue @ (index):3038
+  1799→await in processQueue
+  1800→(anonymous) @ (index):3012
+  1801→enqueue @ (index):2997
+  1802→queuedFetchTMDB @ (index):3127
+  1803→loadNewReleases @ (index):4909
+  1804→executeLoad @ (index):3227
+  1805→(anonymous) @ (index):3211
+  1806→handleIntersection @ (index):3204
+  1807→observer.IntersectionObserver.root @ (index):3160
+  1808→(index):3527 [TVMaze] ✅ Fetched 0 episodes from TR (2026-08-22)
+  1809→(index):3556 [TVMaze] ✅ Unique shows from TR: 0
+  1810→(index):3677 [Sidebar-TVMaze] "TR" only had 0 usable shows for 2026-08-22, trying next country...
+  1811→fetchSidebarTVShowsForDate @ (index):3677
+  1812→await in fetchSidebarTVShowsForDate
+  1813→renderScheduleForDay @ (index):7034
+  1814→setCurrentDay @ (index):7242
+  1815→loadSchedule @ (index):7269
+  1816→await in loadSchedule
+  1817→executeLoad @ (index):3227
+  1818→(anonymous) @ (index):3211
+  1819→handleIntersection @ (index):3204
+  1820→observer.IntersectionObserver.root @ (index):3160
+  1821→(index):3515 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=US&date=2026-08-22
+  1822→(index):2525 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 9)
+  1823→(index):5608 [Upcoming Movies] page 9/70: 20 raw → 45/50 collected
+  1824→(index):2525 [TMDB] ✅ Legacy proxy success: /find/tt34882755 (returned page: N/A)
+  1825→(index):3784 [TVMaze→TMDB] ✅ IMDb bridge: "Wan Jie Du Zun" → TMDB:122612
+  1826→(index):2525 [TMDB] ✅ Legacy proxy success: /find/330774 (returned page: N/A)
+  1827→(index):3798 [TVMaze→TMDB] ✅ TheTVDB bridge: "Tales of Demons and Gods" → TMDB:76806
+  1828→(index):2525 [TMDB] ✅ Legacy proxy success: /find/tt31608637 (returned page: N/A)
+  1829→(index):3784 [TVMaze→TMDB] ✅ IMDb bridge: "Legend of Xianwu" → TMDB:222608
+  1830→(index):2525 [TMDB] ✅ Legacy proxy success: /find/tt28210907 (returned page: N/A)
+  1831→(index):3784 [TVMaze→TMDB] ✅ IMDb bridge: "Lian Qi Shi Wan Nian" → TMDB:220850
+  1832→(index):2525 [TMDB] ✅ Legacy proxy success: /find/tt28022382 (returned page: N/A)
+  1833→(index):3784 [TVMaze→TMDB] ✅ IMDb bridge: "Soul Land 2: The Unrivaled Tang Sect" → TMDB:228429
+  1834→(index):3527 [TVMaze] ✅ Fetched 23 episodes from US (2026-08-22)
+  1835→(index):3556 [TVMaze] ✅ Unique shows from US: 22
+  1836→(index):3677 [Sidebar-TVMaze] "US" only had 2 usable shows for 2026-08-22, trying next country...
+  1837→fetchSidebarTVShowsForDate @ (index):3677
+  1838→await in fetchSidebarTVShowsForDate
+  1839→renderScheduleForDay @ (index):7034
+  1840→setCurrentDay @ (index):7242
+  1841→loadSchedule @ (index):7269
+  1842→await in loadSchedule
+  1843→executeLoad @ (index):3227
+  1844→(anonymous) @ (index):3211
+  1845→handleIntersection @ (index):3204
+  1846→observer.IntersectionObserver.root @ (index):3160
+  1847→(index):3515 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=PK&date=2026-08-22
+  1848→(index):2510 [TMDB] ⏭️ Skipping t-umi for paginated request (page=10) - known caching bug
+  1849→(index):3527 [TVMaze] ✅ Fetched 0 episodes from PK (2026-08-22)
+  1850→(index):3556 [TVMaze] ✅ Unique shows from PK: 0
+  1851→(index):3677 [Sidebar-TVMaze] "PK" only had 0 usable shows for 2026-08-22, trying next country...
+  1852→fetchSidebarTVShowsForDate @ (index):3677
+  1853→await in fetchSidebarTVShowsForDate
+  1854→renderScheduleForDay @ (index):7034
+  1855→setCurrentDay @ (index):7242
+  1856→loadSchedule @ (index):7269
+  1857→await in loadSchedule
+  1858→executeLoad @ (index):3227
+  1859→(anonymous) @ (index):3211
+  1860→handleIntersection @ (index):3204
+  1861→observer.IntersectionObserver.root @ (index):3160
+  1862→(index):3515 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=IN&date=2026-08-22
+  1863→(index):3807 [TVMaze→TMDB] 🔍 No external ID for "Hanyi Enters the Heart" - trying search...
+  1864→(index):3807 [TVMaze→TMDB] 🔍 No external ID for "My Years as the Dragon-Seeking Master" - trying search...
+  1865→(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/search/tv?query=Hanyi%20Enters%20the%20Heart&page=1' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+  1866→(index):2496  GET https://t-umi.bionmovies47.workers.dev/search/tv?query=Hanyi%20Enters%20the%20Heart&page=1 net::ERR_FAILED 403 (Forbidden)
+  1867→fetchTMDB @ (index):2496
+  1868→searchTMDBFallback @ (index):3825
+  1869→bridgeTVMazeToTMDB @ (index):3808
+  1870→(anonymous) @ (index):3913
+  1871→getTVMazeShowsWithTMDBData @ (index):3912
+  1872→await in getTVMazeShowsWithTMDBData
+  1873→(anonymous) @ (index):3142
+  1874→processQueue @ (index):3038
+  1875→await in processQueue
+  1876→(anonymous) @ (index):3012
+  1877→enqueue @ (index):2997
+  1878→queuedFetchTMDB @ (index):3127
+  1879→loadNewReleases @ (index):4909
+  1880→executeLoad @ (index):3227
+  1881→(anonymous) @ (index):3211
+  1882→handleIntersection @ (index):3204
+  1883→observer.IntersectionObserver.root @ (index):3160
+  1884→(index):2507 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+  1885→fetchTMDB @ (index):2507
+  1886→await in fetchTMDB
+  1887→searchTMDBFallback @ (index):3825
+  1888→bridgeTVMazeToTMDB @ (index):3808
+  1889→(anonymous) @ (index):3913
+  1890→getTVMazeShowsWithTMDBData @ (index):3912
+  1891→await in getTVMazeShowsWithTMDBData
+  1892→(anonymous) @ (index):3142
+  1893→processQueue @ (index):3038
+  1894→await in processQueue
+  1895→(anonymous) @ (index):3012
+  1896→enqueue @ (index):2997
+  1897→queuedFetchTMDB @ (index):3127
+  1898→loadNewReleases @ (index):4909
+  1899→executeLoad @ (index):3227
+  1900→(anonymous) @ (index):3211
+  1901→handleIntersection @ (index):3204
+  1902→observer.IntersectionObserver.root @ (index):3160
+  1903→(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/find/tt12879782?external_source=imdb_id' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+  1904→(index):2496  GET https://t-umi.bionmovies47.workers.dev/find/tt12879782?external_source=imdb_id net::ERR_FAILED 403 (Forbidden)
+  1905→fetchTMDB @ (index):2496
+  1906→bridgeTVMazeToTMDB @ (index):3781
+  1907→(anonymous) @ (index):3913
+  1908→getTVMazeShowsWithTMDBData @ (index):3912
+  1909→await in getTVMazeShowsWithTMDBData
+  1910→(anonymous) @ (index):3142
+  1911→processQueue @ (index):3038
+  1912→await in processQueue
+  1913→(anonymous) @ (index):3012
+  1914→enqueue @ (index):2997
+  1915→queuedFetchTMDB @ (index):3127
+  1916→loadNewReleases @ (index):4909
+  1917→executeLoad @ (index):3227
+  1918→(anonymous) @ (index):3211
+  1919→handleIntersection @ (index):3204
+  1920→observer.IntersectionObserver.root @ (index):3160
+  1921→(index):2507 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+  1922→fetchTMDB @ (index):2507
+  1923→await in fetchTMDB
+  1924→bridgeTVMazeToTMDB @ (index):3781
+  1925→(anonymous) @ (index):3913
+  1926→getTVMazeShowsWithTMDBData @ (index):3912
+  1927→await in getTVMazeShowsWithTMDBData
+  1928→(anonymous) @ (index):3142
+  1929→processQueue @ (index):3038
+  1930→await in processQueue
+  1931→(anonymous) @ (index):3012
+  1932→enqueue @ (index):2997
+  1933→queuedFetchTMDB @ (index):3127
+  1934→loadNewReleases @ (index):4909
+  1935→executeLoad @ (index):3227
+  1936→(anonymous) @ (index):3211
+  1937→handleIntersection @ (index):3204
+  1938→observer.IntersectionObserver.root @ (index):3160
+  1939→(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/find/tt7126882?external_source=imdb_id' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+  1940→(index):2496  GET https://t-umi.bionmovies47.workers.dev/find/tt7126882?external_source=imdb_id net::ERR_FAILED 403 (Forbidden)
+  1941→fetchTMDB @ (index):2496
+  1942→bridgeTVMazeToTMDB @ (index):3781
+  1943→(anonymous) @ (index):3913
+  1944→getTVMazeShowsWithTMDBData @ (index):3912
+  1945→await in getTVMazeShowsWithTMDBData
+  1946→(anonymous) @ (index):3142
+  1947→processQueue @ (index):3038
+  1948→await in processQueue
+  1949→(anonymous) @ (index):3012
+  1950→enqueue @ (index):2997
+  1951→queuedFetchTMDB @ (index):3127
+  1952→loadNewReleases @ (index):4909
+  1953→executeLoad @ (index):3227
+  1954→(anonymous) @ (index):3211
+  1955→handleIntersection @ (index):3204
+  1956→observer.IntersectionObserver.root @ (index):3160
+  1957→(index):2507 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+  1958→fetchTMDB @ (index):2507
+  1959→await in fetchTMDB
+  1960→bridgeTVMazeToTMDB @ (index):3781
+  1961→(anonymous) @ (index):3913
+  1962→getTVMazeShowsWithTMDBData @ (index):3912
+  1963→await in getTVMazeShowsWithTMDBData
+  1964→(anonymous) @ (index):3142
+  1965→processQueue @ (index):3038
+  1966→await in processQueue
+  1967→(anonymous) @ (index):3012
+  1968→enqueue @ (index):2997
+  1969→queuedFetchTMDB @ (index):3127
+  1970→loadNewReleases @ (index):4909
+  1971→executeLoad @ (index):3227
+  1972→(anonymous) @ (index):3211
+  1973→handleIntersection @ (index):3204
+  1974→observer.IntersectionObserver.root @ (index):3160
+  1975→(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/search/tv?query=My%20Years%20as%20the%20Dragon-Seeking%20Master&page=1' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+  1976→(index):2496  GET https://t-umi.bionmovies47.workers.dev/search/tv?query=My%20Years%20as%20the%20Dragon-Seeking%20Master&page=1 net::ERR_FAILED 403 (Forbidden)
+  1977→fetchTMDB @ (index):2496
+  1978→searchTMDBFallback @ (index):3825
+  1979→bridgeTVMazeToTMDB @ (index):3808
+  1980→(anonymous) @ (index):3913
+  1981→getTVMazeShowsWithTMDBData @ (index):3912
+  1982→await in getTVMazeShowsWithTMDBData
+  1983→(anonymous) @ (index):3142
+  1984→processQueue @ (index):3038
+  1985→await in processQueue
+  1986→(anonymous) @ (index):3012
+  1987→enqueue @ (index):2997
+  1988→queuedFetchTMDB @ (index):3127
+  1989→loadNewReleases @ (index):4909
+  1990→executeLoad @ (index):3227
+  1991→(anonymous) @ (index):3211
+  1992→handleIntersection @ (index):3204
+  1993→observer.IntersectionObserver.root @ (index):3160
+  1994→(index):2507 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+  1995→fetchTMDB @ (index):2507
+  1996→await in fetchTMDB
+  1997→searchTMDBFallback @ (index):3825
+  1998→bridgeTVMazeToTMDB @ (index):3808
+  1999→(anonymous) @ (index):3913
+  2000→getTVMazeShowsWithTMDBData @ (index):3912
+
+[showing lines 1-2000 of 2306; use offset=2001 with limit to continue reading]
