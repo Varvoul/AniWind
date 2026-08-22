@@ -1,8 +1,8 @@
 // Neon DB Deployment Script v2
 // Uses @neondatabase/serverless (same as api/cache.js)
 
-const NEON_API_KEY = 'napi_7fak07gaux9ioewri458o33psns69sf2nlycg8o69hasargl97jjwte55hgweiy7';
-const CONNECTION_STRING = `postgresql://neondb_owner:${NEON_API_KEY}@ep-super-dawn-azjwdm9a.ap-southeast-1.aws.neon.tech/neondb?sslmode=require`;
+// Real Neon database credentials
+const CONNECTION_STRING = 'postgresql://neondb_owner:npg_Wdf5XkBVbx1i@ep-super-dawn-azjwdm9a-pooler.c-3.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require';
 
 async function deployCache() {
   const { neon } = require('@neondatabase/serverless');

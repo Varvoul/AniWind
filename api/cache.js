@@ -62,7 +62,7 @@ export default async function handler(req, res) {
 
 async function getDB() {
   const { neon } = await import('@neondatabase/serverless');
-  const sql = neon(process.env.NEON_DATABASE_URL || 'postgresql://neondb_owner:napi_7fak07gaux9ioewri458o33psns69sf2nlycg8o69hasargl97jjwte55hgweiy7@ep-super-dawn-azjwdm9a.ap-southeast-1.aws.neon.tech/neondb?sslmode=require');
+  const sql = neon(process.env.NEON_DATABASE_URL || 'postgresql://neondb_owner:npg_Wdf5XkBVbx1i@ep-super-dawn-azjwdm9a-pooler.c-3.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require');
   return sql;
 }
 
