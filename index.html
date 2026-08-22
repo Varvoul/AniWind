@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
   
   <!-- Minimal fallback title (enhanced by shared.js MetadataManager for hybrid site) -->
-  <title>AniUmi · Watch Anime, Movies & TV Shows Online Free in HD</title>
+  <title>Rowana · Watch Anime, Movies & TV Shows Online Free in HD</title>
   
   <!-- Scripts (shared.js auto-injects full SEO metadata) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -1018,6 +1018,30 @@
     #newReleasesGrid.nr-horizontal .nr-featured {
       grid-column: auto;
       grid-row: auto;
+    }
+
+    /* ── "Hidden" tab: 3 always-horizontal-scroll rows, grouped by country ──
+       Unlike All/Anime/Movie/Series (which switch between grid/horizontal by
+       screen width), this tab is horizontal-scroll on every device, matching
+       how Top Airing / New on Aniumi already behave responsively. */
+    .nr-hidden-rows { display:flex; flex-direction:column; gap:22px; margin-top:4px; }
+    .nr-hidden-row-label {
+      font-size:0.78rem; font-weight:600; color:var(--text-muted, #94a3b8);
+      margin-bottom:8px; letter-spacing:0.2px;
+    }
+    .nr-hidden-scroll { padding-bottom:8px; }
+    .nr-hidden-scroll .show-card-grid {
+      flex: 0 0 auto;
+      width: 200px;
+      scroll-snap-align: start;
+    }
+    .nr-hidden-scroll { scroll-snap-type: x mandatory; }
+    @media (max-width: 1024px) {
+      .nr-hidden-scroll .show-card-grid { width: 165px; }
+    }
+    @media (max-width: 640px) {
+      .nr-hidden-scroll .show-card-grid { width: 140px; }
+      .nr-hidden-rows { gap:16px; }
     }
 
     /* ── Upcoming Shows: match New Releases' play/heart button styling ── */
@@ -2097,6 +2121,7 @@
               <button class="toggle-tab" data-filter="anime"><i class="fas fa-dragon"></i> Anime <span class="tab-count" id="nrCountAnime"></span></button>
               <button class="toggle-tab" data-filter="movie"><i class="fas fa-film"></i> Movies <span class="tab-count" id="nrCountMovie"></span></button>
               <button class="toggle-tab" data-filter="tv"><i class="fas fa-tv"></i> Series <span class="tab-count" id="nrCountTv"></span></button>
+              <button class="toggle-tab" data-filter="hidden"><i class="fas fa-eye-slash"></i> Hidden <span class="tab-count" id="nrCountHidden"></span></button>
             </div>
             <div class="nr-scroll-controls" id="nrScrollControls">
               <button class="scroll-arrow" id="nrScrollLeft" title="Scroll left">‹</button>
@@ -2106,12 +2131,26 @@
           </div>
         </div>
         <div class="grid-container new-releases-grid" id="newReleasesGrid"></div>
+        <div class="nr-hidden-rows" id="newReleasesHidden" style="display:none;">
+          <div class="nr-hidden-row">
+            <div class="nr-hidden-row-label">🇰🇷🇯🇵 South Korea &amp; Japan</div>
+            <div class="horizontal-scroll nr-hidden-scroll" id="nrHiddenRow1"></div>
+          </div>
+          <div class="nr-hidden-row">
+            <div class="nr-hidden-row-label">🇵🇰🇮🇳 Pakistan &amp; India</div>
+            <div class="horizontal-scroll nr-hidden-scroll" id="nrHiddenRow2"></div>
+          </div>
+          <div class="nr-hidden-row">
+            <div class="nr-hidden-row-label">🇹🇷 Turkey</div>
+            <div class="horizontal-scroll nr-hidden-scroll" id="nrHiddenRow3"></div>
+          </div>
+        </div>
       </section>
 
       <!-- NEW ON ANIOCEAN SECTION -->
-      <section class="section" id="newOnAniumiSection">
+      <section class="section" id="newOnRowanaSection">
         <div class="section-header">
-          <h2 class="section-title">New on Aniumi</h2>
+          <h2 class="section-title">New on Rowana</h2>
           <div class="section-controls">
             <button class="scroll-arrow" id="newAnioceanLeft">‹</button>
             <button class="scroll-arrow" id="newAnioceanRight">›</button>
@@ -2200,7 +2239,7 @@
   <script>
     (function() {
       /* ── Universal proxy — single CF Worker for all API traffic ── */
-      const ANIUMI_PROXY  = 'https://aniumi.bionmovies47.workers.dev';
+      const ROWANA_PROXY  = 'https://aniumi.bionmovies47.workers.dev';
       /* Direct fallback URLs (used if proxy is unavailable) */
       const JIKAN_BASE    = 'https://api.jikan.moe/v4';
       const TMDB_PROXY    = 'https://t-umi.bionmovies47.workers.dev'; // NEW primary TMDB proxy
@@ -2419,7 +2458,7 @@
         // 1) Try universal proxy (cached, CORS-safe)
         try {
           const proxyPath = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-          const res = await fetch(`${ANIUMI_PROXY}/anikoto${proxyPath}`, {
+          const res = await fetch(`${ROWANA_PROXY}/anikoto${proxyPath}`, {
             headers: { Accept: 'application/json' },
             signal: AbortSignal.timeout(8000)
           });
@@ -2512,18 +2551,18 @@
           console.warn(`[TMDB] ⚠️ Direct API failed: ${lastError}`);
         }
         
-        // 4) aniumi universal proxy (last resort — may not have TMDB_API_KEY set)
+        // 4) rowana universal proxy (last resort — may not have TMDB_API_KEY set)
         try {
-          const res = await fetch(`${ANIUMI_PROXY}/tmdb${endpoint}${qs}`, {
+          const res = await fetch(`${ROWANA_PROXY}/tmdb${endpoint}${qs}`, {
             headers: { Accept: 'application/json' },
             signal: AbortSignal.timeout(5000)
           });
           if (res.ok) {
-            console.log(`[TMDB] ✅ Aniumi proxy success: ${endpoint}`);
+            console.log(`[TMDB] ✅ Rowana proxy success: ${endpoint}`);
             return await res.json();
           }
         } catch(e) {
-          console.warn(`[TMDB] ⚠️ Aniumi proxy also failed`);
+          console.warn(`[TMDB] ⚠️ Rowana proxy also failed`);
         }
         
         // All sources failed - return empty result
@@ -2534,7 +2573,7 @@
         const qs = params ? `?${params}` : '';
         // 1) Universal proxy — cached 5 min at CF edge, absorbs 429s server-side
         try {
-          const res = await fetch(`${ANIUMI_PROXY}/jikan/${endpoint}${qs}`, {
+          const res = await fetch(`${ROWANA_PROXY}/jikan/${endpoint}${qs}`, {
             headers: { Accept: 'application/json' },
             signal: AbortSignal.timeout(10000)
           });
@@ -2543,7 +2582,7 @@
             // Proxy also rate-limited — wait and retry once via proxy
             await new Promise(r => setTimeout(r, 2000));
             try {
-              const r2 = await fetch(`${ANIUMI_PROXY}/jikan/${endpoint}${qs}`, {
+              const r2 = await fetch(`${ROWANA_PROXY}/jikan/${endpoint}${qs}`, {
                 headers: { Accept: 'application/json' },
                 signal: AbortSignal.timeout(10000)
               });
@@ -2616,11 +2655,14 @@
             body: JSON.stringify({ query, variables }),
             signal: AbortSignal.timeout(15000)
           });
+          
           if (res.ok) {
             const json = await res.json();
             if (json.data) return json.data;
             console.warn('[AniList] GraphQL error:', json.errors);
             return null;
+          } else {
+            console.warn(`[AniList] HTTP Error: ${res.status} ${res.statusText}`);
           }
         } catch(e) {
           console.warn('[AniList] Direct fetch failed:', e);
@@ -2628,12 +2670,13 @@
         
         // Fallback via proxy
         try {
-          const res = await fetch(`${ANIUMI_PROXY}/anilist`, {
+          const res = await fetch(`${ROWANA_PROXY}/anilist`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ query, variables }),
             signal: AbortSignal.timeout(15000)
           });
+          
           if (res.ok) {
             const json = await res.json();
             return json?.data || null;
@@ -2641,6 +2684,7 @@
         } catch(e) {
           console.error('[AniList] Proxy fallback failed:', e);
         }
+        
         return null;
       }
 
@@ -3337,7 +3381,7 @@ async function loadNewAniocean() {
 
   // ----- PRIMARY: Anikoto proxy (100 items for 6 complete rows) -----
   try {
-    console.log('[New on Aniumi] Trying Anikoto API...');
+    console.log('[New on Rowana] Trying Anikoto API...');
     const response = await fetchAnikoto('/recent-anime?page=1&per_page=100');
     if (response.ok && response.data && response.data.length > 0) {
       const data = response.data;
@@ -3391,7 +3435,7 @@ async function loadNewAniocean() {
   }
 
   // ----- FALLBACK: AniList (current season, reliable!) -----
-  console.log('[New on Aniumi] Falling back to AniList API...');
+  console.log('[New on Rowana] Falling back to AniList API...');
   try {
     const anilistData = await fetchAniList(`
       query ($perPage: Int) {
@@ -3449,7 +3493,7 @@ async function loadNewAniocean() {
   }
 
   // All sources failed - show error message using renderAnimeList with empty array
-  console.log('[New on Aniumi] All APIs failed - showing empty state');
+  console.log('[New on Rowana] All APIs failed - showing empty state');
   renderAnimeList([]);
 }
 
@@ -4812,7 +4856,7 @@ titleEl.style.color = 'transparent';
         });
         
         // Keyboard arrow key support when hovering over section
-        const section = document.getElementById('newOnAniumiSection');
+        const section = document.getElementById('newOnRowanaSection');
         if (section) {
           document.addEventListener('keydown', (e) => {
             if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && 
@@ -5223,6 +5267,183 @@ titleEl.style.color = 'transparent';
           grid.style.removeProperty('--nr-col-width');
         }
       }
+      /* ══════════════════════════════════════════════════════════════════
+         "HIDDEN" TAB — country-grouped Movies+TV, TMDB /discover
+         Row 1: South Korea + Japan   Row 2: Pakistan + India   Row 3: Turkey
+         ══════════════════════════════════════════════════════════════════ */
+      const nrHiddenSleep = (ms) => new Promise(r => setTimeout(r, ms));
+      const NR_HIDDEN_RATE_LIMIT_MS = 350; // gap between sequential t-umi calls
+
+      /**
+       * Fetch up to `targetPerType` valid (poster + name/title present) movies
+       * AND `targetPerType` valid TV shows for one country, for the CURRENT
+       * calendar year — date range is computed from `new Date()` every call,
+       * never hardcoded, so it always covers "this year" automatically.
+       * Paginates only as far as needed to fill the quota (stops early),
+       * and respects rate limits with a delay between every page/call.
+       */
+      async function fetchCountryMoviesAndTV(countryCode, targetPerType = 20, maxPages = 5) {
+        const year = new Date().getFullYear();
+        const movies = [], tvShows = [];
+        const seenMovieIds = new Set(), seenTvIds = new Set();
+
+        // ── Movies ──
+        for (let page = 1; page <= maxPages && movies.length < targetPerType; page++) {
+          if (page > 1) await nrHiddenSleep(NR_HIDDEN_RATE_LIMIT_MS);
+          let data;
+          try {
+            data = await fetchTMDB('/discover/movie',
+              `with_origin_country=${countryCode}&release_date.gte=${year}-01-01&release_date.lte=${year}-12-31&page=${page}`);
+          } catch (e) {
+            console.warn(`[Hidden] Movie fetch failed (${countryCode} p${page}):`, e.message);
+            break;
+          }
+          const results = data?.results || [];
+          for (const m of results) {
+            if (!m.poster_path || !(m.title || m.original_title)) continue;
+            if (seenMovieIds.has(m.id)) continue;
+            seenMovieIds.add(m.id);
+            movies.push(m);
+            if (movies.length >= targetPerType) break;
+          }
+          if (!results.length || page >= (data?.total_pages || 1)) break;
+        }
+
+        await nrHiddenSleep(NR_HIDDEN_RATE_LIMIT_MS);
+
+        // ── TV ──
+        for (let page = 1; page <= maxPages && tvShows.length < targetPerType; page++) {
+          if (page > 1) await nrHiddenSleep(NR_HIDDEN_RATE_LIMIT_MS);
+          let data;
+          try {
+            data = await fetchTMDB('/discover/tv',
+              `with_origin_country=${countryCode}&first_air_date.gte=${year}-01-01&first_air_date.lte=${year}-12-31&page=${page}`);
+          } catch (e) {
+            console.warn(`[Hidden] TV fetch failed (${countryCode} p${page}):`, e.message);
+            break;
+          }
+          const results = data?.results || [];
+          for (const t of results) {
+            if (!t.poster_path || !(t.name || t.original_name)) continue;
+            if (seenTvIds.has(t.id)) continue;
+            seenTvIds.add(t.id);
+            tvShows.push(t);
+            if (tvShows.length >= targetPerType) break;
+          }
+          if (!results.length || page >= (data?.total_pages || 1)) break;
+        }
+
+        console.log(`[Hidden] ${countryCode}: ${movies.length} movies + ${tvShows.length} TV (target ${targetPerType} each)`);
+        return { movies, tvShows, country: countryCode };
+      }
+
+      // Map raw TMDB results to the same card shape buildReleaseCardHTML/infoUrl/
+      // watchUrl already understand — so URLs, hover effects, and buttons are
+      // automatically correct with zero extra code.
+      function nrHiddenMovieCard(m, countryCode) {
+        return {
+          id: `tmdb-hd-movie-${m.id}`,
+          tmdb_id: m.id,
+          title: m.title || m.original_title,
+          type: 'Movie',
+          poster: tmdbImg(m.poster_path),
+          score: (m.vote_average || 0).toFixed(1),
+          details: (m.release_date || '').slice(0, 4) || 'TBA',
+          cert: m.adult ? '18+' : 'PG-13',
+          quality: 'HD',
+          country: countryCode
+        };
+      }
+      function nrHiddenTvCard(t, countryCode) {
+        return {
+          id: `tmdb-hd-tv-${t.id}`,
+          tmdb_id: t.id,
+          title: t.name || t.original_name,
+          type: 'TV',
+          poster: tmdbImg(t.poster_path),
+          score: (t.vote_average || 0).toFixed(1),
+          details: (t.first_air_date || '').slice(0, 4) || 'TBA',
+          cert: 'PG-13',
+          quality: 'HD',
+          country: countryCode
+        };
+      }
+
+      /** Fetches + builds one row's card list for a group of countries, sequentially. */
+      async function nrFetchHiddenRow(countries, targetPerType = 20) {
+        const items = [];
+        for (let i = 0; i < countries.length; i++) {
+          if (i > 0) await nrHiddenSleep(NR_HIDDEN_RATE_LIMIT_MS);
+          const { movies, tvShows, country } = await fetchCountryMoviesAndTV(countries[i], targetPerType);
+          // Interleave movie/TV per country instead of "all movies then all TV"
+          const n = Math.max(movies.length, tvShows.length);
+          for (let j = 0; j < n; j++) {
+            if (movies[j]) items.push(nrHiddenMovieCard(movies[j], country));
+            if (tvShows[j]) items.push(nrHiddenTvCard(tvShows[j], country));
+          }
+        }
+        return items;
+      }
+
+      function nrHiddenSkeletonRow(containerId) {
+        const el = document.getElementById(containerId);
+        if (el) el.innerHTML = skCards(8, '200px');
+      }
+
+      function nrRenderHiddenRow(containerId, items) {
+        const el = document.getElementById(containerId);
+        if (!el) return;
+        if (!items.length) {
+          el.innerHTML = `<div class="nr-empty-state"><i class="fas fa-inbox"></i><span>No releases available right now</span></div>`;
+          return;
+        }
+        el.innerHTML = items.map(s => buildReleaseCardHTML(s)).join('');
+      }
+
+      let hiddenReleasesLoaded = false;
+      let hiddenReleasesLoading = false;
+      /** Loads all 3 rows ONE AT A TIME (never in parallel) — spreads out load
+       *  on the t-umi proxy and lets the user see content progressively instead
+       *  of waiting for everything before anything appears. Only ever runs once
+       *  per page visit — switching tabs back and forth after the first load
+       *  just re-shows the cached rows, no re-fetching. */
+      async function loadHiddenReleases() {
+        if (hiddenReleasesLoaded || hiddenReleasesLoading) return;
+        hiddenReleasesLoading = true;
+        nrHiddenSkeletonRow('nrHiddenRow1');
+        nrHiddenSkeletonRow('nrHiddenRow2');
+        nrHiddenSkeletonRow('nrHiddenRow3');
+
+        try {
+          console.log('[Hidden] Row 1/3: South Korea + Japan...');
+          const row1 = await nrFetchHiddenRow(['KR', 'JP'], 20);
+          nrRenderHiddenRow('nrHiddenRow1', row1);
+
+          await nrHiddenSleep(400);
+
+          console.log('[Hidden] Row 2/3: Pakistan + India...');
+          const row2 = await nrFetchHiddenRow(['PK', 'IN'], 20);
+          nrRenderHiddenRow('nrHiddenRow2', row2);
+
+          await nrHiddenSleep(400);
+
+          console.log('[Hidden] Row 3/3: Turkey...');
+          const row3 = await nrFetchHiddenRow(['TR'], 20);
+          nrRenderHiddenRow('nrHiddenRow3', row3);
+
+          const totalCount = row1.length + row2.length + row3.length;
+          const countEl = document.getElementById('nrCountHidden');
+          if (countEl) countEl.textContent = totalCount > 0 ? totalCount : '';
+
+          hiddenReleasesLoaded = true;
+          console.log(`[Hidden] ✅ Complete: ${totalCount} total items across 3 rows`);
+        } catch (e) {
+          console.error('[Hidden] Failed:', e.message);
+        } finally {
+          hiddenReleasesLoading = false;
+        }
+      }
+
       document.getElementById('releaseTabs').addEventListener('click', e => {
         const tabBtn = e.target.closest('.toggle-tab');
         if (tabBtn) {
@@ -5236,7 +5457,24 @@ titleEl.style.color = 'transparent';
           const filter = tabBtn.dataset.filter;
           currentNewReleasesFilter = filter;
           const grid = document.getElementById('newReleasesGrid');
-          const label = tabBtn.dataset.filter === 'all' ? 'All' : tabBtn.dataset.filter === 'anime' ? 'Anime' : tabBtn.dataset.filter === 'movie' ? 'Movies' : 'Series';
+          const hiddenContainer = document.getElementById('newReleasesHidden');
+          const label = filter === 'all' ? 'All' : filter === 'anime' ? 'Anime' : filter === 'movie' ? 'Movies' : filter === 'tv' ? 'Series' : 'Hidden';
+
+          if (filter === 'hidden') {
+            // Swap to the 3-row country layout; API calls only fire the FIRST
+            // time this tab is opened (loadHiddenReleases guards against repeats).
+            grid.style.display = 'none';
+            hiddenContainer.style.display = '';
+            document.getElementById('newReleasesTitle').textContent = 'Latest Hidden';
+            const viewAll = document.getElementById('nrViewAll');
+            if (viewAll) viewAll.href = '/new-releases?type=hidden';
+            loadHiddenReleases();
+            return;
+          }
+
+          // Any other tab: restore the normal grid, hide the hidden-rows container
+          hiddenContainer.style.display = 'none';
+          grid.style.display = '';
 
           // Fade out, swap content, fade in — avoids an abrupt flash on switch
           grid.classList.add('nr-fading');
@@ -5252,202 +5490,245 @@ titleEl.style.color = 'transparent';
 
       /* ── UPCOMING ── */
       let upcomingShows=[];
+      /**
+       * Paginated, rate-limited fetch of upcoming Japanese TV/TV_SHORT anime from AniList.
+       * - Filters at the API level: countryOfOrigin JP, format TV/TV_SHORT only (no movies/OVAs/etc.)
+       * - Fetches sequentially (never concurrently) and stops as soon as `targetCount`
+       *   valid (poster + non-adult) results are collected — no wasted requests.
+       * - Waits 400ms between pages to stay well within AniList's rate limits.
+       * - Hard-capped at `maxPages` as a safety net so a pathological response
+       *   (e.g. AniList always claiming hasNextPage) can never loop forever.
+       */
+      async function fetchUpcomingAnimeAniList(targetCount = 50, maxPages = 4) {
+        const collected = [];
+        const seenIds = new Set();
+        let page = 1;
+        let hasNextPage = true;
+
+        while (collected.length < targetCount && page <= maxPages && hasNextPage) {
+          if (page > 1) {
+            // Rate-limit courtesy: small gap between sequential AniList page requests
+            await new Promise(r => setTimeout(r, 400));
+          }
+
+          let data;
+          try {
+            data = await fetchAniList(`
+              query ($page: Int, $perPage: Int) {
+                Page(page: $page, perPage: $perPage) {
+                  pageInfo { hasNextPage }
+                  media(
+                    type: ANIME,
+                    status: NOT_YET_RELEASED,
+                    isAdult: false,
+                    countryOfOrigin: "JP",
+                    format_in: [TV, TV_SHORT],
+                    sort: [POPULARITY_DESC]
+                  ) {
+                    ${ANILIST_ANIME_FIELDS}
+                  }
+                }
+              }
+            `, { page, perPage: 50 });
+          } catch (err) {
+            console.warn(`[Upcoming Anime] AniList page ${page} failed:`, err.message);
+            break;
+          }
+
+          const media = data?.Page?.media || [];
+          hasNextPage = !!data?.Page?.pageInfo?.hasNextPage;
+
+          for (const m of media) {
+            if (m.isAdult || seenIds.has(m.id)) continue;
+            seenIds.add(m.id);
+            collected.push(m);
+            if (collected.length >= targetCount) break;
+          }
+
+          console.log(`[Upcoming Anime] Page ${page}: +${media.length} raw → ${collected.length}/${targetCount} collected (hasNextPage: ${hasNextPage})`);
+          page++;
+        }
+
+        return collected;
+      }
+
+      /**
+       * Format a Date as YYYY-MM-DD (local time) — used for TMDB date-filter params.
+       */
+      function todayISODate() {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      }
+
+      /**
+       * Paginated, rate-limited, queue-managed fetch of genuinely upcoming TMDB movies.
+       * - Fetches pages SEQUENTIALLY (one at a time), never concurrently — a real queue,
+       *   not a burst of 30 simultaneous requests.
+       * - Stops as soon as `targetCount` valid results (poster + truly future release_date)
+       *   are collected — no wasted requests once we have enough.
+       * - Dynamic date filter: release_date >= today (computed fresh every call), not a
+       *   hardcoded year string — so a movie released earlier this year but already out
+       *   is correctly excluded, and nothing has to change when the year rolls over.
+       * - 250ms gap between pages to stay well clear of TMDB's rate limits.
+       */
+      async function fetchUpcomingMoviesTMDB(targetCount = 50, maxPages = 10) {
+        const collected = [];
+        const seenIds = new Set();
+        const todayStr = todayISODate();
+        const todayDate = new Date(todayStr);
+        let page = 1;
+        let totalPages = maxPages;
+
+        while (collected.length < targetCount && page <= Math.min(maxPages, totalPages)) {
+          if (page > 1) await new Promise(r => setTimeout(r, 250));
+
+          let data;
+          try {
+            data = await fetchTMDB('/movie/upcoming', `page=${page}`);
+          } catch (err) {
+            console.warn(`[Upcoming Movies] page ${page} failed:`, err.message);
+            break;
+          }
+
+          const results = data?.results || [];
+          if (data?.total_pages) totalPages = data.total_pages;
+          if (!results.length) break;
+
+          for (const item of results) {
+            if (seenIds.has(item.id)) continue;
+            const hasPoster = item.poster_path && item.poster_path !== 'null' && item.poster_path !== 'undefined';
+            // Dynamic: genuinely upcoming = release_date is today or later (not "same year")
+            const isFuture = item.release_date && new Date(item.release_date) >= todayDate;
+            if (!hasPoster || !isFuture) continue;
+            seenIds.add(item.id);
+            collected.push(item);
+            if (collected.length >= targetCount) break;
+          }
+
+          console.log(`[Upcoming Movies] page ${page}/${totalPages}: ${results.length} raw → ${collected.length}/${targetCount} collected`);
+          page++;
+        }
+
+        return collected;
+      }
+
+      /**
+       * Paginated, rate-limited, queue-managed fetch of genuinely upcoming TMDB TV shows.
+       * IMPORTANT FIELD-NAME NOTE: TMDB's TV date field is `first_air_date` (confirmed against
+       * TMDB's own docs) — same field used before, so no rename needed there.
+       * ENDPOINT CHANGE: switched from /tv/on_the_air to /discover/tv with
+       * first_air_date.gte={today}. /tv/on_the_air is "currently airing right now" by
+       * definition — its first_air_date is always in the past, so a "future date" filter
+       * on it can never return anything. /discover/tv + first_air_date.gte is the correct
+       * way to ask TMDB for shows that haven't premiered yet.
+       */
+      async function fetchUpcomingTVTMDB(targetCount = 50, maxPages = 10) {
+        const collected = [];
+        const seenIds = new Set();
+        const todayStr = todayISODate();
+        const todayDate = new Date(todayStr);
+        let page = 1;
+        let totalPages = maxPages;
+
+        while (collected.length < targetCount && page <= Math.min(maxPages, totalPages)) {
+          if (page > 1) await new Promise(r => setTimeout(r, 250));
+
+          let data;
+          try {
+            data = await fetchTMDB('/discover/tv', `page=${page}&sort_by=popularity.desc&first_air_date.gte=${todayStr}`);
+          } catch (err) {
+            console.warn(`[Upcoming TV] page ${page} failed:`, err.message);
+            break;
+          }
+
+          const results = data?.results || [];
+          if (data?.total_pages) totalPages = data.total_pages;
+          if (!results.length) break;
+
+          for (const item of results) {
+            if (seenIds.has(item.id)) continue;
+            const hasPoster = item.poster_path && item.poster_path !== 'null' && item.poster_path !== 'undefined';
+            const isFuture = item.first_air_date && new Date(item.first_air_date) >= todayDate;
+            if (!hasPoster || !isFuture) continue;
+            seenIds.add(item.id);
+            collected.push(item);
+            if (collected.length >= targetCount) break;
+          }
+
+          console.log(`[Upcoming TV] page ${page}/${totalPages}: ${results.length} raw → ${collected.length}/${targetCount} collected`);
+          page++;
+        }
+
+        return collected;
+      }
+
       async function loadUpcoming() {
         
-        // Using NEW t-umi proxy + AniList (replacing Jikan)
-        // INCREASED to 30 pages each (user request!) - /tv/on_the_air is primary TV source now
-        console.log('[Upcoming] Starting fetch with 30 pages each for movies & TV...');
+        console.log('[Upcoming] Starting queue-managed fetch: movies + TV + anime, each sequential/rate-limited, stopping once 50 collected...');
         const todayDebug = new Date();
         console.log(`[Upcoming] Today's date: ${todayDebug.toISOString().split('T')[0]}`);
         
-        const [tmdbUp1, tmdbUp2, tmdbUp3, tmdbUp4, tmdbUp5, tmdbUp6, tmdbUp7, tmdbUp8, tmdbUp9, tmdbUp10,
-               tmdbUp11, tmdbUp12, tmdbUp13, tmdbUp14, tmdbUp15, tmdbUp16, tmdbUp17, tmdbUp18, tmdbUp19, tmdbUp20,
-               tmdbUp21, tmdbUp22, tmdbUp23, tmdbUp24, tmdbUp25, tmdbUp26, tmdbUp27, tmdbUp28, tmdbUp29, tmdbUp30,
-               tmdbTv1, tmdbTv2, tmdbTv3, tmdbTv4, tmdbTv5, tmdbTv6, tmdbTv7, tmdbTv8, tmdbTv9, tmdbTv10,
-               tmdbTv11, tmdbTv12, tmdbTv13, tmdbTv14, tmdbTv15, tmdbTv16, tmdbTv17, tmdbTv18, tmdbTv19, tmdbTv20,
-               tmdbTv21, tmdbTv22, tmdbTv23, tmdbTv24, tmdbTv25, tmdbTv26, tmdbTv27, tmdbTv28, tmdbTv29, tmdbTv30,
-               anilistUpcoming] = await Promise.all([
-          // MOVIES: 30 pages = 600 results (direct /movie/upcoming endpoint)
-          fetchTMDB('/movie/upcoming', `page=1`),
-          fetchTMDB('/movie/upcoming', `page=2`),
-          fetchTMDB('/movie/upcoming', `page=3`),
-          fetchTMDB('/movie/upcoming', `page=4`),
-          fetchTMDB('/movie/upcoming', `page=5`),
-          fetchTMDB('/movie/upcoming', `page=6`),
-          fetchTMDB('/movie/upcoming', `page=7`),
-          fetchTMDB('/movie/upcoming', `page=8`),
-          fetchTMDB('/movie/upcoming', `page=9`),
-          fetchTMDB('/movie/upcoming', `page=10`),
-          fetchTMDB('/movie/upcoming', `page=11`),
-          fetchTMDB('/movie/upcoming', `page=12`),
-          fetchTMDB('/movie/upcoming', `page=13`),
-          fetchTMDB('/movie/upcoming', `page=14`),
-          fetchTMDB('/movie/upcoming', `page=15`),
-          fetchTMDB('/movie/upcoming', `page=16`),
-          fetchTMDB('/movie/upcoming', `page=17`),
-          fetchTMDB('/movie/upcoming', `page=18`),
-          fetchTMDB('/movie/upcoming', `page=19`),
-          fetchTMDB('/movie/upcoming', `page=20`),
-          fetchTMDB('/movie/upcoming', `page=21`),
-          fetchTMDB('/movie/upcoming', `page=22`),
-          fetchTMDB('/movie/upcoming', `page=23`),
-          fetchTMDB('/movie/upcoming', `page=24`),
-          fetchTMDB('/movie/upcoming', `page=25`),
-          fetchTMDB('/movie/upcoming', `page=26`),
-          fetchTMDB('/movie/upcoming', `page=27`),
-          fetchTMDB('/movie/upcoming', `page=28`),
-          fetchTMDB('/movie/upcoming', `page=29`),
-          fetchTMDB('/movie/upcoming', `page=30`),
-          // TV SHOWS: 30 pages = 600 results (DIRECT /tv/on_the_air endpoint - user requested!)
-          fetchTMDB('/tv/on_the_air', `page=1`),
-          fetchTMDB('/tv/on_the_air', `page=2`),
-          fetchTMDB('/tv/on_the_air', `page=3`),
-          fetchTMDB('/tv/on_the_air', `page=4`),
-          fetchTMDB('/tv/on_the_air', `page=5`),
-          fetchTMDB('/tv/on_the_air', `page=6`),
-          fetchTMDB('/tv/on_the_air', `page=7`),
-          fetchTMDB('/tv/on_the_air', `page=8`),
-          fetchTMDB('/tv/on_the_air', `page=9`),
-          fetchTMDB('/tv/on_the_air', `page=10`),
-          fetchTMDB('/tv/on_the_air', `page=11`),
-          fetchTMDB('/tv/on_the_air', `page=12`),
-          fetchTMDB('/tv/on_the_air', `page=13`),
-          fetchTMDB('/tv/on_the_air', `page=14`),
-          fetchTMDB('/tv/on_the_air', `page=15`),
-          fetchTMDB('/tv/on_the_air', `page=16`),
-          fetchTMDB('/tv/on_the_air', `page=17`),
-          fetchTMDB('/tv/on_the_air', `page=18`),
-          fetchTMDB('/tv/on_the_air', `page=19`),
-          fetchTMDB('/tv/on_the_air', `page=20`),
-          fetchTMDB('/tv/on_the_air', `page=21`),
-          fetchTMDB('/tv/on_the_air', `page=22`),
-          fetchTMDB('/tv/on_the_air', `page=23`),
-          fetchTMDB('/tv/on_the_air', `page=24`),
-          fetchTMDB('/tv/on_the_air', `page=25`),
-          fetchTMDB('/tv/on_the_air', `page=26`),
-          fetchTMDB('/tv/on_the_air', `page=27`),
-          fetchTMDB('/tv/on_the_air', `page=28`),
-          fetchTMDB('/tv/on_the_air', `page=29`),
-          fetchTMDB('/tv/on_the_air', `page=30`),
-          // AniList: Upcoming anime (replacing Jikan top/anime filter=upcoming)
-          // INCREASED to 60 to match TMDB row length (user request!)
-          fetchAniList(`
-            query ($perPage: Int) {
-              Page(page: 1, perPage: $perPage) {
-                media(type: ANIME, status: NOT_YET_RELEASED, isAdult: false, sort: [POPULARITY_DESC]) {
-                  ${ANILIST_ANIME_FIELDS}
-                }
-              }
-            }
-          `, { perPage: 60 })
+        const [moviesRaw, tvRaw, anilistUpcomingAnime] = await Promise.all([
+          // MOVIES: paginated sequentially, stops once 50 genuinely-upcoming results found
+          fetchUpcomingMoviesTMDB(50),
+          // TV: paginated sequentially via /discover/tv (first_air_date.gte=today), stops once 50 found
+          fetchUpcomingTVTMDB(50),
+          // AniList: Upcoming JAPANESE TV/TV_SHORT anime only — paginated, rate-limited,
+          // stops as soon as 50 valid results are collected (see fetchUpcomingAnimeAniList above)
+          fetchUpcomingAnimeAniList(50)
         ]);
         
-        // Merge TMDB movie pages (30 pages = up to 600 results)
-        const allTmdbMovies = [
-          ...(tmdbUp1.results||[]), ...(tmdbUp2.results||[]), ...(tmdbUp3.results||[]), 
-          ...(tmdbUp4.results||[]), ...(tmdbUp5.results||[]), ...(tmdbUp6.results||[]), 
-          ...(tmdbUp7.results||[]), ...(tmdbUp8.results||[]), ...(tmdbUp9.results||[]), 
-          ...(tmdbUp10.results||[]), ...(tmdbUp11.results||[]), ...(tmdbUp12.results||[]),
-          ...(tmdbUp13.results||[]), ...(tmdbUp14.results||[]), ...(tmdbUp15.results||[]),
-          ...(tmdbUp16.results||[]), ...(tmdbUp17.results||[]), ...(tmdbUp18.results||[]),
-          ...(tmdbUp19.results||[]), ...(tmdbUp20.results||[]), ...(tmdbUp21.results||[]),
-          ...(tmdbUp22.results||[]), ...(tmdbUp23.results||[]), ...(tmdbUp24.results||[]),
-          ...(tmdbUp25.results||[]), ...(tmdbUp26.results||[]), ...(tmdbUp27.results||[]),
-          ...(tmdbUp28.results||[]), ...(tmdbUp29.results||[]), ...(tmdbUp30.results||[])
-        ];
-        // Merge TMDB TV pages (30 pages from /tv/on_the_air = up to 600 results)
-        const allTmdbTV = [
-          ...(tmdbTv1.results||[]), ...(tmdbTv2.results||[]), ...(tmdbTv3.results||[]), 
-          ...(tmdbTv4.results||[]), ...(tmdbTv5.results||[]), ...(tmdbTv6.results||[]), 
-          ...(tmdbTv7.results||[]), ...(tmdbTv8.results||[]), ...(tmdbTv9.results||[]), 
-          ...(tmdbTv10.results||[]), ...(tmdbTv11.results||[]), ...(tmdbTv12.results||[]),
-          ...(tmdbTv13.results||[]), ...(tmdbTv14.results||[]), ...(tmdbTv15.results||[]),
-          ...(tmdbTv16.results||[]), ...(tmdbTv17.results||[]), ...(tmdbTv18.results||[]),
-          ...(tmdbTv19.results||[]), ...(tmdbTv20.results||[]), ...(tmdbTv21.results||[]),
-          ...(tmdbTv22.results||[]), ...(tmdbTv23.results||[]), ...(tmdbTv24.results||[]),
-          ...(tmdbTv25.results||[]), ...(tmdbTv26.results||[]), ...(tmdbTv27.results||[]),
-          ...(tmdbTv28.results||[]), ...(tmdbTv29.results||[]), ...(tmdbTv30.results||[])
-        ];
+        const allTmdbMovies = moviesRaw;
+        const allTmdbTV = tvRaw;
         
         console.log(`[Upcoming] Raw fetch complete: ${allTmdbMovies.length} movies, ${allTmdbTV.length} TV shows`);
         
-        // Convert AniList upcoming anime
+        // Convert AniList upcoming anime (already filtered to JP TV/TV_SHORT, up to 50)
         const anilistUpAnime = [];
-        if (anilistUpcoming?.Page?.media) {
-          for (const m of anilistUpcoming.Page.media) {
-            if (!m.isAdult) {
-              const internal = anilistToInternal(m);
-              // Better fallbacks for upcoming anime where some data may be TBA
-              const studioName = internal.studio && internal.studio !== '?' ? internal.studio : 'TBA';
-              const durValue = internal.duration && internal.duration !== '?' ? internal.duration : 
-                (m.format === 'MOVIE' ? '1h 30m' : m.format === 'ONA' ? '24m' : '24m');
-              const yearVal = internal.year && internal.year !== '?' ? internal.year : 
-                (m.startDate?.year || m.seasonYear || 'TBA');
-              
-              anilistUpAnime.push({
-                id:`anilist-up-${m.id}`,
-                title: internal.title,
-                original_title: internal.title_jp || internal.title,
-                type:'Anime',
-                poster: internal.poster,
-                score: internal.score,
-                genres: internal.genres || [],
-                releaseDate: yearVal,
-                synopsis: internal.description || 'No synopsis available.',
-                certification: internal.rating || 'PG-13',
-                studio: studioName,
-                duration: durValue,
-                year: yearVal,
-                episodes: m.episodes || '?',
-                format: m.format || 'TV',
-                mal_id: internal.mal_id,
-                anilist_id: m.id
-              });
-            }
+        for (const m of anilistUpcomingAnime) {
+          if (!m.isAdult) {
+            const internal = anilistToInternal(m);
+            // Better fallbacks for upcoming anime where some data may be TBA
+            const studioName = internal.studio && internal.studio !== '?' ? internal.studio : 'TBA';
+            const durValue = internal.duration && internal.duration !== '?' ? internal.duration : 
+              (m.format === 'MOVIE' ? '1h 30m' : m.format === 'ONA' ? '24m' : '24m');
+            const yearVal = internal.year && internal.year !== '?' ? internal.year : 
+              (m.startDate?.year || m.seasonYear || 'TBA');
+            
+            anilistUpAnime.push({
+              id:`anilist-up-${m.id}`,
+              title: internal.title,
+              original_title: internal.title_jp || internal.title,
+              type:'Anime',
+              poster: internal.poster,
+              score: internal.score,
+              genres: internal.genres || [],
+              releaseDate: yearVal,
+              synopsis: internal.description || 'No synopsis available.',
+              certification: internal.rating || 'PG-13',
+              studio: studioName,
+              duration: durValue,
+              year: yearVal,
+              episodes: m.episodes || '?',
+              format: m.format || 'TV',
+              mal_id: internal.mal_id,
+              anilist_id: m.id
+            });
           }
         }
         
         // ════════════════════════════════════════════════════════════
-        // FRONTEND FILTERING: Date + Poster validation
+        // SHAPE TO INTERNAL FORMAT
+        // (Poster validity + genuinely-future-date filtering already happened
+        // inside fetchUpcomingMoviesTMDB/fetchUpcomingTVTMDB while paginating —
+        // no need to re-filter or re-fetch extra pages here.)
         // ════════════════════════════════════════════════════════════
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);  // Start of today
-        
-        const isFutureDate = (dateStr) => {
-          if (!dateStr || dateStr === '' || dateStr === 'TBA') return false;
-          const date = new Date(dateStr);
-          return !isNaN(date.getTime()) && date >= today;
-        };
-        
         const hasValidPoster = (posterUrl) => {
           return posterUrl && posterUrl !== '' && posterUrl !== 'null' && 
                  posterUrl !== 'undefined' && posterUrl !== 'none';
         };
         
-        // 🎯 Map and filter TMDB MOVIES - Current Year Filter (same as hero slider!)
-        // Only keep movies with release_date in CURRENT YEAR → guarantees fresh content!
-        const upcomingCurrentYear = new Date().getFullYear().toString();
-        console.log(`[Upcoming] 📅 Filtering ${allTmdbMovies.length} movies: keeping only ${upcomingCurrentYear} releases...`);
-        
-        let moviesPassed = 0, moviesDroppedYear = 0, moviesDroppedPoster = 0;
         const tmdbMovieShows = allTmdbMovies
-          .filter(i => {
-            const hasPoster = hasValidPoster(i.poster_path);
-            // NEW: Check if release_date starts with current year (e.g., "2026")
-            const isCurrentYear = i.release_date && i.release_date.startsWith(upcomingCurrentYear);
-            
-            if (!isCurrentYear || !hasPoster) {
-              if (!isCurrentYear) moviesDroppedYear++;
-              else moviesDroppedPoster++;
-              if (moviesPassed + moviesDroppedYear <= 10) { // Log first 10 drops only
-                console.log(`[Upcoming Filter] ❌ Movie dropped: "${i?.title}" - ${!isCurrentYear ? 'not '+upcomingCurrentYear+': '+i.release_date : 'no poster'}`);
-              }
-            } else {
-              moviesPassed++;
-            }
-            return hasPoster && isCurrentYear;
-          })
-          .slice(0, 50)  // Take more since we filter
           .map(i => ({
             id:`tmdb-up-${i.id}`, title:i.title, original_title:i.original_title||i.title,
             type:'Movie', poster:tmdbImg(i.poster_path), score:(i.vote_average||0).toFixed(1),
@@ -5456,32 +5737,8 @@ titleEl.style.color = 'transparent';
             studio:'?', backdrop:tmdbBack(i.backdrop_path), duration:'2h 10m'
           }));
         
-        // Map and filter TMDB TV (from /tv/on_the_air endpoint)
-        // IMPORTANT: /tv/on_the_air ONLY returns: id, name, overview, poster_path, backdrop_path,
-        //   first_air_date, vote_average, vote_count, popularity, genre_ids, origin_country, original_language
-        // It does NOT return: status, next_episode_to_air, last_air_date
-        // Since this endpoint BY DEFINITION returns "on the air" shows, we trust it and only filter by poster!
-        console.log(`[Upcoming] Filtering ${allTmdbTV.length} TV shows from /tv/on_the_air...`);
-        let tvPassed = 0, tvDroppedNoPoster = 0;
+        // Map TMDB TV (from /discover/tv, first_air_date.gte filter — genuinely upcoming premieres)
         const tmdbTVShows = allTmdbTV
-          .filter((item, index) => {
-            const hasPoster = hasValidPoster(item.poster_path);
-            // Deduplicate by ID (same show can appear across pages)
-            const isFirstOccurrence = allTmdbTV.findIndex(t => t.id === item.id) === index;
-            if (!hasPoster) {
-              tvDroppedNoPoster++;
-              if (tvPassed + tvDroppedNoPoster <= 10) {
-                console.log(`[Upcoming Filter] ❌ TV no poster: "${item?.name}" (id:${item.id})`);
-              }
-            } else if (!isFirstOccurrence) {
-              // Skip duplicate silently
-              return false;
-            } else {
-              tvPassed++;
-            }
-            return hasPoster && isFirstOccurrence;
-          })
-          .slice(0, 50)  // Limit to 50 TV shows
           .map(i => ({
             id:`tmdb-uptv-${i.id}`, tmdb_id: i.id, title:i.name, original_title:i.original_name||i.name,
             type:'TV', poster:tmdbImg(i.poster_path), score:(i.vote_average||0).toFixed(1),
@@ -5499,13 +5756,13 @@ titleEl.style.color = 'transparent';
           return hasPoster;
         });
         
-        console.log(`[Upcoming Filter] ✅ RESULTS: ${tmdbMovieShows.length} movies (from ${moviesPassed} passed, ${moviesDroppedYear} not-2026, ${moviesDroppedPoster} no-poster) + ${tmdbTVShows.length} TV (from ${tvPassed} passed, ${tvDroppedNoPoster} no-poster, deduped) + ${anilistFiltered.length} anime`);
+        console.log(`[Upcoming Filter] ✅ RESULTS: ${tmdbMovieShows.length} movies + ${tmdbTVShows.length} TV + ${anilistFiltered.length} anime`);
         
         upcomingShows = dedupById([
+          ...anilistFiltered.slice(0, 50),  // Anime FIRST — JP TV/TV_SHORT, guaranteed up to 50, never truncated by the movie/TV slice below
           ...tmdbMovieShows,
-          ...tmdbTVShows,
-          ...anilistFiltered.slice(0, 60)  // Increased to 60 to match TMDB row length
-        ], 'id').slice(0,120);
+          ...tmdbTVShows
+        ], 'id').slice(0, 150);  // 50 anime + 50 movies + 50 TV = 150, so nothing gets cut off
         renderUpcoming();
       }
       function upcomingCardHtml(s, gridRow) {
@@ -5616,24 +5873,76 @@ titleEl.style.color = 'transparent';
         const movieFetches = Array.from({length: tmdbPagesNeeded}, (_, i) =>
           fetchTMDB('/discover/movie', `sort_by=release_date.desc&with_release_type=2|3&release_date.gte=${sixMonthsAgo}&release_date.lte=${today}&page=${page+i}`));
 
-        const [tvResults, movieResults, anilistComp] = await Promise.all([
+        // Use Promise.allSettled so Anilist failure doesn't kill TV/Movie data!
+        const [tvResult, movieResult, anilistResult] = await Promise.allSettled([
           Promise.all(tvFetches),
           Promise.all(movieFetches),
-          // AniList: Recently completed anime (replacing Jikan status=complete)
-          // perPage bumped 50→100 so there's a bigger pool of candidates to
-          // draw from — more raw anime for the MAL-ID backfill step below to
-          // work with, since not every candidate successfully resolves a
-          // confident mal_id and gets kept.
-          fetchAniList(`
-            query ($page: Int, $perPage: Int) {
-              Page(page: $page, perPage: $perPage) {
-                media(type: ANIME, status: FINISHED, isAdult: false, sort: [END_DATE_DESC]) {
-                  ${ANILIST_ANIME_FIELDS}
+          // AniList: Pure recently completed TV ANIME only!
+          // FIXED: Now fetches actual TV/TV_SHORT anime that recently finished,
+          // not music videos, specials, or random ONAs.
+          // DYNAMIC YEAR: Automatically uses current/recent season year
+          // SORT: END_DATE_DESC = newest completions first (page 1 = most recent)
+          // Uses QUEUED fetch with automatic retry on timeout!
+          (async () => {
+            const now = new Date();
+            const currentYear = now.getFullYear();
+            const currentMonth = now.getMonth() + 1; // 1-12
+            
+            // Determine which season years to include (current + previous for overlap)
+            // Anime seasons: Winter (Jan-Mar), Spring (Apr-Jun), Jul-Sep, Oct-Dec
+            let targetYear = currentYear;
+            if (currentMonth === 1) {
+              // In January, mostly still showing previous year's anime ending
+              targetYear = currentYear - 1;
+            }
+            
+            // Build query for recently completed TV anime
+            const completedQuery = `
+              query ($year: Int, $page: Int, $perPage: Int) {
+                Page(page: $page, perPage: $perPage) {
+                  media(
+                    type: ANIME, 
+                    status: FINISHED, 
+                    format_in: [TV, TV_SHORT],
+                    seasonYear: $year,
+                    isAdult: false, 
+                    sort: [END_DATE_DESC]
+                  ) {
+                    ${ANILIST_ANIME_FIELDS}
+                  }
                 }
               }
-            }
-          `, { page: page, perPage: 100 })
+            `;
+            
+            const completedVars = { year: targetYear, page: page, perPage: 100 };
+            
+            // Use QUEUED fetch with retry logic (fixes CORS/timeout issues!)
+            return await queuedFetchAniList(completedQuery, completedVars);
+          })()
         ]);
+
+        // Extract results safely (handle both success and failure)
+        const tvResults = tvResult.status === 'fulfilled' ? tvResult.value : [];
+        const movieResults = movieResult.status === 'fulfilled' ? movieResult.value : [];
+        
+        // Log Anilist status specifically
+        if (anilistResult.status === 'rejected') {
+          console.error(`[Completed] ❌ Anilist fetch FAILED:`, anilistResult.reason?.message || anilistResult.reason);
+          var anilistComp = null; // Will show empty anime but TV/Movies still work!
+        } else {
+          var anilistComp = anilistResult.value;
+          
+          if (anilistComp?.Page?.media) {
+            console.log(`[Completed] 🎌 Anilist success! Got ${anilistComp.Page.media.length} anime`);
+          } else if (anilistComp?.errors) {
+            console.error(`[Completed] ❌ Anilist returned errors:`, JSON.stringify(anilistComp.errors));
+          } else if (anilistComp?.data) {
+            // Might be wrapped in a data property
+            if (anilistComp.data.Page?.media) {
+              anilistComp = anilistComp.data; // Fix the structure
+            }
+          }
+        }
 
         // DEBUG: Log first item from each TMDB page to verify pagination works
         tvResults.forEach((r, i) => {
@@ -5674,6 +5983,7 @@ titleEl.style.color = 'transparent';
             // one rather than risk a broken or (worse) wrong-anime link.
             if (!malId) return null;
             const internal = anilistToInternal(m);
+            
             return {
               id:`anilist-comp-${m.id}`,
               mal_id: malId,
@@ -5695,7 +6005,7 @@ titleEl.style.color = 'transparent';
         const tmdbTvItems = allTmdbTv
           .filter(i => i.poster_path && i.poster_path !== 'null' && i.poster_path !== 'undefined')
           .map(i=>({
-            id:`tmdb-comp-${i.id}`,title:i.name,poster:tmdbImg(i.poster_path),
+            id:`tmdb-comp-${i.id}`,tmdb_id:i.id,title:i.name,poster:tmdbImg(i.poster_path),
             type:'TV',year:(i.first_air_date||'').slice(0,4),
             score:(i.vote_average||0).toFixed(1),quality:'HD'
           }))
@@ -5704,7 +6014,7 @@ titleEl.style.color = 'transparent';
         const tmdbMovieItems = allTmdbMovies
           .filter(i => i.poster_path && i.poster_path !== 'null' && i.poster_path !== 'undefined')
           .map(i=>({
-            id:`tmdb-movie-comp-${i.id}`,title:i.title,poster:tmdbImg(i.poster_path),
+            id:`tmdb-movie-comp-${i.id}`,tmdb_id:i.id,title:i.title,poster:tmdbImg(i.poster_path),
             type:'Movie',year:(i.release_date||'').slice(0,4),
             score:(i.vote_average||0).toFixed(1),quality:'HD'
           }))
@@ -5730,7 +6040,7 @@ titleEl.style.color = 'transparent';
         renderPagination(page, false);
       }
       function renderPagination(page, isLoading=false) {
-        const total = Math.ceil(1000/20);
+        const total = 30; // Max 30 pages of recently completed anime
         const nav = document.getElementById('completedPagination');
         
         // Responsive: Desktop shows 6 pages, Mobile shows 4 pages
@@ -6279,7 +6589,7 @@ titleEl.style.color = 'transparent';
        `;
      };
 
-     // Anikoto-style popup handler (for New on Aniumi section)
+     // Anikoto-style popup handler (for New on Rowana section)
      window.showAnikotoPopupById = function(mal_id, e) {
        const anime = window.anioceanData[mal_id];
        if (!anime) return;
@@ -6513,7 +6823,7 @@ titleEl.style.color = 'transparent';
           </div>`).join('');
       }
 
-      // Skeleton for "New on Aniumi" section — matches aniocean-card style EXACTLY
+      // Skeleton for "New on Rowana" section — matches aniocean-card style EXACTLY
       // Uses SAME grid layout (40 columns × 165px, gap:12px) as real data
       function generateAnioceanSkeleton(count=24) {
         const container = document.getElementById('newAnioceanGrid');
@@ -6561,7 +6871,7 @@ titleEl.style.color = 'transparent';
           </a>
         `).join('');
         
-        console.log(`[New on Aniumi] 💀 Showing ${count} skeleton cards in grid layout while loading...`);
+        console.log(`[New on Rowana] 💀 Showing ${count} skeleton cards in grid layout while loading...`);
       }
 
       /* ════════════════════════════════════════════════════════════
@@ -7042,7 +7352,7 @@ titleEl.style.color = 'transparent';
 
       function init() {
         console.log('═══════════════════════════════════════════════════════════');
-        console.log('  🚀 AniUmi Optimized Loading System v2.0');
+        console.log('  🚀 Rowana Optimized Loading System v2.0');
         console.log('  • Scroll-based lazy loading enabled');
         console.log('  • API queue throttling (max 3 concurrent)');
         console.log('  • Automatic retry with exponential backoff');

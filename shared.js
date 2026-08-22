@@ -272,6 +272,7 @@
     .tag-mal{background:rgba(99,179,237,0.15);color:#63b3ed;border:1px solid rgba(99,179,237,0.25);}
     .tag-al{background:rgba(168,85,247,0.15);color:#c084fc;border:1px solid rgba(168,85,247,0.25);}
     .tag-tmdb{background:rgba(245,158,11,0.15);color:#fbbf24;border:1px solid rgba(245,158,11,0.25);}
+    .tag-anikoto{background:rgba(236,72,153,0.15);color:#f472b6;border:1px solid rgba(236,72,153,0.25);}
     .view-all-btn{
       display:flex!important;align-items:center;justify-content:center;gap:6px;
       padding:10px 0;margin:0;border-top:1px solid var(--border-medium,rgba(255,255,255,0.08));
@@ -497,7 +498,7 @@
        cannot scroll.  JS toggles this class on <body> in openModal /
        closeModal.  This is what makes "the scrolling should not
        affect the background/page content" actually true. */
-    body.aniumi-modal-open{
+    body.rowana-modal-open{
       overflow:hidden;
       /* On iOS Safari, overflow:hidden alone does NOT prevent
          background scroll — position:fixed + a remembered scroll
@@ -1027,7 +1028,7 @@
 
   <!-- Logo -->
   <a href="/" class="header-logo">
-    <img src="https://i.postimg.cc/X7d0fPtJ/1778142012237-removebg-preview.png" alt="AniOcean">
+    <img src="https://i.postimg.cc/X7d0fPtJ/1778142012237-removebg-preview.png" alt="Rowana">
   </a>
 
   <!-- Desktop Nav -->
@@ -1175,7 +1176,7 @@
   const FOOTER = `
 <footer style="background:var(--bg-header,#0d1117);padding:28px 20px;margin-top:50px;border-top:1px solid var(--border-subtle,rgba(255,255,255,0.07));display:flex;flex-wrap:wrap;gap:24px;justify-content:space-between;align-items:flex-start;">
   <div style="flex:1;min-width:260px;">
-        <img src="https://i.postimg.cc/X7d0fPtJ/1778142012237-removebg-preview.png" alt="AniOcean" style="max-width:190px; height:auto; margin-bottom:8px;">
+        <img src="https://i.postimg.cc/X7d0fPtJ/1778142012237-removebg-preview.png" alt="Rowana" style="max-width:190px; height:auto; margin-bottom:8px;">
     <p style="font-size:0.82rem;color:var(--text-muted,#888);margin-bottom:12px;line-height:1.6;">Stream free anime, movies, and TV shows on AniOcean. Enjoy fast, high-quality streaming with multi-language subtitles and real-time updates.</p>
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
       <span style="font-size:0.78rem;color:#fff;font-weight:600;">Follow us!</span>
@@ -1211,7 +1212,7 @@
 
     <!-- Left image column – DESKTOP ONLY (mobile uses carousel below) -->
     <div class="auth-img-col">
-      <img src="https://i.postimg.cc/pr6CQhM8/e1223c0a1599b039da4ac536a39f0223.jpg" alt="AniOcean">
+      <img src="https://i.postimg.cc/pr6CQhM8/e1223c0a1599b039da4ac536a39f0223.jpg" alt="Rowana">
     </div>
 
     <!-- MOBILE-ONLY landscape image carousel — direct child of .auth-modal
@@ -1280,7 +1281,7 @@
             <button class="auth-back-link" id="backLoginTop" type="button">← Back to Sign In</button>
 
             <div class="auth-heading">Create account ✨</div>
-            <div class="auth-subheading">Join <span>Aniumi</span> — it's free forever.</div>
+            <div class="auth-subheading">Join <span>Rowana</span> — it's free forever.</div>
 
             <!-- Avatar picker — Frieren.jpeg pre-set, click to change
                  (upload from device OR choose from bucket collection). -->
@@ -1906,9 +1907,10 @@
   const CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache
   
   // ⏱️ TIMING FALLBACK CONSTANTS (in milliseconds) - REALISTIC VALUES
-  const DB_TIMEOUT_MS = 1200;     // Max wait for DB before triggering Jikan (DB usually 100-500ms)
-  const JIKAN_TIMEOUT_MS = 2500;  // Max wait for Jikan before triggering AniList (Jikan is slow: 300-2000ms)
-  const ANILIST_TIMEOUT_MS = 2000;// Max wait for AniList (final fallback, usually 200-800ms)
+  const DB_TIMEOUT_MS = 1200;      // Max wait for anime_data before trying anikoto_data
+  const ANIKOTO_TIMEOUT_MS = 1200; // Max wait for anikoto_data before trying AniList
+  const ANILIST_TIMEOUT_MS = 2000; // Max wait for AniList before trying Jikan
+  const JIKAN_TIMEOUT_MS = 2500;   // Max wait for Jikan (last resort, public API)
   
   // API endpoints
   const JIKAN_API_BASE = 'https://jikan-api-bohb.onrender.com/v4/search/anime';
@@ -1929,6 +1931,16 @@
     ]);
   }
   
+  /**
+   * Anime search fallback chain (in priority order):
+   *   1. Supabase anime_data   — primary DB, fastest & most complete
+   *   2. Supabase anikoto_data — secondary DB, fills gaps anime_data is missing
+   *   3. AniList GraphQL       — external, broad coverage
+   *   4. Jikan API             — external, last resort (slowest / most rate-limit sensitive)
+   * Each tier only runs if the previous tier didn't already return >= 3 results,
+   * so a healthy DB responds fast and the external APIs rarely get hit at all —
+   * important for staying fast and not overloading anything at high traffic.
+   */
   async function fetchAnimeWithFallbacks(q) {
     const cacheKey = `anime:${q}`;
     const overallStart = performance.now();
@@ -1952,83 +1964,73 @@
     lastApiCallTime = Date.now();
     
     let results = [];
-    let dbCompleted = false;
-    let jikanStarted = false;
     
-    // ── SOURCE 1: SUPABASE DB (Primary) - 20ms timeout ──
-    console.log(`[Search] Starting DB search for "${q}" (timeout: ${DB_TIMEOUT_MS}ms)`);
+    // ── SOURCE 1: SUPABASE anime_data (Primary) ──
+    console.log(`[Search] Starting anime_data search for "${q}" (timeout: ${DB_TIMEOUT_MS}ms)`);
     const dbStart = performance.now();
     
     const dbResult = await withTimeout(
       searchAnimeFromDB(q).catch(err => {
-        console.warn(`[Search] DB error: ${err.message}`);
+        console.warn(`[Search] anime_data error: ${err.message}`);
         return [];
       }),
       DB_TIMEOUT_MS,
-      'DB'
+      'anime_data'
     );
     
     const dbElapsed = (performance.now() - dbStart).toFixed(0);
     
     if (!dbResult.timedOut && dbResult.result && dbResult.result.length > 0) {
-      // DB responded within timeout
       results = dbResult.result;
-      dbCompleted = true;
-      console.log(`[Search] ✅ DB returned ${results.length} results in ${dbElapsed}ms`);
+      console.log(`[Search] ✅ anime_data returned ${results.length} results in ${dbElapsed}ms`);
       
-      // If we have enough results, cache and return early
       if (results.length >= 3) {
         animeSearchCache.set(cacheKey, { results, timestamp: Date.now() });
-        console.log(`[Search] ✅ Sufficient results from DB (${results.length}), returning early [${(performance.now() - overallStart).toFixed(0)}ms total]`);
+        console.log(`[Search] ✅ Sufficient results from anime_data (${results.length}), returning early [${(performance.now() - overallStart).toFixed(0)}ms total]`);
         return results;
       }
     } else if (dbResult.timedOut) {
-      // DB took too long - will continue to fallbacks
-      console.log(`[Search] ⏰ DB timed out after ${DB_TIMEOUT_MS}ms, triggering Jikan fallback...`);
-      dbCompleted = false;
+      console.log(`[Search] ⏰ anime_data timed out after ${DB_TIMEOUT_MS}ms, trying anikoto_data...`);
     } else {
-      // DB returned but no results or error
-      dbCompleted = true;
-      console.log(`[Search] ⚠️ DB returned 0 results in ${dbElapsed}ms, trying fallbacks...`);
+      console.log(`[Search] ⚠️ anime_data returned 0 results in ${dbElapsed}ms, trying anikoto_data...`);
     }
     
-    // ── SOURCE 2: JIKAN API (Fallback #1) - 15ms timeout ──
-    console.log(`[Search] Starting Jikan search for "${q}" (timeout: ${JIKAN_TIMEOUT_MS}ms)`);
-    jikanStarted = true;
-    const jikanStart = performance.now();
+    // ── SOURCE 2: SUPABASE anikoto_data (Fallback #1) ──
+    console.log(`[Search] Starting anikoto_data search for "${q}" (timeout: ${ANIKOTO_TIMEOUT_MS}ms)`);
+    const anikotoStart = performance.now();
     
-    const jikanResult = await withTimeout(
-      searchAnimeFromJikan(q).catch(err => {
-        console.warn(`[Search] Jikan error: ${err.message}`);
+    const anikotoResult = await withTimeout(
+      searchAnimeFromAnikoto(q).catch(err => {
+        console.warn(`[Search] anikoto_data error: ${err.message}`);
         return [];
       }),
-      JIKAN_TIMEOUT_MS,
-      'Jikan'
+      ANIKOTO_TIMEOUT_MS,
+      'anikoto_data'
     );
     
-    const jikanElapsed = (performance.now() - jikanStart).toFixed(0);
+    const anikotoElapsed = (performance.now() - anikotoStart).toFixed(0);
     
-    if (!jikanResult.timedOut && jikanResult.result && jikanResult.result.length > 0) {
-      // Jikan responded within timeout
+    if (!anikotoResult.timedOut && anikotoResult.result && anikotoResult.result.length > 0) {
+      // Dedupe against anime_data results by mal_id where both have one;
+      // anikoto rows without a mal_id (mal_id null/empty) are always kept
+      // since they can't collide with anything already in `results`.
       const existingIds = new Set(results.map(r => r.mal_id).filter(Boolean));
-      const newResults = jikanResult.result.filter(r => !existingIds.has(r.mal_id));
+      const newResults = anikotoResult.result.filter(r => !r.mal_id || !existingIds.has(r.mal_id));
       results = [...results, ...newResults];
-      console.log(`[Search] ✅ Jikan returned ${jikanResult.result.length} results (${newResults.length} new) in ${jikanElapsed}ms`);
+      console.log(`[Search] ✅ anikoto_data returned ${anikotoResult.result.length} results (${newResults.length} new) in ${anikotoElapsed}ms`);
       
-      // If we have enough results, cache and return
       if (results.length >= 3) {
         animeSearchCache.set(cacheKey, { results, timestamp: Date.now() });
-        console.log(`[Search] ✅ Sufficient results from DB+Jikan (${results.length}), returning [${(performance.now() - overallStart).toFixed(0)}ms total]`);
+        console.log(`[Search] ✅ Sufficient results from anime_data+anikoto_data (${results.length}), returning [${(performance.now() - overallStart).toFixed(0)}ms total]`);
         return results;
       }
-    } else if (jikanResult.timedOut) {
-      // Jikan took too long
-      console.log(`[Search] ⏰ Jikan timed out after ${JIKAN_TIMEOUT_MS}ms, triggering AniList fallback...`);
+    } else if (anikotoResult.timedOut) {
+      console.log(`[Search] ⏰ anikoto_data timed out after ${ANIKOTO_TIMEOUT_MS}ms, trying AniList...`);
     } else {
-      console.log(`[Search] ⚠️ Jikan returned 0 results in ${jikanElapsed}ms, trying AniList...`);
+      console.log(`[Search] ⚠️ anikoto_data returned 0 results in ${anikotoElapsed}ms, trying AniList...`);
     }
     
-    // ── SOURCE 3: ANILIST GRAPHQL (Fallback #2) - Final safety net ──
+    // ── SOURCE 3: ANILIST GRAPHQL (Fallback #2) ──
     console.log(`[Search] Starting AniList search for "${q}" (timeout: ${ANILIST_TIMEOUT_MS}ms)`);
     const anilistStart = performance.now();
     
@@ -2044,15 +2046,46 @@
     const anilistElapsed = (performance.now() - anilistStart).toFixed(0);
     
     if (!anilistResult.timedOut && anilistResult.result && anilistResult.result.length > 0) {
-      // AniList responded
       const existingIds = new Set(results.map(r => r.mal_id || r.anilistId).filter(Boolean));
-      const newResults = anilistResult.result.filter(r => !existingIds.has(r.anilistId));
+      const newResults = anilistResult.result.filter(r => !existingIds.has(r.anilistId) && !existingIds.has(r.mal_id));
       results = [...results, ...newResults];
       console.log(`[Search] ✅ AniList returned ${anilistResult.result.length} results (${newResults.length} new) in ${anilistElapsed}ms`);
+      
+      if (results.length >= 3) {
+        animeSearchCache.set(cacheKey, { results, timestamp: Date.now() });
+        console.log(`[Search] ✅ Sufficient results (${results.length}), returning [${(performance.now() - overallStart).toFixed(0)}ms total]`);
+        return results;
+      }
     } else if (anilistResult.timedOut) {
-      console.log(`[Search] ⏰ AniList timed out after ${ANILIST_TIMEOUT_MS}ms`);
+      console.log(`[Search] ⏰ AniList timed out after ${ANILIST_TIMEOUT_MS}ms, trying Jikan...`);
     } else {
-      console.log(`[Search] ⚠️ AniList returned 0 results in ${anilistElapsed}ms`);
+      console.log(`[Search] ⚠️ AniList returned 0 results in ${anilistElapsed}ms, trying Jikan...`);
+    }
+    
+    // ── SOURCE 4: JIKAN API (Final fallback — public API, slowest) ──
+    console.log(`[Search] Starting Jikan search for "${q}" (timeout: ${JIKAN_TIMEOUT_MS}ms)`);
+    const jikanStart = performance.now();
+    
+    const jikanResult = await withTimeout(
+      searchAnimeFromJikan(q).catch(err => {
+        console.warn(`[Search] Jikan error: ${err.message}`);
+        return [];
+      }),
+      JIKAN_TIMEOUT_MS,
+      'Jikan'
+    );
+    
+    const jikanElapsed = (performance.now() - jikanStart).toFixed(0);
+    
+    if (!jikanResult.timedOut && jikanResult.result && jikanResult.result.length > 0) {
+      const existingIds = new Set(results.map(r => r.mal_id).filter(Boolean));
+      const newResults = jikanResult.result.filter(r => !existingIds.has(r.mal_id));
+      results = [...results, ...newResults];
+      console.log(`[Search] ✅ Jikan returned ${jikanResult.result.length} results (${newResults.length} new) in ${jikanElapsed}ms`);
+    } else if (jikanResult.timedOut) {
+      console.log(`[Search] ⏰ Jikan timed out after ${JIKAN_TIMEOUT_MS}ms`);
+    } else {
+      console.log(`[Search] ⚠️ Jikan returned 0 results in ${jikanElapsed}ms`);
     }
     
     // Cache final results (even if empty - avoids repeated slow queries)
@@ -2218,7 +2251,82 @@
     }
   }
 
-  /* ── SOURCE 2: JIKAN API SEARCH ── */
+  /* ── SOURCE 2: SUPABASE anikoto_data (fallback when anime_data has nothing) ──
+     Uses the search_anikoto_fuzzy RPC (SQL function, trigram-indexed) instead
+     of building .or()/ilike filters client-side — one indexed round trip,
+     safe under very high request volume since Postgres does all the matching
+     work via the trgm GIN indexes rather than the client shaping the query. */
+  const anikotoSearchCache = new Map();
+  const ANIKOTO_CACHE_TTL = 3 * 60 * 1000;
+
+  async function searchAnimeFromAnikoto(q) {
+    const cacheKey = `anikoto:${q}`;
+    if (anikotoSearchCache.has(cacheKey)) {
+      const cached = anikotoSearchCache.get(cacheKey);
+      if (Date.now() - cached.timestamp < ANIKOTO_CACHE_TTL) {
+        console.log(`[Anikoto Search] Cache hit for:`, q);
+        return cached.results;
+      }
+      anikotoSearchCache.delete(cacheKey);
+    }
+
+    const startTime = performance.now();
+    try {
+      const { data, error } = await supabase.rpc('search_anikoto_fuzzy', {
+        p_query: q,
+        p_limit: 8
+      });
+
+      if (error) {
+        console.warn('[Anikoto Search] RPC error:', error.message);
+        return [];
+      }
+      if (!data || !data.length) {
+        console.log(`[Anikoto Search] No results for:`, q, `(${(performance.now() - startTime).toFixed(0)}ms)`);
+        return [];
+      }
+
+      console.log(`[Anikoto Search] Found ${data.length} results for:`, q, `(${(performance.now() - startTime).toFixed(0)}ms)`);
+
+      const results = data.map(item => {
+        // mal_id is stored as text in anikoto_data and can be null/empty for
+        // some rows — only use it if it's genuinely a valid number, otherwise
+        // leave it unset so the UI falls back to an anikoto-{id} link instead.
+        const parsedMalId = item.mal_id && /^\d+$/.test(String(item.mal_id).trim())
+          ? parseInt(item.mal_id, 10)
+          : null;
+
+        return {
+          poster: item.poster || '',
+          title: item.title || 'Unknown Title',
+          original: item.alternative && item.alternative !== item.title ? item.alternative : '',
+          meta: [
+            item.anime_type ? item.anime_type.toUpperCase() : null,
+            item.year,
+            item.episodes ? `${item.episodes} eps` : null,
+            item.status
+          ].filter(Boolean).join(' · '),
+          score: item.score ? `★ ${item.score}` : null,
+          mal_id: parsedMalId,
+          anikoto_id: item.anikoto_id,
+          slug: item.slug || null,
+          source: 'anikoto',
+          year: item.year,
+          episodes: item.episodes,
+          status: item.status
+        };
+      });
+
+      anikotoSearchCache.set(cacheKey, { results, timestamp: Date.now() });
+      return results;
+    } catch (err) {
+      console.error('[Anikoto Search] Failed:', err.message);
+      return [];
+    }
+  }
+
+  /* ── SOURCE 4: JIKAN API SEARCH (last resort — public API, slowest & most
+     rate-limit-sensitive of the four sources) ── */
   async function searchAnimeFromJikan(q) {
     const response = await fetch(`${JIKAN_API_BASE}?q=${encodeURIComponent(q)}&page=1&limit=8&sfw=true`, {
       headers: { 'Accept': 'application/json' },
@@ -2472,10 +2580,19 @@
       const slug = slugify(r.title);
 
       // ── ANIME: /info/anime/jikan-{mal_id}/slug ──
-      // All anime sources (db/jikan/anilist) MUST have mal_id
+      // db/jikan/anilist sources always have mal_id.
       if (r.mal_id) {
         detailsUrl = `/info/anime/jikan-${r.mal_id}`;
         if (slug) detailsUrl += `/${slug}`;
+      }
+
+      // ── ANIME (anikoto_data, no mal_id on this row): fallback to anikoto-{id} ──
+      // Some anikoto_data rows are missing a mal_id — link by anikoto_id instead
+      // so the suggestion is still clickable and lands on a valid info page.
+      else if (r.source === 'anikoto' && r.anikoto_id) {
+        detailsUrl = `/info/anime/anikoto-${r.anikoto_id}`;
+        const anikotoSlug = r.slug || slug;
+        if (anikotoSlug) detailsUrl += `/${anikotoSlug}`;
       }
       
       // ── TMDB MOVIE/TV: Link to TMDB info pages ──
@@ -2512,6 +2629,8 @@
         metaTag = '<span class="meta-tag tag-mal">Mal</span>';
       } else if (r.source === 'anilist') {
         metaTag = '<span class="meta-tag tag-al">AL</span>';
+      } else if (r.source === 'anikoto') {
+        metaTag = '<span class="meta-tag tag-anikoto">Anikoto</span>';
       } else if (r.source === 'tmdb' || r.source === 'tmdb-fallback') {
         // TMDB tag - show media type (same display for both t-umi and mapplee)
         const tmdbType = r.mediaType === 'movie' ? 'Movie' : 'TV';
@@ -2559,7 +2678,7 @@
   // Body scroll-lock state — saved so we can restore the exact scroll
   // position when the modal closes (iOS Safari quirk: position:fixed on
   // <body> resets the scroll offset, so we have to put it back manually).
-  let aniumiSavedScrollY = 0;
+  let rowanaSavedScrollY = 0;
 
   function openModal(n = 0) {
     document.getElementById('authOverlay').classList.add('open');
@@ -2571,11 +2690,11 @@
     }
     // Lock the body so the page behind the modal cannot scroll.
     // Save the current scroll offset first so we can restore it on close.
-    aniumiSavedScrollY = window.scrollY || window.pageYOffset || 0;
-    document.body.classList.add('aniumi-modal-open');
+    rowanaSavedScrollY = window.scrollY || window.pageYOffset || 0;
+    document.body.classList.add('rowana-modal-open');
     // The body is now position:fixed — nudge it so the user still
     // appears to be at the same scroll position rather than the top.
-    document.body.style.top = `-${aniumiSavedScrollY}px`;
+    document.body.style.top = `-${rowanaSavedScrollY}px`;
     slideTo(n);
     ['loginErr','signUpErr','resetErr','errUsername','errConfirm'].forEach(id => {
       const el = document.getElementById(id); if (el) el.textContent = '';
@@ -2590,9 +2709,9 @@
     document.getElementById('authOverlay').classList.remove('open');
     stopCarousel();
     // Unlock the body & restore the saved scroll offset.
-    document.body.classList.remove('aniumi-modal-open');
+    document.body.classList.remove('rowana-modal-open');
     document.body.style.top = '';
-    window.scrollTo(0, aniumiSavedScrollY);
+    window.scrollTo(0, rowanaSavedScrollY);
   }
 
   function slideTo(n) {
@@ -3237,20 +3356,20 @@
   
   const MetadataManager = {
     // Base configuration
-    siteName: 'AniUmi',
-    siteUrl: 'https://aniumi.vercel.app',
+    siteName: 'Rowana',
+    siteUrl: 'https://rowana.vercel.app',
     logoUrl: 'https://i.postimg.cc/BvwTjXgv/image-359e594e.png',
     defaultImage: 'https://i.postimg.cc/BvwTjXgv/image-359e594e.png',
-    twitterHandle: '@aniumi_official',
+    twitterHandle: '@rowana_official',
     
     // ═══════════════════════════════════════════════════════
     // OG FLYER CARD IMAGES (Dynamic per page type)
-    // Your Canva-designed flyer with "Aniumi" + cyan gradient + pink buttons
+    // Your Canva-designed flyer with "Rowana" + cyan gradient + pink buttons
     // Size: 1200x630px (Facebook/Twitter standard OG image size)
     // ═══════════════════════════════════════════════════════
     flyerImages: {
       // MAIN FLYER - Your Canva design (used for most pages)
-      // Design: Dark navy bg + anime posters left + "Aniumi" cyan gradient + URL + pink buttons
+      // Design: Dark navy bg + anime posters left + "Rowana" cyan gradient + URL + pink buttons
       home: 'https://i.postimg.cc/Fs8y8Wqh/Follow-Ani-Wind-Zone-x-profile-banner.jpg',
       
       // ANIME SECTION PAGES - Uses main brand flyer
@@ -3283,23 +3402,23 @@
     
     // ANIME-SPECIFIC METADATA (For anime niche users)
     animeMeta: {
-      title: 'AniUmi · Watch Anime Online Free in HD · Sub & Dub',
+      title: 'Rowana · Watch Anime Online Free in HD · Sub & Dub',
       description: 'Watch anime online free in HD quality. Stream subbed and dubbed anime episodes with no ads and no signup required. From seasonal hits to classic series, movies & donghua — all in one place. The anime site that actually works.',
       keywords: 'watch anime online, free anime streaming, anime HD, dubbed anime, subbed anime, anime subtitles, anime episodes, no ads anime, anime movies, anime streaming site, watch anime free, anime online, english dub anime, japanese anime, korean anime, chinese anime, donghua, latest anime, seasonal anime, popular anime, anime recommendations, 1080p anime, anime streaming platform, best anime site',
-      ogTitle: 'AniUmi · Watch Anime Online Free in HD · Sub & Dub',
+      ogTitle: 'Rowana · Watch Anime Online Free in HD · Sub & Dub',
       ogDescription: 'Stream subbed and dubbed anime in HD — no ads, no signup walls, no geo-blocks. Just pick a show and watch. Seasonal hits, classics, movies & dongua updated daily.',
-      twitterTitle: 'AniUmi · Watch Anime Online Free in HD · Sub & Dub',
+      twitterTitle: 'Rowana · Watch Anime Online Free in HD · Sub & Dub',
       twitterDescription: 'HD anime streaming that doesn\'t suck. No ad overload, no signup traps — just subbed & dubbed anime that plays when you click it.'
     },
     
     // MOVIE+TV SPECIFIC METADATA (For movie/tv niche users)
     movieTvMeta: {
-      title: 'AniUmi · Watch Movies & TV Shows Online Free in HD',
+      title: 'Rowana · Watch Movies & TV Shows Online Free in HD',
       description: 'Watch movies and TV shows online free in HD quality. Stream the latest films, hit series, Netflix originals and blockbuster movies with no ads and no signup required. Your go-to destination for free movie streaming that actually works.',
       keywords: 'watch movies online, free movie streaming, movies HD, watch tv shows online, free tv series streaming, latest movies, new movies 2025 2026, netflix alternatives, free movies no signup, hd movies, tv shows streaming, binge watch, full movies online, movie streaming site, watch series free, cinema movies, action movies, comedy movies, drama series, best movie site',
-      ogTitle: 'AniUmi · Watch Movies & TV Shows Online Free in HD',
+      ogTitle: 'Rowana · Watch Movies & TV Shows Online Free in HD',
       ogDescription: 'Stream movies and TV shows in HD — no ads, no signup walls, no geo-blocks. Latest releases, hit series, blockbusters updated daily. The streaming site that actually works.',
-      twitterTitle: 'AniUmi · Watch Movies & TV Shows Online Free in HD',
+      twitterTitle: 'Rowana · Watch Movies & TV Shows Online Free in HD',
       twitterDescription: 'Free movie & TV streaming that works. No ad overload, no signup traps — just movies and shows that play when you click them.'
     },
     
@@ -3308,85 +3427,85 @@
       // HOME PAGE (index.html) - HYBRID: Targets BOTH anime AND movie/TV audiences
       // Pattern inspired by Mapplee ("Stream movies, TV shows, anime...") + Cineby (comprehensive listing)
       home: {
-        title: 'AniUmi · Watch Anime, Movies & TV Shows Online Free in HD',
+        title: 'Rowana · Watch Anime, Movies & TV Shows Online Free in HD',
         description: 'Stream anime, movies and TV shows online free in HD. Watch the latest anime episodes in sub or dub, binge-watch hit TV series, and catch new release movies — all in one place with no ads and no signup required. Millions of titles, unlimited entertainment.',
-        keywords: 'watch anime online, free anime streaming, watch movies online, free movie streaming, watch tv shows online, free tv series, anime HD, movies HD, dubbed anime, subbed anime, latest movies, new tv series, no ads streaming, anime movies, tv shows 2025 2026, netflix alternative, free streaming site, AniUmi, watch anime free, watch movies free, english dub anime, japanese anime, korean drama, chinese donghua, binge watch, 1080p streaming, hd movies online',
-        ogTitle: 'AniUmi · Watch Anime, Movies & TV Shows Online Free in HD',
+        keywords: 'watch anime online, free anime streaming, watch movies online, free movie streaming, watch tv shows online, free tv series, anime HD, movies HD, dubbed anime, subbed anime, latest movies, new tv series, no ads streaming, anime movies, tv shows 2025 2026, netflix alternative, free streaming site, Rowana, watch anime free, watch movies free, english dub anime, japanese anime, korean drama, chinese donghua, binge watch, 1080p streaming, hd movies online',
+        ogTitle: 'Rowana · Watch Anime, Movies & TV Shows Online Free in HD',
         ogDescription: 'Stream anime, movies and TV shows in HD — no ads, no signup walls, no geo-blocks. Anime (sub & dub), hit series, new releases. Millions of titles, one site.',
-        twitterTitle: 'AniUmi · Free Streaming: Anime, Movies & TV Shows in HD',
+        twitterTitle: 'Rowana · Free Streaming: Anime, Movies & TV Shows in HD',
         twitterDescription: 'The only streaming site you need. Anime (sub/dub), movies, TV shows — all free, all HD, no ads. Actually works.',
         type: 'website'
       },
       
       // ANIME SECTION PAGES (anime listings, genres, etc.)
       animeSection: {
-        title: 'Anime · Watch Anime Online Free | AniUmi',
+        title: 'Anime · Watch Anime Online Free | Rowana',
         description: 'Browse and watch thousands of anime series and movies online free in HD. Stream subbed and dubbed anime from Japan, Korea and China. Seasonal hits, classic series, and ongoing anime updated daily.',
         keywords: 'anime list, browse anime, anime genres, anime categories, subbed anime, dubbed anime, anime series, anime movies, japanese anime, korean anime, chinese anime donghua, seasonal anime, ongoing anime, completed anime, anime recommendations, watch anime free, anime streaming',
-        ogTitle: 'Anime · Watch Anime Online Free in HD | AniUmi',
+        ogTitle: 'Anime · Watch Anime Online Free in HD | Rowana',
         ogDescription: 'Thousands of free anime to stream in HD. Subbed, dubbed, movies, series — from Japan, Korea & China. Updated daily.',
-        twitterTitle: 'Free Anime Streaming · Sub & Dub HD | AniUmi',
+        twitterTitle: 'Free Anime Streaming · Sub & Dub HD | Rowana',
         twitterDescription: 'Browse thousands of anime. Subbed, dubbed, movies, series. All free, all HD. Start watching now.',
         type: 'website'
       },
       
       // MOVIES SECTION PAGES (movie listings, genres, etc.)
       moviesSection: {
-        title: 'Movies · Watch Movies Online Free | AniUmi',
+        title: 'Movies · Watch Movies Online Free | Rowana',
         description: 'Watch movies online free in HD. Stream the latest Hollywood blockbusters, action films, comedies, dramas, horror movies and international cinema. New releases added daily with no ads and no signup required.',
         keywords: 'watch movies online, free movies, latest movies, new movies 2025 2026, hollywood movies, action movies, comedy movies, drama movies, horror movies, thriller movies, romance movies, sci-fi movies, netflix movies, disney movies, marvel movies, dc movies, anime movies, animated movies, hd movies, cinema movies, full movies online',
-        ogTitle: 'Movies · Watch Movies Online Free in HD | AniUmi',
+        ogTitle: 'Movies · Watch Movies Online Free in HD | Rowana',
         ogDescription: 'Stream thousands of movies free in HD. New releases, blockbusters, classics, international films. No ads, no signup.',
-        twitterTitle: 'Free Movie Streaming · HD Movies Online | AniUmi',
+        twitterTitle: 'Free Movie Streaming · HD Movies Online | Rowana',
         twitterDescription: 'Latest movies, blockbusters, classics — all free in HD. No ads, no signup. Start watching now.',
         type: 'website'
       },
       
       // TV SHOWS SECTION PAGES
       tvSection: {
-        title: 'TV Shows · Watch Series Online Free | AniUmi',
+        title: 'TV Shows · Watch Series Online Free | Rowana',
         description: 'Watch TV shows and series online free in HD. Binge-watch the latest hit series, Netflix originals, HBO shows, crime dramas, sitcoms and reality TV. Full seasons with no ads and no signup required.',
         keywords: 'watch tv shows online, free tv series, tv shows streaming, binge watch, latest tv series, netflix shows, hbo series, crime dramas, sitcoms, reality tv, documentary series, anime series, korean drama, full seasons, tv episodes, watch series free, television shows, popular tv shows, new series 2025 2026',
-        ogTitle: 'TV Shows · Watch Series Online Free in HD | AniUmi',
+        ogTitle: 'TV Shows · Watch Series Online Free in HD | Rowana',
         ogDescription: 'Binge-watch hit TV series free in HD. Latest shows, full seasons, no ads, no signup. Start watching now.',
-        twitterTitle: 'Free TV Show Streaming · Binge Watch Series | AniUmi',
+        twitterTitle: 'Free TV Show Streaming · Binge Watch Series | Rowana',
         twitterDescription: 'Hit series, full seasons, latest episodes — all free in HD. Perfect for binge-watching.',
         type: 'website'
       },
       
       // INFO PAGE (info.html) - Dynamic based on URL params
       info: {
-        titleTemplate: '{title} - Watch {type} Online Free | AniUmi',
-        descriptionTemplate: 'Watch {title} online free in HD on AniUmi. {meta} Stream now with no ads and no signup required.',
-        keywordsTemplate: '{title}, watch {title} online, {title} streaming, {title} free, {title} HD, {title} episodes, {title} full, watch {type} online, free {type} streaming, AniUmi',
-        ogTitleTemplate: '{title} - Watch {type} Online Free | AniUmi',
-        ogDescriptionTemplate: 'Watch {title} online free in HD. {meta} No ads, no signup — just watch on AniUmi.',
-        twitterTitleTemplate: '{title} | Watch on AniUmi',
-        twitterDescriptionTemplate: 'Stream {title} free in HD on AniUmi. {meta}',
+        titleTemplate: '{title} - Watch {type} Online Free | Rowana',
+        descriptionTemplate: 'Watch {title} online free in HD on Rowana. {meta} Stream now with no ads and no signup required.',
+        keywordsTemplate: '{title}, watch {title} online, {title} streaming, {title} free, {title} HD, {title} episodes, {title} full, watch {type} online, free {type} streaming, Rowana',
+        ogTitleTemplate: '{title} - Watch {type} Online Free | Rowana',
+        ogDescriptionTemplate: 'Watch {title} online free in HD. {meta} No ads, no signup — just watch on Rowana.',
+        twitterTitleTemplate: '{title} | Watch on Rowana',
+        twitterDescriptionTemplate: 'Stream {title} free in HD on Rowana. {meta}',
         type: 'video.other' // For individual show/movie pages
       },
       
       // SEARCH RESULTS PAGE
       search: {
-        titleTemplate: 'Search Results for "{query}" | AniUmi',
-        descriptionTemplate: 'Search results for "{query}" on AniUmi. Find and watch anime, movies and TV shows matching your search. Free HD streaming with no ads.',
-        keywordsTemplate: '{query}, watch {query} online, {query} streaming, {query} free, search anime, search movies, search tv shows, AniUmi search',
-        ogTitleTemplate: '"{query}" - Search Results | AniUmi',
-        ogDescriptionTemplate: 'Find "{query}" and stream free on AniUmi. Anime, movies, TV shows — all in HD.',
-        twitterTitleTemplate: 'Search: "{query}" | AniUmi',
-        twitterDescriptionTemplate: 'Search results for "{query}" on AniUmi. Watch free in HD.',
+        titleTemplate: 'Search Results for "{query}" | Rowana',
+        descriptionTemplate: 'Search results for "{query}" on Rowana. Find and watch anime, movies and TV shows matching your search. Free HD streaming with no ads.',
+        keywordsTemplate: '{query}, watch {query} online, {query} streaming, {query} free, search anime, search movies, search tv shows, Rowana search',
+        ogTitleTemplate: '"{query}" - Search Results | Rowana',
+        ogDescriptionTemplate: 'Find "{query}" and stream free on Rowana. Anime, movies, TV shows — all in HD.',
+        twitterTitleTemplate: 'Search: "{query}" | Rowana',
+        twitterDescriptionTemplate: 'Search results for "{query}" on Rowana. Watch free in HD.',
         type: 'website'
       },
       
       // GENERIC FALLBACK
       fallback: {
-        title: 'AniUmi · Watch Anime, Movies & TV Shows Online Free',
+        title: 'Rowana · Watch Anime, Movies & TV Shows Online Free',
         description: 'Stream anime, movies and TV shows online free in HD quality. No ads, no signup required. Your ultimate free streaming destination.',
-        keywords: 'streaming, watch online, free movies, free anime, free tv shows, HD streaming, AniUmi, no ads streaming',
-        ogTitle: 'AniUmi · Free Streaming: Anime, Movies & TV Shows',
+        keywords: 'streaming, watch online, free movies, free anime, free tv shows, HD streaming, Rowana, no ads streaming',
+        ogTitle: 'Rowana · Free Streaming: Anime, Movies & TV Shows',
         ogDescription: 'Your ultimate free streaming destination. Anime, movies, TV shows in HD. No ads, no signup.',
-        twitterTitle: 'AniUmi · Free Online Streaming',
-        twitterDescription: 'Stream anime, movies and TV shows free on AniUmi. HD quality, no ads.',
+        twitterTitle: 'Rowana · Free Online Streaming',
+        twitterDescription: 'Stream anime, movies and TV shows free on Rowana. HD quality, no ads.',
         type: 'website'
       }
     },
@@ -3465,7 +3584,7 @@
       // Fallback: try to get from page title element or h1
       if (!title) {
         // Try document title first
-        if (document.title && !document.title.includes('AniUmi') && document.title !== 'Aniocean - Show Details') {
+        if (document.title && !document.title.includes('Rowana') && document.title !== 'Aniocean - Show Details') {
           title = document.title.trim();
         }
         // Try h1 element
@@ -3712,7 +3831,7 @@
           '@context': 'https://schema.org',
           '@type': 'WebSite',
           name: this.siteName,
-          alternateName: ['AniUmi', 'Aniumi', 'AniOcean', 'AniUmi TV', 'AniUmi Streaming'],
+          alternateName: ['Rowana', 'AniOcean', 'Rowana TV', 'Rowana Streaming'],
           url: this.siteUrl,
           description: meta.description,
           inLanguage: ['en-US', 'ja', 'ko'],  // Multi-language support like Cineby

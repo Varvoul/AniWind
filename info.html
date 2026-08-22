@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
   <!-- Minimal fallback title (enhanced by shared.js MetadataManager with dynamic show info) -->
-  <title>Loading... | AniUmi</title>
+  <title>Loading... | Rowana</title>
   
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -5451,7 +5451,7 @@ async function loadSunkenTreasures(page = 1) {
       if (!raw.length) {
         const apiUrl = `https://api.jikan.moe/v4/anime?${params.toString()}`;
         try {
-          // Use aniumi proxy (cached, rate-limit safe) with direct Jikan fallback
+          // Use rowana proxy (cached, rate-limit safe) with direct Jikan fallback
           let res;
           try {
             res = await fetch(
