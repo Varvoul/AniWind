@@ -1,21 +1,17 @@
 // ═══════════════════════════════════════════════════════════════════
-// PROFESSIONAL CACHE API ENDPOINT v3.1
+// PROFESSIONAL CACHE API ENDPOINT v3.2
 // Handles: Read/Write/Validate cache for all page sections
 // Database: Neon PostgreSQL (Serverless)
 // Cache Interval: 6 hours (global for all users)
 // 
-// FIXES IN v3.1:
+// FIXES IN v3.2:
+// - CRITICAL: Fixed cache metadata not updating after writes
+// - Now properly updates: completed_sections, cache_status, cache_updated_at, cache_expires_at
+// - New updateCacheMetadata() function recalculates all metadata from flags
+// - Cache status now correctly shows "partial" or "complete" instead of always "empty"
+//
+// PREVIOUS FIXES IN v3.1:
 // - CRITICAL: Use Client.query() for dynamic SQL (node-postgres compatible)
-// - neon() function only supports tagged template literals (no dynamic columns)
-// - Client class allows client.query() for dynamic column names
-// - Proper connection lifecycle management for serverless
-//
-// PREVIOUS FIXES IN v3.0:
-// - Removed sql.unsafe() calls (not supported by neon serverless)
-//
-// PREVIOUS FIXES IN v2.0:
-// - Static import for @neondatabase/serverless
-// - Better error handling and logging
 // ═══════════════════════════════════════════════════════════════════
 
 // Static import - more reliable in Vercel serverless functions
@@ -347,6 +343,60 @@ async function executeDynamicUpdate(column, value, whereClause = "cache_key = 'm
 }
 
 /**
+ * Update cache metadata after a successful write
+ * Increments completed_sections, updates timestamps and recalculates status
+ */
+async function updateCacheMetadata(sql) {
+  await sql`
+    UPDATE site_cache SET
+      completed_sections = (
+        (CASE WHEN hero_slider_cached THEN 1 ELSE 0 END) +
+        (CASE WHEN top_airing_cached THEN 1 ELSE 0 END) +
+        (CASE WHEN new_releases_cached THEN 1 ELSE 0 END) +
+        (CASE WHEN new_on_aniumi_cached THEN 1 ELSE 0 END) +
+        (CASE WHEN upcoming_cached THEN 1 ELSE 0 END) +
+        (CASE WHEN recently_completed_cached THEN 1 ELSE 0 END) +
+        (CASE WHEN trending_now_cached THEN 1 ELSE 0 END) +
+        (CASE WHEN most_favourite_cached THEN 1 ELSE 0 END) +
+        (CASE WHEN popular_anime_cached THEN 1 ELSE 0 END) +
+        (CASE WHEN schedule_cached THEN 1 ELSE 0 END)
+      ),
+      cache_status = CASE
+        WHEN (
+          (CASE WHEN hero_slider_cached THEN 1 ELSE 0 END) +
+          (CASE WHEN top_airing_cached THEN 1 ELSE 0 END) +
+          (CASE WHEN new_releases_cached THEN 1 ELSE 0 END) +
+          (CASE WHEN new_on_aniumi_cached THEN 1 ELSE 0 END) +
+          (CASE WHEN upcoming_cached THEN 1 ELSE 0 END) +
+          (CASE WHEN recently_completed_cached THEN 1 ELSE 0 END) +
+          (CASE WHEN trending_now_cached THEN 1 ELSE 0 END) +
+          (CASE WHEN most_favourite_cached THEN 1 ELSE 0 END) +
+          (CASE WHEN popular_anime_cached THEN 1 ELSE 0 END) +
+          (CASE WHEN schedule_cached THEN 1 ELSE 0 END)
+        ) >= total_sections THEN 'complete'
+        WHEN (
+          (CASE WHEN hero_slider_cached THEN 1 ELSE 0 END) +
+          (CASE WHEN top_airing_cached THEN 1 ELSE 0 END) +
+          (CASE WHEN new_releases_cached THEN 1 ELSE 0 END) +
+          (CASE WHEN new_on_aniumi_cached THEN 1 ELSE 0 END) +
+          (CASE WHEN upcoming_cached THEN 1 ELSE 0 END) +
+          (CASE WHEN recently_completed_cached THEN 1 ELSE 0 END) +
+          (CASE WHEN trending_now_cached THEN 1 ELSE 0 END) +
+          (CASE WHEN most_favourite_cached THEN 1 ELSE 0 END) +
+          (CASE WHEN popular_anime_cached THEN 1 ELSE 0 END) +
+          (CASE WHEN schedule_cached THEN 1 ELSE 0 END)
+        ) > 0 THEN 'partial'
+        ELSE 'empty'
+      END,
+      cache_updated_at = NOW(),
+      cache_expires_at = NOW() + INTERVAL '6 hours'
+    WHERE cache_key = 'main_page_cache'
+  `;
+  
+  console.log('[Cache API] 📊 Cache metadata updated (completed_sections, status, timestamps)');
+}
+
+/**
  * Write/update cache for a single section
  */
 async function writeCache(section, data) {
@@ -375,11 +425,13 @@ async function writeCache(section, data) {
     console.log(`[Cache API] ⚠️ Could not update flag ${flagCol}`);
   }
   
-  // Recalculate overall cache status
+  // CRITICAL: Update cache metadata (completed_sections, status, expiry)
   const sql = getSQL();
   try {
-    await recalculateStatus(sql);
-  } catch (e) {}
+    await updateCacheMetadata(sql);
+  } catch (e) {
+    console.error('[Cache API] ❌ Failed to update cache metadata:', e.message);
+  }
   
   return { message: `Cache updated for ${section}`, section };
 }
@@ -413,11 +465,13 @@ async function writeBatchCache(data) {
     } catch (e) {}
   }
   
-  // Recalculate status
+  // CRITICAL: Update cache metadata after all writes complete
   const sql = getSQL();
   try {
-    await recalculateStatus(sql);
-  } catch (e) {}
+    await updateCacheMetadata(sql);
+  } catch (e) {
+    console.error('[Cache API] ❌ Failed to update batch cache metadata:', e.message);
+  }
   
   return { message: `Updated ${sections.length} sections`, sections };
 }
