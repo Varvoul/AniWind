@@ -15,6 +15,7 @@
   <!-- Professional Cache System (6-hour Neon DB cache) -->
   <script src="cache-client.js"></script>
   <script src="cache-integration.js"></script>
+  <script src="cache-loaders.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:opsz,wght@14..32,400..700&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
@@ -4422,6 +4423,13 @@ async function loadNewAniocean() {
 
         console.log(`[Hero] ${tmdbSlides.length} TMDB + ${jikanSlides.length} Jikan = ${heroData.length} total slides`);
         renderHero();
+        
+        // ✅ CACHE: Write to professional cache system
+        if (window.CacheHelpers) {
+          CacheHelpers.cacheSection('heroSlider', heroData).catch(e => 
+            console.warn('[Hero Slider] ⚠️ Cache write failed:', e.message)
+          );
+        }
       }
       /* HERO ACCENT COLOR (Neon-cached via Worker) */
 const ACCENT_WORKER_URL = 'https://hero-accent-cache.zeraf.workers.dev';
@@ -4716,6 +4724,13 @@ titleEl.style.color = 'transparent';
         // Deduplicate combined list by id
         const combined = dedupById([...tv, ...anime], 'id').slice(0,60);
         renderTopAiring(combined);
+        
+        // ✅ CACHE: Write to professional cache system
+        if (window.CacheHelpers) {
+          CacheHelpers.cacheSection('topAiring', combined).catch(e => 
+            console.warn('[Top Airing] ⚠️ Cache write failed:', e.message)
+          );
+        }
       }
       function renderTopAiring(shows) {
         const container = document.getElementById('topAiringScroll');
@@ -5050,6 +5065,19 @@ titleEl.style.color = 'transparent';
         _newReleasesCache = allReleases;
         updateNewReleasesCounts();
         renderNewReleases('all');
+        
+        // ✅ CACHE: Write to professional cache system (with all tabs)
+        if (window.CacheHelpers) {
+          CacheHelpers.cacheSection('newReleases', {
+            all: allReleases.all,
+            anime: allReleases.anime,
+            movie: allReleases.movie,
+            series: allReleases.tv,  // Map 'tv' to 'series' for cache
+            hidden: []  // Hidden tab data if available
+          }).catch(e => 
+            console.warn('[New Releases] ⚠️ Cache write failed:', e.message)
+          );
+        }
         
         const duration = Date.now() - startTime;
         console.log(`[New Releases] ✅ Completed in ${duration}ms (with API queue optimization)`);
@@ -5764,6 +5792,13 @@ titleEl.style.color = 'transparent';
           ...tmdbTVShows
         ], 'id').slice(0, 150);  // 50 anime + 50 movies + 50 TV = 150, so nothing gets cut off
         renderUpcoming();
+        
+        // ✅ CACHE: Write to professional cache system
+        if (window.CacheHelpers) {
+          CacheHelpers.cacheSection('upcoming', upcomingShows).catch(e => 
+            console.warn('[Upcoming] ⚠️ Cache write failed:', e.message)
+          );
+        }
       }
       function upcomingCardHtml(s, gridRow) {
         // Check for valid poster - show No Image placeholder if missing
