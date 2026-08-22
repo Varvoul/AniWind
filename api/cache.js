@@ -1,18 +1,25 @@
 // ═══════════════════════════════════════════════════════════════════
-// PROFESSIONAL CACHE API ENDPOINT v2.0
+// PROFESSIONAL CACHE API ENDPOINT v3.1
 // Handles: Read/Write/Validate cache for all page sections
 // Database: Neon PostgreSQL (Serverless)
 // Cache Interval: 6 hours (global for all users)
 // 
-// FIXES IN v2.0:
+// FIXES IN v3.1:
+// - CRITICAL: Use Client.query() for dynamic SQL (node-postgres compatible)
+// - neon() function only supports tagged template literals (no dynamic columns)
+// - Client class allows client.query() for dynamic column names
+// - Proper connection lifecycle management for serverless
+//
+// PREVIOUS FIXES IN v3.0:
+// - Removed sql.unsafe() calls (not supported by neon serverless)
+//
+// PREVIOUS FIXES IN v2.0:
 // - Static import for @neondatabase/serverless
 // - Better error handling and logging
-// - Connection pooling support
-// - Graceful fallback on connection failure
 // ═══════════════════════════════════════════════════════════════════
 
 // Static import - more reliable in Vercel serverless functions
-import { neon } from '@neondatabase/serverless';
+import { neon, Client } from '@neondatabase/serverless';
 
 // ═══════════════════════════════════════════════════════════════════
 // DATABASE CONNECTION CONFIGURATION
@@ -265,14 +272,40 @@ async function readCache(section) {
       WHERE cache_key = 'main_page_cache'
     `;
   } else {
-    // Return ONLY requested sections (optimized for progressive loading)
-    const columns = sections.map(s => sectionToColumn(s)).filter(Boolean);
-    
-    if (columns.length === 0) {
-      throw new Error('Invalid section name');
-    }
-    
-    query = sql`SELECT ${sql.unsafe(columns.join(', '))}, cache_status, cache_expires_at FROM site_cache WHERE cache_key = 'main_page_cache'`;
+    // Return ALL sections even when specific ones requested
+    // (neon serverless doesn't support dynamic column selection via sql.unsafe)
+    // Frontend will filter what it needs - minimal overhead for JSONB data
+    query = sql`
+      SELECT 
+        hero_slider,
+        top_airing,
+        new_releases_all,
+        new_releases_anime,
+        new_releases_movie,
+        new_releases_series,
+        new_releases_hidden,
+        new_on_aniumi,
+        upcoming,
+        recently_completed_page1,
+        recently_completed_pages,
+        recently_completed_total_pages,
+        trending_now_today,
+        trending_now_week,
+        trending_now_month,
+        most_favourite,
+        popular_anime,
+        schedule_monday,
+        schedule_tuesday,
+        schedule_wednesday,
+        schedule_thursday,
+        schedule_friday,
+        schedule_saturday,
+        schedule_sunday,
+        cache_status,
+        cache_expires_at
+      FROM site_cache 
+      WHERE cache_key = 'main_page_cache'
+    `;
   }
   
   const result = await query;
@@ -295,6 +328,25 @@ async function readCache(section) {
 }
 
 /**
+ * Execute a dynamic UPDATE query with validated column name
+ * Uses Client.query() which supports dynamic SQL (node-postgres compatible)
+ * Column names are validated by sectionToColumn() whitelist - safe from SQL injection
+ */
+async function executeDynamicUpdate(column, value, whereClause = "cache_key = 'main_page_cache'") {
+  const client = new Client(NEON_CONNECTION_STRING);
+  
+  try {
+    await client.connect();
+    // Construct query with validated column name (whitelist-validated, safe from SQL injection)
+    const query = `UPDATE site_cache SET ${column} = $1, updated_at = NOW() WHERE ${whereClause}`;
+    await client.query(query, [value]);
+  } finally {
+    // Always close connection in serverless environment
+    await client.end();
+  }
+}
+
+/**
  * Write/update cache for a single section
  */
 async function writeCache(section, data) {
@@ -302,33 +354,29 @@ async function writeCache(section, data) {
     throw new Error('Section and data are required');
   }
   
-  const sql = getSQL();
   const column = sectionToColumn(section);
   
   if (!column) {
     throw new Error(`Invalid section: ${section}`);
   }
   
-  // Update the section data
-  await sql.unsafe(`
-    UPDATE site_cache 
-    SET ${column} = $1, updated_at = NOW()
-    WHERE cache_key = 'main_page_cache'
-  `, [JSON.stringify(data)]);
+  const jsonData = JSON.stringify(data);
+  
+  // Update the section data using dynamic query
+  // Column name is validated by sectionToColumn() whitelist - SQL injection safe
+  await executeDynamicUpdate(column, jsonData);
   
   // Update cached flag if column exists
   const flagCol = column + '_cached';
   try {
-    await sql.unsafe(`
-      UPDATE site_cache SET ${flagCol} = true
-      WHERE cache_key = 'main_page_cache'
-    `);
+    await executeDynamicUpdate(flagCol, 'true');
   } catch (e) {
     // Flag column might not exist, that's ok
     console.log(`[Cache API] ⚠️ Could not update flag ${flagCol}`);
   }
   
   // Recalculate overall cache status
+  const sql = getSQL();
   try {
     await recalculateStatus(sql);
   } catch (e) {}
@@ -344,7 +392,6 @@ async function writeBatchCache(data) {
     throw new Error('Data object required with section keys');
   }
   
-  const sql = getSQL();
   const sections = Object.keys(data);
   
   console.log(`[Cache API] 📦 Batch write: ${sections.join(', ')}`);
@@ -354,20 +401,20 @@ async function writeBatchCache(data) {
     const column = sectionToColumn(section);
     if (!column) continue;
     
-    await sql.unsafe(`
-      UPDATE site_cache 
-      SET ${column} = $1, updated_at = NOW()
-      WHERE cache_key = 'main_page_cache'
-    `, [JSON.stringify(sectionData)]);
+    const jsonData = JSON.stringify(sectionData);
+    
+    // Using dynamic update with validated column name
+    await executeDynamicUpdate(column, jsonData);
     
     // Update flag
     const flagCol = column + '_cached';
     try {
-      await sql.unsafe(`UPDATE site_cache SET ${flagCol} = true WHERE cache_key = 'main_page_cache'`);
+      await executeDynamicUpdate(flagCol, 'true');
     } catch (e) {}
   }
   
   // Recalculate status
+  const sql = getSQL();
   try {
     await recalculateStatus(sql);
   } catch (e) {}
