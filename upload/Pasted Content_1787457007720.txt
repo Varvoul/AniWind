@@ -1,0 +1,1599 @@
+Tracking Prevention blocked access to storage for <URL>.
+(index):1 Tracking Prevention blocked access to storage for https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.
+(index):1 Tracking Prevention blocked access to storage for https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.
+(index):1 Tracking Prevention blocked access to storage for https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.
+(index):1 Tracking Prevention blocked access to storage for https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.
+(index):1 Tracking Prevention blocked access to storage for https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css.
+(index):1 Tracking Prevention blocked access to storage for https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css.
+(index):1 Tracking Prevention blocked access to storage for https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css.
+(index):1 Tracking Prevention blocked access to storage for https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css.
+[NEW] Explain Console errors by using Copilot in Edge: click  to explain an error. Learn moreDon't show again
+shared.js:3644 [MetadataManager] 📄 Using flyer image for home : https://i.postimg.cc/Fs8y8Wqh/Follow-Ani-Wind-Zone-x-profile-banner.jpg
+shared.js:3970 [MetadataManager] ✓ Injected SEO metadata for page: home
+blob-cache-client.js:387 [Blob Cache] ✅ Vercel Blob Cache Client initialized
+blob-cache-client.js:408 ✅ [Blob Cache] Module loaded
+blob-cache-client.js:409     Use: window.BlobCache.read("section")
+blob-cache-client.js:410     Use: window.BlobCache.write("section", data)
+blob-cache-client.js:411     Use: window.BlobCache.getHeroSlider(fetchFn)
+blob-cache-client.js:412     Use: window.BlobCache.status()
+cache-integration.js:15 [Cache Integration] 🚀 Initializing auto-cache system...
+cache-integration.js:25 [Cache Integration] ✅ BlobCache ready after 1 attempts
+cache-integration.js:368 [Cache Integration] 🚀 Starting integration...
+cache-integration.js:110 [Cache Integration] 🔧 Wrapping existing loaders with cache...
+cache-integration.js:156 [Cache Integration] ✅ Wrapped 0 functions with cache
+cache-integration.js:266 [Cache Integration] ✅ Fetch interceptor installed
+cache-integration.js:376 [Cache Integration] ✅ Initialization complete
+cache-integration.js:377 [Cache Integration] 📊 Wrapped 0 functions + fetch interceptor active
+cache-integration.js:378 [Cache Integration] 💡 Usage:
+cache-integration.js:379     - Automatic: All TMDB/AniList/TVMaze/Jikan API calls will be cached
+cache-integration.js:380     - Manual: Use CacheHelpers.cacheSection("name", data)
+cache-integration.js:381     - Manual: Use CacheHelpers.tryLoad("name") to retrieve
+cache-integration.js:382     - Status: Use CacheHelpers.getStatus() to see all cached sections
+cache-integration.js:387 ✅ [Cache Integration] Module loaded
+cache-integration.js:388     Auto-integration will start once BlobCache is ready
+(index):2986 [API Queue] 🚀 Initialized with maxConcurrent=3
+(index):3155 [Lazy Loader] 📜 Initialized
+(index):7389 ═══════════════════════════════════════════════════════════
+(index):7390   🚀 Rowana Optimized Loading System v2.0
+(index):7391   • Scroll-based lazy loading enabled
+(index):7392   • API queue throttling (max 3 concurrent)
+(index):7393   • Automatic retry with exponential backoff
+(index):7394 ═══════════════════════════════════════════════════════════
+(index):3169 [Lazy Loader] 👁️ Observer created with rootMargin=200px
+(index):3225 [Lazy Loader] 🚀 Loading #heroSlider...
+blob-cache-client.js:387 [Blob Cache] 📖 Reading cache: hero-slider
+(index):2511 [TMDB] ⏭️ Skipping t-umi for paginated request (page=2) - known caching bug
+blob-cache-client.js:387 [Blob Cache] 📖 Reading cache: hero-slider
+(index):2511 [TMDB] ⏭️ Skipping t-umi for paginated request (page=3) - known caching bug
+blob-cache-client.js:387 [Blob Cache] 📖 Reading cache: hero-slider
+(index):2511 [TMDB] ⏭️ Skipping t-umi for paginated request (page=4) - known caching bug
+blob-cache-client.js:387 [Blob Cache] 📖 Reading cache: hero-slider
+(index):2511 [TMDB] ⏭️ Skipping t-umi for paginated request (page=5) - known caching bug
+blob-cache-client.js:387 [Blob Cache] 📖 Reading cache: hero-slider
+(index):2511 [TMDB] ⏭️ Skipping t-umi for paginated request (page=6) - known caching bug
+blob-cache-client.js:387 [Blob Cache] 📖 Reading cache: hero-slider
+(index):3200 [Lazy Loader] 📋 Registered #newReleasesGrid for lazy loading (priority 3)
+(index):3200 [Lazy Loader] 📋 Registered #newAnioceanGrid for lazy loading (priority 4)
+(index):3200 [Lazy Loader] 📋 Registered #upcomingSection for lazy loading (priority 5)
+(index):3200 [Lazy Loader] 📋 Registered #completedGrid for lazy loading (priority 6)
+(index):3200 [Lazy Loader] 📋 Registered #trendingList for lazy loading (priority 7)
+(index):3200 [Lazy Loader] 📋 Registered #popularList for lazy loading (priority 8)
+(index):3200 [Lazy Loader] 📋 Registered #popularAnimeList for lazy loading (priority 9)
+(index):3200 [Lazy Loader] 📋 Registered #eswWidget for lazy loading (priority 10)
+(index):3211 [Lazy Loader] 👀 #newReleasesGrid is visible, loading now...
+(index):3225 [Lazy Loader] 🚀 Loading #newReleasesGrid...
+(index):4898 [New Releases] 🚀 Starting optimized fetch with API queue...
+(index):3034 [API Queue] ▶️ [tmdb--movie/now_playing] Priority 2 | Active: 1/3 | Queue: 0
+(index):3211 [Lazy Loader] 👀 #newAnioceanGrid is visible, loading now...
+(index):3225 [Lazy Loader] 🚀 Loading #newAnioceanGrid...
+(index):6909 [New on Rowana] 💀 Showing 24 skeleton cards in grid layout while loading...
+(index):3385 [New on Rowana] Trying Anikoto API...
+(index):3211 [Lazy Loader] 👀 #trendingList is visible, loading now...
+(index):3225 [Lazy Loader] 🚀 Loading #trendingList...
+blob-cache-client.js:387 [Blob Cache] 📖 Reading cache: trending-today
+(index):3211 [Lazy Loader] 👀 #popularList is visible, loading now...
+(index):3225 [Lazy Loader] 🚀 Loading #popularList...
+(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/discover/tv?sort_by=vote_count.desc&vote_count.gte=2000&language=en-US&page=1' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+cache-integration.js:263  GET https://t-umi.bionmovies47.workers.dev/discover/tv?sort_by=vote_count.desc&vote_count.gte=2000&language=en-US&page=1 net::ERR_FAILED 403 (Forbidden)
+window.fetch @ cache-integration.js:263
+fetchTMDB @ (index):2497
+loadPopular @ (index):6238
+executeLoad @ (index):3228
+(anonymous) @ (index):3212
+handleIntersection @ (index):3205
+observer.IntersectionObserver.root @ (index):3161
+(index):2508 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+fetchTMDB @ (index):2508
+await in fetchTMDB
+loadPopular @ (index):6238
+executeLoad @ (index):3228
+(anonymous) @ (index):3212
+handleIntersection @ (index):3205
+observer.IntersectionObserver.root @ (index):3161
+(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/discover/movie?sort_by=vote_count.desc&vote_count.gte=5000&language=en-US&page=1' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+cache-integration.js:263  GET https://t-umi.bionmovies47.workers.dev/discover/movie?sort_by=vote_count.desc&vote_count.gte=5000&language=en-US&page=1 net::ERR_FAILED 403 (Forbidden)
+window.fetch @ cache-integration.js:263
+fetchTMDB @ (index):2497
+loadPopular @ (index):6237
+executeLoad @ (index):3228
+(anonymous) @ (index):3212
+handleIntersection @ (index):3205
+observer.IntersectionObserver.root @ (index):3161
+(index):2508 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+fetchTMDB @ (index):2508
+await in fetchTMDB
+loadPopular @ (index):6237
+executeLoad @ (index):3228
+(anonymous) @ (index):3212
+handleIntersection @ (index):3205
+observer.IntersectionObserver.root @ (index):3161
+(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/movie/now_playing?page=1' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+cache-integration.js:263  GET https://t-umi.bionmovies47.workers.dev/movie/now_playing?page=1 net::ERR_FAILED 403 (Forbidden)
+window.fetch @ cache-integration.js:263
+fetchTMDB @ (index):2497
+(anonymous) @ (index):3129
+processQueue @ (index):3039
+(anonymous) @ (index):3013
+enqueue @ (index):2998
+queuedFetchTMDB @ (index):3128
+loadNewReleases @ (index):4924
+executeLoad @ (index):3228
+(anonymous) @ (index):3212
+handleIntersection @ (index):3205
+observer.IntersectionObserver.root @ (index):3161
+(index):2508 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+fetchTMDB @ (index):2508
+await in fetchTMDB
+(anonymous) @ (index):3129
+processQueue @ (index):3039
+(anonymous) @ (index):3013
+enqueue @ (index):2998
+queuedFetchTMDB @ (index):3128
+loadNewReleases @ (index):4924
+executeLoad @ (index):3228
+(anonymous) @ (index):3212
+handleIntersection @ (index):3205
+observer.IntersectionObserver.root @ (index):3161
+(index):1 Access to fetch at 'https://aniumi.bionmovies47.workers.dev/anikoto/recent-anime?page=1&per_page=100' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+cache-integration.js:263  GET https://aniumi.bionmovies47.workers.dev/anikoto/recent-anime?page=1&per_page=100 net::ERR_FAILED 404 (Not Found)
+window.fetch @ cache-integration.js:263
+fetchAnikoto @ (index):2462
+loadNewAniocean @ (index):3386
+executeLoad @ (index):3228
+(anonymous) @ (index):3212
+handleIntersection @ (index):3205
+observer.IntersectionObserver.root @ (index):3161
+blob-cache-client.js:387 [Blob Cache] 📖 Reading cache: new-on-rowana
+(index):3225 [Lazy Loader] 🚀 Loading #topAiringSection...
+(index):3874 [TVMaze] 🚀 Starting TVMaze + TMDB bridge pipeline...
+(index):3582 [TVMaze-🔄] Rotation: using "CN" this load (time-based, no storage)
+(index):3516 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=CN
+blob-cache-client.js:387 [Blob Cache] 📖 Reading cache: top-airing
+blob-cache-client.js:387 [Blob Cache] ⚠️ Cache MISS: hero-slider (unknown)
+cache-integration.js:235 [Cache Interceptor] 🔄 MISS: hero-slider
+blob-cache-client.js:387 [Blob Cache] ⚠️ Cache MISS: hero-slider (unknown)
+cache-integration.js:235 [Cache Interceptor] 🔄 MISS: hero-slider
+blob-cache-client.js:387 [Blob Cache] ⚠️ Cache MISS: hero-slider (unknown)
+cache-integration.js:235 [Cache Interceptor] 🔄 MISS: hero-slider
+blob-cache-client.js:387 [Blob Cache] ⚠️ Cache MISS: hero-slider (unknown)
+cache-integration.js:235 [Cache Interceptor] 🔄 MISS: hero-slider
+blob-cache-client.js:387 [Blob Cache] ⚠️ Cache MISS: hero-slider (unknown)
+cache-integration.js:235 [Cache Interceptor] 🔄 MISS: hero-slider
+blob-cache-client.js:387 [Blob Cache] ⚠️ Cache MISS: trending-today (unknown)
+cache-integration.js:235 [Cache Interceptor] 🔄 MISS: trending-today
+blob-cache-client.js:387 [Blob Cache] ⚠️ Cache MISS: hero-slider (unknown)
+cache-integration.js:235 [Cache Interceptor] 🔄 MISS: hero-slider
+blob-cache-client.js:387 [Blob Cache] ⚠️ Cache MISS: new-on-rowana (unknown)
+cache-integration.js:235 [Cache Interceptor] 🔄 MISS: new-on-rowana
+blob-cache-client.js:387 [Blob Cache] ⚠️ Cache MISS: top-airing (unknown)
+cache-integration.js:235 [Cache Interceptor] 🔄 MISS: top-airing
+(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/tv/on_the_air?page=1' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+cache-integration.js:236  GET https://t-umi.bionmovies47.workers.dev/tv/on_the_air?page=1 net::ERR_FAILED 403 (Forbidden)
+window.fetch @ cache-integration.js:236
+await in window.fetch
+fetchTMDB @ (index):2497
+loadHero @ (index):3974
+executeLoad @ (index):3228
+register @ (index):3194
+init @ (index):7404
+cache-integration.js:256 [Cache Interceptor] ⚠️ Error, falling back to direct fetch: Failed to fetch
+window.fetch @ cache-integration.js:256
+await in window.fetch
+fetchTMDB @ (index):2497
+loadHero @ (index):3974
+executeLoad @ (index):3228
+register @ (index):3194
+init @ (index):7404
+(index):2526 [TMDB] ✅ Legacy proxy success: /movie/now_playing (returned page: 1)
+(index):3046 [API Queue] ✅ [tmdb--movie/now_playing] Completed in 2844ms
+(index):2526 [TMDB] ✅ Legacy proxy success: /discover/tv (returned page: 1)
+blob-cache-client.js:387 [Blob Cache] 💾 Writing cache: hero-slider (12.3KB)
+blob-cache-client.js:387 [Blob Cache] 💾 Writing cache: hero-slider (12.8KB)
+(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/trending/all/day' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+cache-integration.js:236  GET https://t-umi.bionmovies47.workers.dev/trending/all/day net::ERR_FAILED 403 (Forbidden)
+window.fetch @ cache-integration.js:236
+await in window.fetch
+fetchTMDB @ (index):2497
+loadTrending @ (index):6170
+lazyLoader.register.immediate @ (index):7439
+executeLoad @ (index):3228
+(anonymous) @ (index):3212
+handleIntersection @ (index):3205
+observer.IntersectionObserver.root @ (index):3161
+cache-integration.js:256 [Cache Interceptor] ⚠️ Error, falling back to direct fetch: Failed to fetch
+window.fetch @ cache-integration.js:256
+await in window.fetch
+fetchTMDB @ (index):2497
+loadTrending @ (index):6170
+lazyLoader.register.immediate @ (index):7439
+executeLoad @ (index):3228
+(anonymous) @ (index):3212
+handleIntersection @ (index):3205
+observer.IntersectionObserver.root @ (index):3161
+(index):2526 [TMDB] ✅ Legacy proxy success: /discover/movie (returned page: 1)
+(index):3230 [Lazy Loader] ✅ #popularList loaded in 2945ms
+blob-cache-client.js:387 [Blob Cache] 💾 Writing cache: hero-slider (13.2KB)
+(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/tv/on_the_air?page=1' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+cache-integration.js:257  GET https://t-umi.bionmovies47.workers.dev/tv/on_the_air?page=1 net::ERR_FAILED 403 (Forbidden)
+window.fetch @ cache-integration.js:257
+await in window.fetch
+fetchTMDB @ (index):2497
+loadHero @ (index):3974
+executeLoad @ (index):3228
+register @ (index):3194
+init @ (index):7404
+(index):2508 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+fetchTMDB @ (index):2508
+await in fetchTMDB
+loadHero @ (index):3974
+executeLoad @ (index):3228
+register @ (index):3194
+init @ (index):7404
+blob-cache-client.js:387 [Blob Cache] 📖 Reading cache: hero-slider
+(index):2526 [TMDB] ✅ Legacy proxy success: /tv/on_the_air (returned page: 3)
+(index):2526 [TMDB] ✅ Legacy proxy success: /tv/on_the_air (returned page: 2)
+(index):2526 [TMDB] ✅ Legacy proxy success: /tv/on_the_air (returned page: 4)
+(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/trending/all/day' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+cache-integration.js:257  GET https://t-umi.bionmovies47.workers.dev/trending/all/day net::ERR_FAILED 403 (Forbidden)
+window.fetch @ cache-integration.js:257
+await in window.fetch
+fetchTMDB @ (index):2497
+loadTrending @ (index):6170
+lazyLoader.register.immediate @ (index):7439
+executeLoad @ (index):3228
+(anonymous) @ (index):3212
+handleIntersection @ (index):3205
+observer.IntersectionObserver.root @ (index):3161
+(index):2508 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+fetchTMDB @ (index):2508
+await in fetchTMDB
+loadTrending @ (index):6170
+lazyLoader.register.immediate @ (index):7439
+executeLoad @ (index):3228
+(anonymous) @ (index):3212
+handleIntersection @ (index):3205
+observer.IntersectionObserver.root @ (index):3161
+blob-cache-client.js:387 [Blob Cache] 📖 Reading cache: trending-today
+blob-cache-client.js:387 [Blob Cache] 💾 Writing cache: top-airing (40.9KB)
+(index):3528 [TVMaze] ✅ Fetched 19 episodes from CN
+(index):3557 [TVMaze] ✅ Unique shows from CN: 11
+(index):3619 [TVMaze-🔄] Final: 11 scripted shows from "CN"
+(index):3886 [TVMaze-🔄] Rotation result: 11 shows from "CN"
+(index):3903 [TVMaze] 📊 Total shows to bridge: 11
+(index):3808 [TVMaze→TMDB] 🔍 No external ID for "My Years as the Dragon-Seeking Master" - trying search...
+(index):3808 [TVMaze→TMDB] 🔍 No external ID for "Born Again" - trying search...
+(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/find/tt33501934?external_source=imdb_id' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+cache-integration.js:263  GET https://t-umi.bionmovies47.workers.dev/find/tt33501934?external_source=imdb_id net::ERR_FAILED 403 (Forbidden)
+window.fetch @ cache-integration.js:263
+fetchTMDB @ (index):2497
+bridgeTVMazeToTMDB @ (index):3782
+(anonymous) @ (index):3914
+getTVMazeShowsWithTMDBData @ (index):3913
+await in getTVMazeShowsWithTMDBData
+loadTopAiring @ (index):4646
+executeLoad @ (index):3228
+(anonymous) @ (index):3192
+setTimeout
+register @ (index):3192
+init @ (index):7411
+(index):2508 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+fetchTMDB @ (index):2508
+await in fetchTMDB
+bridgeTVMazeToTMDB @ (index):3782
+(anonymous) @ (index):3914
+getTVMazeShowsWithTMDBData @ (index):3913
+await in getTVMazeShowsWithTMDBData
+loadTopAiring @ (index):4646
+executeLoad @ (index):3228
+(anonymous) @ (index):3192
+setTimeout
+register @ (index):3192
+init @ (index):7411
+(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/search/tv?query=Born%20Again&page=1' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+cache-integration.js:263  GET https://t-umi.bionmovies47.workers.dev/search/tv?query=Born%20Again&page=1 net::ERR_FAILED 403 (Forbidden)
+window.fetch @ cache-integration.js:263
+fetchTMDB @ (index):2497
+searchTMDBFallback @ (index):3826
+bridgeTVMazeToTMDB @ (index):3809
+(anonymous) @ (index):3914
+getTVMazeShowsWithTMDBData @ (index):3913
+await in getTVMazeShowsWithTMDBData
+loadTopAiring @ (index):4646
+executeLoad @ (index):3228
+(anonymous) @ (index):3192
+setTimeout
+register @ (index):3192
+init @ (index):7411
+(index):2508 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+fetchTMDB @ (index):2508
+await in fetchTMDB
+searchTMDBFallback @ (index):3826
+bridgeTVMazeToTMDB @ (index):3809
+(anonymous) @ (index):3914
+getTVMazeShowsWithTMDBData @ (index):3913
+await in getTVMazeShowsWithTMDBData
+loadTopAiring @ (index):4646
+executeLoad @ (index):3228
+(anonymous) @ (index):3192
+setTimeout
+register @ (index):3192
+init @ (index):7411
+(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/find/tt37231342?external_source=imdb_id' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+cache-integration.js:263  GET https://t-umi.bionmovies47.workers.dev/find/tt37231342?external_source=imdb_id net::ERR_FAILED 403 (Forbidden)
+window.fetch @ cache-integration.js:263
+fetchTMDB @ (index):2497
+bridgeTVMazeToTMDB @ (index):3782
+(anonymous) @ (index):3914
+getTVMazeShowsWithTMDBData @ (index):3913
+await in getTVMazeShowsWithTMDBData
+loadTopAiring @ (index):4646
+executeLoad @ (index):3228
+(anonymous) @ (index):3192
+setTimeout
+register @ (index):3192
+init @ (index):7411
+(index):2508 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+fetchTMDB @ (index):2508
+await in fetchTMDB
+bridgeTVMazeToTMDB @ (index):3782
+(anonymous) @ (index):3914
+getTVMazeShowsWithTMDBData @ (index):3913
+await in getTVMazeShowsWithTMDBData
+loadTopAiring @ (index):4646
+executeLoad @ (index):3228
+(anonymous) @ (index):3192
+setTimeout
+register @ (index):3192
+init @ (index):7411
+(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/search/tv?query=My%20Years%20as%20the%20Dragon-Seeking%20Master&page=1' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+cache-integration.js:263  GET https://t-umi.bionmovies47.workers.dev/search/tv?query=My%20Years%20as%20the%20Dragon-Seeking%20Master&page=1 net::ERR_FAILED 403 (Forbidden)
+window.fetch @ cache-integration.js:263
+fetchTMDB @ (index):2497
+searchTMDBFallback @ (index):3826
+bridgeTVMazeToTMDB @ (index):3809
+(anonymous) @ (index):3914
+getTVMazeShowsWithTMDBData @ (index):3913
+await in getTVMazeShowsWithTMDBData
+loadTopAiring @ (index):4646
+executeLoad @ (index):3228
+(anonymous) @ (index):3192
+setTimeout
+register @ (index):3192
+init @ (index):7411
+(index):2508 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+fetchTMDB @ (index):2508
+await in fetchTMDB
+searchTMDBFallback @ (index):3826
+bridgeTVMazeToTMDB @ (index):3809
+(anonymous) @ (index):3914
+getTVMazeShowsWithTMDBData @ (index):3913
+await in getTVMazeShowsWithTMDBData
+loadTopAiring @ (index):4646
+executeLoad @ (index):3228
+(anonymous) @ (index):3192
+setTimeout
+register @ (index):3192
+init @ (index):7411
+(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/find/tt7126882?external_source=imdb_id' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+cache-integration.js:263  GET https://t-umi.bionmovies47.workers.dev/find/tt7126882?external_source=imdb_id net::ERR_FAILED 403 (Forbidden)
+window.fetch @ cache-integration.js:263
+fetchTMDB @ (index):2497
+bridgeTVMazeToTMDB @ (index):3782
+(anonymous) @ (index):3914
+getTVMazeShowsWithTMDBData @ (index):3913
+await in getTVMazeShowsWithTMDBData
+loadTopAiring @ (index):4646
+executeLoad @ (index):3228
+(anonymous) @ (index):3192
+setTimeout
+register @ (index):3192
+init @ (index):7411
+(index):2508 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+fetchTMDB @ (index):2508
+await in fetchTMDB
+bridgeTVMazeToTMDB @ (index):3782
+(anonymous) @ (index):3914
+getTVMazeShowsWithTMDBData @ (index):3913
+await in getTVMazeShowsWithTMDBData
+loadTopAiring @ (index):4646
+executeLoad @ (index):3228
+(anonymous) @ (index):3192
+setTimeout
+register @ (index):3192
+init @ (index):7411
+blob-cache-client.js:387 [Blob Cache] 💾 Writing cache: hero-slider (12.6KB)
+(index):2526 [TMDB] ✅ Legacy proxy success: /tv/on_the_air (returned page: 5)
+(index):3034 [API Queue] ▶️ [tmdb--movie/now_playing] Priority 2 | Active: 1/3 | Queue: 2
+(index):2511 [TMDB] ⏭️ Skipping t-umi for paginated request (page=2) - known caching bug
+2blob-cache-client.js:387 [Blob Cache] ✅ Cached successfully: hero-slider
+blob-cache-client.js:387 [Blob Cache] 💾 Writing cache: hero-slider (13.7KB)
+(index):2526 [TMDB] ✅ Legacy proxy success: /tv/on_the_air (returned page: 6)
+2blob-cache-client.js:387 [Blob Cache] ✅ Cached successfully: hero-slider
+blob-cache-client.js:387 [Blob Cache] ✅ Cached successfully: top-airing
+(index):2526 [TMDB] ✅ Legacy proxy success: /find/tt33501934 (returned page: N/A)
+(index):3785 [TVMaze→TMDB] ✅ IMDb bridge: "Mushen Ji" → TMDB:236534
+(index):2526 [TMDB] ✅ Legacy proxy success: /find/tt7126882 (returned page: N/A)
+(index):3785 [TVMaze→TMDB] ✅ IMDb bridge: "Boy Hood" → TMDB:119538
+(index):2526 [TMDB] ✅ Legacy proxy success: /search/tv (returned page: 1)
+(index):3844 [TVMaze→TMDB] ✅ Search year match: "Born Again" (2026) → TMDB:202555 (2025)
+(index):2526 [TMDB] ✅ Legacy proxy success: /search/tv (returned page: 1)
+(index):3838 [TVMaze→TMDB] ✅ Search exact match: "My Years as the Dragon-Seeking Master" → TMDB:331756
+(index):2526 [TMDB] ✅ Legacy proxy success: /find/tt37231342 (returned page: N/A)
+(index):3785 [TVMaze→TMDB] ✅ IMDb bridge: "Pull Strings" → TMDB:272938
+(index):2526 [TMDB] ✅ Legacy proxy success: /movie/now_playing (returned page: 2)
+(index):3046 [API Queue] ✅ [tmdb--movie/now_playing] Completed in 581ms
+(index):3808 [TVMaze→TMDB] 🔍 No external ID for "Forging Justice" - trying search...
+(index):3808 [TVMaze→TMDB] 🔍 No external ID for "Cicada" - trying search...
+(index):3808 [TVMaze→TMDB] 🔍 No external ID for "Sharp Turns" - trying search...
+blob-cache-client.js:387 [Blob Cache] 💾 Writing cache: new-on-rowana (143.9KB)
+(index):3430 ✓ Loaded 100 anime from Anikoto proxy for "New on Aniocean"
+(index):3230 [Lazy Loader] ✅ #newAnioceanGrid loaded in 4138ms
+(index):3034 [API Queue] ▶️ [anilist-3130] Priority 3 | Active: 1/3 | Queue: 1
+blob-cache-client.js:387 [Blob Cache] ✅ Cached successfully: hero-slider
+blob-cache-client.js:387 [Blob Cache] ⚠️ Cache MISS: hero-slider (unknown)
+cache-integration.js:235 [Cache Interceptor] 🔄 MISS: hero-slider
+blob-cache-client.js:387 [Blob Cache] ⚠️ Cache MISS: trending-today (unknown)
+cache-integration.js:235 [Cache Interceptor] 🔄 MISS: trending-today
+(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/search/tv?query=Cicada&page=1' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+cache-integration.js:263  GET https://t-umi.bionmovies47.workers.dev/search/tv?query=Cicada&page=1 net::ERR_FAILED 403 (Forbidden)
+window.fetch @ cache-integration.js:263
+fetchTMDB @ (index):2497
+searchTMDBFallback @ (index):3826
+bridgeTVMazeToTMDB @ (index):3809
+(anonymous) @ (index):3914
+getTVMazeShowsWithTMDBData @ (index):3913
+await in getTVMazeShowsWithTMDBData
+loadTopAiring @ (index):4646
+executeLoad @ (index):3228
+(anonymous) @ (index):3192
+setTimeout
+register @ (index):3192
+init @ (index):7411
+(index):2508 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+fetchTMDB @ (index):2508
+await in fetchTMDB
+searchTMDBFallback @ (index):3826
+bridgeTVMazeToTMDB @ (index):3809
+(anonymous) @ (index):3914
+getTVMazeShowsWithTMDBData @ (index):3913
+await in getTVMazeShowsWithTMDBData
+loadTopAiring @ (index):4646
+executeLoad @ (index):3228
+(anonymous) @ (index):3192
+setTimeout
+register @ (index):3192
+init @ (index):7411
+(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/search/tv?query=Forging%20Justice&page=1' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+cache-integration.js:263  GET https://t-umi.bionmovies47.workers.dev/search/tv?query=Forging%20Justice&page=1 net::ERR_FAILED 403 (Forbidden)
+window.fetch @ cache-integration.js:263
+fetchTMDB @ (index):2497
+searchTMDBFallback @ (index):3826
+bridgeTVMazeToTMDB @ (index):3809
+(anonymous) @ (index):3914
+getTVMazeShowsWithTMDBData @ (index):3913
+await in getTVMazeShowsWithTMDBData
+loadTopAiring @ (index):4646
+executeLoad @ (index):3228
+(anonymous) @ (index):3192
+setTimeout
+register @ (index):3192
+init @ (index):7411
+(index):2508 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+fetchTMDB @ (index):2508
+await in fetchTMDB
+searchTMDBFallback @ (index):3826
+bridgeTVMazeToTMDB @ (index):3809
+(anonymous) @ (index):3914
+getTVMazeShowsWithTMDBData @ (index):3913
+await in getTVMazeShowsWithTMDBData
+loadTopAiring @ (index):4646
+executeLoad @ (index):3228
+(anonymous) @ (index):3192
+setTimeout
+register @ (index):3192
+init @ (index):7411
+(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/search/tv?query=Sharp%20Turns&page=1' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+cache-integration.js:263  GET https://t-umi.bionmovies47.workers.dev/search/tv?query=Sharp%20Turns&page=1 net::ERR_FAILED 403 (Forbidden)
+window.fetch @ cache-integration.js:263
+fetchTMDB @ (index):2497
+searchTMDBFallback @ (index):3826
+bridgeTVMazeToTMDB @ (index):3809
+(anonymous) @ (index):3914
+getTVMazeShowsWithTMDBData @ (index):3913
+await in getTVMazeShowsWithTMDBData
+loadTopAiring @ (index):4646
+executeLoad @ (index):3228
+(anonymous) @ (index):3192
+setTimeout
+register @ (index):3192
+init @ (index):7411
+(index):2508 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+fetchTMDB @ (index):2508
+await in fetchTMDB
+searchTMDBFallback @ (index):3826
+bridgeTVMazeToTMDB @ (index):3809
+(anonymous) @ (index):3914
+getTVMazeShowsWithTMDBData @ (index):3913
+await in getTVMazeShowsWithTMDBData
+loadTopAiring @ (index):4646
+executeLoad @ (index):3228
+(anonymous) @ (index):3192
+setTimeout
+register @ (index):3192
+init @ (index):7411
+(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/find/467181?external_source=tvdb_id' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+cache-integration.js:263  GET https://t-umi.bionmovies47.workers.dev/find/467181?external_source=tvdb_id net::ERR_FAILED 403 (Forbidden)
+window.fetch @ cache-integration.js:263
+fetchTMDB @ (index):2497
+bridgeTVMazeToTMDB @ (index):3796
+(anonymous) @ (index):3914
+getTVMazeShowsWithTMDBData @ (index):3913
+await in getTVMazeShowsWithTMDBData
+loadTopAiring @ (index):4646
+executeLoad @ (index):3228
+(anonymous) @ (index):3192
+setTimeout
+register @ (index):3192
+init @ (index):7411
+(index):2508 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+fetchTMDB @ (index):2508
+await in fetchTMDB
+bridgeTVMazeToTMDB @ (index):3796
+(anonymous) @ (index):3914
+getTVMazeShowsWithTMDBData @ (index):3913
+await in getTVMazeShowsWithTMDBData
+loadTopAiring @ (index):4646
+executeLoad @ (index):3228
+(anonymous) @ (index):3192
+setTimeout
+register @ (index):3192
+init @ (index):7411
+(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/find/tt27432264?external_source=imdb_id' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+cache-integration.js:263  GET https://t-umi.bionmovies47.workers.dev/find/tt27432264?external_source=imdb_id net::ERR_FAILED 403 (Forbidden)
+window.fetch @ cache-integration.js:263
+fetchTMDB @ (index):2497
+bridgeTVMazeToTMDB @ (index):3782
+(anonymous) @ (index):3914
+getTVMazeShowsWithTMDBData @ (index):3913
+await in getTVMazeShowsWithTMDBData
+loadTopAiring @ (index):4646
+executeLoad @ (index):3228
+(anonymous) @ (index):3192
+setTimeout
+register @ (index):3192
+init @ (index):7411
+(index):2508 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+fetchTMDB @ (index):2508
+await in fetchTMDB
+bridgeTVMazeToTMDB @ (index):3782
+(anonymous) @ (index):3914
+getTVMazeShowsWithTMDBData @ (index):3913
+await in getTVMazeShowsWithTMDBData
+loadTopAiring @ (index):4646
+executeLoad @ (index):3228
+(anonymous) @ (index):3192
+setTimeout
+register @ (index):3192
+init @ (index):7411
+(index):7479 [System Status] {apiQueue: {…}, lazyLoader: {…}}
+blob-cache-client.js:387 [Blob Cache] ✅ Cached successfully: new-on-rowana
+(index):2526 [TMDB] ✅ Legacy proxy success: /search/tv (returned page: 1)
+(index):3838 [TVMaze→TMDB] ✅ Search exact match: "Forging Justice" → TMDB:291856
+(index):2526 [TMDB] ✅ Legacy proxy success: /search/tv (returned page: 1)
+(index):3844 [TVMaze→TMDB] ✅ Search year match: "Cicada" (2026) → TMDB:285250 (2026)
+(index):2526 [TMDB] ✅ Legacy proxy success: /search/tv (returned page: 1)
+(index):3844 [TVMaze→TMDB] ✅ Search year match: "Sharp Turns" (2026) → TMDB:280133 (2026)
+(index):2526 [TMDB] ✅ Legacy proxy success: /find/467181 (returned page: N/A)
+(index):3799 [TVMaze→TMDB] ✅ TheTVDB bridge: "The Road to Splendor" → TMDB:287496
+blob-cache-client.js:387 [Blob Cache] 💾 Writing cache: hero-slider (12.2KB)
+(index):2526 [TMDB] ✅ Legacy proxy success: /find/tt27432264 (returned page: N/A)
+(index):3785 [TVMaze→TMDB] ✅ IMDb bridge: "Xian Ni" → TMDB:223911
+(index):2526 [TMDB] ✅ Legacy proxy success: /tv/on_the_air (returned page: 1)
+(index):4067 [Hero] 📺 TMDB TV with 2026 filter: 15 shows ready
+(index):4113 [Hero] 🎬 Fetched 15 TV (TMDB Current-Year) + 45 Anilist airing anime
+(index):4114 [Hero] 📅 Source: TMDB Current-Year - current-year filter applied for fresh content
+(index):4349 [Hero Image] Mapping 45 Anilist anime with banner images...
+(index):4396 [Hero Image] Resolution complete: {anilist-banner: 45}
+(index):4424 [Hero] 15 TMDB + 45 Jikan = 60 total slides
+blob-cache-client.js:387 [Blob Cache] 💾 Writing cache: heroSlider (65.0KB)
+(index):3230 [Lazy Loader] ✅ #heroSlider loaded in 6204ms
+(index):3808 [TVMaze→TMDB] 🔍 No external ID for "A Father's Debt" - trying search...
+(index):3046 [API Queue] ✅ [anilist-3130] Completed in 2168ms
+blob-cache-client.js:387 [Blob Cache] 💾 Writing cache: trending-today (12.0KB)
+(index):2526 [TMDB] ✅ Legacy proxy success: /trending/all/day (returned page: 1)
+blob-cache-client.js:387 [Blob Cache] ✅ Cached successfully: hero-slider
+(index):3034 [API Queue] ▶️ [tvmaze-3130] Priority 4 | Active: 1/3 | Queue: 0
+(index):3874 [TVMaze] 🚀 Starting TVMaze + TMDB bridge pipeline...
+(index):3582 [TVMaze-🔄] Rotation: using "CN" this load (time-based, no storage)
+(index):3516 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=CN
+blob-cache-client.js:387 [Blob Cache] 📖 Reading cache: top-airing
+cache-integration.js:263  POST https://rowana.vercel.app/api/blob-cache 500 (Internal Server Error)
+window.fetch @ cache-integration.js:263
+write @ blob-cache-client.js:94
+cacheSection @ cache-integration.js:284
+loadHero @ (index):4429
+await in loadHero
+executeLoad @ (index):3228
+register @ (index):3194
+init @ (index):7404
+(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/search/tv?query=A%20Father%27s%20Debt&page=1' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+cache-integration.js:263  GET https://t-umi.bionmovies47.workers.dev/search/tv?query=A%20Father%27s%20Debt&page=1 net::ERR_FAILED 403 (Forbidden)
+window.fetch @ cache-integration.js:263
+fetchTMDB @ (index):2497
+searchTMDBFallback @ (index):3826
+bridgeTVMazeToTMDB @ (index):3809
+(anonymous) @ (index):3914
+getTVMazeShowsWithTMDBData @ (index):3913
+await in getTVMazeShowsWithTMDBData
+loadTopAiring @ (index):4646
+executeLoad @ (index):3228
+(anonymous) @ (index):3192
+setTimeout
+register @ (index):3192
+init @ (index):7411
+(index):2508 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+fetchTMDB @ (index):2508
+await in fetchTMDB
+searchTMDBFallback @ (index):3826
+bridgeTVMazeToTMDB @ (index):3809
+(anonymous) @ (index):3914
+getTVMazeShowsWithTMDBData @ (index):3913
+await in getTVMazeShowsWithTMDBData
+loadTopAiring @ (index):4646
+executeLoad @ (index):3228
+(anonymous) @ (index):3192
+setTimeout
+register @ (index):3192
+init @ (index):7411
+blob-cache-client.js:387 [Blob Cache] ❌ Failed to cache: Unknown section: heroSlider
+cache-integration.js:285 [CacheHelpers] ✅ Cached: heroSlider
+blob-cache-client.js:387 [Blob Cache] ✅ Cached successfully: trending-today
+blob-cache-client.js:387 [Blob Cache] ⚠️ Cache MISS: top-airing (unknown)
+cache-integration.js:235 [Cache Interceptor] 🔄 MISS: top-airing
+(index):3230 [Lazy Loader] ✅ #trendingList loaded in 7766ms
+(index):2526 [TMDB] ✅ Legacy proxy success: /search/tv (returned page: 1)
+(index):3838 [TVMaze→TMDB] ✅ Search exact match: "A Father's Debt" → TMDB:331662
+(index):3935 [TVMaze] ✅ Successfully bridged 11/11 shows to TMDB
+(index):4667 [Top Airing] 📺 Using TVMaze Multi-Country: 11 shows
+(index):4686 [Top Airing] ✅ TVMaze TV ready: 11 shows
+blob-cache-client.js:387 [Blob Cache] 💾 Writing cache: topAiring (10.7KB)
+(index):3230 [Lazy Loader] ✅ #topAiringSection loaded in 7556ms
+(index):7468 [Safety Net] ⏱️ 8s elapsed, force-loading 8 remaining sections...
+(index):3281 [Lazy Loader] ⚡ Force-loading 8 remaining sections...
+(index):3225 [Lazy Loader] 🚀 Loading #upcomingSection...
+(index):5695 [Upcoming] Starting queue-managed fetch: movies + TV + anime, each sequential/rate-limited, stopping once 50 collected...
+(index):5697 [Upcoming] Today's date: 2026-08-23
+blob-cache-client.js:387 [Blob Cache] 📖 Reading cache: upcoming-movies
+(index):3225 [Lazy Loader] 🚀 Loading #completedGrid...
+(index):5900 [Completed] 📄 Loading page 1 (tmdbPages: 3, range: 2026-02-24 to 2026-08-23)
+(index):2511 [TMDB] ⏭️ Skipping t-umi for paginated request (page=2) - known caching bug
+(index):2511 [TMDB] ⏭️ Skipping t-umi for paginated request (page=3) - known caching bug
+(index):2511 [TMDB] ⏭️ Skipping t-umi for paginated request (page=2) - known caching bug
+(index):2511 [TMDB] ⏭️ Skipping t-umi for paginated request (page=3) - known caching bug
+(index):3225 [Lazy Loader] 🚀 Loading #popularAnimeList...
+(index):3225 [Lazy Loader] 🚀 Loading #eswWidget...
+(index):7293 [Schedule] 🚀 Fetching all 7 days in parallel...
+(index):6963 [Schedule] 🚀 Starting parallel fetch of all 7 days...
+(index):6933 [Schedule] Fetching: https://jikan-api-bohb.onrender.com/v4/schedule/monday?sfw=true
+(index):6933 [Schedule] Fetching: https://jikan-api-bohb.onrender.com/v4/schedule/tuesday?sfw=true
+(index):6933 [Schedule] Fetching: https://jikan-api-bohb.onrender.com/v4/schedule/wednesday?sfw=true
+(index):6933 [Schedule] Fetching: https://jikan-api-bohb.onrender.com/v4/schedule/thursday?sfw=true
+(index):6933 [Schedule] Fetching: https://jikan-api-bohb.onrender.com/v4/schedule/friday?sfw=true
+(index):6933 [Schedule] Fetching: https://jikan-api-bohb.onrender.com/v4/schedule/saturday?sfw=true
+(index):6933 [Schedule] Fetching: https://jikan-api-bohb.onrender.com/v4/schedule/sunday?sfw=true
+blob-cache-client.js:387 [Blob Cache] 💾 Writing cache: top-airing (40.9KB)
+(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/discover/tv?page=1&sort_by=popularity.desc&first_air_date.gte=2026-08-23' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+cache-integration.js:263  GET https://t-umi.bionmovies47.workers.dev/discover/tv?page=1&sort_by=popularity.desc&first_air_date.gte=2026-08-23 net::ERR_FAILED 403 (Forbidden)
+window.fetch @ cache-integration.js:263
+fetchTMDB @ (index):2497
+fetchUpcomingTVTMDB @ (index):5666
+loadUpcoming @ (index):5703
+executeLoad @ (index):3228
+(anonymous) @ (index):3284
+loadAllRemaining @ (index):3282
+(anonymous) @ (index):7469
+setTimeout
+init @ (index):7465
+(index):2508 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+fetchTMDB @ (index):2508
+await in fetchTMDB
+fetchUpcomingTVTMDB @ (index):5666
+loadUpcoming @ (index):5703
+executeLoad @ (index):3228
+(anonymous) @ (index):3284
+loadAllRemaining @ (index):3282
+(anonymous) @ (index):7469
+setTimeout
+init @ (index):7465
+(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/discover/tv?sort_by=first_air_date.desc&with_status=ended&first_air_date.gte=2026-02-24&first_air_date.lte=2026-08-23&page=1' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+cache-integration.js:263  GET https://t-umi.bionmovies47.workers.dev/discover/tv?sort_by=first_air_date.desc&with_status=ended&first_air_date.gte=2026-02-24&first_air_date.lte=2026-08-23&page=1 net::ERR_FAILED 403 (Forbidden)
+window.fetch @ cache-integration.js:263
+fetchTMDB @ (index):2497
+(anonymous) @ (index):5905
+loadCompleted @ (index):5904
+lazyLoader.register.immediate @ (index):7434
+executeLoad @ (index):3228
+(anonymous) @ (index):3284
+loadAllRemaining @ (index):3282
+(anonymous) @ (index):7469
+setTimeout
+init @ (index):7465
+(index):2508 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+fetchTMDB @ (index):2508
+await in fetchTMDB
+(anonymous) @ (index):5905
+loadCompleted @ (index):5904
+lazyLoader.register.immediate @ (index):7434
+executeLoad @ (index):3228
+(anonymous) @ (index):3284
+loadAllRemaining @ (index):3282
+(anonymous) @ (index):7469
+setTimeout
+init @ (index):7465
+(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/discover/movie?sort_by=release_date.desc&with_release_type=2|3&release_date.gte=2026-02-24&release_date.lte=2026-08-23&page=1' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+cache-integration.js:263  GET https://t-umi.bionmovies47.workers.dev/discover/movie?sort_by=release_date.desc&with_release_type=2|3&release_date.gte=2026-02-24&release_date.lte=2026-08-23&page=1 net::ERR_FAILED 403 (Forbidden)
+window.fetch @ cache-integration.js:263
+fetchTMDB @ (index):2497
+(anonymous) @ (index):5909
+loadCompleted @ (index):5908
+lazyLoader.register.immediate @ (index):7434
+executeLoad @ (index):3228
+(anonymous) @ (index):3284
+loadAllRemaining @ (index):3282
+(anonymous) @ (index):7469
+setTimeout
+init @ (index):7465
+(index):2508 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+fetchTMDB @ (index):2508
+await in fetchTMDB
+(anonymous) @ (index):5909
+loadCompleted @ (index):5908
+lazyLoader.register.immediate @ (index):7434
+executeLoad @ (index):3228
+(anonymous) @ (index):3284
+loadAllRemaining @ (index):3282
+(anonymous) @ (index):7469
+setTimeout
+init @ (index):7465
+(index):3528 [TVMaze] ✅ Fetched 19 episodes from CN
+(index):3557 [TVMaze] ✅ Unique shows from CN: 11
+(index):3619 [TVMaze-🔄] Final: 11 scripted shows from "CN"
+(index):3886 [TVMaze-🔄] Rotation result: 11 shows from "CN"
+(index):3903 [TVMaze] 📊 Total shows to bridge: 11
+(index):3808 [TVMaze→TMDB] 🔍 No external ID for "My Years as the Dragon-Seeking Master" - trying search...
+(index):3808 [TVMaze→TMDB] 🔍 No external ID for "Born Again" - trying search...
+cache-integration.js:263  POST https://rowana.vercel.app/api/blob-cache 500 (Internal Server Error)
+window.fetch @ cache-integration.js:263
+write @ blob-cache-client.js:94
+cacheSection @ cache-integration.js:284
+loadTopAiring @ (index):4730
+await in loadTopAiring
+executeLoad @ (index):3228
+(anonymous) @ (index):3192
+setTimeout
+register @ (index):3192
+init @ (index):7411
+blob-cache-client.js:387 [Blob Cache] ❌ Failed to cache: Unknown section: topAiring
+cache-integration.js:285 [CacheHelpers] ✅ Cached: topAiring
+blob-cache-client.js:387 [Blob Cache] ⚠️ Cache MISS: upcoming-movies (unknown)
+cache-integration.js:235 [Cache Interceptor] 🔄 MISS: upcoming-movies
+(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/find/tt7126882?external_source=imdb_id' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+cache-integration.js:263  GET https://t-umi.bionmovies47.workers.dev/find/tt7126882?external_source=imdb_id net::ERR_FAILED 403 (Forbidden)
+window.fetch @ cache-integration.js:263
+fetchTMDB @ (index):2497
+bridgeTVMazeToTMDB @ (index):3782
+(anonymous) @ (index):3914
+getTVMazeShowsWithTMDBData @ (index):3913
+await in getTVMazeShowsWithTMDBData
+(anonymous) @ (index):3143
+processQueue @ (index):3039
+await in processQueue
+(anonymous) @ (index):3013
+enqueue @ (index):2998
+queuedFetchTMDB @ (index):3128
+loadNewReleases @ (index):4924
+executeLoad @ (index):3228
+(anonymous) @ (index):3212
+handleIntersection @ (index):3205
+observer.IntersectionObserver.root @ (index):3161
+(index):2508 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+fetchTMDB @ (index):2508
+await in fetchTMDB
+bridgeTVMazeToTMDB @ (index):3782
+(anonymous) @ (index):3914
+getTVMazeShowsWithTMDBData @ (index):3913
+await in getTVMazeShowsWithTMDBData
+(anonymous) @ (index):3143
+processQueue @ (index):3039
+await in processQueue
+(anonymous) @ (index):3013
+enqueue @ (index):2998
+queuedFetchTMDB @ (index):3128
+loadNewReleases @ (index):4924
+executeLoad @ (index):3228
+(anonymous) @ (index):3212
+handleIntersection @ (index):3205
+observer.IntersectionObserver.root @ (index):3161
+(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/find/tt33501934?external_source=imdb_id' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+cache-integration.js:263  GET https://t-umi.bionmovies47.workers.dev/find/tt33501934?external_source=imdb_id net::ERR_FAILED 403 (Forbidden)
+window.fetch @ cache-integration.js:263
+fetchTMDB @ (index):2497
+bridgeTVMazeToTMDB @ (index):3782
+(anonymous) @ (index):3914
+getTVMazeShowsWithTMDBData @ (index):3913
+await in getTVMazeShowsWithTMDBData
+(anonymous) @ (index):3143
+processQueue @ (index):3039
+await in processQueue
+(anonymous) @ (index):3013
+enqueue @ (index):2998
+queuedFetchTMDB @ (index):3128
+loadNewReleases @ (index):4924
+executeLoad @ (index):3228
+(anonymous) @ (index):3212
+handleIntersection @ (index):3205
+observer.IntersectionObserver.root @ (index):3161
+(index):2508 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+fetchTMDB @ (index):2508
+await in fetchTMDB
+bridgeTVMazeToTMDB @ (index):3782
+(anonymous) @ (index):3914
+getTVMazeShowsWithTMDBData @ (index):3913
+await in getTVMazeShowsWithTMDBData
+(anonymous) @ (index):3143
+processQueue @ (index):3039
+await in processQueue
+(anonymous) @ (index):3013
+enqueue @ (index):2998
+queuedFetchTMDB @ (index):3128
+loadNewReleases @ (index):4924
+executeLoad @ (index):3228
+(anonymous) @ (index):3212
+handleIntersection @ (index):3205
+observer.IntersectionObserver.root @ (index):3161
+(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/search/tv?query=My%20Years%20as%20the%20Dragon-Seeking%20Master&page=1' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+cache-integration.js:263  GET https://t-umi.bionmovies47.workers.dev/search/tv?query=My%20Years%20as%20the%20Dragon-Seeking%20Master&page=1 net::ERR_FAILED 403 (Forbidden)
+window.fetch @ cache-integration.js:263
+fetchTMDB @ (index):2497
+searchTMDBFallback @ (index):3826
+bridgeTVMazeToTMDB @ (index):3809
+(anonymous) @ (index):3914
+getTVMazeShowsWithTMDBData @ (index):3913
+await in getTVMazeShowsWithTMDBData
+(anonymous) @ (index):3143
+processQueue @ (index):3039
+await in processQueue
+(anonymous) @ (index):3013
+enqueue @ (index):2998
+queuedFetchTMDB @ (index):3128
+loadNewReleases @ (index):4924
+executeLoad @ (index):3228
+(anonymous) @ (index):3212
+handleIntersection @ (index):3205
+observer.IntersectionObserver.root @ (index):3161
+(index):2508 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+fetchTMDB @ (index):2508
+await in fetchTMDB
+searchTMDBFallback @ (index):3826
+bridgeTVMazeToTMDB @ (index):3809
+(anonymous) @ (index):3914
+getTVMazeShowsWithTMDBData @ (index):3913
+await in getTVMazeShowsWithTMDBData
+(anonymous) @ (index):3143
+processQueue @ (index):3039
+await in processQueue
+(anonymous) @ (index):3013
+enqueue @ (index):2998
+queuedFetchTMDB @ (index):3128
+loadNewReleases @ (index):4924
+executeLoad @ (index):3228
+(anonymous) @ (index):3212
+handleIntersection @ (index):3205
+observer.IntersectionObserver.root @ (index):3161
+(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/search/tv?query=Born%20Again&page=1' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+cache-integration.js:263  GET https://t-umi.bionmovies47.workers.dev/search/tv?query=Born%20Again&page=1 net::ERR_FAILED 403 (Forbidden)
+window.fetch @ cache-integration.js:263
+fetchTMDB @ (index):2497
+searchTMDBFallback @ (index):3826
+bridgeTVMazeToTMDB @ (index):3809
+(anonymous) @ (index):3914
+getTVMazeShowsWithTMDBData @ (index):3913
+await in getTVMazeShowsWithTMDBData
+(anonymous) @ (index):3143
+processQueue @ (index):3039
+await in processQueue
+(anonymous) @ (index):3013
+enqueue @ (index):2998
+queuedFetchTMDB @ (index):3128
+loadNewReleases @ (index):4924
+executeLoad @ (index):3228
+(anonymous) @ (index):3212
+handleIntersection @ (index):3205
+observer.IntersectionObserver.root @ (index):3161
+(index):2508 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+fetchTMDB @ (index):2508
+await in fetchTMDB
+searchTMDBFallback @ (index):3826
+bridgeTVMazeToTMDB @ (index):3809
+(anonymous) @ (index):3914
+getTVMazeShowsWithTMDBData @ (index):3913
+await in getTVMazeShowsWithTMDBData
+(anonymous) @ (index):3143
+processQueue @ (index):3039
+await in processQueue
+(anonymous) @ (index):3013
+enqueue @ (index):2998
+queuedFetchTMDB @ (index):3128
+loadNewReleases @ (index):4924
+executeLoad @ (index):3228
+(anonymous) @ (index):3212
+handleIntersection @ (index):3205
+observer.IntersectionObserver.root @ (index):3161
+(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/find/tt37231342?external_source=imdb_id' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+cache-integration.js:263  GET https://t-umi.bionmovies47.workers.dev/find/tt37231342?external_source=imdb_id net::ERR_FAILED 403 (Forbidden)
+window.fetch @ cache-integration.js:263
+fetchTMDB @ (index):2497
+bridgeTVMazeToTMDB @ (index):3782
+(anonymous) @ (index):3914
+getTVMazeShowsWithTMDBData @ (index):3913
+await in getTVMazeShowsWithTMDBData
+(anonymous) @ (index):3143
+processQueue @ (index):3039
+await in processQueue
+(anonymous) @ (index):3013
+enqueue @ (index):2998
+queuedFetchTMDB @ (index):3128
+loadNewReleases @ (index):4924
+executeLoad @ (index):3228
+(anonymous) @ (index):3212
+handleIntersection @ (index):3205
+observer.IntersectionObserver.root @ (index):3161
+(index):2508 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+fetchTMDB @ (index):2508
+await in fetchTMDB
+bridgeTVMazeToTMDB @ (index):3782
+(anonymous) @ (index):3914
+getTVMazeShowsWithTMDBData @ (index):3913
+await in getTVMazeShowsWithTMDBData
+(anonymous) @ (index):3143
+processQueue @ (index):3039
+await in processQueue
+(anonymous) @ (index):3013
+enqueue @ (index):2998
+queuedFetchTMDB @ (index):3128
+loadNewReleases @ (index):4924
+executeLoad @ (index):3228
+(anonymous) @ (index):3212
+handleIntersection @ (index):3205
+observer.IntersectionObserver.root @ (index):3161
+(index):2526 [TMDB] ✅ Legacy proxy success: /discover/tv (returned page: 2)
+(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/movie/upcoming?page=1' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+cache-integration.js:236  GET https://t-umi.bionmovies47.workers.dev/movie/upcoming?page=1 net::ERR_FAILED 403 (Forbidden)
+window.fetch @ cache-integration.js:236
+await in window.fetch
+fetchTMDB @ (index):2497
+fetchUpcomingMoviesTMDB @ (index):5615
+loadUpcoming @ (index):5701
+executeLoad @ (index):3228
+(anonymous) @ (index):3284
+loadAllRemaining @ (index):3282
+(anonymous) @ (index):7469
+setTimeout
+init @ (index):7465
+cache-integration.js:256 [Cache Interceptor] ⚠️ Error, falling back to direct fetch: Failed to fetch
+window.fetch @ cache-integration.js:256
+await in window.fetch
+fetchTMDB @ (index):2497
+fetchUpcomingMoviesTMDB @ (index):5615
+loadUpcoming @ (index):5701
+executeLoad @ (index):3228
+(anonymous) @ (index):3284
+loadAllRemaining @ (index):3282
+(anonymous) @ (index):7469
+setTimeout
+init @ (index):7465
+(index):2526 [TMDB] ✅ Legacy proxy success: /discover/tv (returned page: 3)
+(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/movie/upcoming?page=1' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+cache-integration.js:257  GET https://t-umi.bionmovies47.workers.dev/movie/upcoming?page=1 net::ERR_FAILED 403 (Forbidden)
+window.fetch @ cache-integration.js:257
+await in window.fetch
+fetchTMDB @ (index):2497
+fetchUpcomingMoviesTMDB @ (index):5615
+loadUpcoming @ (index):5701
+executeLoad @ (index):3228
+(anonymous) @ (index):3284
+loadAllRemaining @ (index):3282
+(anonymous) @ (index):7469
+setTimeout
+init @ (index):7465
+(index):2508 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+fetchTMDB @ (index):2508
+await in fetchTMDB
+fetchUpcomingMoviesTMDB @ (index):5615
+loadUpcoming @ (index):5701
+executeLoad @ (index):3228
+(anonymous) @ (index):3284
+loadAllRemaining @ (index):3282
+(anonymous) @ (index):7469
+setTimeout
+init @ (index):7465
+blob-cache-client.js:387 [Blob Cache] 📖 Reading cache: upcoming-movies
+(index):2526 [TMDB] ✅ Legacy proxy success: /discover/movie (returned page: 3)
+(index):2526 [TMDB] ✅ Legacy proxy success: /discover/movie (returned page: 2)
+(index):2526 [TMDB] ✅ Legacy proxy success: /discover/tv (returned page: 1)
+(index):2526 [TMDB] ✅ Legacy proxy success: /discover/movie (returned page: 1)
+(index):2526 [TMDB] ✅ Legacy proxy success: /discover/tv (returned page: 1)
+(index):5686 [Upcoming TV] page 1/23: 20 raw → 20/50 collected
+(index):2526 [TMDB] ✅ Legacy proxy success: /search/tv (returned page: 1)
+(index):3844 [TVMaze→TMDB] ✅ Search year match: "Born Again" (2026) → TMDB:202555 (2025)
+(index):2526 [TMDB] ✅ Legacy proxy success: /find/tt33501934 (returned page: N/A)
+(index):3785 [TVMaze→TMDB] ✅ IMDb bridge: "Mushen Ji" → TMDB:236534
+(index):2526 [TMDB] ✅ Legacy proxy success: /find/tt37231342 (returned page: N/A)
+(index):3785 [TVMaze→TMDB] ✅ IMDb bridge: "Pull Strings" → TMDB:272938
+(index):2526 [TMDB] ✅ Legacy proxy success: /find/tt7126882 (returned page: N/A)
+(index):3785 [TVMaze→TMDB] ✅ IMDb bridge: "Boy Hood" → TMDB:119538
+(index):2526 [TMDB] ✅ Legacy proxy success: /search/tv (returned page: 1)
+(index):3838 [TVMaze→TMDB] ✅ Search exact match: "My Years as the Dragon-Seeking Master" → TMDB:331756
+blob-cache-client.js:387 [Blob Cache] ✅ Cached successfully: top-airing
+blob-cache-client.js:387 [Blob Cache] ⚠️ Cache MISS: upcoming-movies (unknown)
+cache-integration.js:235 [Cache Interceptor] 🔄 MISS: upcoming-movies
+(index):2511 [TMDB] ⏭️ Skipping t-umi for paginated request (page=2) - known caching bug
+(index):3808 [TVMaze→TMDB] 🔍 No external ID for "Forging Justice" - trying search...
+(index):3808 [TVMaze→TMDB] 🔍 No external ID for "Cicada" - trying search...
+(index):3808 [TVMaze→TMDB] 🔍 No external ID for "Sharp Turns" - trying search...
+(index):5576 [Upcoming Anime] Page 1: +50 raw → 50/50 collected (hasNextPage: true)
+(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/search/tv?query=Sharp%20Turns&page=1' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+cache-integration.js:263  GET https://t-umi.bionmovies47.workers.dev/search/tv?query=Sharp%20Turns&page=1 net::ERR_FAILED 403 (Forbidden)
+window.fetch @ cache-integration.js:263
+fetchTMDB @ (index):2497
+searchTMDBFallback @ (index):3826
+bridgeTVMazeToTMDB @ (index):3809
+(anonymous) @ (index):3914
+getTVMazeShowsWithTMDBData @ (index):3913
+await in getTVMazeShowsWithTMDBData
+(anonymous) @ (index):3143
+processQueue @ (index):3039
+await in processQueue
+(anonymous) @ (index):3013
+enqueue @ (index):2998
+queuedFetchTMDB @ (index):3128
+loadNewReleases @ (index):4924
+executeLoad @ (index):3228
+(anonymous) @ (index):3212
+handleIntersection @ (index):3205
+observer.IntersectionObserver.root @ (index):3161
+(index):2508 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+fetchTMDB @ (index):2508
+await in fetchTMDB
+searchTMDBFallback @ (index):3826
+bridgeTVMazeToTMDB @ (index):3809
+(anonymous) @ (index):3914
+getTVMazeShowsWithTMDBData @ (index):3913
+await in getTVMazeShowsWithTMDBData
+(anonymous) @ (index):3143
+processQueue @ (index):3039
+await in processQueue
+(anonymous) @ (index):3013
+enqueue @ (index):2998
+queuedFetchTMDB @ (index):3128
+loadNewReleases @ (index):4924
+executeLoad @ (index):3228
+(anonymous) @ (index):3212
+handleIntersection @ (index):3205
+observer.IntersectionObserver.root @ (index):3161
+(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/find/tt27432264?external_source=imdb_id' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+cache-integration.js:263  GET https://t-umi.bionmovies47.workers.dev/find/tt27432264?external_source=imdb_id net::ERR_FAILED 403 (Forbidden)
+window.fetch @ cache-integration.js:263
+fetchTMDB @ (index):2497
+bridgeTVMazeToTMDB @ (index):3782
+(anonymous) @ (index):3914
+getTVMazeShowsWithTMDBData @ (index):3913
+await in getTVMazeShowsWithTMDBData
+(anonymous) @ (index):3143
+processQueue @ (index):3039
+await in processQueue
+(anonymous) @ (index):3013
+enqueue @ (index):2998
+queuedFetchTMDB @ (index):3128
+loadNewReleases @ (index):4924
+executeLoad @ (index):3228
+(anonymous) @ (index):3212
+handleIntersection @ (index):3205
+observer.IntersectionObserver.root @ (index):3161
+(index):2508 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+fetchTMDB @ (index):2508
+await in fetchTMDB
+bridgeTVMazeToTMDB @ (index):3782
+(anonymous) @ (index):3914
+getTVMazeShowsWithTMDBData @ (index):3913
+await in getTVMazeShowsWithTMDBData
+(anonymous) @ (index):3143
+processQueue @ (index):3039
+await in processQueue
+(anonymous) @ (index):3013
+enqueue @ (index):2998
+queuedFetchTMDB @ (index):3128
+loadNewReleases @ (index):4924
+executeLoad @ (index):3228
+(anonymous) @ (index):3212
+handleIntersection @ (index):3205
+observer.IntersectionObserver.root @ (index):3161
+(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/search/tv?query=Cicada&page=1' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+cache-integration.js:263  GET https://t-umi.bionmovies47.workers.dev/search/tv?query=Cicada&page=1 net::ERR_FAILED 403 (Forbidden)
+window.fetch @ cache-integration.js:263
+fetchTMDB @ (index):2497
+searchTMDBFallback @ (index):3826
+bridgeTVMazeToTMDB @ (index):3809
+(anonymous) @ (index):3914
+getTVMazeShowsWithTMDBData @ (index):3913
+await in getTVMazeShowsWithTMDBData
+(anonymous) @ (index):3143
+processQueue @ (index):3039
+await in processQueue
+(anonymous) @ (index):3013
+enqueue @ (index):2998
+queuedFetchTMDB @ (index):3128
+loadNewReleases @ (index):4924
+executeLoad @ (index):3228
+(anonymous) @ (index):3212
+handleIntersection @ (index):3205
+observer.IntersectionObserver.root @ (index):3161
+(index):2508 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+fetchTMDB @ (index):2508
+await in fetchTMDB
+searchTMDBFallback @ (index):3826
+bridgeTVMazeToTMDB @ (index):3809
+(anonymous) @ (index):3914
+getTVMazeShowsWithTMDBData @ (index):3913
+await in getTVMazeShowsWithTMDBData
+(anonymous) @ (index):3143
+processQueue @ (index):3039
+await in processQueue
+(anonymous) @ (index):3013
+enqueue @ (index):2998
+queuedFetchTMDB @ (index):3128
+loadNewReleases @ (index):4924
+executeLoad @ (index):3228
+(anonymous) @ (index):3212
+handleIntersection @ (index):3205
+observer.IntersectionObserver.root @ (index):3161
+(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/find/467181?external_source=tvdb_id' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+cache-integration.js:263  GET https://t-umi.bionmovies47.workers.dev/find/467181?external_source=tvdb_id net::ERR_FAILED 403 (Forbidden)
+window.fetch @ cache-integration.js:263
+fetchTMDB @ (index):2497
+bridgeTVMazeToTMDB @ (index):3796
+(anonymous) @ (index):3914
+getTVMazeShowsWithTMDBData @ (index):3913
+await in getTVMazeShowsWithTMDBData
+(anonymous) @ (index):3143
+processQueue @ (index):3039
+await in processQueue
+(anonymous) @ (index):3013
+enqueue @ (index):2998
+queuedFetchTMDB @ (index):3128
+loadNewReleases @ (index):4924
+executeLoad @ (index):3228
+(anonymous) @ (index):3212
+handleIntersection @ (index):3205
+observer.IntersectionObserver.root @ (index):3161
+(index):2508 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+fetchTMDB @ (index):2508
+await in fetchTMDB
+bridgeTVMazeToTMDB @ (index):3796
+(anonymous) @ (index):3914
+getTVMazeShowsWithTMDBData @ (index):3913
+await in getTVMazeShowsWithTMDBData
+(anonymous) @ (index):3143
+processQueue @ (index):3039
+await in processQueue
+(anonymous) @ (index):3013
+enqueue @ (index):2998
+queuedFetchTMDB @ (index):3128
+loadNewReleases @ (index):4924
+executeLoad @ (index):3228
+(anonymous) @ (index):3212
+handleIntersection @ (index):3205
+observer.IntersectionObserver.root @ (index):3161
+(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/search/tv?query=Forging%20Justice&page=1' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+cache-integration.js:263  GET https://t-umi.bionmovies47.workers.dev/search/tv?query=Forging%20Justice&page=1 net::ERR_FAILED 403 (Forbidden)
+window.fetch @ cache-integration.js:263
+fetchTMDB @ (index):2497
+searchTMDBFallback @ (index):3826
+bridgeTVMazeToTMDB @ (index):3809
+(anonymous) @ (index):3914
+getTVMazeShowsWithTMDBData @ (index):3913
+await in getTVMazeShowsWithTMDBData
+(anonymous) @ (index):3143
+processQueue @ (index):3039
+await in processQueue
+(anonymous) @ (index):3013
+enqueue @ (index):2998
+queuedFetchTMDB @ (index):3128
+loadNewReleases @ (index):4924
+executeLoad @ (index):3228
+(anonymous) @ (index):3212
+handleIntersection @ (index):3205
+observer.IntersectionObserver.root @ (index):3161
+(index):2508 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+fetchTMDB @ (index):2508
+await in fetchTMDB
+searchTMDBFallback @ (index):3826
+bridgeTVMazeToTMDB @ (index):3809
+(anonymous) @ (index):3914
+getTVMazeShowsWithTMDBData @ (index):3913
+await in getTVMazeShowsWithTMDBData
+(anonymous) @ (index):3143
+processQueue @ (index):3039
+await in processQueue
+(anonymous) @ (index):3013
+enqueue @ (index):2998
+queuedFetchTMDB @ (index):3128
+loadNewReleases @ (index):4924
+executeLoad @ (index):3228
+(anonymous) @ (index):3212
+handleIntersection @ (index):3205
+observer.IntersectionObserver.root @ (index):3161
+(index):1 [Intervention] Images loaded lazily and replaced with placeholders. Load events are deferred. See https://go.microsoft.com/fwlink/?linkid=2048113
+(index):3230 [Lazy Loader] ✅ #popularAnimeList loaded in 1143ms
+blob-cache-client.js:387 [Blob Cache] 💾 Writing cache: upcoming-movies (12.0KB)
+(index):2526 [TMDB] ✅ Legacy proxy success: /discover/tv (returned page: 2)
+(index):5686 [Upcoming TV] page 2/23: 20 raw → 38/50 collected
+(index):2526 [TMDB] ✅ Legacy proxy success: /search/tv (returned page: 1)
+(index):3844 [TVMaze→TMDB] ✅ Search year match: "Sharp Turns" (2026) → TMDB:280133 (2026)
+(index):2526 [TMDB] ✅ Legacy proxy success: /search/tv (returned page: 1)
+(index):3838 [TVMaze→TMDB] ✅ Search exact match: "Forging Justice" → TMDB:291856
+(index):2526 [TMDB] ✅ Legacy proxy success: /find/tt27432264 (returned page: N/A)
+(index):3785 [TVMaze→TMDB] ✅ IMDb bridge: "Xian Ni" → TMDB:223911
+(index):2526 [TMDB] ✅ Legacy proxy success: /find/467181 (returned page: N/A)
+(index):3799 [TVMaze→TMDB] ✅ TheTVDB bridge: "The Road to Splendor" → TMDB:287496
+(index):2526 [TMDB] ✅ Legacy proxy success: /search/tv (returned page: 1)
+(index):3844 [TVMaze→TMDB] ✅ Search year match: "Cicada" (2026) → TMDB:285250 (2026)
+(index):2526 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 1)
+(index):5636 [Upcoming Movies] page 1/70: 20 raw → 1/50 collected
+(index):7479 [System Status] {apiQueue: {…}, lazyLoader: {…}}
+(index):2511 [TMDB] ⏭️ Skipping t-umi for paginated request (page=3) - known caching bug
+(index):3808 [TVMaze→TMDB] 🔍 No external ID for "A Father's Debt" - trying search...
+(index):2511 [TMDB] ⏭️ Skipping t-umi for paginated request (page=2) - known caching bug
+blob-cache-client.js:387 [Blob Cache] 📖 Reading cache: upcoming-movies
+(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/search/tv?query=A%20Father%27s%20Debt&page=1' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+cache-integration.js:263  GET https://t-umi.bionmovies47.workers.dev/search/tv?query=A%20Father%27s%20Debt&page=1 net::ERR_FAILED 403 (Forbidden)
+window.fetch @ cache-integration.js:263
+fetchTMDB @ (index):2497
+searchTMDBFallback @ (index):3826
+bridgeTVMazeToTMDB @ (index):3809
+(anonymous) @ (index):3914
+getTVMazeShowsWithTMDBData @ (index):3913
+await in getTVMazeShowsWithTMDBData
+(anonymous) @ (index):3143
+processQueue @ (index):3039
+await in processQueue
+(anonymous) @ (index):3013
+enqueue @ (index):2998
+queuedFetchTMDB @ (index):3128
+loadNewReleases @ (index):4924
+executeLoad @ (index):3228
+(anonymous) @ (index):3212
+handleIntersection @ (index):3205
+observer.IntersectionObserver.root @ (index):3161
+(index):2508 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+fetchTMDB @ (index):2508
+await in fetchTMDB
+searchTMDBFallback @ (index):3826
+bridgeTVMazeToTMDB @ (index):3809
+(anonymous) @ (index):3914
+getTVMazeShowsWithTMDBData @ (index):3913
+await in getTVMazeShowsWithTMDBData
+(anonymous) @ (index):3143
+processQueue @ (index):3039
+await in processQueue
+(anonymous) @ (index):3013
+enqueue @ (index):2998
+queuedFetchTMDB @ (index):3128
+loadNewReleases @ (index):4924
+executeLoad @ (index):3228
+(anonymous) @ (index):3212
+handleIntersection @ (index):3205
+observer.IntersectionObserver.root @ (index):3161
+blob-cache-client.js:387 [Blob Cache] ✅ Cached successfully: upcoming-movies
+blob-cache-client.js:387 [Blob Cache] ⚠️ Cache MISS: upcoming-movies (unknown)
+cache-integration.js:235 [Cache Interceptor] 🔄 MISS: upcoming-movies
+(index):2526 [TMDB] ✅ Legacy proxy success: /discover/tv (returned page: 3)
+(index):5686 [Upcoming TV] page 3/23: 20 raw → 50/50 collected
+(index):2526 [TMDB] ✅ Legacy proxy success: /search/tv (returned page: 1)
+(index):3838 [TVMaze→TMDB] ✅ Search exact match: "A Father's Debt" → TMDB:331662
+(index):3935 [TVMaze] ✅ Successfully bridged 11/11 shows to TMDB
+(index):3046 [API Queue] ✅ [tvmaze-3130] Completed in 3662ms
+(index):4969 [New Releases] 📅 Filtered movies: keeping only 2026 releases (36 passed)
+(index):4978 [New Releases] 📺 Using TVMaze for TV: 11 shows
+(index):4995 [New Releases] ✅ TVMaze TV ready: 11 shows
+(index):5017 [New Releases] 🎌 Anilist success! Got 50 anime
+(index):5047 [New Releases] 📊 Content breakdown:
+(index):5048   • Anilist Airing Anime: 36 shows
+(index):5049   • TVMaze TV Shows: 11 shows
+(index):5050   • TMDB Movies (2026): 36 shows
+blob-cache-client.js:387 [Blob Cache] 💾 Writing cache: newReleases (38.8KB)
+(index):5083 [New Releases] ✅ Completed in 10675ms (with API queue optimization)
+(index):3230 [Lazy Loader] ✅ #newReleasesGrid loaded in 10696ms
+(index):3034 [API Queue] ▶️ [anilist-1353] Priority 3 | Active: 1/3 | Queue: 0
+blob-cache-client.js:387 [Blob Cache] 💾 Writing cache: upcoming-movies (12.3KB)
+(index):2526 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 2)
+(index):5636 [Upcoming Movies] page 2/71: 20 raw → 1/50 collected
+cache-integration.js:263  POST https://rowana.vercel.app/api/blob-cache 500 (Internal Server Error)
+window.fetch @ cache-integration.js:263
+write @ blob-cache-client.js:94
+cacheSection @ cache-integration.js:284
+loadNewReleases @ (index):5071
+await in loadNewReleases
+executeLoad @ (index):3228
+(anonymous) @ (index):3212
+handleIntersection @ (index):3205
+observer.IntersectionObserver.root @ (index):3161
+(index):2511 [TMDB] ⏭️ Skipping t-umi for paginated request (page=3) - known caching bug
+blob-cache-client.js:387 [Blob Cache] 📖 Reading cache: upcoming-movies
+blob-cache-client.js:387 [Blob Cache] ❌ Failed to cache: Unknown section: newReleases
+cache-integration.js:285 [CacheHelpers] ✅ Cached: newReleases
+blob-cache-client.js:387 [Blob Cache] ✅ Cached successfully: upcoming-movies
+blob-cache-client.js:387 [Blob Cache] ⚠️ Cache MISS: upcoming-movies (unknown)
+cache-integration.js:235 [Cache Interceptor] 🔄 MISS: upcoming-movies
+blob-cache-client.js:387 [Blob Cache] 💾 Writing cache: upcoming-movies (12.6KB)
+(index):2526 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 3)
+(index):5636 [Upcoming Movies] page 3/70: 20 raw → 3/50 collected
+(index):2511 [TMDB] ⏭️ Skipping t-umi for paginated request (page=4) - known caching bug
+blob-cache-client.js:387 [Blob Cache] 📖 Reading cache: upcoming-movies
+blob-cache-client.js:387 [Blob Cache] ✅ Cached successfully: upcoming-movies
+(index):3046 [API Queue] ✅ [anilist-1353] Completed in 1457ms
+(index):5971 [Completed] 🎌 Anilist success! Got 50 anime
+(index):5984 [Completed] 📺 TV page 1: 20 results | First: "Platini" (id:332488)
+(index):5984 [Completed] 📺 TV page 2: 20 results | First: "Rough Draft" (id:310355)
+(index):5984 [Completed] 📺 TV page 3: 20 results | First: "Kiss or Kill" (id:331312)
+(index):5987 [Completed] 🎬 Movie page 1: 20 results | First: "Lost Crook" (id:1754638)
+(index):5987 [Completed] 🎬 Movie page 2: 20 results | First: "Awakening in the Valley" (id:1745896)
+(index):5987 [Completed] 🎬 Movie page 3: 20 results | First: "A Beautiful Thing" (id:1754112)
+(index):3230 [Lazy Loader] ✅ #completedGrid loaded in 4473ms
+blob-cache-client.js:387 [Blob Cache] ⚠️ Cache MISS: upcoming-movies (unknown)
+cache-integration.js:235 [Cache Interceptor] 🔄 MISS: upcoming-movies
+blob-cache-client.js:387 [Blob Cache] 💾 Writing cache: upcoming-movies (13.5KB)
+(index):2526 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 4)
+(index):5636 [Upcoming Movies] page 4/71: 20 raw → 10/50 collected
+(index):2511 [TMDB] ⏭️ Skipping t-umi for paginated request (page=5) - known caching bug
+blob-cache-client.js:387 [Blob Cache] 📖 Reading cache: upcoming-movies
+blob-cache-client.js:387 [Blob Cache] ✅ Cached successfully: upcoming-movies
+blob-cache-client.js:387 [Blob Cache] ⚠️ Cache MISS: upcoming-movies (unknown)
+cache-integration.js:235 [Cache Interceptor] 🔄 MISS: upcoming-movies
+blob-cache-client.js:387 [Blob Cache] 💾 Writing cache: upcoming-movies (12.0KB)
+(index):2526 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 5)
+(index):5636 [Upcoming Movies] page 5/70: 20 raw → 13/50 collected
+(index):7479 [System Status] {apiQueue: {…}, lazyLoader: {…}}
+(index):2511 [TMDB] ⏭️ Skipping t-umi for paginated request (page=6) - known caching bug
+blob-cache-client.js:387 [Blob Cache] 📖 Reading cache: upcoming-movies
+blob-cache-client.js:387 [Blob Cache] ✅ Cached successfully: upcoming-movies
+blob-cache-client.js:387 [Blob Cache] ⚠️ Cache MISS: upcoming-movies (unknown)
+cache-integration.js:235 [Cache Interceptor] 🔄 MISS: upcoming-movies
+blob-cache-client.js:387 [Blob Cache] 💾 Writing cache: upcoming-movies (11.7KB)
+(index):2526 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 6)
+(index):5636 [Upcoming Movies] page 6/70: 20 raw → 21/50 collected
+(index):2511 [TMDB] ⏭️ Skipping t-umi for paginated request (page=7) - known caching bug
+blob-cache-client.js:387 [Blob Cache] 📖 Reading cache: upcoming-movies
+blob-cache-client.js:387 [Blob Cache] ✅ Cached successfully: upcoming-movies
+blob-cache-client.js:387 [Blob Cache] ⚠️ Cache MISS: upcoming-movies (unknown)
+cache-integration.js:235 [Cache Interceptor] 🔄 MISS: upcoming-movies
+blob-cache-client.js:387 [Blob Cache] 💾 Writing cache: upcoming-movies (13.2KB)
+(index):2526 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 7)
+(index):5636 [Upcoming Movies] page 7/70: 20 raw → 27/50 collected
+(index):2511 [TMDB] ⏭️ Skipping t-umi for paginated request (page=8) - known caching bug
+blob-cache-client.js:387 [Blob Cache] 📖 Reading cache: upcoming-movies
+blob-cache-client.js:387 [Blob Cache] ✅ Cached successfully: upcoming-movies
+blob-cache-client.js:387 [Blob Cache] ⚠️ Cache MISS: upcoming-movies (unknown)
+cache-integration.js:235 [Cache Interceptor] 🔄 MISS: upcoming-movies
+blob-cache-client.js:387 [Blob Cache] 💾 Writing cache: upcoming-movies (13.7KB)
+(index):2526 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 8)
+(index):5636 [Upcoming Movies] page 8/70: 20 raw → 31/50 collected
+(index):2511 [TMDB] ⏭️ Skipping t-umi for paginated request (page=9) - known caching bug
+blob-cache-client.js:387 [Blob Cache] 📖 Reading cache: upcoming-movies
+blob-cache-client.js:387 [Blob Cache] ✅ Cached successfully: upcoming-movies
+blob-cache-client.js:387 [Blob Cache] ⚠️ Cache MISS: upcoming-movies (unknown)
+cache-integration.js:235 [Cache Interceptor] 🔄 MISS: upcoming-movies
+blob-cache-client.js:387 [Blob Cache] 💾 Writing cache: upcoming-movies (12.9KB)
+(index):2526 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 9)
+(index):5636 [Upcoming Movies] page 9/70: 20 raw → 39/50 collected
+(index):2511 [TMDB] ⏭️ Skipping t-umi for paginated request (page=10) - known caching bug
+blob-cache-client.js:387 [Blob Cache] 📖 Reading cache: upcoming-movies
+blob-cache-client.js:387 [Blob Cache] ✅ Cached successfully: upcoming-movies
+blob-cache-client.js:387 [Blob Cache] ⚠️ Cache MISS: upcoming-movies (unknown)
+cache-integration.js:235 [Cache Interceptor] 🔄 MISS: upcoming-movies
+blob-cache-client.js:387 [Blob Cache] 💾 Writing cache: upcoming-movies (12.1KB)
+(index):2526 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 10)
+(index):5636 [Upcoming Movies] page 10/70: 20 raw → 49/50 collected
+(index):5712 [Upcoming] Raw fetch complete: 49 movies, 50 TV shows
+(index):5787 [Upcoming Filter] ✅ RESULTS: 49 movies + 50 TV + 50 anime
+blob-cache-client.js:387 [Blob Cache] 💾 Writing cache: upcoming (92.2KB)
+(index):3230 [Lazy Loader] ✅ #upcomingSection loaded in 11540ms
+(index):7479 [System Status] {apiQueue: {…}, lazyLoader: {…}}
+blob-cache-client.js:387 [Blob Cache] ✅ Cached successfully: upcoming-movies
+(index):6956 [Schedule] ⚠️ Failed to fetch monday: signal is aborted without reason
+fetchDayFromJikan @ (index):6956
+await in fetchDayFromJikan
+(anonymous) @ (index):6967
+fetchAllDaysParallel @ (index):6967
+loadSchedule @ (index):7294
+executeLoad @ (index):3228
+(anonymous) @ (index):3284
+loadAllRemaining @ (index):3282
+(anonymous) @ (index):7469
+setTimeout
+init @ (index):7465
+(index):6956 [Schedule] ⚠️ Failed to fetch tuesday: signal is aborted without reason
+fetchDayFromJikan @ (index):6956
+await in fetchDayFromJikan
+(anonymous) @ (index):6967
+fetchAllDaysParallel @ (index):6967
+loadSchedule @ (index):7294
+executeLoad @ (index):3228
+(anonymous) @ (index):3284
+loadAllRemaining @ (index):3282
+(anonymous) @ (index):7469
+setTimeout
+init @ (index):7465
+(index):6956 [Schedule] ⚠️ Failed to fetch wednesday: signal is aborted without reason
+fetchDayFromJikan @ (index):6956
+await in fetchDayFromJikan
+(anonymous) @ (index):6967
+fetchAllDaysParallel @ (index):6967
+loadSchedule @ (index):7294
+executeLoad @ (index):3228
+(anonymous) @ (index):3284
+loadAllRemaining @ (index):3282
+(anonymous) @ (index):7469
+setTimeout
+init @ (index):7465
+(index):6956 [Schedule] ⚠️ Failed to fetch thursday: signal is aborted without reason
+fetchDayFromJikan @ (index):6956
+await in fetchDayFromJikan
+(anonymous) @ (index):6967
+fetchAllDaysParallel @ (index):6967
+loadSchedule @ (index):7294
+executeLoad @ (index):3228
+(anonymous) @ (index):3284
+loadAllRemaining @ (index):3282
+(anonymous) @ (index):7469
+setTimeout
+init @ (index):7465
+(index):6956 [Schedule] ⚠️ Failed to fetch friday: signal is aborted without reason
+fetchDayFromJikan @ (index):6956
+await in fetchDayFromJikan
+(anonymous) @ (index):6967
+fetchAllDaysParallel @ (index):6967
+loadSchedule @ (index):7294
+executeLoad @ (index):3228
+(anonymous) @ (index):3284
+loadAllRemaining @ (index):3282
+(anonymous) @ (index):7469
+setTimeout
+init @ (index):7465
+(index):6956 [Schedule] ⚠️ Failed to fetch saturday: signal is aborted without reason
+fetchDayFromJikan @ (index):6956
+await in fetchDayFromJikan
+(anonymous) @ (index):6967
+fetchAllDaysParallel @ (index):6967
+loadSchedule @ (index):7294
+executeLoad @ (index):3228
+(anonymous) @ (index):3284
+loadAllRemaining @ (index):3282
+(anonymous) @ (index):7469
+setTimeout
+init @ (index):7465
+(index):6956 [Schedule] ⚠️ Failed to fetch sunday: signal is aborted without reason
+fetchDayFromJikan @ (index):6956
+await in fetchDayFromJikan
+(anonymous) @ (index):6967
+fetchAllDaysParallel @ (index):6967
+loadSchedule @ (index):7294
+executeLoad @ (index):3228
+(anonymous) @ (index):3284
+loadAllRemaining @ (index):3282
+(anonymous) @ (index):7469
+setTimeout
+init @ (index):7465
+(index):6977 [Schedule] ✅ Complete! Total: 0 anime across 7 days
+(index):3516 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=IN&date=2026-08-23
+blob-cache-client.js:387 [Blob Cache] 📖 Reading cache: top-airing
+(index):3230 [Lazy Loader] ✅ #eswWidget loaded in 12048ms
+cache-integration.js:263  POST https://rowana.vercel.app/api/blob-cache 500 (Internal Server Error)
+window.fetch @ cache-integration.js:263
+write @ blob-cache-client.js:94
+cacheSection @ cache-integration.js:284
+loadUpcoming @ (index):5798
+await in loadUpcoming
+executeLoad @ (index):3228
+(anonymous) @ (index):3284
+loadAllRemaining @ (index):3282
+(anonymous) @ (index):7469
+setTimeout
+init @ (index):7465
+blob-cache-client.js:387 [Blob Cache] ❌ Failed to cache: Unknown section: upcoming
+cache-integration.js:285 [CacheHelpers] ✅ Cached: upcoming
+blob-cache-client.js:387 [Blob Cache] ⚠️ Cache MISS: top-airing (unknown)
+cache-integration.js:235 [Cache Interceptor] 🔄 MISS: top-airing
+blob-cache-client.js:387 [Blob Cache] 💾 Writing cache: top-airing (1.7KB)
+(index):3528 [TVMaze] ✅ Fetched 1 episodes from IN (2026-08-23)
+(index):3557 [TVMaze] ✅ Unique shows from IN: 1
+(index):3678 [Sidebar-TVMaze] "IN" only had 0 usable shows for 2026-08-23, trying next country...
+fetchSidebarTVShowsForDate @ (index):3678
+await in fetchSidebarTVShowsForDate
+renderScheduleForDay @ (index):7069
+setCurrentDay @ (index):7277
+loadSchedule @ (index):7304
+await in loadSchedule
+executeLoad @ (index):3228
+(anonymous) @ (index):3284
+loadAllRemaining @ (index):3282
+(anonymous) @ (index):7469
+setTimeout
+init @ (index):7465
+(index):3516 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=KR&date=2026-08-23
+blob-cache-client.js:387 [Blob Cache] 📖 Reading cache: top-airing
+blob-cache-client.js:387 [Blob Cache] ⚠️ Cache MISS: top-airing (unknown)
+cache-integration.js:235 [Cache Interceptor] 🔄 MISS: top-airing
+blob-cache-client.js:387 [Blob Cache] ✅ Cached successfully: top-airing
+blob-cache-client.js:387 [Blob Cache] 💾 Writing cache: top-airing (4.2KB)
+(index):3528 [TVMaze] ✅ Fetched 2 episodes from KR (2026-08-23)
+(index):3557 [TVMaze] ✅ Unique shows from KR: 2
+(index):3678 [Sidebar-TVMaze] "KR" only had 2 usable shows for 2026-08-23, trying next country...
+fetchSidebarTVShowsForDate @ (index):3678
+await in fetchSidebarTVShowsForDate
+renderScheduleForDay @ (index):7069
+setCurrentDay @ (index):7277
+loadSchedule @ (index):7304
+await in loadSchedule
+executeLoad @ (index):3228
+(anonymous) @ (index):3284
+loadAllRemaining @ (index):3282
+(anonymous) @ (index):7469
+setTimeout
+init @ (index):7465
+(index):3516 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=TR&date=2026-08-23
+blob-cache-client.js:387 [Blob Cache] 📖 Reading cache: top-airing
+blob-cache-client.js:387 [Blob Cache] ✅ Cached successfully: top-airing
+blob-cache-client.js:387 [Blob Cache] ⚠️ Cache MISS: top-airing (unknown)
+cache-integration.js:235 [Cache Interceptor] 🔄 MISS: top-airing
+blob-cache-client.js:387 [Blob Cache] 💾 Writing cache: top-airing (1.9KB)
+(index):3528 [TVMaze] ✅ Fetched 1 episodes from TR (2026-08-23)
+(index):3557 [TVMaze] ✅ Unique shows from TR: 1
+(index):3678 [Sidebar-TVMaze] "TR" only had 1 usable shows for 2026-08-23, trying next country...
+fetchSidebarTVShowsForDate @ (index):3678
+await in fetchSidebarTVShowsForDate
+renderScheduleForDay @ (index):7069
+setCurrentDay @ (index):7277
+loadSchedule @ (index):7304
+await in loadSchedule
+executeLoad @ (index):3228
+(anonymous) @ (index):3284
+loadAllRemaining @ (index):3282
+(anonymous) @ (index):7469
+setTimeout
+init @ (index):7465
+(index):3516 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=US&date=2026-08-23
+blob-cache-client.js:387 [Blob Cache] 📖 Reading cache: top-airing
+blob-cache-client.js:387 [Blob Cache] ⚠️ Cache MISS: top-airing (unknown)
+cache-integration.js:235 [Cache Interceptor] 🔄 MISS: top-airing
+blob-cache-client.js:387 [Blob Cache] 💾 Writing cache: top-airing (89.0KB)
+(index):3528 [TVMaze] ✅ Fetched 43 episodes from US (2026-08-23)
+(index):3557 [TVMaze] ✅ Unique shows from US: 42
+(index):3681 [Sidebar-TVMaze] 11 TV shows from "US" for 2026-08-23
+2blob-cache-client.js:387 [Blob Cache] ✅ Cached successfully: top-airing
+(index):7479 [System Status] {apiQueue: {…}, lazyLoader: {…}}
+(index):7479 [System Status] {apiQueue: {…}, lazyLoader: {…}}
+(index):7479 [System Status] {apiQueue: {…}, lazyLoader: {…}}
+(index):7479 [System Status] {apiQueue: {…}, lazyLoader: {…}}
+(index):7479 [System Status] {apiQueue: {…}, lazyLoader: {…}}
+(index):7479 [System Status] {apiQueue: {…}, lazyLoader: {…}}
+(index):7479 [System Status] {apiQueue: {…}, lazyLoader: {…}}
+(index):7479 [System Status] {apiQueue: {…}, lazyLoader: {…}}
+(index):7479 [System Status] {apiQueue: {…}, lazyLoader: {…}}
+(index):7479 [System Status] {apiQueue: {…}, lazyLoader: {…}}
+(index):7479 [System Status] {apiQueue: {…}, lazyLoader: {…}}
+(index):7479 [System Status] {apiQueue: {…}, lazyLoader: {…}}
+(index):7479 [System Status] {apiQueue: {…}, lazyLoader: {…}}
+(index):7479 [System Status] {apiQueue: {…}, lazyLoader: {…}}
+(index):7479 [System Status] {apiQueue: {…}, lazyLoader: {…}}
+(index):7479 [System Status] {apiQueue: {…}, lazyLoader: {…}}
