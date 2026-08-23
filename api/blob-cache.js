@@ -1,14 +1,18 @@
 // ═══════════════════════════════════════════════════════════════════
-// VERCEL BLOB CACHE API - Simple Raw JSON Caching System v3.0
+// VERCEL BLOB CACHE API - Private Store Edition v4.0
 // 
+// Configuration:
+// - Store Type: PRIVATE (store_VcHlC7LrB4RyYVJn)
+// - Base URL: https://vchlc7lrb4ryyvjn.private.blob.vercel-storage.com
+//
 // Features:
 // - Stores COMPLETE raw JSON responses from TMDB/AniList/TVMaze APIs
 // - 6-hour TTL (Time-To-Live) auto-expiry
 // - Special pagination support for "recently-completed" section
 // - Works with existing proxy setup (t-umi, aniocen, etc.)
-// - Graceful fallback if Blob not configured (uses memory)
+// - Uses PRIVATE access for all Blob operations
 //
-// Actions: read, write, status, clear, list, ping
+// Actions: ping, read, write, status, list, clear, clear-all
 // ═══════════════════════════════════════════════════════════════════
 
 // ─────────────────────────────────────────────────────────────────────
@@ -63,24 +67,25 @@ const SECTIONS = {
   'trendingWeek': 'trending/week.json',
   'trendingMonth': 'trending/month.json',
   'mostFavourite': 'most-favourite.json',
-  'mostFavourite': 'most-favourite.json',
   'popularAnime': 'popular-anime.json',
   'upcoming': 'upcoming/movies.json',  // Generic upcoming
-  'newReleases': 'new-releases/all.json'  // Generic new releases
 };
 
-// In-memory fallback storage
+// In-memory fallback storage (used only if Blob fails completely)
 const memoryStore = new Map();
 let blobAvailable = false;
+let blobError = null;
 
 // Try to load @vercel/blob
 let Blob;
 try {
-  Blob = require('@vercel/blob');
+  const blobModule = require('@vercel/blob');
+  Blob = blobModule;
   blobAvailable = true;
-  console.log('[Blob Cache] ✅ @vercel/blob loaded');
+  console.log('[Blob Cache] ✅ @vercel/blob loaded (PRIVATE store mode)');
 } catch (e) {
   blobAvailable = false;
+  blobError = e.message;
   console.log(`[Blob Cache] ⚠️ Using memory fallback (${e.message})`);
 }
 
@@ -91,7 +96,7 @@ try {
 function getBlobKey(section, page = null) {
   const baseKey = SECTIONS[section];
   if (!baseKey) throw new Error(`Unknown section: ${section}`);
-  if (section === 'recently-completed' && page) {
+  if ((section === 'recently-completed' || section === 'recentlyCompleted') && page) {
     return CACHE_PREFIX + baseKey + `page-${page}.json`;
   }
   return CACHE_PREFIX + baseKey;
@@ -135,7 +140,7 @@ export default async function handler(req, res) {
   try {
     let result;
     switch (action) {
-      case 'ping': result = { message: 'pong', blobAvailable, time: new Date().toISOString() }; break;
+      case 'ping': result = await handlePing(); break;
       case 'read': result = await readCache(section, page); break;
       case 'write': result = await writeCache(section, data, page); break;
       case 'status': result = await getStatus(section); break;
@@ -148,7 +153,12 @@ export default async function handler(req, res) {
     return res.json({
       success: true,
       ...result,
-      _meta: { ms: Date.now() - start, ttl: TTL_SECONDS, storage: blobAvailable ? 'blob' : 'memory' }
+      _meta: { 
+        ms: Date.now() - start, 
+        ttl: TTL_SECONDS, 
+        storage: blobAvailable ? 'blob-private' : 'memory',
+        storeId: blobAvailable ? 'store_VcHlC7LrB4RyYVJn' : null
+      }
     });
     
   } catch (e) {
@@ -161,37 +171,63 @@ export default async function handler(req, res) {
 // OPERATIONS
 // ─────────────────────────────────────────────────────────────────────
 
+async function handlePing() {
+  return { 
+    message: 'pong', 
+    blobAvailable, 
+    mode: blobAvailable ? 'PRIVATE' : 'memory-fallback',
+    storeId: 'store_VcHlC7LrB4RyYVJn',
+    time: new Date().toISOString(),
+    ...(blobError ? { _warn: blobError } : {})
+  };
+}
+
 async function readCache(section, page) {
   const key = getBlobKey(section, page);
   
   if (blobAvailable) {
     try {
-      const meta = await Blob.head(key);
-      if (!meta) return { found: false, reason: 'not_cached' };
-      if (isExpired(meta.uploadedAt)) return { found: false, reason: 'expired', ttl: 0 };
+      // For private blobs, use get() to download content directly
+      const blob = await Blob.get(key, { access: 'private' });
       
-      // For private blobs, download and return data directly
-      // For public blobs, return URL (client can fetch)
-      const isPrivate = !meta.url.startsWith('https://public-');
-      
-      if (isPrivate) {
-        // Download blob content server-side
-        const blob = await Blob.get(key);
-        const data = await blob.text();
-        return { 
-          found: true, 
-          data: JSON.parse(data), // Return actual parsed data
-          size: meta.size, 
-          ttl: getTTL(meta.uploadedAt),
-          source: 'blob-private'
-        };
-      } else {
-        return { found: true, url: meta.url, size: meta.size, ttl: getTTL(meta.uploadedAt), source: 'blob-public' };
+      if (!blob) {
+        return { found: false, reason: 'not_cached' };
       }
+      
+      // Parse the blob content
+      const data = await blob.text();
+      const parsed = JSON.parse(data);
+      
+      // Check if we can get metadata (uploadedAt for TTL)
+      let meta;
+      try {
+        meta = await Blob.head(key);
+      } catch (e) {
+        // Head might fail, use current time
+        meta = null;
+      }
+      
+      const uploadedAt = meta?.uploadedAt || new Date().toISOString();
+      
+      if (isExpired(uploadedAt)) {
+        return { found: false, reason: 'expired', ttl: 0 };
+      }
+      
+      console.log(`[Blob Cache] 📖 READ ${key} (${data.length} chars)`);
+      return { 
+        found: true, 
+        data: parsed, // Return actual parsed data for private blobs
+        size: data.length, 
+        ttl: getTTL(uploadedAt),
+        source: 'blob-private',
+        at: uploadedAt
+      };
     } catch (e) {
+      console.log(`[Blob Cache] ⚠️ Read failed: ${e.message}`);
       return { found: false, reason: 'error', error: e.message };
     }
   } else {
+    // Memory fallback
     const memKey = key + (page ? `-p${page}` : '');
     const stored = memoryStore.get(memKey);
     if (!stored) return { found: false, reason: 'not_cached', _note: 'memory mode' };
@@ -203,42 +239,45 @@ async function readCache(section, page) {
 async function writeCache(section, data, page) {
   const key = getBlobKey(section, page);
   const json = typeof data === 'string' ? data : JSON.stringify(data);
+  const t = new Date().toISOString();
   
   if (blobAvailable) {
-    // Try public first, then private, then memory fallback
-    let blob;
     try {
-      // Try public access
-      blob = await Blob.put(key, json, { access: 'public', contentType: 'application/json', addRandomSuffix: false });
-    } catch (pubError) {
-      try {
-        // If public fails, try private
-        console.log(`[Blob Cache] Public access failed, trying private: ${pubError.message}`);
-        blob = await Blob.put(key, json, { access: 'private', contentType: 'application/json', addRandomSuffix: false });
-      } catch (privError) {
-        // Both failed - use memory fallback
-        console.log(`[Blob Cache] Private also failed, using memory: ${privError.message}`);
-        blobAvailable = false; // Disable blob for this request
-        
-        const memKey = key + (page ? `-p${page}` : '');
-        const t = new Date().toISOString();
-        memoryStore.set(memKey, { d: data, t });
-        
-        return { 
-          message: `[MEM] Cached: ${section}`, 
-          key: memKey, 
-          size: json.length, 
-          at: t, 
-          _warn: 'Using memory (Blob store config conflict)' 
-        };
-      }
+      // ALWAYS use private access for this store
+      const blob = await Blob.put(key, json, { 
+        access: 'private', 
+        contentType: 'application/json', 
+        addRandomSuffix: false 
+      });
+      
+      console.log(`[Blob Cache] 💾 WRITTEN ${key} (${json.length} chars) to PRIVATE store`);
+      return { 
+        message: `[BLOB-PRIVATE] Cached: ${section}${page ? ` p${page}` : ''}`, 
+        key, 
+        size: blob.size || json.length, 
+        at: t,
+        url: blob.url, // Private URL (only accessible via server)
+        store: 'private'
+      };
+    } catch (e) {
+      console.error(`[Blob Cache] ❌ Write failed: ${e.message}`);
+      
+      // Fall back to memory on failure
+      const memKey = key + (page ? `-p${page}` : '');
+      memoryStore.set(memKey, { d: data, t });
+      
+      return { 
+        message: `[MEM-FALLBACK] Cached: ${section}`, 
+        key: memKey, 
+        size: json.length, 
+        at: t, 
+        _warn: `Blob write failed: ${e.message}, using memory`,
+        error: e.message
+      };
     }
-    
-    console.log(`[Blob Cache] 💾 ${key} (${json.length} chars)`);
-    return { message: `Cached: ${section}${page ? ` p${page}` : ''}`, key, url: blob.url, size: blob.size, at: blob.uploadedAt };
   } else {
+    // Direct memory mode
     const memKey = key + (page ? `-p${page}` : '');
-    const t = new Date().toISOString();
     memoryStore.set(memKey, { d: data, t });
     console.log(`[Blob Cache] 💾 [MEM] ${memKey} (${json.length} chars)`);
     return { message: `[MEM] Cached: ${section}`, key: memKey, size: json.length, at: t, _warn: 'Memory only - restart clears it' };
@@ -252,8 +291,16 @@ async function getStatus(section) {
       try {
         const meta = await Blob.head(key);
         if (!meta) return { section, found: false, status: 'missing' };
-        return { section, found: true, status: isExpired(meta.uploadedAt) ? 'expired' : 'valid', size: meta.size, ttl: getTTL(meta.uploadedAt) };
-      } catch { return { section, found: false, status: 'missing' }; }
+        return { 
+          section, 
+          found: true, 
+          status: isExpired(meta.uploadedAt) ? 'expired' : 'valid', 
+          size: meta.size, 
+          ttl: getTTL(meta.uploadedAt),
+          at: meta.uploadedAt,
+          store: 'private'
+        };
+      } catch (e) { return { section, found: false, status: 'error', error: e.message }; }
     } else {
       const s = memoryStore.get(key);
       if (!s) return { section, found: false, status: 'missing' };
@@ -261,12 +308,12 @@ async function getStatus(section) {
     }
   }
 
-  // All sections
+  // All sections status
   const statuses = {};
   let valid = 0, expired = 0, missing = 0, totalSize = 0;
 
   for (const [name, path] of Object.entries(SECTIONS)) {
-    if (path.endsWith('/')) continue;
+    if (path.endsWith('/')) continue; // Skip pagination prefix
     const key = CACHE_PREFIX + path;
     
     if (blobAvailable) {
@@ -274,15 +321,32 @@ async function getStatus(section) {
         const m = await Blob.head(key);
         if (m) {
           const v = !isExpired(m.uploadedAt);
-          statuses[name] = { found: true, status: v ? 'valid' : 'expired', size: m.size, ttl: getTTL(m.uploadedAt) };
-          totalSize += m.size || 0; v ? valid++ : expired++;
-        } else { statuses[name] = { found: false }; missing++; }
-      } catch { statuses[name] = { found: false }; missing++; }
+          statuses[name] = { 
+            found: true, 
+            status: v ? 'valid' : 'expired', 
+            size: m.size, 
+            ttl: getTTL(m.uploadedAt),
+            at: m.uploadedAt,
+            store: 'private'
+          };
+          totalSize += m.size || 0; 
+          v ? valid++ : expired++;
+        } else { 
+          statuses[name] = { found: false, status: 'missing' }; 
+          missing++; 
+        }
+      } catch (e) { 
+        statuses[name] = { found: false, status: 'error', error: e.message }; 
+        missing++; 
+      }
     } else {
       const s = memoryStore.get(key);
-      if (s && !isExpired(s.t)) { statuses[name] = { found: true, status: 'valid', size: JSON.stringify(s.d).length, ttl: getTTL(s.t) }; totalSize += JSON.stringify(s.d).length; valid++; }
+      if (s && !isExpired(s.t)) { 
+        statuses[name] = { found: true, status: 'valid', size: JSON.stringify(s.d).length, ttl: getTTL(s.t) }; 
+        totalSize += JSON.stringify(s.d).length; valid++; 
+      }
       else if (s) { statuses[name] = { found: true, status: 'expired' }; expired++; }
-      else { statuses[name] = { found: false }; missing++; }
+      else { statuses[name] = { found: false, status: 'missing' }; missing++; }
     }
   }
 
@@ -295,9 +359,18 @@ async function getStatus(section) {
       statuses['recently-completed'].total = pages.length;
       pages.forEach(p => {
         const m = p.pathname.match(/page-(\d+)\.json$/);
-        if (m) statuses['recently-completed'].pages[m[1]] = { found: true, status: isExpired(p.uploadedAt) ? 'expired' : 'valid', size: p.size };
+        if (m) {
+          statuses['recently-completed'].pages[m[1]] = { 
+            found: true, 
+            status: isExpired(p.uploadedAt) ? 'expired' : 'valid', 
+            size: p.size,
+            at: p.uploadedAt
+          };
+        }
       });
-    } catch {}
+    } catch (e) {
+      console.log(`[Blob Cache] Error listing recently-completed: ${e.message}`);
+    }
   } else {
     let pc = 0;
     for (const [k, v] of memoryStore) {
@@ -309,18 +382,50 @@ async function getStatus(section) {
     statuses['recently-completed'].total = pc;
   }
 
-  return { overview: { total: Object.keys(SECTIONS).length, valid, expired, missing, totalSize, ttl: TTL_SECONDS, storage: blobAvailable ? 'blob' : 'memory' }, sections: statuses };
+  return { 
+    overview: { 
+      total: Object.keys(SECTIONS).length, 
+      valid, 
+      expired, 
+      missing, 
+      totalSize, 
+      ttl: TTL_SECONDS, 
+      storage: blobAvailable ? 'blob-private' : 'memory',
+      storeId: 'store_VcHlC7LrB4RyYVJn'
+    }, 
+    sections: statuses 
+  };
 }
 
 async function listAll() {
   if (blobAvailable) {
     try {
       const { blobs } = await Blob.list({ prefix: CACHE_PREFIX });
-      return { count: blobs.length, items: blobs.map(b => ({ path: b.pathname.replace(CACHE_PREFIX,''), url: b.url, size: b.size, at: b.uploadedAt, exp: isExpired(b.uploadedAt), ttl: getTTL(b.uploadedAt) })).sort((a,b) => new Date(b.at) - new Date(a.at)) };
-    } catch { return { count: 0, items: [] }; }
+      return { 
+        count: blobs.length, 
+        store: 'private',
+        items: blobs.map(b => ({ 
+          path: b.pathname.replace(CACHE_PREFIX,''), 
+          size: b.size, 
+          at: b.uploadedAt, 
+          exp: isExpired(b.uploadedAt), 
+          ttl: getTTL(b.uploadedAt),
+          url: '[private]' // Don't expose private URLs
+        })).sort((a,b) => new Date(b.at) - new Date(a.at)) 
+      };
+    } catch (e) { 
+      console.error(`[Blob Cache] List error: ${e.message}`);
+      return { count: 0, items: [], error: e.message }; 
+    }
   } else {
     const items = [];
-    for (const [k, v] of memoryStore) items.push({ path: k.replace(CACHE_PREFIX,''), size: JSON.stringify(v.d).length, at: v.t, exp: isExpired(v.t), ttl: getTTL(v.t) });
+    for (const [k, v] of memoryStore) items.push({ 
+      path: k.replace(CACHE_PREFIX,''), 
+      size: JSON.stringify(v.d).length, 
+      at: v.t, 
+      exp: isExpired(v.t), 
+      ttl: getTTL(v.t) 
+    });
     return { count: items.length, items: items.sort((a,b) => new Date(b.at) - new Date(a.at)) };
   }
 }
@@ -328,7 +433,11 @@ async function listAll() {
 async function clear(section) {
   const key = getBlobKey(section);
   if (blobAvailable) {
-    try { await Blob.del(key); return { cleared: true, section }; }
+    try { 
+      await Blob.del(key); 
+      console.log(`[Blob Cache] 🗑️ Cleared: ${key}`);
+      return { cleared: true, section }; 
+    }
     catch (e) { return { cleared: false, section, error: e.message }; }
   } else {
     return { cleared: memoryStore.delete(key), section };
@@ -341,8 +450,15 @@ async function clearAll() {
       const { blobs } = await Blob.list({ prefix: CACHE_PREFIX });
       let c = 0, f = 0;
       for (const b of blobs) {
-        try { await Blob.del(b.pathname); c++; }
-        catch { f++; }
+        try { 
+          await Blob.del(b.pathname); 
+          c++; 
+          console.log(`[Blob Cache] 🗑️ Deleted: ${b.pathname}`);
+        }
+        catch (e) { 
+          f++; 
+          console.error(`[Blob Cache] Failed to delete ${b.pathname}: ${e.message}`);
+        }
       }
       return { total: blobs.length, cleared: c, failed: f };
     } catch (e) { return { error: e.message }; }
@@ -352,4 +468,3 @@ async function clearAll() {
     return { total: c, cleared: c, failed: 0 };
   }
 }
-
