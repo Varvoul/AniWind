@@ -1,30 +1,15 @@
 // ═══════════════════════════════════════════════════════════════════
-// VERCEL BLOB CACHE API - Public Store Edition v5.0
+// VERCEL BLOB CACHE API - Correct Private Store Access v6.0
 // 
-// Configuration:
-// - Store ID: store_VcHlC7LrB4RyYVJn
-// - Access Mode: PUBLIC (store requires public access)
+// Store: store_VcHlC7LrB4RyYVJn (PRIVATE)
+// Uses: put() and get() with { access: 'private' }
 //
-// Features:
-// - Stores COMPLETE raw JSON responses from TMDB/AniList/TVMaze APIs
-// - 6-hour TTL (Time-To-Live) auto-expiry
-// - Special pagination support for "recently-completed" section
-// - Works with existing proxy setup (t-umi, aniocen, etc.)
-// - Uses PUBLIC access for all Blob operations (store requirement)
-//
-// Actions: ping, read, write, status, list, clear, clear-all
 // ═══════════════════════════════════════════════════════════════════
 
-// ─────────────────────────────────────────────────────────────────────
-// CONFIGURATION
-// ─────────────────────────────────────────────────────────────────────
-
 const CACHE_PREFIX = 'cache/';
-const TTL_SECONDS = 6 * 60 * 60; // 6 hours in seconds
+const TTL_SECONDS = 6 * 60 * 60;
 
-// All sections to cache (maps to blob keys)
 const SECTIONS = {
-  // Standard names (kebab-case)
   'hero-slider': 'hero-slider.json',
   'top-airing': 'top-airing.json',
   'new-releases-all': 'new-releases/all.json',
@@ -48,8 +33,7 @@ const SECTIONS = {
   'schedule-friday': 'schedule/friday.json',
   'schedule-saturday': 'schedule/saturday.json',
   'schedule-sunday': 'schedule/sunday.json',
-  
-  // CamelCase aliases
+  // Aliases
   'heroSlider': 'hero-slider.json',
   'topAiring': 'top-airing.json',
   'newReleases': 'new-releases/all.json',
@@ -70,27 +54,22 @@ const SECTIONS = {
   'upcoming': 'upcoming/movies.json',
 };
 
-// In-memory fallback storage
 const memoryStore = new Map();
 let blobAvailable = false;
-let blobError = null;
+let blobModule = null;
 
-// Try to load @vercel/blob
-let Blob;
+// Load @vercel/blob properly
 try {
-  const blobModule = require('@vercel/blob');
-  Blob = blobModule;
-  blobAvailable = true;
-  console.log('[Blob Cache] ✅ @vercel/blob loaded (PUBLIC store mode)');
+  blobModule = require('@vercel/blob');
+  if (blobModule && (blobModule.put || blobModule.default?.put)) {
+    blobAvailable = true;
+    console.log('[Blob Cache] ✅ @vercel/blob loaded (PRIVATE store)');
+  } else {
+    console.log('[Blob Cache] ⚠️ @vercel/blob loaded but missing put method');
+  }
 } catch (e) {
-  blobAvailable = false;
-  blobError = e.message;
-  console.log(`[Blob Cache] ⚠️ Using memory fallback (${e.message})`);
+  console.log(`[Blob Cache] ⚠️ Memory fallback (${e.message})`);
 }
-
-// ─────────────────────────────────────────────────────────────────────
-// HELPERS
-// ─────────────────────────────────────────────────────────────────────
 
 function getBlobKey(section, page = null) {
   const baseKey = SECTIONS[section];
@@ -112,10 +91,6 @@ function getTTL(timestamp) {
   return Math.max(0, remaining);
 }
 
-// ─────────────────────────────────────────────────────────────────────
-// HANDLER
-// ─────────────────────────────────────────────────────────────────────
-
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS, DELETE');
@@ -126,7 +101,6 @@ export default async function handler(req, res) {
 
   const start = Date.now();
   
-  // Parse body
   const chunks = [];
   for await (const chunk of req) chunks.push(chunk);
   let body;
@@ -139,70 +113,71 @@ export default async function handler(req, res) {
   try {
     let result;
     switch (action) {
-      case 'ping': result = await handlePing(); break;
+      case 'ping': result = handlePing(); break;
       case 'read': result = await readCache(section, page); break;
       case 'write': result = await writeCache(section, data, page); break;
       case 'status': result = await getStatus(section); break;
       case 'list': result = await listAll(); break;
       case 'clear': result = await clear(section); break;
       case 'clear-all': result = await clearAll(); break;
-      default: return res.status(400).json({ error: 'Invalid action', valid: ['ping','read','write','status','list','clear','clear-all'] });
+      default: return res.status(400).json({ error: 'Invalid action' });
     }
     
     return res.json({
       success: true,
       ...result,
-      _meta: { 
-        ms: Date.now() - start, 
-        ttl: TTL_SECONDS, 
-        storage: blobAvailable ? 'blob-public' : 'memory',
-        storeId: blobAvailable ? 'store_VcHlC7LrB4RyYVJn' : null
-      }
+      _meta: { ms: Date.now() - start, ttl: TTL_SECONDS, storage: blobAvailable ? 'blob-private' : 'memory' }
     });
     
   } catch (e) {
     console.error('[Blob Cache]', e.message);
-    return res.status(500).json({ success: false, error: e.message, _meta: { ms: Date.now() - start } });
+    return res.status(500).json({ success: false, error: e.message });
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────
-// OPERATIONS
-// ─────────────────────────────────────────────────────────────────────
-
-async function handlePing() {
+function handlePing() {
   return { 
     message: 'pong', 
     blobAvailable, 
-    mode: blobAvailable ? 'PUBLIC' : 'memory-fallback',
+    mode: 'PRIVATE',
     storeId: 'store_VcHlC7LrB4RyYVJn',
     time: new Date().toISOString(),
-    ...(blobError ? { _warn: blobError } : {})
+    hasPut: !!blobModule?.put,
+    hasGet: !!blobModule?.get,
+    hasHead: !!blobModule?.head,
+    hasList: !!blobModule?.list,
+    hasDel: !!blobModule?.del,
+    moduleKeys: Object.keys(blobModule || {})
   };
 }
 
 async function readCache(section, page) {
   const key = getBlobKey(section, page);
   
-  if (blobAvailable) {
+  if (blobAvailable && blobModule.get) {
     try {
-      // Check if blob exists and get metadata
-      const meta = await Blob.head(key);
+      // Use get() with private access for reading
+      const blob = await blobModule.get(key, { access: 'private' });
       
-      if (!meta) {
+      if (!blob) {
         return { found: false, reason: 'not_cached' };
       }
       
-      const uploadedAt = meta.uploadedAt || new Date().toISOString();
+      const data = await blob.text();
+      const parsed = JSON.parse(data);
+      
+      // Try to get upload time for TTL
+      let uploadedAt = new Date().toISOString();
+      try {
+        const meta = await blobModule.head(key);
+        if (meta?.uploadedAt) uploadedAt = meta.uploadedAt;
+      } catch (e) {
+        // head() might not work, use current time
+      }
       
       if (isExpired(uploadedAt)) {
         return { found: false, reason: 'expired', ttl: 0 };
       }
-      
-      // Download the blob content
-      const blob = await Blob.get(key);
-      const data = await blob.text();
-      const parsed = JSON.parse(data);
       
       console.log(`[Blob Cache] 📖 READ ${key} (${data.length} chars)`);
       return { 
@@ -210,16 +185,14 @@ async function readCache(section, page) {
         data: parsed,
         size: data.length, 
         ttl: getTTL(uploadedAt),
-        source: 'blob-public',
-        at: uploadedAt,
-        url: meta.url
+        source: 'blob-private',
+        at: uploadedAt
       };
     } catch (e) {
-      console.log(`[Blob Cache] ⚠️ Read failed: ${e.message}`);
+      console.log(`[Blob Cache] ⚠️ Read error: ${e.message}`);
       return { found: false, reason: 'error', error: e.message };
     }
   } else {
-    // Memory fallback
     const memKey = key + (page ? `-p${page}` : '');
     const stored = memoryStore.get(memKey);
     if (!stored) return { found: false, reason: 'not_cached', _note: 'memory mode' };
@@ -233,65 +206,55 @@ async function writeCache(section, data, page) {
   const json = typeof data === 'string' ? data : JSON.stringify(data);
   const t = new Date().toISOString();
   
-  if (blobAvailable) {
+  if (blobAvailable && blobModule.put) {
     try {
-      // Use PUBLIC access (store requirement)
-      const blob = await Blob.put(key, json, { 
-        access: 'public', 
+      // Use put() with private access
+      const blob = await blobModule.put(key, json, { 
+        access: 'private', 
         contentType: 'application/json', 
         addRandomSuffix: false 
       });
       
-      console.log(`[Blob Cache] 💾 WRITTEN ${key} (${json.length} chars) to PUBLIC store`);
+      console.log(`[Blob Cache] 💾 WRITTEN ${key} (${json.length} chars) ✅`);
       return { 
-        message: `[BLOB-PUBLIC] Cached: ${section}${page ? ` p${page}` : ''}`, 
+        message: `[BLOB] Cached: ${section}${page ? ` p${page}` : ''}`, 
         key, 
-        size: blob.size || json.length, 
+        size: blob?.size || json.length, 
         at: t,
-        url: blob.url,
-        store: 'public'
+        store: 'private',
+        url: blob?.url || '[private]'
       };
     } catch (e) {
-      console.error(`[Blob Cache] ❌ Write failed: ${e.message}`);
+      console.error(`[Blob Cache] ❌ Write error: ${e.message}`);
       
-      // Fall back to memory on failure
+      // Memory fallback
       const memKey = key + (page ? `-p${page}` : '');
       memoryStore.set(memKey, { d: data, t });
       
       return { 
-        message: `[MEM-FALLBACK] Cached: ${section}`, 
+        message: `[MEM] Cached: ${section}`, 
         key: memKey, 
         size: json.length, 
         at: t, 
-        _warn: `Blob write failed: ${e.message}, using memory`,
-        error: e.message
+        _warn: `Blob failed: ${e.message}`
       };
     }
   } else {
-    // Direct memory mode
     const memKey = key + (page ? `-p${page}` : '');
     memoryStore.set(memKey, { d: data, t });
     console.log(`[Blob Cache] 💾 [MEM] ${memKey} (${json.length} chars)`);
-    return { message: `[MEM] Cached: ${section}`, key: memKey, size: json.length, at: t, _warn: 'Memory only - restart clears it' };
+    return { message: `[MEM] Cached: ${section}`, key: memKey, size: json.length, at: t };
   }
 }
 
 async function getStatus(section) {
   if (section) {
     const key = getBlobKey(section);
-    if (blobAvailable) {
+    if (blobAvailable && blobModule.head) {
       try {
-        const meta = await Blob.head(key);
+        const meta = await blobModule.head(key);
         if (!meta) return { section, found: false, status: 'missing' };
-        return { 
-          section, 
-          found: true, 
-          status: isExpired(meta.uploadedAt) ? 'expired' : 'valid', 
-          size: meta.size, 
-          ttl: getTTL(meta.uploadedAt),
-          at: meta.uploadedAt,
-          store: 'public'
-        };
+        return { section, found: true, status: isExpired(meta.uploadedAt) ? 'expired' : 'valid', size: meta.size, ttl: getTTL(meta.uploadedAt), store: 'private' };
       } catch (e) { return { section, found: false, status: 'error', error: e.message }; }
     } else {
       const s = memoryStore.get(key);
@@ -300,7 +263,6 @@ async function getStatus(section) {
     }
   }
 
-  // All sections status
   const statuses = {};
   let valid = 0, expired = 0, missing = 0, totalSize = 0;
 
@@ -308,128 +270,56 @@ async function getStatus(section) {
     if (path.endsWith('/')) continue;
     const key = CACHE_PREFIX + path;
     
-    if (blobAvailable) {
+    if (blobAvailable && blobModule.head) {
       try {
-        const m = await Blob.head(key);
+        const m = await blobModule.head(key);
         if (m) {
           const v = !isExpired(m.uploadedAt);
-          statuses[name] = { 
-            found: true, 
-            status: v ? 'valid' : 'expired', 
-            size: m.size, 
-            ttl: getTTL(m.uploadedAt),
-            at: m.uploadedAt,
-            store: 'public'
-          };
-          totalSize += m.size || 0; 
-          v ? valid++ : expired++;
-        } else { 
-          statuses[name] = { found: false, status: 'missing' }; 
-          missing++; 
-        }
-      } catch (e) { 
-        statuses[name] = { found: false, status: 'error', error: e.message }; 
-        missing++; 
-      }
+          statuses[name] = { found: true, status: v ? 'valid' : 'expired', size: m.size, ttl: getTTL(m.uploadedAt), store: 'private' };
+          totalSize += m.size || 0; v ? valid++ : expired++;
+        } else { statuses[name] = { found: false }; missing++; }
+      } catch (e) { statuses[name] = { found: false }; missing++; }
     } else {
       const s = memoryStore.get(key);
-      if (s && !isExpired(s.t)) { 
-        statuses[name] = { found: true, status: 'valid', size: JSON.stringify(s.d).length, ttl: getTTL(s.t) }; 
-        totalSize += JSON.stringify(s.d).length; valid++; 
-      }
+      if (s && !isExpired(s.t)) { statuses[name] = { found: true, status: 'valid', size: JSON.stringify(s.d).length, ttl: getTTL(s.t) }; totalSize += JSON.stringify(s.d).length; valid++; }
       else if (s) { statuses[name] = { found: true, status: 'expired' }; expired++; }
-      else { statuses[name] = { found: false, status: 'missing' }; missing++; }
+      else { statuses[name] = { found: false }; missing++; }
     }
   }
 
-  // Recently completed pages
   statuses['recently-completed'] = { pages: {}, total: 0 };
-  if (blobAvailable) {
+  if (blobAvailable && blobModule.list) {
     try {
-      const { blobs } = await Blob.list({ prefix: CACHE_PREFIX + 'recently-completed/' });
+      const { blobs } = await blobModule.list({ prefix: CACHE_PREFIX + 'recently-completed/' });
       const pages = blobs.filter(b => b.pathname.includes('page-'));
       statuses['recently-completed'].total = pages.length;
       pages.forEach(p => {
         const m = p.pathname.match(/page-(\d+)\.json$/);
-        if (m) {
-          statuses['recently-completed'].pages[m[1]] = { 
-            found: true, 
-            status: isExpired(p.uploadedAt) ? 'expired' : 'valid', 
-            size: p.size,
-            at: p.uploadedAt
-          };
-        }
+        if (m) statuses['recently-completed'].pages[m[1]] = { found: true, status: isExpired(p.uploadedAt) ? 'expired' : 'valid', size: p.size };
       });
-    } catch (e) {
-      console.log(`[Blob Cache] Error listing recently-completed: ${e.message}`);
-    }
-  } else {
-    let pc = 0;
-    for (const [k, v] of memoryStore) {
-      if (k.includes('recently-completed') && k.includes('page-') && !isExpired(v.t)) {
-        const m = k.match(/page-(\d+)/);
-        if (m) { statuses['recently-completed'].pages[m[1]] = { found: true, status: 'valid' }; pc++; }
-      }
-    }
-    statuses['recently-completed'].total = pc;
+    } catch (e) {}
   }
 
-  return { 
-    overview: { 
-      total: Object.keys(SECTIONS).length, 
-      valid, 
-      expired, 
-      missing, 
-      totalSize, 
-      ttl: TTL_SECONDS, 
-      storage: blobAvailable ? 'blob-public' : 'memory',
-      storeId: 'store_VcHlC7LrB4RyYVJn'
-    }, 
-    sections: statuses 
-  };
+  return { overview: { total: Object.keys(SECTIONS).length, valid, expired, missing, totalSize, ttl: TTL_SECONDS, storage: blobAvailable ? 'blob-private' : 'memory' }, sections: statuses };
 }
 
 async function listAll() {
-  if (blobAvailable) {
+  if (blobAvailable && blobModule.list) {
     try {
-      const { blobs } = await Blob.list({ prefix: CACHE_PREFIX });
-      return { 
-        count: blobs.length, 
-        store: 'public',
-        items: blobs.map(b => ({ 
-          path: b.pathname.replace(CACHE_PREFIX,''), 
-          url: b.url,
-          size: b.size, 
-          at: b.uploadedAt, 
-          exp: isExpired(b.uploadedAt), 
-          ttl: getTTL(b.uploadedAt)
-        })).sort((a,b) => new Date(b.at) - new Date(a.at)) 
-      };
-    } catch (e) { 
-      console.error(`[Blob Cache] List error: ${e.message}`);
-      return { count: 0, items: [], error: e.message }; 
-    }
+      const { blobs } = await blobModule.list({ prefix: CACHE_PREFIX });
+      return { count: blobs.length, items: blobs.map(b => ({ path: b.pathname.replace(CACHE_PREFIX,''), size: b.size, at: b.uploadedAt, exp: isExpired(b.uploadedAt), ttl: getTTL(b.uploadedAt) })).sort((a,b) => new Date(b.at) - new Date(a.at)) };
+    } catch (e) { return { count: 0, items: [], error: e.message }; }
   } else {
     const items = [];
-    for (const [k, v] of memoryStore) items.push({ 
-      path: k.replace(CACHE_PREFIX,''), 
-      size: JSON.stringify(v.d).length, 
-      at: v.t, 
-      exp: isExpired(v.t), 
-      ttl: getTTL(v.t) 
-    });
+    for (const [k, v] of memoryStore) items.push({ path: k.replace(CACHE_PREFIX,''), size: JSON.stringify(v.d).length, at: v.t, exp: isExpired(v.t), ttl: getTTL(v.t) });
     return { count: items.length, items: items.sort((a,b) => new Date(b.at) - new Date(a.at)) };
   }
 }
 
 async function clear(section) {
   const key = getBlobKey(section);
-  if (blobAvailable) {
-    try { 
-      await Blob.del(key); 
-      console.log(`[Blob Cache] 🗑️ Cleared: ${key}`);
-      return { cleared: true, section }; 
-    }
+  if (blobAvailable && blobModule.del) {
+    try { await blobModule.del(key); return { cleared: true, section }; }
     catch (e) { return { cleared: false, section, error: e.message }; }
   } else {
     return { cleared: memoryStore.delete(key), section };
@@ -437,20 +327,13 @@ async function clear(section) {
 }
 
 async function clearAll() {
-  if (blobAvailable) {
+  if (blobAvailable && blobModule.list && blobModule.del) {
     try {
-      const { blobs } = await Blob.list({ prefix: CACHE_PREFIX });
+      const { blobs } = await blobModule.list({ prefix: CACHE_PREFIX });
       let c = 0, f = 0;
       for (const b of blobs) {
-        try { 
-          await Blob.del(b.pathname); 
-          c++; 
-          console.log(`[Blob Cache] 🗑️ Deleted: ${b.pathname}`);
-        }
-        catch (e) { 
-          f++; 
-          console.error(`[Blob Cache] Failed to delete ${b.pathname}: ${e.message}`);
-        }
+        try { await blobModule.del(b.pathname); c++; }
+        catch { f++; }
       }
       return { total: blobs.length, cleared: c, failed: f };
     } catch (e) { return { error: e.message }; }
