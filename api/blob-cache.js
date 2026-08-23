@@ -1,23 +1,21 @@
 // ═══════════════════════════════════════════════════════════════════
-// VERCEL BLOB CACHE API - Simple Raw JSON Caching System
+// VERCEL BLOB CACHE API - Simple Raw JSON Caching System v2.0
 // 
 // Features:
 // - Stores COMPLETE raw JSON responses from TMDB/AniList/TVMaze APIs
 // - 6-hour TTL (Time-To-Live) auto-expiry
 // - Special pagination support for "recently-completed" section
 // - Works with existing proxy setup (t-umi, aniocen, etc.)
+// - Graceful fallback if Blob not configured
 //
 // Actions: read, write, status, clear, list, init
 // ═══════════════════════════════════════════════════════════════════
-
-import { put, head, del, list } from '@vercel/blob';
 
 // ─────────────────────────────────────────────────────────────────────
 // CONFIGURATION
 // ─────────────────────────────────────────────────────────────────────
 
 const CACHE_PREFIX = 'cache/';
-const META_KEY = 'cache/_meta/status.json';
 const TTL_SECONDS = 6 * 60 * 60; // 6 hours in seconds
 
 // All sections to cache (maps to blob keys)
@@ -60,6 +58,29 @@ const SECTIONS = {
   'schedule-sunday': 'schedule/sunday.json'
 };
 
+// In-memory fallback storage (used when Blob is not available)
+const memoryStore = new Map();
+let blobAvailable = false;
+let blobError = null;
+
+// Try to import @vercel/blob - handle case where it's not configured
+let put, head, del, list;
+
+try {
+  const blobModule = require('@vercel/blob');
+  put = blobModule.put;
+  head = blobModule.head;
+  del = blobModule.del;
+  list = blobModule.list;
+  blobAvailable = true;
+  console.log('[Blob Cache] ✅ @vercel/blob loaded successfully');
+} catch (error) {
+  blobAvailable = false;
+  blobError = error.message;
+  console.log(`[Blob Cache] ⚠️ @vercel/blob not available: ${error.message}`);
+  console.log('[Blob Cache] 📦 Using in-memory fallback storage');
+}
+
 // ─────────────────────────────────────────────────────────────────────
 // HELPER FUNCTIONS
 // ─────────────────────────────────────────────────────────────────────
@@ -82,12 +103,12 @@ function getBlobKey(section, page = null) {
 }
 
 /**
- * Check if cache is expired based on metadata
+ * Check if cache is expired based on timestamp
  */
-function isExpired(metadata) {
-  if (!metadata) return true;
+function isExpired(timestamp) {
+  if (!timestamp) return true;
   
-  const uploadedAt = new Date(metadata.uploadedAt);
+  const uploadedAt = new Date(timestamp);
   const expiresAt = new Date(uploadedAt.getTime() + (TTL_SECONDS * 1000));
   return new Date() > expiresAt;
 }
@@ -95,13 +116,20 @@ function isExpired(metadata) {
 /**
  * Calculate seconds until expiry
  */
-function getSecondsUntilExpiry(metadata) {
-  if (!metadata) return 0;
+function getSecondsUntilExpiry(timestamp) {
+  if (!timestamp) return 0;
   
-  const uploadedAt = new Date(metadata.uploadedAt);
+  const uploadedAt = new Date(timestamp);
   const expiresAt = new Date(uploadedAt.getTime() + (TTL_SECONDS * 1000));
   const remaining = Math.floor((expiresAt - new Date()) / 1000);
   return Math.max(0, remaining);
+}
+
+/**
+ * Generate a simple unique ID for memory store entries
+ */
+function generateId() {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2);
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -118,10 +146,35 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
+  // Only accept POST requests
+  if (req.method !== 'POST') {
+    return res.status(405).json({ 
+      success: false, 
+      error: 'Method not allowed. Use POST.' 
+    });
+  }
+
   const startTime = Date.now();
   
   try {
-    const { action, section, data, page } = req.body || {};
+    // Parse request body manually (more reliable than req.body)
+    const chunks = [];
+    for await (const chunk of req) {
+      chunks.push(chunk);
+    }
+    const rawBody = Buffer.concat(chunks).toString('utf-8');
+    
+    let parsedBody;
+    try {
+      parsedBody = rawBody ? JSON.parse(rawBody) : {};
+    } catch (e) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid JSON in request body'
+      });
+    }
+    
+    const { action, section, data, page } = parsedBody || {};
     
     console.log(`[Blob Cache] 📥 Request: ${action || 'unknown'} | Section: ${section || 'all'} | Time: ${new Date().toISOString()}`);
     
@@ -152,11 +205,20 @@ export default async function handler(req, res) {
         result = await clearAllCache();
         break;
         
+      case 'ping':
+        result = { 
+          message: 'pong', 
+          blobAvailable, 
+          storageType: blobAvailable ? 'vercel-blob' : 'memory-fallback',
+          timestamp: new Date().toISOString()
+        };
+        break;
+        
       default:
         return res.status(400).json({
           success: false,
           error: 'Invalid action',
-          validActions: ['read', 'write', 'status', 'list', 'clear', 'clear-all']
+          validActions: ['read', 'write', 'status', 'list', 'clear', 'clear-all', 'ping']
         });
     }
     
@@ -169,7 +231,9 @@ export default async function handler(req, res) {
       _meta: {
         serverTime: new Date().toISOString(),
         responseTimeMs: duration,
-        ttlSeconds: TTL_SECONDS
+        ttlSeconds: TTL_SECONDS,
+        storageType: blobAvailable ? 'vercel-blob' : 'memory-fallback',
+        blobConfigured: blobAvailable
       }
     });
     
@@ -182,14 +246,15 @@ export default async function handler(req, res) {
       error: error.message,
       _meta: {
         serverTime: new Date().toISOString(),
-        responseTimeMs: duration
+        responseTimeMs: duration,
+        blobConfigured: blobAvailable
       }
     });
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// CACHE OPERATIONS
+// CACHE OPERATIONS (Unified - works with both Blob and Memory)
 // ─────────────────────────────────────────────────────────────────────
 
 /**
@@ -198,51 +263,81 @@ export default async function handler(req, res) {
 async function readCache(section, page = null) {
   const blobKey = getBlobKey(section, page);
   
-  try {
-    // Check if blob exists and get metadata
-    const metadata = await head(blobKey);
-    
-    if (!metadata) {
+  if (blobAvailable) {
+    // Use Vercel Blob
+    try {
+      const metadata = await head(blobKey);
+      
+      if (!metadata) {
+        return {
+          data: null,
+          found: false,
+          reason: 'not_cached'
+        };
+      }
+      
+      // Check if expired
+      if (isExpired(metadata.uploadedAt)) {
+        return {
+          data: null,
+          found: false,
+          reason: 'expired',
+          uploadedAt: metadata.uploadedAt,
+          secondsUntilExpiry: 0
+        };
+      }
+      
+      // Return URL for client to fetch
+      return {
+        found: true,
+        url: metadata.url,
+        downloaded: false,
+        uploadedAt: metadata.uploadedAt,
+        sizeBytes: metadata.size,
+        secondsUntilExpiry: getSecondsUntilExpiry(metadata.uploadedAt),
+        contentType: metadata.contentType
+      };
+      
+    } catch (error) {
       return {
         data: null,
         found: false,
-        reason: 'not_cached'
+        reason: 'not_cached',
+        error: error.message
+      };
+    }
+  } else {
+    // Use memory fallback
+    const memoryKey = `${blobKey}${page ? `-page-${page}` : ''}`;
+    const stored = memoryStore.get(memoryKey);
+    
+    if (!stored) {
+      return {
+        data: null,
+        found: false,
+        reason: 'not_cached',
+        _note: 'Using memory fallback (Blob not configured)'
       };
     }
     
-    // Check if expired
-    if (isExpired(metadata)) {
-      // Optionally delete expired cache
-      // await del(blobKey);
-      
+    if (isExpired(stored.timestamp)) {
+      memoryStore.delete(memoryKey);
       return {
         data: null,
         found: false,
         reason: 'expired',
-        uploadedAt: metadata.uploadedAt,
-        secondsUntilExpiry: 0
+        _note: 'Using memory fallback (Blob not configured)'
       };
     }
     
-    // Note: We can't read blob content directly in serverless easily
-    // Return metadata so client can fetch via URL or we stream it
     return {
       found: true,
-      url: metadata.url,
-      downloaded: false,
-      uploadedAt: metadata.uploadedAt,
-      sizeBytes: metadata.size,
-      secondsUntilExpiry: getSecondsUntilExpiry(metadata),
-      contentType: metadata.contentType
-    };
-    
-  } catch (error) {
-    // Blob doesn't exist
-    return {
-      data: null,
-      found: false,
-      reason: 'not_cached',
-      error: error.message
+      data: stored.data, // Return actual data from memory
+      source: 'memory',
+      uploadedAt: stored.timestamp,
+      sizeBytes: JSON.stringify(stored.data).length,
+      secondsUntilExpiry: getSecondsUntilExpiry(stored.timestamp),
+      _note: 'Served from memory (configure Vercel Blob for persistence)'
     };
   }
 }
@@ -256,24 +351,50 @@ async function writeCache(section, rawData, page = null) {
   // Store as complete raw JSON string
   const jsonString = typeof rawData === 'string' ? rawData : JSON.stringify(rawData);
   
-  const blob = await put(blobKey, jsonString, {
-    access: 'public',
-    contentType: 'application/json',
-    addRandomSuffix: false
-  });
-  
-  console.log(`[Blob Cache] 💾 Stored: ${blobKey} (${jsonString.length} chars)`);
-  
-  return {
-    message: `Cached: ${section}${page ? ` (page ${page})` : ''}`,
-    section,
-    page: page || null,
-    blobKey,
-    url: blob.url,
-    sizeBytes: blob.size,
-    uploadedAt: blob.uploadedAt,
-    expiresAt: new Date(Date.now() + (TTL_SECONDS * 1000)).toISOString()
-  };
+  if (blobAvailable) {
+    // Use Vercel Blob
+    const blob = await put(blobKey, jsonString, {
+      access: 'public',
+      contentType: 'application/json',
+      addRandomSuffix: false
+    });
+    
+    console.log(`[Blob Cache] 💾 Stored in Blob: ${blobKey} (${jsonString.length} chars)`);
+    
+    return {
+      message: `Cached: ${section}${page ? ` (page ${page})` : ''}`,
+      section,
+      page: page || null,
+      blobKey,
+      url: blob.url,
+      sizeBytes: blob.size,
+      uploadedAt: blob.uploadedAt,
+      expiresAt: new Date(Date.now() + (TTL_SECONDS * 1000)).toISOString()
+    };
+  } else {
+    // Use memory fallback
+    const memoryKey = `${blobKey}${page ? `-page-${page}` : ''}`;
+    const timestamp = new Date().toISOString();
+    
+    memoryStore.set(memoryKey, {
+      data: rawData, // Store original data (not stringified, to preserve structure)
+      timestamp: timestamp,
+      id: generateId()
+    });
+    
+    console.log(`[Blob Cache] 💾 Stored in Memory: ${memoryKey} (${jsonString.length} chars)`);
+    
+    return {
+      message: `Cached (memory): ${section}${page ? ` (page ${page})` : ''}`,
+      section,
+      page: page || null,
+      blobKey: memoryKey,
+      sizeBytes: jsonString.length,
+      uploadedAt: timestamp,
+      expiresAt: new Date(Date.now() + (TTL_SECONDS * 1000)).toISOString(),
+      _warning: 'Stored in memory only - will be lost on serverless restart. Configure BLOB_READ_WRITE_TOKEN for persistent storage.'
+    };
+  }
 }
 
 /**
@@ -284,33 +405,56 @@ async function getCacheStatus(section = null) {
     // Status for specific section
     const blobKey = getBlobKey(section);
     
-    try {
-      const metadata = await head(blobKey);
-      
-      if (!metadata) {
+    if (blobAvailable) {
+      try {
+        const metadata = await head(blobKey);
+        
+        if (!metadata) {
+          return {
+            section,
+            found: false,
+            status: 'not_cached'
+          };
+        }
+        
+        return {
+          section,
+          found: true,
+          status: isExpired(metadata.uploadedAt) ? 'expired' : 'valid',
+          uploadedAt: metadata.uploadedAt,
+          sizeBytes: metadata.size,
+          secondsUntilExpiry: getSecondsUntilExpiry(metadata.uploadedAt),
+          url: metadata.url
+        };
+        
+      } catch (error) {
         return {
           section,
           found: false,
-          status: 'not_cached'
+          status: 'not_cached',
+          error: error.message
+        };
+      }
+    } else {
+      // Memory fallback status
+      const stored = memoryStore.get(blobKey);
+      if (!stored) {
+        return {
+          section,
+          found: false,
+          status: 'not_cached',
+          _note: 'Memory fallback mode'
         };
       }
       
       return {
         section,
         found: true,
-        status: isExpired(metadata) ? 'expired' : 'valid',
-        uploadedAt: metadata.uploadedAt,
-        sizeBytes: metadata.size,
-        secondsUntilExpiry: getSecondsUntilExpiry(metadata),
-        url: metadata.url
-      };
-      
-    } catch (error) {
-      return {
-        section,
-        found: false,
-        status: 'error',
-        error: error.message
+        status: isExpired(stored.timestamp) ? 'expired' : 'valid',
+        uploadedAt: stored.timestamp,
+        sizeBytes: JSON.stringify(stored.data).length,
+        secondsUntilExpiry: getSecondsUntilExpiry(stored.timestamp),
+        _note: 'Memory fallback mode'
       };
     }
   }
@@ -323,58 +467,102 @@ async function getCacheStatus(section = null) {
   let missingCount = 0;
   
   for (const [sectionName, blobPath] of Object.entries(SECTIONS)) {
-    // Skip directory-style keys for now
+    // Skip directory-style keys for individual checks
     if (blobPath.endsWith('/')) continue;
     
     const blobKey = CACHE_PREFIX + blobPath;
     
-    try {
-      const metadata = await head(blobKey);
-      
-      if (metadata) {
-        const valid = !isExpired(metadata);
+    if (blobAvailable) {
+      try {
+        const metadata = await head(blobKey);
+        
+        if (metadata) {
+          const valid = !isExpired(metadata.uploadedAt);
+          statuses[sectionName] = {
+            found: true,
+            status: valid ? 'valid' : 'expired',
+            uploadedAt: metadata.uploadedAt,
+            sizeBytes: metadata.size,
+            secondsUntilExpiry: getSecondsUntilExpiry(metadata.uploadedAt)
+          };
+          
+          totalSize += metadata.size || 0;
+          if (valid) validCount++;
+          else expiredCount++;
+        } else {
+          statuses[sectionName] = { found: false, status: 'not_cached' };
+          missingCount++;
+        }
+      } catch (error) {
+        statuses[sectionName] = { found: false, status: 'not_cached' };
+        missingCount++;
+      }
+    } else {
+      // Memory fallback
+      const stored = memoryStore.get(blobKey);
+      if (stored && !isExpired(stored.timestamp)) {
         statuses[sectionName] = {
           found: true,
-          status: valid ? 'valid' : 'expired',
-          uploadedAt: metadata.uploadedAt,
-          sizeBytes: metadata.size,
-          secondsUntilExpiry: getSecondsUntilExpiry(metadata)
+          status: 'valid',
+          uploadedAt: stored.timestamp,
+          sizeBytes: JSON.stringify(stored.data).length,
+          secondsUntilExpiry: getSecondsUntilExpiry(stored.timestamp)
         };
-        
-        totalSize += metadata.size || 0;
-        if (valid) validCount++;
-        else expiredCount++;
+        totalSize += JSON.stringify(stored.data).length;
+        validCount++;
+      } else if (stored && isExpired(stored.timestamp)) {
+        statuses[sectionName] = { found: true, status: 'expired' };
+        expiredCount++;
       } else {
         statuses[sectionName] = { found: false, status: 'not_cached' };
         missingCount++;
       }
-    } catch (error) {
-      statuses[sectionName] = { found: false, status: 'not_cached' };
-      missingCount++;
     }
   }
   
-  // Also check recently-completed pages
+  // Check recently-completed pages
   statuses['recently-completed'] = { pages: {}, totalPages: 0 };
-  try {
-    const { blobs } = await list({ prefix: CACHE_PREFIX + 'recently-completed/' });
-    const pageBlobs = blobs.filter(b => b.pathname.includes('page-'));
-    statuses['recently-completed'].totalPages = pageBlobs.length;
-    
-    for (const pageBlob of pageBlobs) {
-      const pageMatch = pageBlob.pathname.match(/page-(\d+)\.json$/);
-      if (pageMatch) {
-        const pageNum = pageMatch[1];
-        statuses['recently-committed'].pages[pageNum] = {
-          found: true,
-          status: isExpired(pageBlob) ? 'expired' : 'valid',
-          uploadedAt: pageBlob.uploadedAt,
-          sizeBytes: pageBlob.size
-        };
+  
+  if (blobAvailable) {
+    try {
+      const { blobs } = await list({ prefix: CACHE_PREFIX + 'recently-completed/' });
+      const pageBlobs = blobs.filter(b => b.pathname.includes('page-'));
+      statuses['recently-completed'].totalPages = pageBlobs.length;
+      
+      for (const pageBlob of pageBlobs) {
+        const pageMatch = pageBlob.pathname.match(/page-(\d+)\.json$/);
+        if (pageMatch) {
+          const pageNum = pageMatch[1];
+          statuses['recently-completed'].pages[pageNum] = {
+            found: true,
+            status: isExpired(pageBlob.uploadedAt) ? 'expired' : 'valid',
+            uploadedAt: pageBlob.uploadedAt,
+            sizeBytes: pageBlob.size
+          };
+        }
+      }
+    } catch (error) {
+      // No recently-completed pages cached yet
+    }
+  } else {
+    // Check memory for paginated entries
+    let pageCount = 0;
+    for (const [key, value] of memoryStore.entries()) {
+      if (key.includes('recently-completed') && key.includes('page-')) {
+        const pageMatch = key.match(/page-(\d+)/);
+        if (pageMatch && !isExpired(value.timestamp)) {
+          const pageNum = pageMatch[1];
+          statuses['recently-completed'].pages[pageNum] = {
+            found: true,
+            status: 'valid',
+            uploadedAt: value.timestamp,
+            sizeBytes: JSON.stringify(value.data).length
+          };
+          pageCount++;
+        }
       }
     }
-  } catch (error) {
-    // No recently-completed pages cached yet
+    statuses['recently-completed'].totalPages = pageCount;
   }
   
   return {
@@ -384,7 +572,9 @@ async function getCacheStatus(section = null) {
       expired: expiredCount,
       missing: missingCount,
       totalSizeBytes: totalSize,
-      ttlSeconds: TTL_SECONDS
+      ttlSeconds: TTL_SECONDS,
+      storageType: blobAvailable ? 'vercel-blob' : 'memory-fallback',
+      blobConfigured: blobAvailable
     },
     sections: statuses,
     generatedAt: new Date().toISOString()
@@ -395,28 +585,49 @@ async function getCacheStatus(section = null) {
  * List all cached items
  */
 async function listCache() {
-  try {
-    const { blobs } = await list({ prefix: CACHE_PREFIX });
-    
-    const items = blobs.map(blob => ({
-      pathname: blob.pathname.replace(CACHE_PREFIX, ''),
-      url: blob.url,
-      sizeBytes: blob.size,
-      uploadedAt: blob.uploadedAt,
-      isExpired: isExpired(blob),
-      secondsUntilExpiry: getSecondsUntilExpiry(blob)
-    }));
+  if (blobAvailable) {
+    try {
+      const { blobs } = await list({ prefix: CACHE_PREFIX });
+      
+      const items = blobs.map(blob => ({
+        pathname: blob.pathname.replace(CACHE_PREFIX, ''),
+        url: blob.url,
+        sizeBytes: blob.size,
+        uploadedAt: blob.uploadedAt,
+        isExpired: isExpired(blob.uploadedAt),
+        secondsUntilExpiry: getSecondsUntilExpiry(blob.uploadedAt)
+      }));
+      
+      return {
+        count: items.length,
+        items: items.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt))
+      };
+      
+    } catch (error) {
+      return {
+        count: 0,
+        items: [],
+        error: error.message
+      };
+    }
+  } else {
+    // List from memory
+    const items = [];
+    for (const [key, value] of memoryStore.entries()) {
+      items.push({
+        pathname: key.replace(CACHE_PREFIX, ''),
+        sizeBytes: JSON.stringify(value.data).length,
+        uploadedAt: value.timestamp,
+        isExpired: isExpired(value.timestamp),
+        secondsUntilExpiry: getSecondsUntilExpiry(value.timestamp),
+        source: 'memory'
+      });
+    }
     
     return {
       count: items.length,
-      items: items.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt))
-    };
-    
-  } catch (error) {
-    return {
-      count: 0,
-      items: [],
-      error: error.message
+      items: items.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt)),
+      _note: 'Memory fallback - items lost on serverless restart'
     };
   }
 }
@@ -427,19 +638,32 @@ async function listCache() {
 async function clearCache(section) {
   const blobKey = getBlobKey(section);
   
-  try {
-    await del(blobKey);
+  if (blobAvailable) {
+    try {
+      await del(blobKey);
+      return {
+        message: `Cleared cache for: ${section}`,
+        section,
+        cleared: true
+      };
+    } catch (error) {
+      return {
+        message: `Failed to clear cache for: ${section}`,
+        section,
+        cleared: false,
+        error: error.message
+      };
+    }
+  } else {
+    // Clear from memory
+    const deleted = memoryStore.delete(blobKey);
     return {
-      message: `Cleared cache for: ${section}`,
+      message: deleted 
+        ? `Cleared memory cache for: ${section}`
+        : `No cache found for: ${section}`,
       section,
-      cleared: true
-    };
-  } catch (error) {
-    return {
-      message: `Failed to clear cache for: ${section}`,
-      section,
-      cleared: false,
-      error: error.message
+      cleared: deleted,
+      _note: 'Memory fallback'
     };
   }
 }
@@ -448,33 +672,47 @@ async function clearCache(section) {
  * Clear ALL cache
  */
 async function clearAllCache() {
-  try {
-    const { blobs } = await list({ prefix: CACHE_PREFIX });
-    
-    let cleared = 0;
-    let failed = 0;
-    
-    for (const blob of blobs) {
-      try {
-        await del(blob.pathname);
-        cleared++;
-      } catch (error) {
-        failed++;
-        console.error(`[Blob Cache] Failed to delete: ${blob.pathname}`, error.message);
+  if (blobAvailable) {
+    try {
+      const { blobs } = await list({ prefix: CACHE_PREFIX });
+      
+      let cleared = 0;
+      let failed = 0;
+      
+      for (const blob of blobs) {
+        try {
+          await del(blob.pathname);
+          cleared++;
+        } catch (error) {
+          failed++;
+          console.error(`[Blob Cache] Failed to delete: ${blob.pathname}`, error.message);
+        }
       }
+      
+      return {
+        message: 'Cleared all cache',
+        totalItems: blobs.length,
+        cleared,
+        failed
+      };
+      
+    } catch (error) {
+      return {
+        message: 'Failed to clear cache',
+        error: error.message
+      };
     }
+  } else {
+    // Clear all from memory
+    const count = memoryStore.size;
+    memoryStore.clear();
     
     return {
-      message: 'Cleared all cache',
-      totalItems: blobs.length,
-      cleared,
-      failed
-    };
-    
-  } catch (error) {
-    return {
-      message: 'Failed to clear cache',
-      error: error.message
+      message: 'Cleared all memory cache',
+      totalItems: count,
+      cleared: count,
+      failed: 0,
+      _note: 'Memory fallback cleared'
     };
   }
 }
