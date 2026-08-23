@@ -7,7 +7,17 @@
 // Import the cache API handler (simulates Vercel serverless function)
 import { neon } from '@neondatabase/serverless';
 
-const NEON_CONNECTION_STRING = 'postgresql://neondb_owner:npg_Wdf5XkBVbx1i@ep-super-dawn-azjwdm9a-pooler.c-3.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require';
+// NEON_CONNECTION_STRING is read from an environment variable — never
+// hardcode a live DB password in this file. Set it before running:
+//   NEON_CONNECTION_STRING=... node scripts/test-api-endpoint.js
+const NEON_CONNECTION_STRING = process.env.NEON_CONNECTION_STRING;
+
+if (!NEON_CONNECTION_STRING) {
+  throw new Error(
+    'Missing NEON_CONNECTION_STRING environment variable. ' +
+    'Set it before running this script — see the comment above.'
+  );
+}
 
 const sql = neon(NEON_CONNECTION_STRING);
 

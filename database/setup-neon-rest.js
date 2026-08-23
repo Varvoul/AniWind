@@ -1,6 +1,17 @@
 // Alternative: Use fetch to call Neon REST API directly
-const NEON_API_URL = 'https://ep-super-dawn-azjwdm9a.apirest.c-3.ap-southeast-1.aws.neon.tech/neondb/rest/v1';
-const NEON_API_KEY = 'napi_7fak07gaux9ioewri458o33psns69sf2nlycg8o69hasargl97jjwte55hgweiy7';
+//
+// NEON_API_URL / NEON_API_KEY are read from environment variables — never
+// hardcode a live key in this file. Set them before running:
+//   NEON_API_URL=... NEON_API_KEY=... node database/setup-neon-rest.js
+const NEON_API_URL = process.env.NEON_API_URL;
+const NEON_API_KEY = process.env.NEON_API_KEY;
+
+if (!NEON_API_URL || !NEON_API_KEY) {
+  throw new Error(
+    'Missing NEON_API_URL or NEON_API_KEY environment variable. ' +
+    'Set both before running this script — see the comment at the top of this file.'
+  );
+}
 
 async function neonSQL(query) {
   const response = await fetch(`${NEON_API_URL}/rpc/exec_sql`, {

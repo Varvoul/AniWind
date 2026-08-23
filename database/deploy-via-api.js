@@ -1,8 +1,19 @@
 // Neon Deployment via Management API
 // Uses the Neon API to execute SQL statements
+//
+// NEON_PROJECT_ID / NEON_API_KEY are read from environment variables —
+// never hardcode a live Neon API key in this file. Set them before running:
+//   NEON_PROJECT_ID=... NEON_API_KEY=... node database/deploy-via-api.js
+// or put them in a local, gitignored .env file loaded by your shell/tooling.
+const NEON_PROJECT_ID = process.env.NEON_PROJECT_ID;
+const NEON_API_KEY = process.env.NEON_API_KEY;
 
-const NEON_PROJECT_ID = 'fancy-hall-56456650';
-const NEON_API_KEY = 'napi_7fak07gaux9ioewri458o33psns69sf2nlycg8o69hasargl97jjwte55hgweiy7';
+if (!NEON_PROJECT_ID || !NEON_API_KEY) {
+  throw new Error(
+    'Missing NEON_PROJECT_ID or NEON_API_KEY environment variable. ' +
+    'Set both before running this script — see the comment at the top of this file.'
+  );
+}
 
 const NEON_API_BASE = `https://console.neon.tech/api/v2/projects/${NEON_PROJECT_ID}`;
 
