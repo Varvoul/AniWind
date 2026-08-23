@@ -181,7 +181,35 @@ async function writeCache(section, data, page) {
   const json = typeof data === 'string' ? data : JSON.stringify(data);
   
   if (blobAvailable) {
-    const blob = await Blob.put(key, json, { access: 'public', contentType: 'application/json', addRandomSuffix: false });
+    // Try public first, then private, then memory fallback
+    let blob;
+    try {
+      // Try public access
+      blob = await Blob.put(key, json, { access: 'public', contentType: 'application/json', addRandomSuffix: false });
+    } catch (pubError) {
+      try {
+        // If public fails, try private
+        console.log(`[Blob Cache] Public access failed, trying private: ${pubError.message}`);
+        blob = await Blob.put(key, json, { access: 'private', contentType: 'application/json', addRandomSuffix: false });
+      } catch (privError) {
+        // Both failed - use memory fallback
+        console.log(`[Blob Cache] Private also failed, using memory: ${privError.message}`);
+        blobAvailable = false; // Disable blob for this request
+        
+        const memKey = key + (page ? `-p${page}` : '');
+        const t = new Date().toISOString();
+        memoryStore.set(memKey, { d: data, t });
+        
+        return { 
+          message: `[MEM] Cached: ${section}`, 
+          key: memKey, 
+          size: json.length, 
+          at: t, 
+          _warn: 'Using memory (Blob store config conflict)' 
+        };
+      }
+    }
+    
     console.log(`[Blob Cache] 💾 ${key} (${json.length} chars)`);
     return { message: `Cached: ${section}${page ? ` p${page}` : ''}`, key, url: blob.url, size: blob.size, at: blob.uploadedAt };
   } else {
