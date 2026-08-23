@@ -19,7 +19,9 @@ const CACHE_PREFIX = 'cache/';
 const TTL_SECONDS = 6 * 60 * 60; // 6 hours in seconds
 
 // All sections to cache (maps to blob keys)
+// Includes multiple naming conventions for compatibility
 const SECTIONS = {
+  // Standard names (kebab-case)
   'hero-slider': 'hero-slider.json',
   'top-airing': 'top-airing.json',
   'new-releases-all': 'new-releases/all.json',
@@ -42,7 +44,29 @@ const SECTIONS = {
   'schedule-thursday': 'schedule/thursday.json',
   'schedule-friday': 'schedule/friday.json',
   'schedule-saturday': 'schedule/saturday.json',
-  'schedule-sunday': 'schedule/sunday.json'
+  'schedule-sunday': 'schedule/sunday.json',
+  
+  // CamelCase aliases (for compatibility with existing code)
+  'heroSlider': 'hero-slider.json',
+  'topAiring': 'top-airing.json',
+  'newReleases': 'new-releases/all.json',
+  'newReleasesAll': 'new-releases/all.json',
+  'newReleasesAnime': 'new-releases/anime.json',
+  'newReleasesMovie': 'new-releases/movie.json',
+  'newReleasesSeries': 'new-releases/series.json',
+  'newReleasesHidden': 'new-releases/hidden.json',
+  'newOnRowana': 'new-on-rowana.json',
+  'upcomingMovies': 'upcoming/movies.json',
+  'upcomingTv': 'upcoming/tv.json',
+  'recentlyCompleted': 'recently-completed/',
+  'trendingToday': 'trending/today.json',
+  'trendingWeek': 'trending/week.json',
+  'trendingMonth': 'trending/month.json',
+  'mostFavourite': 'most-favourite.json',
+  'mostFavourite': 'most-favourite.json',
+  'popularAnime': 'popular-anime.json',
+  'upcoming': 'upcoming/movies.json',  // Generic upcoming
+  'newReleases': 'new-releases/all.json'  // Generic new releases
 };
 
 // In-memory fallback storage

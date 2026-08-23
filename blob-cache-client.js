@@ -49,29 +49,50 @@ class VercelBlobCacheClient {
       
       const result = await response.json();
       
-      if (result.success && result.data?.found && !result.data.reason) {
+      // Server returns: { success, found, reason?, data?, url?, ... }
+      // - found: boolean indicating if cache hit
+      // - data: the actual cached content (when found=true)
+      // - reason: why it missed (when found=false)
+      
+      if (result.success && result.found) {
         this.log(`✅ Cache HIT: ${section}`);
         
-        // Fetch the actual data from the URL
-        if (result.data.url) {
-          const dataResponse = await fetch(result.data.url);
+        // Data is included directly in response (for memory/private blob)
+        if (result.data) {
+          return {
+            found: true,
+            data: result.data,  // Actual cached data
+            source: result.source || 'blob-cache',
+            uploadedAt: result.uploadedAt,
+            secondsUntilExpiry: result.ttl || result.secondsUntilExpiry,
+            sizeBytes: result.size
+          };
+        }
+        
+        // For public blobs, URL is provided - fetch from URL
+        if (result.url) {
+          const dataResponse = await fetch(result.url);
           const jsonData = await dataResponse.json();
           
           return {
             found: true,
             data: jsonData,
             source: 'blob-cache',
-            uploadedAt: result.data.uploadedAt,
-            secondsUntilExpiry: result.data.secondsUntilExpiry,
-            sizeBytes: result.data.sizeBytes
+            uploadedAt: result.uploadedAt,
+            secondsUntilExpiry: result.secondsUntilExpiry,
+            sizeBytes: result.sizeBytes
           };
         }
+        
+        // Found but no data or URL (edge case)
+        this.log(`⚠️ Cache HIT but no data/url for: ${section}`);
+        return { found: true, data: null, source: 'empty-cache' };
       }
       
-      this.log(`⚠️ Cache MISS: ${section} (${result.data?.reason || 'unknown'})`);
+      this.log(`⚠️ Cache MISS: ${section} (${result.reason || 'unknown'})`);
       return {
         found: false,
-        reason: result.data?.reason || 'unknown'
+        reason: result.reason || 'unknown'
       };
       
     } catch (error) {
