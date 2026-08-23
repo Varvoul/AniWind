@@ -1,8 +1,9 @@
 // ═══════════════════════════════════════════════════════════════════
-// VERCEL BLOB CACHE API - Correct Private Store Access v6.0
+// VERCEL BLOB CACHE API - Working Private Store v7.0
 // 
 // Store: store_VcHlC7LrB4RyYVJn (PRIVATE)
-// Uses: put() and get() with { access: 'private' }
+// Available methods: put, head, list, del, getDownloadUrl
+// NOTE: No get() method in Edge Functions - use getDownloadUrl() + fetch
 //
 // ═══════════════════════════════════════════════════════════════════
 
@@ -56,19 +57,16 @@ const SECTIONS = {
 
 const memoryStore = new Map();
 let blobAvailable = false;
-let blobModule = null;
+let Blob = null;
 
-// Load @vercel/blob properly
 try {
-  blobModule = require('@vercel/blob');
-  if (blobModule && (blobModule.put || blobModule.default?.put)) {
+  Blob = require('@vercel/blob');
+  if (Blob && Blob.put) {
     blobAvailable = true;
-    console.log('[Blob Cache] ✅ @vercel/blob loaded (PRIVATE store)');
-  } else {
-    console.log('[Blob Cache] ⚠️ @vercel/blob loaded but missing put method');
+    console.log('[Blob Cache] ✅ @vercel/blob loaded (PRIVATE store v7.0)');
   }
 } catch (e) {
-  console.log(`[Blob Cache] ⚠️ Memory fallback (${e.message})`);
+  console.log(`[Blob Cache] ⚠️ Memory mode (${e.message})`);
 }
 
 function getBlobKey(section, page = null) {
@@ -87,8 +85,7 @@ function isExpired(timestamp) {
 
 function getTTL(timestamp) {
   if (!timestamp) return 0;
-  const remaining = Math.floor((new Date(timestamp).getTime() + (TTL_SECONDS * 1000) - Date.now()) / 1000);
-  return Math.max(0, remaining);
+  return Math.max(0, Math.floor((new Date(timestamp).getTime() + (TTL_SECONDS * 1000) - Date.now()) / 1000));
 }
 
 export default async function handler(req, res) {
@@ -139,47 +136,61 @@ function handlePing() {
   return { 
     message: 'pong', 
     blobAvailable, 
-    mode: 'PRIVATE',
+    mode: 'PRIVATE-v7',
     storeId: 'store_VcHlC7LrB4RyYVJn',
     time: new Date().toISOString(),
-    hasPut: !!blobModule?.put,
-    hasGet: !!blobModule?.get,
-    hasHead: !!blobModule?.head,
-    hasList: !!blobModule?.list,
-    hasDel: !!blobModule?.del,
-    moduleKeys: Object.keys(blobModule || {})
+    methods: {
+      put: !!Blob?.put,
+      head: !!Blob?.head,
+      list: !!Blob?.list,
+      del: !!Blob?.del,
+      getDownloadUrl: !!Blob?.getDownloadUrl,
+      copy: !!Blob?.copy
+    }
   };
 }
 
 async function readCache(section, page) {
   const key = getBlobKey(section, page);
   
-  if (blobAvailable && blobModule.get) {
+  if (blobAvailable) {
     try {
-      // Use get() with private access for reading
-      const blob = await blobModule.get(key, { access: 'private' });
+      // Step 1: Check if blob exists and get metadata
+      const meta = await Blob.head(key);
       
-      if (!blob) {
+      if (!meta) {
         return { found: false, reason: 'not_cached' };
       }
       
-      const data = await blob.text();
-      const parsed = JSON.parse(data);
-      
-      // Try to get upload time for TTL
-      let uploadedAt = new Date().toISOString();
-      try {
-        const meta = await blobModule.head(key);
-        if (meta?.uploadedAt) uploadedAt = meta.uploadedAt;
-      } catch (e) {
-        // head() might not work, use current time
-      }
-      
+      // Step 2: Check expiry
+      const uploadedAt = meta.uploadedAt || new Date().toISOString();
       if (isExpired(uploadedAt)) {
         return { found: false, reason: 'expired', ttl: 0 };
       }
       
-      console.log(`[Blob Cache] 📖 READ ${key} (${data.length} chars)`);
+      // Step 3: Get download URL for private blob
+      let downloadUrl;
+      if (Blob.getDownloadUrl) {
+        try {
+          downloadUrl = await Blob.getDownloadUrl(key, { access: 'private' });
+        } catch (urlError) {
+          console.log(`[Blob Cache] getDownloadUrl failed: ${urlError.message}, trying direct URL`);
+          downloadUrl = meta.url; // Fallback to metadata URL
+        }
+      } else {
+        downloadUrl = meta.url;
+      }
+      
+      // Step 4: Fetch the actual content using the URL
+      const response = await fetch(downloadUrl);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status} when fetching blob`);
+      }
+      
+      const data = await response.text();
+      const parsed = JSON.parse(data);
+      
+      console.log(`[Blob Cache] 📖 READ ${key} (${data.length} chars) ✅`);
       return { 
         found: true, 
         data: parsed,
@@ -193,6 +204,7 @@ async function readCache(section, page) {
       return { found: false, reason: 'error', error: e.message };
     }
   } else {
+    // Memory fallback
     const memKey = key + (page ? `-p${page}` : '');
     const stored = memoryStore.get(memKey);
     if (!stored) return { found: false, reason: 'not_cached', _note: 'memory mode' };
@@ -206,26 +218,25 @@ async function writeCache(section, data, page) {
   const json = typeof data === 'string' ? data : JSON.stringify(data);
   const t = new Date().toISOString();
   
-  if (blobAvailable && blobModule.put) {
+  if (blobAvailable) {
     try {
-      // Use put() with private access
-      const blob = await blobModule.put(key, json, { 
+      // Write to private blob store
+      const blob = await Blob.put(key, json, { 
         access: 'private', 
         contentType: 'application/json', 
         addRandomSuffix: false 
       });
       
-      console.log(`[Blob Cache] 💾 WRITTEN ${key} (${json.length} chars) ✅`);
+      console.log(`[Blob Cache] 💾 WRITTEN ${key} (${json.length} chars) to PRIVATE store ✅`);
       return { 
         message: `[BLOB] Cached: ${section}${page ? ` p${page}` : ''}`, 
         key, 
         size: blob?.size || json.length, 
         at: t,
-        store: 'private',
-        url: blob?.url || '[private]'
+        store: 'private'
       };
     } catch (e) {
-      console.error(`[Blob Cache] ❌ Write error: ${e.message}`);
+      console.error(`[Blob Cache] ❌ Write failed: ${e.message}`);
       
       // Memory fallback
       const memKey = key + (page ? `-p${page}` : '');
@@ -236,7 +247,7 @@ async function writeCache(section, data, page) {
         key: memKey, 
         size: json.length, 
         at: t, 
-        _warn: `Blob failed: ${e.message}`
+        _warn: `Blob write failed: ${e.message}`
       };
     }
   } else {
@@ -250,9 +261,9 @@ async function writeCache(section, data, page) {
 async function getStatus(section) {
   if (section) {
     const key = getBlobKey(section);
-    if (blobAvailable && blobModule.head) {
+    if (blobAvailable) {
       try {
-        const meta = await blobModule.head(key);
+        const meta = await Blob.head(key);
         if (!meta) return { section, found: false, status: 'missing' };
         return { section, found: true, status: isExpired(meta.uploadedAt) ? 'expired' : 'valid', size: meta.size, ttl: getTTL(meta.uploadedAt), store: 'private' };
       } catch (e) { return { section, found: false, status: 'error', error: e.message }; }
@@ -270,9 +281,9 @@ async function getStatus(section) {
     if (path.endsWith('/')) continue;
     const key = CACHE_PREFIX + path;
     
-    if (blobAvailable && blobModule.head) {
+    if (blobAvailable) {
       try {
-        const m = await blobModule.head(key);
+        const m = await Blob.head(key);
         if (m) {
           const v = !isExpired(m.uploadedAt);
           statuses[name] = { found: true, status: v ? 'valid' : 'expired', size: m.size, ttl: getTTL(m.uploadedAt), store: 'private' };
@@ -288,9 +299,9 @@ async function getStatus(section) {
   }
 
   statuses['recently-completed'] = { pages: {}, total: 0 };
-  if (blobAvailable && blobModule.list) {
+  if (blobAvailable) {
     try {
-      const { blobs } = await blobModule.list({ prefix: CACHE_PREFIX + 'recently-completed/' });
+      const { blobs } = await Blob.list({ prefix: CACHE_PREFIX + 'recently-completed/' });
       const pages = blobs.filter(b => b.pathname.includes('page-'));
       statuses['recently-completed'].total = pages.length;
       pages.forEach(p => {
@@ -304,9 +315,9 @@ async function getStatus(section) {
 }
 
 async function listAll() {
-  if (blobAvailable && blobModule.list) {
+  if (blobAvailable) {
     try {
-      const { blobs } = await blobModule.list({ prefix: CACHE_PREFIX });
+      const { blobs } = await Blob.list({ prefix: CACHE_PREFIX });
       return { count: blobs.length, items: blobs.map(b => ({ path: b.pathname.replace(CACHE_PREFIX,''), size: b.size, at: b.uploadedAt, exp: isExpired(b.uploadedAt), ttl: getTTL(b.uploadedAt) })).sort((a,b) => new Date(b.at) - new Date(a.at)) };
     } catch (e) { return { count: 0, items: [], error: e.message }; }
   } else {
@@ -318,8 +329,8 @@ async function listAll() {
 
 async function clear(section) {
   const key = getBlobKey(section);
-  if (blobAvailable && blobModule.del) {
-    try { await blobModule.del(key); return { cleared: true, section }; }
+  if (blobAvailable) {
+    try { await Blob.del(key); return { cleared: true, section }; }
     catch (e) { return { cleared: false, section, error: e.message }; }
   } else {
     return { cleared: memoryStore.delete(key), section };
@@ -327,12 +338,12 @@ async function clear(section) {
 }
 
 async function clearAll() {
-  if (blobAvailable && blobModule.list && blobModule.del) {
+  if (blobAvailable) {
     try {
-      const { blobs } = await blobModule.list({ prefix: CACHE_PREFIX });
+      const { blobs } = await Blob.list({ prefix: CACHE_PREFIX });
       let c = 0, f = 0;
       for (const b of blobs) {
-        try { await blobModule.del(b.pathname); c++; }
+        try { await Blob.del(b.pathname); c++; }
         catch { f++; }
       }
       return { total: blobs.length, cleared: c, failed: f };
