@@ -1,0 +1,1214 @@
+     1→     1→[NEW] Explain Console errors by using Copilot in Edge: click  to explain an error. Learn moreDon't show again
+     2→     2→shared.js:3644 [MetadataManager] 📄 Using flyer image for home : https://i.postimg.cc/Fs8y8Wqh/Follow-Ani-Wind-Zone-x-profile-banner.jpg
+     3→     3→shared.js:3970 [MetadataManager] ✓ Injected SEO metadata for page: home
+     4→     4→blob-cache-client.js:408 [Blob Cache] ✅ Vercel Blob Cache Client initialized
+     5→     5→blob-cache-client.js:429 ✅ [Blob Cache] Module loaded
+     6→     6→blob-cache-client.js:430     Use: window.BlobCache.read("section")
+     7→     7→blob-cache-client.js:431     Use: window.BlobCache.write("section", data)
+     8→     8→blob-cache-client.js:432     Use: window.BlobCache.getHeroSlider(fetchFn)
+     9→     9→blob-cache-client.js:433     Use: window.BlobCache.status()
+    10→    10→cache-integration.js:15 [Cache Integration] 🚀 Initializing auto-cache system...
+    11→    11→cache-integration.js:25 [Cache Integration] ✅ BlobCache ready after 1 attempts
+    12→    12→cache-integration.js:368 [Cache Integration] 🚀 Starting integration...
+    13→    13→cache-integration.js:110 [Cache Integration] 🔧 Wrapping existing loaders with cache...
+    14→    14→cache-integration.js:156 [Cache Integration] ✅ Wrapped 0 functions with cache
+    15→    15→cache-integration.js:266 [Cache Integration] ✅ Fetch interceptor installed
+    16→    16→cache-integration.js:376 [Cache Integration] ✅ Initialization complete
+    17→    17→cache-integration.js:377 [Cache Integration] 📊 Wrapped 0 functions + fetch interceptor active
+    18→    18→cache-integration.js:378 [Cache Integration] 💡 Usage:
+    19→    19→cache-integration.js:379     - Automatic: All TMDB/AniList/TVMaze/Jikan API calls will be cached
+    20→    20→cache-integration.js:380     - Manual: Use CacheHelpers.cacheSection("name", data)
+    21→    21→cache-integration.js:381     - Manual: Use CacheHelpers.tryLoad("name") to retrieve
+    22→    22→cache-integration.js:382     - Status: Use CacheHelpers.getStatus() to see all cached sections
+    23→    23→cache-integration.js:387 ✅ [Cache Integration] Module loaded
+    24→    24→cache-integration.js:388     Auto-integration will start once BlobCache is ready
+    25→    25→(index):2986 [API Queue] 🚀 Initialized with maxConcurrent=3
+    26→    26→(index):3155 [Lazy Loader] 📜 Initialized
+    27→    27→(index):7389 ═══════════════════════════════════════════════════════════
+    28→    28→(index):7390   🚀 Rowana Optimized Loading System v2.0
+    29→    29→(index):7391   • Scroll-based lazy loading enabled
+    30→    30→(index):7392   • API queue throttling (max 3 concurrent)
+    31→    31→(index):7393   • Automatic retry with exponential backoff
+    32→    32→(index):7394 ═══════════════════════════════════════════════════════════
+    33→    33→(index):3169 [Lazy Loader] 👁️ Observer created with rootMargin=200px
+    34→    34→(index):3225 [Lazy Loader] 🚀 Loading #heroSlider...
+    35→    35→blob-cache-client.js:408 [Blob Cache] 📖 Reading cache: hero-slider
+    36→    36→(index):2511 [TMDB] ⏭️ Skipping t-umi for paginated request (page=2) - known caching bug
+    37→    37→blob-cache-client.js:408 [Blob Cache] 📖 Reading cache: hero-slider
+    38→    38→(index):2511 [TMDB] ⏭️ Skipping t-umi for paginated request (page=3) - known caching bug
+    39→    39→blob-cache-client.js:408 [Blob Cache] 📖 Reading cache: hero-slider
+    40→    40→(index):2511 [TMDB] ⏭️ Skipping t-umi for paginated request (page=4) - known caching bug
+    41→    41→blob-cache-client.js:408 [Blob Cache] 📖 Reading cache: hero-slider
+    42→    42→(index):2511 [TMDB] ⏭️ Skipping t-umi for paginated request (page=5) - known caching bug
+    43→    43→blob-cache-client.js:408 [Blob Cache] 📖 Reading cache: hero-slider
+    44→    44→(index):2511 [TMDB] ⏭️ Skipping t-umi for paginated request (page=6) - known caching bug
+    45→    45→blob-cache-client.js:408 [Blob Cache] 📖 Reading cache: hero-slider
+    46→    46→(index):3200 [Lazy Loader] 📋 Registered #newReleasesGrid for lazy loading (priority 3)
+    47→    47→(index):3200 [Lazy Loader] 📋 Registered #newAnioceanGrid for lazy loading (priority 4)
+    48→    48→(index):3200 [Lazy Loader] 📋 Registered #upcomingSection for lazy loading (priority 5)
+    49→    49→(index):3200 [Lazy Loader] 📋 Registered #completedGrid for lazy loading (priority 6)
+    50→    50→(index):3200 [Lazy Loader] 📋 Registered #trendingList for lazy loading (priority 7)
+    51→    51→(index):3200 [Lazy Loader] 📋 Registered #popularList for lazy loading (priority 8)
+    52→    52→(index):3200 [Lazy Loader] 📋 Registered #popularAnimeList for lazy loading (priority 9)
+    53→    53→(index):3200 [Lazy Loader] 📋 Registered #eswWidget for lazy loading (priority 10)
+    54→    54→(index):3211 [Lazy Loader] 👀 #newReleasesGrid is visible, loading now...
+    55→    55→(index):3225 [Lazy Loader] 🚀 Loading #newReleasesGrid...
+    56→    56→(index):4898 [New Releases] 🚀 Starting optimized fetch with API queue...
+    57→    57→(index):3034 [API Queue] ▶️ [tmdb--movie/now_playing] Priority 2 | Active: 1/3 | Queue: 0
+    58→    58→(index):3211 [Lazy Loader] 👀 #newAnioceanGrid is visible, loading now...
+    59→    59→(index):3225 [Lazy Loader] 🚀 Loading #newAnioceanGrid...
+    60→    60→(index):6909 [New on Rowana] 💀 Showing 24 skeleton cards in grid layout while loading...
+    61→    61→(index):3385 [New on Rowana] Trying Anikoto API...
+    62→    62→(index):3211 [Lazy Loader] 👀 #trendingList is visible, loading now...
+    63→    63→(index):3225 [Lazy Loader] 🚀 Loading #trendingList...
+    64→    64→blob-cache-client.js:408 [Blob Cache] 📖 Reading cache: trending-today
+    65→    65→(index):3211 [Lazy Loader] 👀 #popularList is visible, loading now...
+    66→    66→(index):3225 [Lazy Loader] 🚀 Loading #popularList...
+    67→    67→(index):1 Access to fetch at 'https://aniumi.bionmovies47.workers.dev/anikoto/recent-anime?page=1&per_page=100' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+    68→    68→cache-integration.js:263  GET https://aniumi.bionmovies47.workers.dev/anikoto/recent-anime?page=1&per_page=100 net::ERR_FAILED 404 (Not Found)
+    69→    69→(anonymous) @ cache-integration.js:263
+    70→    70→fetchAnikoto @ (index):2462
+    71→    71→loadNewAniocean @ (index):3386
+    72→    72→executeLoad @ (index):3228
+    73→    73→(anonymous) @ (index):3212
+    74→    74→handleIntersection @ (index):3205
+    75→    75→observer.IntersectionObserver.root @ (index):3161
+    76→    76→blob-cache-client.js:408 [Blob Cache] 📖 Reading cache: new-on-rowana
+    77→    77→(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/discover/movie?sort_by=vote_count.desc&vote_count.gte=5000&language=en-US&page=1' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+    78→    78→cache-integration.js:263  GET https://t-umi.bionmovies47.workers.dev/discover/movie?sort_by=vote_count.desc&vote_count.gte=5000&language=en-US&page=1 net::ERR_FAILED 403 (Forbidden)
+    79→    79→(anonymous) @ cache-integration.js:263
+    80→    80→fetchTMDB @ (index):2497
+    81→    81→loadPopular @ (index):6237
+    82→    82→executeLoad @ (index):3228
+    83→    83→(anonymous) @ (index):3212
+    84→    84→handleIntersection @ (index):3205
+    85→    85→observer.IntersectionObserver.root @ (index):3161
+    86→    86→(index):2508 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+    87→    87→fetchTMDB @ (index):2508
+    88→    88→await in fetchTMDB
+    89→    89→loadPopular @ (index):6237
+    90→    90→executeLoad @ (index):3228
+    91→    91→(anonymous) @ (index):3212
+    92→    92→handleIntersection @ (index):3205
+    93→    93→observer.IntersectionObserver.root @ (index):3161
+    94→    94→(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/discover/tv?sort_by=vote_count.desc&vote_count.gte=2000&language=en-US&page=1' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+    95→    95→cache-integration.js:263  GET https://t-umi.bionmovies47.workers.dev/discover/tv?sort_by=vote_count.desc&vote_count.gte=2000&language=en-US&page=1 net::ERR_FAILED 403 (Forbidden)
+    96→    96→(anonymous) @ cache-integration.js:263
+    97→    97→fetchTMDB @ (index):2497
+    98→    98→loadPopular @ (index):6238
+    99→    99→executeLoad @ (index):3228
+   100→   100→(anonymous) @ (index):3212
+   101→   101→handleIntersection @ (index):3205
+   102→   102→observer.IntersectionObserver.root @ (index):3161
+   103→   103→(index):2508 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+   104→   104→fetchTMDB @ (index):2508
+   105→   105→await in fetchTMDB
+   106→   106→loadPopular @ (index):6238
+   107→   107→executeLoad @ (index):3228
+   108→   108→(anonymous) @ (index):3212
+   109→   109→handleIntersection @ (index):3205
+   110→   110→observer.IntersectionObserver.root @ (index):3161
+   111→   111→(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/movie/now_playing?page=1' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+   112→   112→cache-integration.js:263  GET https://t-umi.bionmovies47.workers.dev/movie/now_playing?page=1 net::ERR_FAILED 403 (Forbidden)
+   113→   113→(anonymous) @ cache-integration.js:263
+   114→   114→fetchTMDB @ (index):2497
+   115→   115→(anonymous) @ (index):3129
+   116→   116→processQueue @ (index):3039
+   117→   117→(anonymous) @ (index):3013
+   118→   118→enqueue @ (index):2998
+   119→   119→queuedFetchTMDB @ (index):3128
+   120→   120→loadNewReleases @ (index):4924
+   121→   121→executeLoad @ (index):3228
+   122→   122→(anonymous) @ (index):3212
+   123→   123→handleIntersection @ (index):3205
+   124→   124→observer.IntersectionObserver.root @ (index):3161
+   125→   125→(index):2508 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+   126→   126→fetchTMDB @ (index):2508
+   127→   127→await in fetchTMDB
+   128→   128→(anonymous) @ (index):3129
+   129→   129→processQueue @ (index):3039
+   130→   130→(anonymous) @ (index):3013
+   131→   131→enqueue @ (index):2998
+   132→   132→queuedFetchTMDB @ (index):3128
+   133→   133→loadNewReleases @ (index):4924
+   134→   134→executeLoad @ (index):3228
+   135→   135→(anonymous) @ (index):3212
+   136→   136→handleIntersection @ (index):3205
+   137→   137→observer.IntersectionObserver.root @ (index):3161
+   138→   138→(index):3225 [Lazy Loader] 🚀 Loading #topAiringSection...
+   139→   139→(index):3874 [TVMaze] 🚀 Starting TVMaze + TMDB bridge pipeline...
+   140→   140→(index):3582 [TVMaze-🔄] Rotation: using "ID" this load (time-based, no storage)
+   141→   141→(index):3516 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=ID
+   142→   142→blob-cache-client.js:408 [Blob Cache] 📖 Reading cache: top-airing
+   143→   143→blob-cache-client.js:408 [Blob Cache] ✅ Cache HIT: hero-slider
+   144→   144→cache-integration.js:227 [Cache Interceptor] 🎯 HIT: hero-slider
+   145→   145→blob-cache-client.js:408 [Blob Cache] ✅ Cache HIT: hero-slider
+   146→   146→cache-integration.js:227 [Cache Interceptor] 🎯 HIT: hero-slider
+   147→   147→blob-cache-client.js:408 [Blob Cache] ✅ Cache HIT: hero-slider
+   148→   148→cache-integration.js:227 [Cache Interceptor] 🎯 HIT: hero-slider
+   149→   149→blob-cache-client.js:408 [Blob Cache] ✅ Cache HIT: hero-slider
+   150→   150→cache-integration.js:227 [Cache Interceptor] 🎯 HIT: hero-slider
+   151→   151→blob-cache-client.js:408 [Blob Cache] ✅ Cache HIT: hero-slider
+   152→   152→cache-integration.js:227 [Cache Interceptor] 🎯 HIT: hero-slider
+   153→   153→(index):2502 [TMDB] ✅ t-umi proxy success: /tv/on_the_air
+   154→   154→blob-cache-client.js:408 [Blob Cache] ✅ Cache HIT: hero-slider
+   155→   155→cache-integration.js:227 [Cache Interceptor] 🎯 HIT: hero-slider
+   156→   156→blob-cache-client.js:408 [Blob Cache] ⚠️ Cache MISS: trending-today (not_cached)
+   157→   157→cache-integration.js:235 [Cache Interceptor] 🔄 MISS: trending-today
+   158→   158→(index):2524 [TMDB] ⚠️ Legacy proxy returned page 1 but requested page 2 - might be cached!
+   159→   159→fetchTMDB @ (index):2524
+   160→   160→await in fetchTMDB
+   161→   161→loadHero @ (index):3975
+   162→   162→executeLoad @ (index):3228
+   163→   163→register @ (index):3194
+   164→   164→init @ (index):7404
+   165→   165→(index):2526 [TMDB] ✅ Legacy proxy success: /tv/on_the_air (returned page: 1)
+   166→   166→(index):2524 [TMDB] ⚠️ Legacy proxy returned page 1 but requested page 6 - might be cached!
+   167→   167→fetchTMDB @ (index):2524
+   168→   168→await in fetchTMDB
+   169→   169→loadHero @ (index):3979
+   170→   170→executeLoad @ (index):3228
+   171→   171→register @ (index):3194
+   172→   172→init @ (index):7404
+   173→   173→(index):2526 [TMDB] ✅ Legacy proxy success: /tv/on_the_air (returned page: 1)
+   174→   174→(index):2524 [TMDB] ⚠️ Legacy proxy returned page 1 but requested page 4 - might be cached!
+   175→   175→fetchTMDB @ (index):2524
+   176→   176→await in fetchTMDB
+   177→   177→loadHero @ (index):3977
+   178→   178→executeLoad @ (index):3228
+   179→   179→register @ (index):3194
+   180→   180→init @ (index):7404
+   181→   181→(index):2526 [TMDB] ✅ Legacy proxy success: /tv/on_the_air (returned page: 1)
+   182→   182→(index):2524 [TMDB] ⚠️ Legacy proxy returned page 1 but requested page 5 - might be cached!
+   183→   183→fetchTMDB @ (index):2524
+   184→   184→await in fetchTMDB
+   185→   185→loadHero @ (index):3978
+   186→   186→executeLoad @ (index):3228
+   187→   187→register @ (index):3194
+   188→   188→init @ (index):7404
+   189→   189→(index):2526 [TMDB] ✅ Legacy proxy success: /tv/on_the_air (returned page: 1)
+   190→   190→(index):2524 [TMDB] ⚠️ Legacy proxy returned page 1 but requested page 3 - might be cached!
+   191→   191→fetchTMDB @ (index):2524
+   192→   192→await in fetchTMDB
+   193→   193→loadHero @ (index):3976
+   194→   194→executeLoad @ (index):3228
+   195→   195→register @ (index):3194
+   196→   196→init @ (index):7404
+   197→   197→(index):2526 [TMDB] ✅ Legacy proxy success: /tv/on_the_air (returned page: 1)
+   198→   198→blob-cache-client.js:408 [Blob Cache] ⚠️ Cache MISS: new-on-rowana (not_cached)
+   199→   199→cache-integration.js:235 [Cache Interceptor] 🔄 MISS: new-on-rowana
+   200→   200→(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/trending/all/day' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+   201→   201→cache-integration.js:236  GET https://t-umi.bionmovies47.workers.dev/trending/all/day net::ERR_FAILED 403 (Forbidden)
+   202→   202→(anonymous) @ cache-integration.js:236
+   203→   203→await in (anonymous)
+   204→   204→fetchTMDB @ (index):2497
+   205→   205→loadTrending @ (index):6170
+   206→   206→lazyLoader.register.immediate @ (index):7439
+   207→   207→executeLoad @ (index):3228
+   208→   208→(anonymous) @ (index):3212
+   209→   209→handleIntersection @ (index):3205
+   210→   210→observer.IntersectionObserver.root @ (index):3161
+   211→   211→cache-integration.js:256 [Cache Interceptor] ⚠️ Error, falling back to direct fetch: Failed to fetch
+   212→   212→(anonymous) @ cache-integration.js:256
+   213→   213→await in (anonymous)
+   214→   214→fetchTMDB @ (index):2497
+   215→   215→loadTrending @ (index):6170
+   216→   216→lazyLoader.register.immediate @ (index):7439
+   217→   217→executeLoad @ (index):3228
+   218→   218→(anonymous) @ (index):3212
+   219→   219→handleIntersection @ (index):3205
+   220→   220→observer.IntersectionObserver.root @ (index):3161
+   221→   221→(index):4067 [Hero] 📺 TMDB TV with 2026 filter: 0 shows ready
+   222→   222→(index):4113 [Hero] 🎬 Fetched 0 TV (TMDB Current-Year) + 45 Anilist airing anime
+   223→   223→(index):4114 [Hero] 📅 Source: TMDB Current-Year - current-year filter applied for fresh content
+   224→   224→(index):4349 [Hero Image] Mapping 45 Anilist anime with banner images...
+   225→   225→(index):4396 [Hero Image] Resolution complete: {anilist-banner: 45}
+   226→   226→(index):4424 [Hero] 0 TMDB + 45 Jikan = 45 total slides
+   227→   227→blob-cache-client.js:408 [Blob Cache] 💾 Writing cache: heroSlider (51.9KB)
+   228→   228→(index):3230 [Lazy Loader] ✅ #heroSlider loaded in 1905ms
+   229→   229→(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/trending/all/day' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+   230→   230→cache-integration.js:257  GET https://t-umi.bionmovies47.workers.dev/trending/all/day net::ERR_FAILED 403 (Forbidden)
+   231→   231→(anonymous) @ cache-integration.js:257
+   232→   232→await in (anonymous)
+   233→   233→fetchTMDB @ (index):2497
+   234→   234→loadTrending @ (index):6170
+   235→   235→lazyLoader.register.immediate @ (index):7439
+   236→   236→executeLoad @ (index):3228
+   237→   237→(anonymous) @ (index):3212
+   238→   238→handleIntersection @ (index):3205
+   239→   239→observer.IntersectionObserver.root @ (index):3161
+   240→   240→(index):2508 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+   241→   241→fetchTMDB @ (index):2508
+   242→   242→await in fetchTMDB
+   243→   243→loadTrending @ (index):6170
+   244→   244→lazyLoader.register.immediate @ (index):7439
+   245→   245→executeLoad @ (index):3228
+   246→   246→(anonymous) @ (index):3212
+   247→   247→handleIntersection @ (index):3205
+   248→   248→observer.IntersectionObserver.root @ (index):3161
+   249→   249→blob-cache-client.js:408 [Blob Cache] 📖 Reading cache: trending-today
+   250→   250→(index):2526 [TMDB] ✅ Legacy proxy success: /discover/movie (returned page: 1)
+   251→   251→(index):2526 [TMDB] ✅ Legacy proxy success: /movie/now_playing (returned page: 1)
+   252→   252→(index):3046 [API Queue] ✅ [tmdb--movie/now_playing] Completed in 1928ms
+   253→   253→(index):2526 [TMDB] ✅ Legacy proxy success: /discover/tv (returned page: 1)
+   254→   254→blob-cache-client.js:408 [Blob Cache] ⚠️ Cache MISS: top-airing (error)
+   255→   255→cache-integration.js:235 [Cache Interceptor] 🔄 MISS: top-airing
+   256→   256→blob-cache-client.js:408 [Blob Cache] 💾 Writing cache: new-on-rowana (143.9KB)
+   257→   257→(index):3034 [API Queue] ▶️ [tmdb--movie/now_playing] Priority 2 | Active: 1/3 | Queue: 2
+   258→   258→(index):2511 [TMDB] ⏭️ Skipping t-umi for paginated request (page=2) - known caching bug
+   259→   259→(index):3430 ✓ Loaded 100 anime from Anikoto proxy for "New on Aniocean"
+   260→   260→(index):3230 [Lazy Loader] ✅ #newAnioceanGrid loaded in 2915ms
+   261→   261→(index):3230 [Lazy Loader] ✅ #popularList loaded in 3063ms
+   262→   262→blob-cache-client.js:408 [Blob Cache] ✅ Cached successfully: heroSlider
+   263→   263→cache-integration.js:285 [CacheHelpers] ✅ Cached: heroSlider
+   264→   264→blob-cache-client.js:408 [Blob Cache] ⚠️ Cache MISS: trending-today (error)
+   265→   265→cache-integration.js:235 [Cache Interceptor] 🔄 MISS: trending-today
+   266→   266→blob-cache-client.js:408 [Blob Cache] 💾 Writing cache: top-airing (2B)
+   267→   267→(index):3528 [TVMaze] ✅ Fetched 0 episodes from ID
+   268→   268→(index):3557 [TVMaze] ✅ Unique shows from ID: 0
+   269→   269→(index):3615 [TVMaze-🔄] "ID" only had 0 scripted shows (< 6, likely a weekend/light day), trying "VN"...
+   270→   270→getTVMazeShowsRotatingCountry @ (index):3615
+   271→   271→await in getTVMazeShowsRotatingCountry
+   272→   272→getTVMazeShowsWithTMDBData @ (index):3883
+   273→   273→loadTopAiring @ (index):4646
+   274→   274→executeLoad @ (index):3228
+   275→   275→(anonymous) @ (index):3192
+   276→   276→setTimeout
+   277→   277→register @ (index):3192
+   278→   278→init @ (index):7411
+   279→   279→(index):3516 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=VN
+   280→   280→blob-cache-client.js:408 [Blob Cache] 📖 Reading cache: top-airing
+   281→   281→(index):2526 [TMDB] ✅ Legacy proxy success: /movie/now_playing (returned page: 2)
+   282→   282→(index):3046 [API Queue] ✅ [tmdb--movie/now_playing] Completed in 1286ms
+   283→   283→blob-cache-client.js:408 [Blob Cache] ✅ Cached successfully: new-on-rowana
+   284→   284→blob-cache-client.js:408 [Blob Cache] ✅ Cached successfully: top-airing
+   285→   285→blob-cache-client.js:408 [Blob Cache] ✅ Cache HIT: top-airing
+   286→   286→cache-integration.js:227 [Cache Interceptor] 🎯 HIT: top-airing
+   287→   287→(index):3528 [TVMaze] ✅ Fetched 0 episodes from VN
+   288→   288→(index):3557 [TVMaze] ✅ Unique shows from VN: 0
+   289→   289→(index):3615 [TVMaze-🔄] "VN" only had 0 scripted shows (< 6, likely a weekend/light day), trying "MM"...
+   290→   290→getTVMazeShowsRotatingCountry @ (index):3615
+   291→   291→await in getTVMazeShowsRotatingCountry
+   292→   292→getTVMazeShowsWithTMDBData @ (index):3883
+   293→   293→loadTopAiring @ (index):4646
+   294→   294→executeLoad @ (index):3228
+   295→   295→(anonymous) @ (index):3192
+   296→   296→setTimeout
+   297→   297→register @ (index):3192
+   298→   298→init @ (index):7411
+   299→   299→(index):3516 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=MM
+   300→   300→blob-cache-client.js:408 [Blob Cache] 📖 Reading cache: top-airing
+   301→   301→(index):3034 [API Queue] ▶️ [anilist-245] Priority 3 | Active: 1/3 | Queue: 1
+   302→   302→blob-cache-client.js:408 [Blob Cache] 💾 Writing cache: trending-today (12.0KB)
+   303→   303→blob-cache-client.js:408 [Blob Cache] ✅ Cache HIT: top-airing
+   304→   304→cache-integration.js:227 [Cache Interceptor] 🎯 HIT: top-airing
+   305→   305→(index):2526 [TMDB] ✅ Legacy proxy success: /trending/all/day (returned page: 1)
+   306→   306→(index):3528 [TVMaze] ✅ Fetched 0 episodes from MM
+   307→   307→(index):3557 [TVMaze] ✅ Unique shows from MM: 0
+   308→   308→(index):3615 [TVMaze-🔄] "MM" only had 0 scripted shows (< 6, likely a weekend/light day), trying "GB"...
+   309→   309→getTVMazeShowsRotatingCountry @ (index):3615
+   310→   310→await in getTVMazeShowsRotatingCountry
+   311→   311→getTVMazeShowsWithTMDBData @ (index):3883
+   312→   312→loadTopAiring @ (index):4646
+   313→   313→executeLoad @ (index):3228
+   314→   314→(anonymous) @ (index):3192
+   315→   315→setTimeout
+   316→   316→register @ (index):3192
+   317→   317→init @ (index):7411
+   318→   318→(index):3516 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=GB
+   319→   319→blob-cache-client.js:408 [Blob Cache] 📖 Reading cache: top-airing
+   320→   320→blob-cache-client.js:408 [Blob Cache] ✅ Cache HIT: top-airing
+   321→   321→cache-integration.js:227 [Cache Interceptor] 🎯 HIT: top-airing
+   322→   322→(index):3528 [TVMaze] ✅ Fetched 0 episodes from GB
+   323→   323→(index):3557 [TVMaze] ✅ Unique shows from GB: 0
+   324→   324→(index):3615 [TVMaze-🔄] "GB" only had 0 scripted shows (< 6, likely a weekend/light day), trying "US"...
+   325→   325→getTVMazeShowsRotatingCountry @ (index):3615
+   326→   326→await in getTVMazeShowsRotatingCountry
+   327→   327→getTVMazeShowsWithTMDBData @ (index):3883
+   328→   328→loadTopAiring @ (index):4646
+   329→   329→executeLoad @ (index):3228
+   330→   330→(anonymous) @ (index):3192
+   331→   331→setTimeout
+   332→   332→register @ (index):3192
+   333→   333→init @ (index):7411
+   334→   334→(index):3516 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=US
+   335→   335→blob-cache-client.js:408 [Blob Cache] 📖 Reading cache: top-airing
+   336→   336→(index):7479 [System Status] {apiQueue: {…}, lazyLoader: {…}}
+   337→   337→blob-cache-client.js:408 [Blob Cache] ✅ Cached successfully: trending-today
+   338→   338→blob-cache-client.js:408 [Blob Cache] ✅ Cache HIT: top-airing
+   339→   339→cache-integration.js:227 [Cache Interceptor] 🎯 HIT: top-airing
+   340→   340→(index):3528 [TVMaze] ✅ Fetched 0 episodes from US
+   341→   341→(index):3557 [TVMaze] ✅ Unique shows from US: 0
+   342→   342→(index):3615 [TVMaze-🔄] "US" only had 0 scripted shows (< 6, likely a weekend/light day), trying "KR"...
+   343→   343→getTVMazeShowsRotatingCountry @ (index):3615
+   344→   344→await in getTVMazeShowsRotatingCountry
+   345→   345→getTVMazeShowsWithTMDBData @ (index):3883
+   346→   346→loadTopAiring @ (index):4646
+   347→   347→executeLoad @ (index):3228
+   348→   348→(anonymous) @ (index):3192
+   349→   349→setTimeout
+   350→   350→register @ (index):3192
+   351→   351→init @ (index):7411
+   352→   352→(index):3516 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=KR
+   353→   353→blob-cache-client.js:408 [Blob Cache] 📖 Reading cache: top-airing
+   354→   354→blob-cache-client.js:408 [Blob Cache] ✅ Cache HIT: top-airing
+   355→   355→cache-integration.js:227 [Cache Interceptor] 🎯 HIT: top-airing
+   356→   356→(index):3528 [TVMaze] ✅ Fetched 0 episodes from KR
+   357→   357→(index):3557 [TVMaze] ✅ Unique shows from KR: 0
+   358→   358→(index):3615 [TVMaze-🔄] "KR" only had 0 scripted shows (< 6, likely a weekend/light day), trying "TR"...
+   359→   359→getTVMazeShowsRotatingCountry @ (index):3615
+   360→   360→await in getTVMazeShowsRotatingCountry
+   361→   361→getTVMazeShowsWithTMDBData @ (index):3883
+   362→   362→loadTopAiring @ (index):4646
+   363→   363→executeLoad @ (index):3228
+   364→   364→(anonymous) @ (index):3192
+   365→   365→setTimeout
+   366→   366→register @ (index):3192
+   367→   367→init @ (index):7411
+   368→   368→(index):3516 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=TR
+   369→   369→blob-cache-client.js:408 [Blob Cache] 📖 Reading cache: top-airing
+   370→   370→(index):3046 [API Queue] ✅ [anilist-245] Completed in 1241ms
+   371→   371→blob-cache-client.js:408 [Blob Cache] ✅ Cache HIT: top-airing
+   372→   372→cache-integration.js:227 [Cache Interceptor] 🎯 HIT: top-airing
+   373→   373→(index):3528 [TVMaze] ✅ Fetched 0 episodes from TR
+   374→   374→(index):3557 [TVMaze] ✅ Unique shows from TR: 0
+   375→   375→(index):3615 [TVMaze-🔄] "TR" only had 0 scripted shows (< 6, likely a weekend/light day), trying "PK"...
+   376→   376→getTVMazeShowsRotatingCountry @ (index):3615
+   377→   377→await in getTVMazeShowsRotatingCountry
+   378→   378→getTVMazeShowsWithTMDBData @ (index):3883
+   379→   379→loadTopAiring @ (index):4646
+   380→   380→executeLoad @ (index):3228
+   381→   381→(anonymous) @ (index):3192
+   382→   382→setTimeout
+   383→   383→register @ (index):3192
+   384→   384→init @ (index):7411
+   385→   385→(index):3516 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=PK
+   386→   386→blob-cache-client.js:408 [Blob Cache] 📖 Reading cache: top-airing
+   387→   387→(index):3034 [API Queue] ▶️ [tvmaze-245] Priority 4 | Active: 1/3 | Queue: 0
+   388→   388→(index):3874 [TVMaze] 🚀 Starting TVMaze + TMDB bridge pipeline...
+   389→   389→(index):3582 [TVMaze-🔄] Rotation: using "ID" this load (time-based, no storage)
+   390→   390→(index):3516 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=ID
+   391→   391→blob-cache-client.js:408 [Blob Cache] 📖 Reading cache: top-airing
+   392→   392→blob-cache-client.js:408 [Blob Cache] ✅ Cache HIT: top-airing
+   393→   393→cache-integration.js:227 [Cache Interceptor] 🎯 HIT: top-airing
+   394→   394→(index):3528 [TVMaze] ✅ Fetched 0 episodes from PK
+   395→   395→(index):3557 [TVMaze] ✅ Unique shows from PK: 0
+   396→   396→(index):3615 [TVMaze-🔄] "PK" only had 0 scripted shows (< 6, likely a weekend/light day), trying "IN"...
+   397→   397→getTVMazeShowsRotatingCountry @ (index):3615
+   398→   398→await in getTVMazeShowsRotatingCountry
+   399→   399→getTVMazeShowsWithTMDBData @ (index):3883
+   400→   400→loadTopAiring @ (index):4646
+   401→   401→executeLoad @ (index):3228
+   402→   402→(anonymous) @ (index):3192
+   403→   403→setTimeout
+   404→   404→register @ (index):3192
+   405→   405→init @ (index):7411
+   406→   406→(index):3516 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=IN
+   407→   407→blob-cache-client.js:408 [Blob Cache] 📖 Reading cache: top-airing
+   408→   408→blob-cache-client.js:408 [Blob Cache] ✅ Cache HIT: top-airing
+   409→   409→cache-integration.js:227 [Cache Interceptor] 🎯 HIT: top-airing
+   410→   410→(index):3528 [TVMaze] ✅ Fetched 0 episodes from ID
+   411→   411→(index):3557 [TVMaze] ✅ Unique shows from ID: 0
+   412→   412→(index):3615 [TVMaze-🔄] "ID" only had 0 scripted shows (< 6, likely a weekend/light day), trying "VN"...
+   413→   413→getTVMazeShowsRotatingCountry @ (index):3615
+   414→   414→await in getTVMazeShowsRotatingCountry
+   415→   415→getTVMazeShowsWithTMDBData @ (index):3883
+   416→   416→(anonymous) @ (index):3143
+   417→   417→processQueue @ (index):3039
+   418→   418→await in processQueue
+   419→   419→(anonymous) @ (index):3013
+   420→   420→enqueue @ (index):2998
+   421→   421→queuedFetchTMDB @ (index):3128
+   422→   422→loadNewReleases @ (index):4924
+   423→   423→executeLoad @ (index):3228
+   424→   424→(anonymous) @ (index):3212
+   425→   425→handleIntersection @ (index):3205
+   426→   426→observer.IntersectionObserver.root @ (index):3161
+   427→   427→(index):3516 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=VN
+   428→   428→blob-cache-client.js:408 [Blob Cache] 📖 Reading cache: top-airing
+   429→   429→(index):3230 [Lazy Loader] ✅ #trendingList loaded in 6642ms
+   430→   430→(index):3211 [Lazy Loader] 👀 #popularAnimeList is visible, loading now...
+   431→   431→(index):3225 [Lazy Loader] 🚀 Loading #popularAnimeList...
+   432→   432→(index):3211 [Lazy Loader] 👀 #eswWidget is visible, loading now...
+   433→   433→(index):3225 [Lazy Loader] 🚀 Loading #eswWidget...
+   434→   434→(index):7293 [Schedule] 🚀 Fetching all 7 days in parallel...
+   435→   435→(index):6963 [Schedule] 🚀 Starting parallel fetch of all 7 days...
+   436→   436→(index):6933 [Schedule] Fetching: https://jikan-api-bohb.onrender.com/v4/schedule/monday?sfw=true
+   437→   437→(index):6933 [Schedule] Fetching: https://jikan-api-bohb.onrender.com/v4/schedule/tuesday?sfw=true
+   438→   438→(index):6933 [Schedule] Fetching: https://jikan-api-bohb.onrender.com/v4/schedule/wednesday?sfw=true
+   439→   439→(index):6933 [Schedule] Fetching: https://jikan-api-bohb.onrender.com/v4/schedule/thursday?sfw=true
+   440→   440→(index):6933 [Schedule] Fetching: https://jikan-api-bohb.onrender.com/v4/schedule/friday?sfw=true
+   441→   441→(index):6933 [Schedule] Fetching: https://jikan-api-bohb.onrender.com/v4/schedule/saturday?sfw=true
+   442→   442→(index):6933 [Schedule] Fetching: https://jikan-api-bohb.onrender.com/v4/schedule/sunday?sfw=true
+   443→   443→blob-cache-client.js:408 [Blob Cache] ✅ Cache HIT: top-airing
+   444→   444→cache-integration.js:227 [Cache Interceptor] 🎯 HIT: top-airing
+   445→   445→blob-cache-client.js:408 [Blob Cache] ✅ Cache HIT: top-airing
+   446→   446→cache-integration.js:227 [Cache Interceptor] 🎯 HIT: top-airing
+   447→   447→(index):3528 [TVMaze] ✅ Fetched 0 episodes from VN
+   448→   448→(index):3557 [TVMaze] ✅ Unique shows from VN: 0
+   449→   449→(index):3615 [TVMaze-🔄] "VN" only had 0 scripted shows (< 6, likely a weekend/light day), trying "MM"...
+   450→   450→getTVMazeShowsRotatingCountry @ (index):3615
+   451→   451→await in getTVMazeShowsRotatingCountry
+   452→   452→getTVMazeShowsWithTMDBData @ (index):3883
+   453→   453→(anonymous) @ (index):3143
+   454→   454→processQueue @ (index):3039
+   455→   455→await in processQueue
+   456→   456→(anonymous) @ (index):3013
+   457→   457→enqueue @ (index):2998
+   458→   458→queuedFetchTMDB @ (index):3128
+   459→   459→loadNewReleases @ (index):4924
+   460→   460→executeLoad @ (index):3228
+   461→   461→(anonymous) @ (index):3212
+   462→   462→handleIntersection @ (index):3205
+   463→   463→observer.IntersectionObserver.root @ (index):3161
+   464→   464→(index):3516 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=MM
+   465→   465→blob-cache-client.js:408 [Blob Cache] 📖 Reading cache: top-airing
+   466→   466→(index):3528 [TVMaze] ✅ Fetched 0 episodes from IN
+   467→   467→(index):3557 [TVMaze] ✅ Unique shows from IN: 0
+   468→   468→(index):3615 [TVMaze-🔄] "IN" only had 0 scripted shows (< 6, likely a weekend/light day), trying "CN"...
+   469→   469→getTVMazeShowsRotatingCountry @ (index):3615
+   470→   470→await in getTVMazeShowsRotatingCountry
+   471→   471→getTVMazeShowsWithTMDBData @ (index):3883
+   472→   472→loadTopAiring @ (index):4646
+   473→   473→executeLoad @ (index):3228
+   474→   474→(anonymous) @ (index):3192
+   475→   475→setTimeout
+   476→   476→register @ (index):3192
+   477→   477→init @ (index):7411
+   478→   478→(index):3516 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=CN
+   479→   479→blob-cache-client.js:408 [Blob Cache] 📖 Reading cache: top-airing
+   480→   480→(index):7468 [Safety Net] ⏱️ 8s elapsed, force-loading 8 remaining sections...
+   481→   481→(index):3281 [Lazy Loader] ⚡ Force-loading 8 remaining sections...
+   482→   482→(index):3225 [Lazy Loader] 🚀 Loading #upcomingSection...
+   483→   483→(index):5695 [Upcoming] Starting queue-managed fetch: movies + TV + anime, each sequential/rate-limited, stopping once 50 collected...
+   484→   484→(index):5697 [Upcoming] Today's date: 2026-08-23
+   485→   485→blob-cache-client.js:408 [Blob Cache] 📖 Reading cache: upcoming-movies
+   486→   486→(index):3225 [Lazy Loader] 🚀 Loading #completedGrid...
+   487→   487→(index):5900 [Completed] 📄 Loading page 1 (tmdbPages: 3, range: 2026-02-24 to 2026-08-23)
+   488→   488→(index):2511 [TMDB] ⏭️ Skipping t-umi for paginated request (page=2) - known caching bug
+   489→   489→(index):2511 [TMDB] ⏭️ Skipping t-umi for paginated request (page=3) - known caching bug
+   490→   490→(index):2511 [TMDB] ⏭️ Skipping t-umi for paginated request (page=2) - known caching bug
+   491→   491→(index):2511 [TMDB] ⏭️ Skipping t-umi for paginated request (page=3) - known caching bug
+   492→   492→(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/discover/tv?page=1&sort_by=popularity.desc&first_air_date.gte=2026-08-23' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+   493→   493→cache-integration.js:263  GET https://t-umi.bionmovies47.workers.dev/discover/tv?page=1&sort_by=popularity.desc&first_air_date.gte=2026-08-23 net::ERR_FAILED 403 (Forbidden)
+   494→   494→(anonymous) @ cache-integration.js:263
+   495→   495→fetchTMDB @ (index):2497
+   496→   496→fetchUpcomingTVTMDB @ (index):5666
+   497→   497→loadUpcoming @ (index):5703
+   498→   498→executeLoad @ (index):3228
+   499→   499→(anonymous) @ (index):3284
+   500→   500→loadAllRemaining @ (index):3282
+   501→   501→(anonymous) @ (index):7469
+   502→   502→setTimeout
+   503→   503→init @ (index):7465
+   504→   504→(index):2508 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+   505→   505→fetchTMDB @ (index):2508
+   506→   506→await in fetchTMDB
+   507→   507→fetchUpcomingTVTMDB @ (index):5666
+   508→   508→loadUpcoming @ (index):5703
+   509→   509→executeLoad @ (index):3228
+   510→   510→(anonymous) @ (index):3284
+   511→   511→loadAllRemaining @ (index):3282
+   512→   512→(anonymous) @ (index):7469
+   513→   513→setTimeout
+   514→   514→init @ (index):7465
+   515→   515→(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/discover/tv?sort_by=first_air_date.desc&with_status=ended&first_air_date.gte=2026-02-24&first_air_date.lte=2026-08-23&page=1' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+   516→   516→cache-integration.js:263  GET https://t-umi.bionmovies47.workers.dev/discover/tv?sort_by=first_air_date.desc&with_status=ended&first_air_date.gte=2026-02-24&first_air_date.lte=2026-08-23&page=1 net::ERR_FAILED 403 (Forbidden)
+   517→   517→(anonymous) @ cache-integration.js:263
+   518→   518→fetchTMDB @ (index):2497
+   519→   519→(anonymous) @ (index):5905
+   520→   520→loadCompleted @ (index):5904
+   521→   521→lazyLoader.register.immediate @ (index):7434
+   522→   522→executeLoad @ (index):3228
+   523→   523→(anonymous) @ (index):3284
+   524→   524→loadAllRemaining @ (index):3282
+   525→   525→(anonymous) @ (index):7469
+   526→   526→setTimeout
+   527→   527→init @ (index):7465
+   528→   528→(index):2508 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+   529→   529→fetchTMDB @ (index):2508
+   530→   530→await in fetchTMDB
+   531→   531→(anonymous) @ (index):5905
+   532→   532→loadCompleted @ (index):5904
+   533→   533→lazyLoader.register.immediate @ (index):7434
+   534→   534→executeLoad @ (index):3228
+   535→   535→(anonymous) @ (index):3284
+   536→   536→loadAllRemaining @ (index):3282
+   537→   537→(anonymous) @ (index):7469
+   538→   538→setTimeout
+   539→   539→init @ (index):7465
+   540→   540→(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/discover/movie?sort_by=release_date.desc&with_release_type=2|3&release_date.gte=2026-02-24&release_date.lte=2026-08-23&page=1' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+   541→   541→cache-integration.js:263  GET https://t-umi.bionmovies47.workers.dev/discover/movie?sort_by=release_date.desc&with_release_type=2|3&release_date.gte=2026-02-24&release_date.lte=2026-08-23&page=1 net::ERR_FAILED 403 (Forbidden)
+   542→   542→(anonymous) @ cache-integration.js:263
+   543→   543→fetchTMDB @ (index):2497
+   544→   544→(anonymous) @ (index):5909
+   545→   545→loadCompleted @ (index):5908
+   546→   546→lazyLoader.register.immediate @ (index):7434
+   547→   547→executeLoad @ (index):3228
+   548→   548→(anonymous) @ (index):3284
+   549→   549→loadAllRemaining @ (index):3282
+   550→   550→(anonymous) @ (index):7469
+   551→   551→setTimeout
+   552→   552→init @ (index):7465
+   553→   553→(index):2508 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+   554→   554→fetchTMDB @ (index):2508
+   555→   555→await in fetchTMDB
+   556→   556→(anonymous) @ (index):5909
+   557→   557→loadCompleted @ (index):5908
+   558→   558→lazyLoader.register.immediate @ (index):7434
+   559→   559→executeLoad @ (index):3228
+   560→   560→(anonymous) @ (index):3284
+   561→   561→loadAllRemaining @ (index):3282
+   562→   562→(anonymous) @ (index):7469
+   563→   563→setTimeout
+   564→   564→init @ (index):7465
+   565→   565→blob-cache-client.js:408 [Blob Cache] ✅ Cache HIT: top-airing
+   566→   566→cache-integration.js:227 [Cache Interceptor] 🎯 HIT: top-airing
+   567→   567→blob-cache-client.js:408 [Blob Cache] ✅ Cache HIT: top-airing
+   568→   568→cache-integration.js:227 [Cache Interceptor] 🎯 HIT: top-airing
+   569→   569→(index):3528 [TVMaze] ✅ Fetched 0 episodes from MM
+   570→   570→(index):3557 [TVMaze] ✅ Unique shows from MM: 0
+   571→   571→(index):3615 [TVMaze-🔄] "MM" only had 0 scripted shows (< 6, likely a weekend/light day), trying "GB"...
+   572→   572→getTVMazeShowsRotatingCountry @ (index):3615
+   573→   573→await in getTVMazeShowsRotatingCountry
+   574→   574→getTVMazeShowsWithTMDBData @ (index):3883
+   575→   575→(anonymous) @ (index):3143
+   576→   576→processQueue @ (index):3039
+   577→   577→await in processQueue
+   578→   578→(anonymous) @ (index):3013
+   579→   579→enqueue @ (index):2998
+   580→   580→queuedFetchTMDB @ (index):3128
+   581→   581→loadNewReleases @ (index):4924
+   582→   582→executeLoad @ (index):3228
+   583→   583→(anonymous) @ (index):3212
+   584→   584→handleIntersection @ (index):3205
+   585→   585→observer.IntersectionObserver.root @ (index):3161
+   586→   586→(index):3516 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=GB
+   587→   587→blob-cache-client.js:408 [Blob Cache] 📖 Reading cache: top-airing
+   588→   588→(index):3528 [TVMaze] ✅ Fetched 0 episodes from CN
+   589→   589→(index):3557 [TVMaze] ✅ Unique shows from CN: 0
+   590→   590→(index):3615 [TVMaze-🔄] "CN" only had 0 scripted shows (< 6, likely a weekend/light day), trying "SG"...
+   591→   591→getTVMazeShowsRotatingCountry @ (index):3615
+   592→   592→await in getTVMazeShowsRotatingCountry
+   593→   593→getTVMazeShowsWithTMDBData @ (index):3883
+   594→   594→loadTopAiring @ (index):4646
+   595→   595→executeLoad @ (index):3228
+   596→   596→(anonymous) @ (index):3192
+   597→   597→setTimeout
+   598→   598→register @ (index):3192
+   599→   599→init @ (index):7411
+   600→   600→(index):3516 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=SG
+   601→   601→blob-cache-client.js:408 [Blob Cache] 📖 Reading cache: top-airing
+   602→   602→blob-cache-client.js:408 [Blob Cache] ⚠️ Cache MISS: upcoming-movies (not_cached)
+   603→   603→cache-integration.js:235 [Cache Interceptor] 🔄 MISS: upcoming-movies
+   604→   604→(index):2526 [TMDB] ✅ Legacy proxy success: /discover/movie (returned page: 3)
+   605→   605→(index):2526 [TMDB] ✅ Legacy proxy success: /discover/tv (returned page: 3)
+   606→   606→(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/movie/upcoming?page=1' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+   607→   607→cache-integration.js:236  GET https://t-umi.bionmovies47.workers.dev/movie/upcoming?page=1 net::ERR_FAILED 403 (Forbidden)
+   608→   608→(anonymous) @ cache-integration.js:236
+   609→   609→await in (anonymous)
+   610→   610→fetchTMDB @ (index):2497
+   611→   611→fetchUpcomingMoviesTMDB @ (index):5615
+   612→   612→loadUpcoming @ (index):5701
+   613→   613→executeLoad @ (index):3228
+   614→   614→(anonymous) @ (index):3284
+   615→   615→loadAllRemaining @ (index):3282
+   616→   616→(anonymous) @ (index):7469
+   617→   617→setTimeout
+   618→   618→init @ (index):7465
+   619→   619→cache-integration.js:256 [Cache Interceptor] ⚠️ Error, falling back to direct fetch: Failed to fetch
+   620→   620→(anonymous) @ cache-integration.js:256
+   621→   621→await in (anonymous)
+   622→   622→fetchTMDB @ (index):2497
+   623→   623→fetchUpcomingMoviesTMDB @ (index):5615
+   624→   624→loadUpcoming @ (index):5701
+   625→   625→executeLoad @ (index):3228
+   626→   626→(anonymous) @ (index):3284
+   627→   627→loadAllRemaining @ (index):3282
+   628→   628→(anonymous) @ (index):7469
+   629→   629→setTimeout
+   630→   630→init @ (index):7465
+   631→   631→(index):2526 [TMDB] ✅ Legacy proxy success: /discover/tv (returned page: 1)
+   632→   632→(index):1 Access to fetch at 'https://t-umi.bionmovies47.workers.dev/movie/upcoming?page=1' from origin 'https://rowana.vercel.app' has been blocked by CORS policy: The 'Access-Control-Allow-Origin' header has a value 'https://muvix-vq.blogspot.com' that is not equal to the supplied origin. Have the server send the header with a valid value.
+   633→   633→cache-integration.js:257  GET https://t-umi.bionmovies47.workers.dev/movie/upcoming?page=1 net::ERR_FAILED 403 (Forbidden)
+   634→   634→(anonymous) @ cache-integration.js:257
+   635→   635→await in (anonymous)
+   636→   636→fetchTMDB @ (index):2497
+   637→   637→fetchUpcomingMoviesTMDB @ (index):5615
+   638→   638→loadUpcoming @ (index):5701
+   639→   639→executeLoad @ (index):3228
+   640→   640→(anonymous) @ (index):3284
+   641→   641→loadAllRemaining @ (index):3282
+   642→   642→(anonymous) @ (index):7469
+   643→   643→setTimeout
+   644→   644→init @ (index):7465
+   645→   645→(index):2508 [TMDB] ⚠️ t-umi failed: t-umi: Failed to fetch
+   646→   646→fetchTMDB @ (index):2508
+   647→   647→await in fetchTMDB
+   648→   648→fetchUpcomingMoviesTMDB @ (index):5615
+   649→   649→loadUpcoming @ (index):5701
+   650→   650→executeLoad @ (index):3228
+   651→   651→(anonymous) @ (index):3284
+   652→   652→loadAllRemaining @ (index):3282
+   653→   653→(anonymous) @ (index):7469
+   654→   654→setTimeout
+   655→   655→init @ (index):7465
+   656→   656→blob-cache-client.js:408 [Blob Cache] 📖 Reading cache: upcoming-movies
+   657→   657→blob-cache-client.js:408 [Blob Cache] ✅ Cache HIT: top-airing
+   658→   658→cache-integration.js:227 [Cache Interceptor] 🎯 HIT: top-airing
+   659→   659→(index):3528 [TVMaze] ✅ Fetched 0 episodes from SG
+   660→   660→(index):3557 [TVMaze] ✅ Unique shows from SG: 0
+   661→   661→(index):3619 [TVMaze-🔄] Final: 0 scripted shows from "SG"
+   662→   662→(index):3886 [TVMaze-🔄] Rotation result: 0 shows from "SG"
+   663→   663→(index):3903 [TVMaze] 📊 Total shows to bridge: 0
+   664→   664→(index):3935 [TVMaze] ✅ Successfully bridged 0/0 shows to TMDB
+   665→   665→(index):4689 [Top Airing] ⚠️ TVMaze failed, falling back to TMDB /tv/on_the_air...
+   666→   666→loadTopAiring @ (index):4689
+   667→   667→await in loadTopAiring
+   668→   668→executeLoad @ (index):3228
+   669→   669→(anonymous) @ (index):3192
+   670→   670→setTimeout
+   671→   671→register @ (index):3192
+   672→   672→init @ (index):7411
+   673→   673→blob-cache-client.js:408 [Blob Cache] 📖 Reading cache: hero-slider
+   674→   674→(index):2526 [TMDB] ✅ Legacy proxy success: /discover/tv (returned page: 2)
+   675→   675→(index):2526 [TMDB] ✅ Legacy proxy success: /discover/movie (returned page: 2)
+   676→   676→blob-cache-client.js:408 [Blob Cache] ✅ Cache HIT: top-airing
+   677→   677→cache-integration.js:227 [Cache Interceptor] 🎯 HIT: top-airing
+   678→   678→(index):3528 [TVMaze] ✅ Fetched 0 episodes from GB
+   679→   679→(index):3557 [TVMaze] ✅ Unique shows from GB: 0
+   680→   680→(index):3615 [TVMaze-🔄] "GB" only had 0 scripted shows (< 6, likely a weekend/light day), trying "US"...
+   681→   681→getTVMazeShowsRotatingCountry @ (index):3615
+   682→   682→await in getTVMazeShowsRotatingCountry
+   683→   683→getTVMazeShowsWithTMDBData @ (index):3883
+   684→   684→(anonymous) @ (index):3143
+   685→   685→processQueue @ (index):3039
+   686→   686→await in processQueue
+   687→   687→(anonymous) @ (index):3013
+   688→   688→enqueue @ (index):2998
+   689→   689→queuedFetchTMDB @ (index):3128
+   690→   690→loadNewReleases @ (index):4924
+   691→   691→executeLoad @ (index):3228
+   692→   692→(anonymous) @ (index):3212
+   693→   693→handleIntersection @ (index):3205
+   694→   694→observer.IntersectionObserver.root @ (index):3161
+   695→   695→(index):3516 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=US
+   696→   696→blob-cache-client.js:408 [Blob Cache] 📖 Reading cache: top-airing
+   697→   697→(index):2526 [TMDB] ✅ Legacy proxy success: /discover/tv (returned page: 1)
+   698→   698→(index):5686 [Upcoming TV] page 1/23: 20 raw → 20/50 collected
+   699→   699→(index):2526 [TMDB] ✅ Legacy proxy success: /discover/movie (returned page: 1)
+   700→   700→blob-cache-client.js:408 [Blob Cache] ⚠️ Cache MISS: upcoming-movies (not_cached)
+   701→   701→cache-integration.js:235 [Cache Interceptor] 🔄 MISS: upcoming-movies
+   702→   702→blob-cache-client.js:408 [Blob Cache] ✅ Cache HIT: hero-slider
+   703→   703→cache-integration.js:227 [Cache Interceptor] 🎯 HIT: hero-slider
+   704→   704→(index):2502 [TMDB] ✅ t-umi proxy success: /tv/on_the_air
+   705→   705→blob-cache-client.js:408 [Blob Cache] 💾 Writing cache: topAiring (8.4KB)
+   706→   706→(index):3230 [Lazy Loader] ✅ #topAiringSection loaded in 8544ms
+   707→   707→(index):2511 [TMDB] ⏭️ Skipping t-umi for paginated request (page=2) - known caching bug
+   708→   708→blob-cache-client.js:408 [Blob Cache] ✅ Cache HIT: top-airing
+   709→   709→cache-integration.js:227 [Cache Interceptor] 🎯 HIT: top-airing
+   710→   710→blob-cache-client.js:408 [Blob Cache] 💾 Writing cache: upcoming-movies (12.0KB)
+   711→   711→(index):3528 [TVMaze] ✅ Fetched undefined episodes from US
+   712→   712→(index):3560 [TVMaze] ❌ Error fetching US schedule: data is not iterable
+   713→   713→fetchTVMazeSchedule @ (index):3560
+   714→   714→await in fetchTVMazeSchedule
+   715→   715→getTVMazeShowsRotatingCountry @ (index):3606
+   716→   716→await in getTVMazeShowsRotatingCountry
+   717→   717→getTVMazeShowsWithTMDBData @ (index):3883
+   718→   718→(anonymous) @ (index):3143
+   719→   719→processQueue @ (index):3039
+   720→   720→await in processQueue
+   721→   721→(anonymous) @ (index):3013
+   722→   722→enqueue @ (index):2998
+   723→   723→queuedFetchTMDB @ (index):3128
+   724→   724→loadNewReleases @ (index):4924
+   725→   725→executeLoad @ (index):3228
+   726→   726→(anonymous) @ (index):3212
+   727→   727→handleIntersection @ (index):3205
+   728→   728→observer.IntersectionObserver.root @ (index):3161
+   729→   729→(index):3615 [TVMaze-🔄] "US" only had 0 scripted shows (< 6, likely a weekend/light day), trying "KR"...
+   730→   730→getTVMazeShowsRotatingCountry @ (index):3615
+   731→   731→await in getTVMazeShowsRotatingCountry
+   732→   732→getTVMazeShowsWithTMDBData @ (index):3883
+   733→   733→(anonymous) @ (index):3143
+   734→   734→processQueue @ (index):3039
+   735→   735→await in processQueue
+   736→   736→(anonymous) @ (index):3013
+   737→   737→enqueue @ (index):2998
+   738→   738→queuedFetchTMDB @ (index):3128
+   739→   739→loadNewReleases @ (index):4924
+   740→   740→executeLoad @ (index):3228
+   741→   741→(anonymous) @ (index):3212
+   742→   742→handleIntersection @ (index):3205
+   743→   743→observer.IntersectionObserver.root @ (index):3161
+   744→   744→(index):3516 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=KR
+   745→   745→blob-cache-client.js:408 [Blob Cache] 📖 Reading cache: top-airing
+   746→   746→(index):2526 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 1)
+   747→   747→(index):5636 [Upcoming Movies] page 1/70: 20 raw → 1/50 collected
+   748→   748→blob-cache-client.js:408 [Blob Cache] ✅ Cached successfully: topAiring
+   749→   749→cache-integration.js:285 [CacheHelpers] ✅ Cached: topAiring
+   750→   750→(index):2526 [TMDB] ✅ Legacy proxy success: /discover/tv (returned page: 2)
+   751→   751→(index):5686 [Upcoming TV] page 2/23: 20 raw → 38/50 collected
+   752→   752→blob-cache-client.js:408 [Blob Cache] ✅ Cached successfully: upcoming-movies
+   753→   753→(index):2511 [TMDB] ⏭️ Skipping t-umi for paginated request (page=2) - known caching bug
+   754→   754→blob-cache-client.js:408 [Blob Cache] 📖 Reading cache: upcoming-movies
+   755→   755→blob-cache-client.js:408 [Blob Cache] ✅ Cache HIT: top-airing
+   756→   756→cache-integration.js:227 [Cache Interceptor] 🎯 HIT: top-airing
+   757→   757→(index):3528 [TVMaze] ✅ Fetched 33 episodes from KR
+   758→   758→(index):3557 [TVMaze] ✅ Unique shows from KR: 0
+   759→   759→(index):3615 [TVMaze-🔄] "KR" only had 0 scripted shows (< 6, likely a weekend/light day), trying "TR"...
+   760→   760→getTVMazeShowsRotatingCountry @ (index):3615
+   761→   761→await in getTVMazeShowsRotatingCountry
+   762→   762→getTVMazeShowsWithTMDBData @ (index):3883
+   763→   763→(anonymous) @ (index):3143
+   764→   764→processQueue @ (index):3039
+   765→   765→await in processQueue
+   766→   766→(anonymous) @ (index):3013
+   767→   767→enqueue @ (index):2998
+   768→   768→queuedFetchTMDB @ (index):3128
+   769→   769→loadNewReleases @ (index):4924
+   770→   770→executeLoad @ (index):3228
+   771→   771→(anonymous) @ (index):3212
+   772→   772→handleIntersection @ (index):3205
+   773→   773→observer.IntersectionObserver.root @ (index):3161
+   774→   774→(index):3516 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=TR
+   775→   775→blob-cache-client.js:408 [Blob Cache] 📖 Reading cache: top-airing
+   776→   776→(index):2511 [TMDB] ⏭️ Skipping t-umi for paginated request (page=3) - known caching bug
+   777→   777→(index):7479 [System Status] {apiQueue: {…}, lazyLoader: {…}}
+   778→   778→blob-cache-client.js:408 [Blob Cache] ✅ Cache HIT: top-airing
+   779→   779→cache-integration.js:227 [Cache Interceptor] 🎯 HIT: top-airing
+   780→   780→(index):3528 [TVMaze] ✅ Fetched 33 episodes from TR
+   781→   781→(index):3557 [TVMaze] ✅ Unique shows from TR: 0
+   782→   782→(index):3615 [TVMaze-🔄] "TR" only had 0 scripted shows (< 6, likely a weekend/light day), trying "PK"...
+   783→   783→getTVMazeShowsRotatingCountry @ (index):3615
+   784→   784→await in getTVMazeShowsRotatingCountry
+   785→   785→getTVMazeShowsWithTMDBData @ (index):3883
+   786→   786→(anonymous) @ (index):3143
+   787→   787→processQueue @ (index):3039
+   788→   788→await in processQueue
+   789→   789→(anonymous) @ (index):3013
+   790→   790→enqueue @ (index):2998
+   791→   791→queuedFetchTMDB @ (index):3128
+   792→   792→loadNewReleases @ (index):4924
+   793→   793→executeLoad @ (index):3228
+   794→   794→(anonymous) @ (index):3212
+   795→   795→handleIntersection @ (index):3205
+   796→   796→observer.IntersectionObserver.root @ (index):3161
+   797→   797→(index):3516 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=PK
+   798→   798→blob-cache-client.js:408 [Blob Cache] 📖 Reading cache: top-airing
+   799→   799→blob-cache-client.js:408 [Blob Cache] ✅ Cache HIT: upcoming-movies
+   800→   800→cache-integration.js:227 [Cache Interceptor] 🎯 HIT: upcoming-movies
+   801→   801→(index):2524 [TMDB] ⚠️ Legacy proxy returned page 1 but requested page 2 - might be cached!
+   802→   802→fetchTMDB @ (index):2524
+   803→   803→await in fetchTMDB
+   804→   804→fetchUpcomingMoviesTMDB @ (index):5615
+   805→   805→await in fetchUpcomingMoviesTMDB
+   806→   806→loadUpcoming @ (index):5701
+   807→   807→executeLoad @ (index):3228
+   808→   808→(anonymous) @ (index):3284
+   809→   809→loadAllRemaining @ (index):3282
+   810→   810→(anonymous) @ (index):7469
+   811→   811→setTimeout
+   812→   812→init @ (index):7465
+   813→   813→(index):2526 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 1)
+   814→   814→(index):5636 [Upcoming Movies] page 2/70: 20 raw → 1/50 collected
+   815→   815→(index):2526 [TMDB] ✅ Legacy proxy success: /discover/tv (returned page: 3)
+   816→   816→(index):5686 [Upcoming TV] page 3/23: 20 raw → 50/50 collected
+   817→   817→blob-cache-client.js:408 [Blob Cache] ✅ Cache HIT: top-airing
+   818→   818→cache-integration.js:227 [Cache Interceptor] 🎯 HIT: top-airing
+   819→   819→(index):3528 [TVMaze] ✅ Fetched 33 episodes from PK
+   820→   820→(index):3557 [TVMaze] ✅ Unique shows from PK: 0
+   821→   821→(index):3615 [TVMaze-🔄] "PK" only had 0 scripted shows (< 6, likely a weekend/light day), trying "IN"...
+   822→   822→getTVMazeShowsRotatingCountry @ (index):3615
+   823→   823→await in getTVMazeShowsRotatingCountry
+   824→   824→getTVMazeShowsWithTMDBData @ (index):3883
+   825→   825→(anonymous) @ (index):3143
+   826→   826→processQueue @ (index):3039
+   827→   827→await in processQueue
+   828→   828→(anonymous) @ (index):3013
+   829→   829→enqueue @ (index):2998
+   830→   830→queuedFetchTMDB @ (index):3128
+   831→   831→loadNewReleases @ (index):4924
+   832→   832→executeLoad @ (index):3228
+   833→   833→(anonymous) @ (index):3212
+   834→   834→handleIntersection @ (index):3205
+   835→   835→observer.IntersectionObserver.root @ (index):3161
+   836→   836→(index):3516 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=IN
+   837→   837→blob-cache-client.js:408 [Blob Cache] 📖 Reading cache: top-airing
+   838→   838→(index):2511 [TMDB] ⏭️ Skipping t-umi for paginated request (page=3) - known caching bug
+   839→   839→blob-cache-client.js:408 [Blob Cache] 📖 Reading cache: upcoming-movies
+   840→   840→blob-cache-client.js:408 [Blob Cache] ✅ Cache HIT: top-airing
+   841→   841→cache-integration.js:227 [Cache Interceptor] 🎯 HIT: top-airing
+   842→   842→(index):3528 [TVMaze] ✅ Fetched 33 episodes from IN
+   843→   843→(index):3557 [TVMaze] ✅ Unique shows from IN: 0
+   844→   844→(index):3615 [TVMaze-🔄] "IN" only had 0 scripted shows (< 6, likely a weekend/light day), trying "CN"...
+   845→   845→getTVMazeShowsRotatingCountry @ (index):3615
+   846→   846→await in getTVMazeShowsRotatingCountry
+   847→   847→getTVMazeShowsWithTMDBData @ (index):3883
+   848→   848→(anonymous) @ (index):3143
+   849→   849→processQueue @ (index):3039
+   850→   850→await in processQueue
+   851→   851→(anonymous) @ (index):3013
+   852→   852→enqueue @ (index):2998
+   853→   853→queuedFetchTMDB @ (index):3128
+   854→   854→loadNewReleases @ (index):4924
+   855→   855→executeLoad @ (index):3228
+   856→   856→(anonymous) @ (index):3212
+   857→   857→handleIntersection @ (index):3205
+   858→   858→observer.IntersectionObserver.root @ (index):3161
+   859→   859→(index):3516 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=CN
+   860→   860→blob-cache-client.js:408 [Blob Cache] 📖 Reading cache: top-airing
+   861→   861→blob-cache-client.js:408 [Blob Cache] ✅ Cache HIT: upcoming-movies
+   862→   862→cache-integration.js:227 [Cache Interceptor] 🎯 HIT: upcoming-movies
+   863→   863→(index):2524 [TMDB] ⚠️ Legacy proxy returned page 1 but requested page 3 - might be cached!
+   864→   864→fetchTMDB @ (index):2524
+   865→   865→await in fetchTMDB
+   866→   866→fetchUpcomingMoviesTMDB @ (index):5615
+   867→   867→await in fetchUpcomingMoviesTMDB
+   868→   868→loadUpcoming @ (index):5701
+   869→   869→executeLoad @ (index):3228
+   870→   870→(anonymous) @ (index):3284
+   871→   871→loadAllRemaining @ (index):3282
+   872→   872→(anonymous) @ (index):7469
+   873→   873→setTimeout
+   874→   874→init @ (index):7465
+   875→   875→(index):2526 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 1)
+   876→   876→(index):5636 [Upcoming Movies] page 3/70: 20 raw → 1/50 collected
+   877→   877→(index):2511 [TMDB] ⏭️ Skipping t-umi for paginated request (page=4) - known caching bug
+   878→   878→blob-cache-client.js:408 [Blob Cache] 📖 Reading cache: upcoming-movies
+   879→   879→(index):6952 [Schedule] ✅ saturday: 20 anime
+   880→   880→blob-cache-client.js:408 [Blob Cache] ✅ Cache HIT: top-airing
+   881→   881→cache-integration.js:227 [Cache Interceptor] 🎯 HIT: top-airing
+   882→   882→(index):3528 [TVMaze] ✅ Fetched 33 episodes from CN
+   883→   883→(index):3557 [TVMaze] ✅ Unique shows from CN: 0
+   884→   884→(index):3615 [TVMaze-🔄] "CN" only had 0 scripted shows (< 6, likely a weekend/light day), trying "SG"...
+   885→   885→getTVMazeShowsRotatingCountry @ (index):3615
+   886→   886→await in getTVMazeShowsRotatingCountry
+   887→   887→getTVMazeShowsWithTMDBData @ (index):3883
+   888→   888→(anonymous) @ (index):3143
+   889→   889→processQueue @ (index):3039
+   890→   890→await in processQueue
+   891→   891→(anonymous) @ (index):3013
+   892→   892→enqueue @ (index):2998
+   893→   893→queuedFetchTMDB @ (index):3128
+   894→   894→loadNewReleases @ (index):4924
+   895→   895→executeLoad @ (index):3228
+   896→   896→(anonymous) @ (index):3212
+   897→   897→handleIntersection @ (index):3205
+   898→   898→observer.IntersectionObserver.root @ (index):3161
+   899→   899→(index):3516 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=SG
+   900→   900→blob-cache-client.js:408 [Blob Cache] 📖 Reading cache: top-airing
+   901→   901→blob-cache-client.js:408 [Blob Cache] ✅ Cache HIT: upcoming-movies
+   902→   902→cache-integration.js:227 [Cache Interceptor] 🎯 HIT: upcoming-movies
+   903→   903→(index):2524 [TMDB] ⚠️ Legacy proxy returned page 1 but requested page 4 - might be cached!
+   904→   904→fetchTMDB @ (index):2524
+   905→   905→await in fetchTMDB
+   906→   906→fetchUpcomingMoviesTMDB @ (index):5615
+   907→   907→await in fetchUpcomingMoviesTMDB
+   908→   908→loadUpcoming @ (index):5701
+   909→   909→executeLoad @ (index):3228
+   910→   910→(anonymous) @ (index):3284
+   911→   911→loadAllRemaining @ (index):3282
+   912→   912→(anonymous) @ (index):7469
+   913→   913→setTimeout
+   914→   914→init @ (index):7465
+   915→   915→(index):2526 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 1)
+   916→   916→(index):5636 [Upcoming Movies] page 4/70: 20 raw → 1/50 collected
+   917→   917→blob-cache-client.js:408 [Blob Cache] ✅ Cache HIT: top-airing
+   918→   918→cache-integration.js:227 [Cache Interceptor] 🎯 HIT: top-airing
+   919→   919→(index):3528 [TVMaze] ✅ Fetched 33 episodes from SG
+   920→   920→(index):3557 [TVMaze] ✅ Unique shows from SG: 0
+   921→   921→(index):3619 [TVMaze-🔄] Final: 0 scripted shows from "SG"
+   922→   922→(index):3886 [TVMaze-🔄] Rotation result: 0 shows from "SG"
+   923→   923→(index):3903 [TVMaze] 📊 Total shows to bridge: 0
+   924→   924→(index):3935 [TVMaze] ✅ Successfully bridged 0/0 shows to TMDB
+   925→   925→(index):3046 [API Queue] ✅ [tvmaze-245] Completed in 5137ms
+   926→   926→(index):4969 [New Releases] 📅 Filtered movies: keeping only 2026 releases (36 passed)
+   927→   927→(index):4998 [New Releases] ⚠️ TVMaze failed, falling back to TMDB /tv/on_the_air...
+   928→   928→loadNewReleases @ (index):4998
+   929→   929→await in loadNewReleases
+   930→   930→executeLoad @ (index):3228
+   931→   931→(anonymous) @ (index):3212
+   932→   932→handleIntersection @ (index):3205
+   933→   933→observer.IntersectionObserver.root @ (index):3161
+   934→   934→blob-cache-client.js:408 [Blob Cache] 📖 Reading cache: hero-slider
+   935→   935→(index):2511 [TMDB] ⏭️ Skipping t-umi for paginated request (page=2) - known caching bug
+   936→   936→blob-cache-client.js:408 [Blob Cache] 📖 Reading cache: hero-slider
+   937→   937→(index):2511 [TMDB] ⏭️ Skipping t-umi for paginated request (page=5) - known caching bug
+   938→   938→blob-cache-client.js:408 [Blob Cache] 📖 Reading cache: upcoming-movies
+   939→   939→blob-cache-client.js:408 [Blob Cache] ✅ Cache HIT: hero-slider
+   940→   940→cache-integration.js:227 [Cache Interceptor] 🎯 HIT: hero-slider
+   941→   941→blob-cache-client.js:408 [Blob Cache] ✅ Cache HIT: hero-slider
+   942→   942→cache-integration.js:227 [Cache Interceptor] 🎯 HIT: hero-slider
+   943→   943→(index):2502 [TMDB] ✅ t-umi proxy success: /tv/on_the_air
+   944→   944→(index):2524 [TMDB] ⚠️ Legacy proxy returned page 1 but requested page 2 - might be cached!
+   945→   945→fetchTMDB @ (index):2524
+   946→   946→await in fetchTMDB
+   947→   947→loadNewReleases @ (index):5001
+   948→   948→await in loadNewReleases
+   949→   949→executeLoad @ (index):3228
+   950→   950→(anonymous) @ (index):3212
+   951→   951→handleIntersection @ (index):3205
+   952→   952→observer.IntersectionObserver.root @ (index):3161
+   953→   953→(index):2526 [TMDB] ✅ Legacy proxy success: /tv/on_the_air (returned page: 1)
+   954→   954→(index):5017 [New Releases] 🎌 Anilist success! Got 50 anime
+   955→   955→(index):5047 [New Releases] 📊 Content breakdown:
+   956→   956→(index):5048   • Anilist Airing Anime: 36 shows
+   957→   957→(index):5049   • TVMaze TV Shows: 0 shows
+   958→   958→(index):5050   • TMDB Movies (2026): 36 shows
+   959→   959→blob-cache-client.js:408 [Blob Cache] 💾 Writing cache: newReleases (36.3KB)
+   960→   960→(index):5083 [New Releases] ✅ Completed in 11676ms (with API queue optimization)
+   961→   961→(index):3230 [Lazy Loader] ✅ #newReleasesGrid loaded in 11705ms
+   962→   962→(index):3034 [API Queue] ▶️ [anilist-8127] Priority 3 | Active: 1/3 | Queue: 0
+   963→   963→blob-cache-client.js:408 [Blob Cache] ⚠️ Cache MISS: upcoming-movies (not_cached)
+   964→   964→cache-integration.js:235 [Cache Interceptor] 🔄 MISS: upcoming-movies
+   965→   965→blob-cache-client.js:408 [Blob Cache] 💾 Writing cache: upcoming-movies (12.0KB)
+   966→   966→(index):2526 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 5)
+   967→   967→(index):5636 [Upcoming Movies] page 5/70: 20 raw → 4/50 collected
+   968→   968→blob-cache-client.js:408 [Blob Cache] ✅ Cached successfully: newReleases
+   969→   969→cache-integration.js:285 [CacheHelpers] ✅ Cached: newReleases
+   970→   970→(index):2511 [TMDB] ⏭️ Skipping t-umi for paginated request (page=6) - known caching bug
+   971→   971→blob-cache-client.js:408 [Blob Cache] 📖 Reading cache: upcoming-movies
+   972→   972→blob-cache-client.js:408 [Blob Cache] ✅ Cached successfully: upcoming-movies
+   973→   973→(index):6952 [Schedule] ✅ wednesday: 12 anime
+   974→   974→blob-cache-client.js:408 [Blob Cache] ✅ Cache HIT: upcoming-movies
+   975→   975→cache-integration.js:227 [Cache Interceptor] 🎯 HIT: upcoming-movies
+   976→   976→(index):2524 [TMDB] ⚠️ Legacy proxy returned page 5 but requested page 6 - might be cached!
+   977→   977→fetchTMDB @ (index):2524
+   978→   978→await in fetchTMDB
+   979→   979→fetchUpcomingMoviesTMDB @ (index):5615
+   980→   980→await in fetchUpcomingMoviesTMDB
+   981→   981→loadUpcoming @ (index):5701
+   982→   982→executeLoad @ (index):3228
+   983→   983→(anonymous) @ (index):3284
+   984→   984→loadAllRemaining @ (index):3282
+   985→   985→(anonymous) @ (index):7469
+   986→   986→setTimeout
+   987→   987→init @ (index):7465
+   988→   988→(index):2526 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 5)
+   989→   989→(index):5636 [Upcoming Movies] page 6/70: 20 raw → 4/50 collected
+   990→   990→(index):2511 [TMDB] ⏭️ Skipping t-umi for paginated request (page=7) - known caching bug
+   991→   991→blob-cache-client.js:408 [Blob Cache] 📖 Reading cache: upcoming-movies
+   992→   992→(index):1 [Intervention] Images loaded lazily and replaced with placeholders. Load events are deferred. See https://go.microsoft.com/fwlink/?linkid=2048113
+   993→   993→(index):3230 [Lazy Loader] ✅ #popularAnimeList loaded in 5929ms
+   994→   994→(index):3046 [API Queue] ✅ [anilist-8127] Completed in 1466ms
+   995→   995→(index):5971 [Completed] 🎌 Anilist success! Got 50 anime
+   996→   996→(index):5984 [Completed] 📺 TV page 1: 20 results | First: "Platini" (id:332488)
+   997→   997→(index):5984 [Completed] 📺 TV page 2: 20 results | First: "Rough Draft" (id:310355)
+   998→   998→(index):5984 [Completed] 📺 TV page 3: 20 results | First: "Kiss or Kill" (id:331312)
+   999→   999→(index):5987 [Completed] 🎬 Movie page 1: 20 results | First: "Lost Crook" (id:1754638)
+  1000→  1000→(index):5987 [Completed] 🎬 Movie page 2: 20 results | First: "Awakening in the Valley" (id:1745896)
+  1001→  1001→(index):5987 [Completed] 🎬 Movie page 3: 20 results | First: "A Beautiful Thing" (id:1754112)
+  1002→  1002→(index):3230 [Lazy Loader] ✅ #completedGrid loaded in 6245ms
+  1003→  1003→blob-cache-client.js:408 [Blob Cache] ✅ Cache HIT: upcoming-movies
+  1004→  1004→cache-integration.js:227 [Cache Interceptor] 🎯 HIT: upcoming-movies
+  1005→  1005→(index):5576 [Upcoming Anime] Page 1: +50 raw → 50/50 collected (hasNextPage: true)
+  1006→  1006→(index):2524 [TMDB] ⚠️ Legacy proxy returned page 5 but requested page 7 - might be cached!
+  1007→  1007→fetchTMDB @ (index):2524
+  1008→  1008→await in fetchTMDB
+  1009→  1009→fetchUpcomingMoviesTMDB @ (index):5615
+  1010→  1010→await in fetchUpcomingMoviesTMDB
+  1011→  1011→loadUpcoming @ (index):5701
+  1012→  1012→executeLoad @ (index):3228
+  1013→  1013→(anonymous) @ (index):3284
+  1014→  1014→loadAllRemaining @ (index):3282
+  1015→  1015→(anonymous) @ (index):7469
+  1016→  1016→setTimeout
+  1017→  1017→init @ (index):7465
+  1018→  1018→(index):2526 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 5)
+  1019→  1019→(index):5636 [Upcoming Movies] page 7/70: 20 raw → 4/50 collected
+  1020→  1020→(index):7479 [System Status] {apiQueue: {…}, lazyLoader: {…}}
+  1021→  1021→(index):2511 [TMDB] ⏭️ Skipping t-umi for paginated request (page=8) - known caching bug
+  1022→  1022→blob-cache-client.js:408 [Blob Cache] 📖 Reading cache: upcoming-movies
+  1023→  1023→(index):6952 [Schedule] ✅ thursday: 12 anime
+  1024→  1024→blob-cache-client.js:408 [Blob Cache] ✅ Cache HIT: upcoming-movies
+  1025→  1025→cache-integration.js:227 [Cache Interceptor] 🎯 HIT: upcoming-movies
+  1026→  1026→(index):2524 [TMDB] ⚠️ Legacy proxy returned page 5 but requested page 8 - might be cached!
+  1027→  1027→fetchTMDB @ (index):2524
+  1028→  1028→await in fetchTMDB
+  1029→  1029→fetchUpcomingMoviesTMDB @ (index):5615
+  1030→  1030→await in fetchUpcomingMoviesTMDB
+  1031→  1031→loadUpcoming @ (index):5701
+  1032→  1032→executeLoad @ (index):3228
+  1033→  1033→(anonymous) @ (index):3284
+  1034→  1034→loadAllRemaining @ (index):3282
+  1035→  1035→(anonymous) @ (index):7469
+  1036→  1036→setTimeout
+  1037→  1037→init @ (index):7465
+  1038→  1038→(index):2526 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 5)
+  1039→  1039→(index):5636 [Upcoming Movies] page 8/70: 20 raw → 4/50 collected
+  1040→  1040→(index):2511 [TMDB] ⏭️ Skipping t-umi for paginated request (page=9) - known caching bug
+  1041→  1041→blob-cache-client.js:408 [Blob Cache] 📖 Reading cache: upcoming-movies
+  1042→  1042→blob-cache-client.js:408 [Blob Cache] ✅ Cache HIT: upcoming-movies
+  1043→  1043→cache-integration.js:227 [Cache Interceptor] 🎯 HIT: upcoming-movies
+  1044→  1044→(index):2524 [TMDB] ⚠️ Legacy proxy returned page 5 but requested page 9 - might be cached!
+  1045→  1045→fetchTMDB @ (index):2524
+  1046→  1046→await in fetchTMDB
+  1047→  1047→fetchUpcomingMoviesTMDB @ (index):5615
+  1048→  1048→await in fetchUpcomingMoviesTMDB
+  1049→  1049→loadUpcoming @ (index):5701
+  1050→  1050→executeLoad @ (index):3228
+  1051→  1051→(anonymous) @ (index):3284
+  1052→  1052→loadAllRemaining @ (index):3282
+  1053→  1053→(anonymous) @ (index):7469
+  1054→  1054→setTimeout
+  1055→  1055→init @ (index):7465
+  1056→  1056→(index):2526 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 5)
+  1057→  1057→(index):5636 [Upcoming Movies] page 9/70: 20 raw → 4/50 collected
+  1058→  1058→(index):2511 [TMDB] ⏭️ Skipping t-umi for paginated request (page=10) - known caching bug
+  1059→  1059→blob-cache-client.js:408 [Blob Cache] 📖 Reading cache: upcoming-movies
+  1060→  1060→blob-cache-client.js:408 [Blob Cache] ✅ Cache HIT: upcoming-movies
+  1061→  1061→cache-integration.js:227 [Cache Interceptor] 🎯 HIT: upcoming-movies
+  1062→  1062→(index):2524 [TMDB] ⚠️ Legacy proxy returned page 5 but requested page 10 - might be cached!
+  1063→  1063→fetchTMDB @ (index):2524
+  1064→  1064→await in fetchTMDB
+  1065→  1065→fetchUpcomingMoviesTMDB @ (index):5615
+  1066→  1066→await in fetchUpcomingMoviesTMDB
+  1067→  1067→loadUpcoming @ (index):5701
+  1068→  1068→executeLoad @ (index):3228
+  1069→  1069→(anonymous) @ (index):3284
+  1070→  1070→loadAllRemaining @ (index):3282
+  1071→  1071→(anonymous) @ (index):7469
+  1072→  1072→setTimeout
+  1073→  1073→init @ (index):7465
+  1074→  1074→(index):2526 [TMDB] ✅ Legacy proxy success: /movie/upcoming (returned page: 5)
+  1075→  1075→(index):5636 [Upcoming Movies] page 10/70: 20 raw → 4/50 collected
+  1076→  1076→(index):5712 [Upcoming] Raw fetch complete: 4 movies, 50 TV shows
+  1077→  1077→(index):5787 [Upcoming Filter] ✅ RESULTS: 4 movies + 50 TV + 50 anime
+  1078→  1078→blob-cache-client.js:408 [Blob Cache] 💾 Writing cache: upcoming (63.9KB)
+  1079→  1079→(index):3230 [Lazy Loader] ✅ #upcomingSection loaded in 8528ms
+  1080→  1080→blob-cache-client.js:408 [Blob Cache] ✅ Cached successfully: upcoming
+  1081→  1081→cache-integration.js:285 [CacheHelpers] ✅ Cached: upcoming
+  1082→  1082→(index):6952 [Schedule] ✅ friday: 13 anime
+  1083→  1083→(index):6956 [Schedule] ⚠️ Failed to fetch monday: signal is aborted without reason
+  1084→  1084→fetchDayFromJikan @ (index):6956
+  1085→  1085→await in fetchDayFromJikan
+  1086→  1086→(anonymous) @ (index):6967
+  1087→  1087→fetchAllDaysParallel @ (index):6967
+  1088→  1088→loadSchedule @ (index):7294
+  1089→  1089→executeLoad @ (index):3228
+  1090→  1090→(anonymous) @ (index):3212
+  1091→  1091→handleIntersection @ (index):3205
+  1092→  1092→observer.IntersectionObserver.root @ (index):3161
+  1093→  1093→(index):6956 [Schedule] ⚠️ Failed to fetch tuesday: signal is aborted without reason
+  1094→  1094→fetchDayFromJikan @ (index):6956
+  1095→  1095→await in fetchDayFromJikan
+  1096→  1096→(anonymous) @ (index):6967
+  1097→  1097→fetchAllDaysParallel @ (index):6967
+  1098→  1098→loadSchedule @ (index):7294
+  1099→  1099→executeLoad @ (index):3228
+  1100→  1100→(anonymous) @ (index):3212
+  1101→  1101→handleIntersection @ (index):3205
+  1102→  1102→observer.IntersectionObserver.root @ (index):3161
+  1103→  1103→(index):6956 [Schedule] ⚠️ Failed to fetch sunday: signal is aborted without reason
+  1104→  1104→fetchDayFromJikan @ (index):6956
+  1105→  1105→await in fetchDayFromJikan
+  1106→  1106→(anonymous) @ (index):6967
+  1107→  1107→fetchAllDaysParallel @ (index):6967
+  1108→  1108→loadSchedule @ (index):7294
+  1109→  1109→executeLoad @ (index):3228
+  1110→  1110→(anonymous) @ (index):3212
+  1111→  1111→handleIntersection @ (index):3205
+  1112→  1112→observer.IntersectionObserver.root @ (index):3161
+  1113→  1113→(index):6977 [Schedule] ✅ Complete! Total: 57 anime across 7 days
+  1114→  1114→(index):3516 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=TR&date=2026-08-23
+  1115→  1115→blob-cache-client.js:408 [Blob Cache] 📖 Reading cache: top-airing
+  1116→  1116→(index):3230 [Lazy Loader] ✅ #eswWidget loaded in 12031ms
+  1117→  1117→blob-cache-client.js:408 [Blob Cache] ✅ Cache HIT: top-airing
+  1118→  1118→cache-integration.js:227 [Cache Interceptor] 🎯 HIT: top-airing
+  1119→  1119→(index):3528 [TVMaze] ✅ Fetched 0 episodes from TR (2026-08-23)
+  1120→  1120→(index):3557 [TVMaze] ✅ Unique shows from TR: 0
+  1121→  1121→(index):3678 [Sidebar-TVMaze] "TR" only had 0 usable shows for 2026-08-23, trying next country...
+  1122→  1122→fetchSidebarTVShowsForDate @ (index):3678
+  1123→  1123→await in fetchSidebarTVShowsForDate
+  1124→  1124→renderScheduleForDay @ (index):7069
+  1125→  1125→setCurrentDay @ (index):7277
+  1126→  1126→loadSchedule @ (index):7304
+  1127→  1127→await in loadSchedule
+  1128→  1128→executeLoad @ (index):3228
+  1129→  1129→(anonymous) @ (index):3212
+  1130→  1130→handleIntersection @ (index):3205
+  1131→  1131→observer.IntersectionObserver.root @ (index):3161
+  1132→  1132→(index):3516 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=US&date=2026-08-23
+  1133→  1133→blob-cache-client.js:408 [Blob Cache] 📖 Reading cache: top-airing
+  1134→  1134→(index):7479 [System Status] {apiQueue: {…}, lazyLoader: {…}}
+  1135→  1135→blob-cache-client.js:408 [Blob Cache] ✅ Cache HIT: top-airing
+  1136→  1136→cache-integration.js:227 [Cache Interceptor] 🎯 HIT: top-airing
+  1137→  1137→(index):3528 [TVMaze] ✅ Fetched 0 episodes from US (2026-08-23)
+  1138→  1138→(index):3557 [TVMaze] ✅ Unique shows from US: 0
+  1139→  1139→(index):3678 [Sidebar-TVMaze] "US" only had 0 usable shows for 2026-08-23, trying next country...
+  1140→  1140→fetchSidebarTVShowsForDate @ (index):3678
+  1141→  1141→await in fetchSidebarTVShowsForDate
+  1142→  1142→renderScheduleForDay @ (index):7069
+  1143→  1143→setCurrentDay @ (index):7277
+  1144→  1144→loadSchedule @ (index):7304
+  1145→  1145→await in loadSchedule
+  1146→  1146→executeLoad @ (index):3228
+  1147→  1147→(anonymous) @ (index):3212
+  1148→  1148→handleIntersection @ (index):3205
+  1149→  1149→observer.IntersectionObserver.root @ (index):3161
+  1150→  1150→(index):3516 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=PK&date=2026-08-23
+  1151→  1151→blob-cache-client.js:408 [Blob Cache] 📖 Reading cache: top-airing
+  1152→  1152→blob-cache-client.js:408 [Blob Cache] ✅ Cache HIT: top-airing
+  1153→  1153→cache-integration.js:227 [Cache Interceptor] 🎯 HIT: top-airing
+  1154→  1154→(index):3528 [TVMaze] ✅ Fetched 0 episodes from PK (2026-08-23)
+  1155→  1155→(index):3557 [TVMaze] ✅ Unique shows from PK: 0
+  1156→  1156→(index):3678 [Sidebar-TVMaze] "PK" only had 0 usable shows for 2026-08-23, trying next country...
+  1157→  1157→fetchSidebarTVShowsForDate @ (index):3678
+  1158→  1158→await in fetchSidebarTVShowsForDate
+  1159→  1159→renderScheduleForDay @ (index):7069
+  1160→  1160→setCurrentDay @ (index):7277
+  1161→  1161→loadSchedule @ (index):7304
+  1162→  1162→await in loadSchedule
+  1163→  1163→executeLoad @ (index):3228
+  1164→  1164→(anonymous) @ (index):3212
+  1165→  1165→handleIntersection @ (index):3205
+  1166→  1166→observer.IntersectionObserver.root @ (index):3161
+  1167→  1167→(index):3516 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=IN&date=2026-08-23
+  1168→  1168→blob-cache-client.js:408 [Blob Cache] 📖 Reading cache: top-airing
+  1169→  1169→blob-cache-client.js:408 [Blob Cache] ✅ Cache HIT: top-airing
+  1170→  1170→cache-integration.js:227 [Cache Interceptor] 🎯 HIT: top-airing
+  1171→  1171→(index):3528 [TVMaze] ✅ Fetched 0 episodes from IN (2026-08-23)
+  1172→  1172→(index):3557 [TVMaze] ✅ Unique shows from IN: 0
+  1173→  1173→(index):3678 [Sidebar-TVMaze] "IN" only had 0 usable shows for 2026-08-23, trying next country...
+  1174→  1174→fetchSidebarTVShowsForDate @ (index):3678
+  1175→  1175→await in fetchSidebarTVShowsForDate
+  1176→  1176→renderScheduleForDay @ (index):7069
+  1177→  1177→setCurrentDay @ (index):7277
+  1178→  1178→loadSchedule @ (index):7304
+  1179→  1179→await in loadSchedule
+  1180→  1180→executeLoad @ (index):3228
+  1181→  1181→(anonymous) @ (index):3212
+  1182→  1182→handleIntersection @ (index):3205
+  1183→  1183→observer.IntersectionObserver.root @ (index):3161
+  1184→  1184→(index):3516 [TVMaze] 📡 Fetching schedule: https://api.tvmaze.com/schedule?country=KR&date=2026-08-23
+  1185→  1185→blob-cache-client.js:408 [Blob Cache] 📖 Reading cache: top-airing
+  1186→  1186→blob-cache-client.js:408 [Blob Cache] ✅ Cache HIT: top-airing
+  1187→  1187→cache-integration.js:227 [Cache Interceptor] 🎯 HIT: top-airing
+  1188→  1188→(index):3528 [TVMaze] ✅ Fetched 0 episodes from KR (2026-08-23)
+  1189→  1189→(index):3557 [TVMaze] ✅ Unique shows from KR: 0
+  1190→  1190→(index):3678 [Sidebar-TVMaze] "KR" only had 0 usable shows for 2026-08-23, trying next country...
+  1191→  1191→fetchSidebarTVShowsForDate @ (index):3678
+  1192→  1192→await in fetchSidebarTVShowsForDate
+  1193→  1193→renderScheduleForDay @ (index):7069
+  1194→  1194→setCurrentDay @ (index):7277
+  1195→  1195→loadSchedule @ (index):7304
+  1196→  1196→await in loadSchedule
+  1197→  1197→executeLoad @ (index):3228
+  1198→  1198→(anonymous) @ (index):3212
+  1199→  1199→handleIntersection @ (index):3205
+  1200→  1200→observer.IntersectionObserver.root @ (index):3161
+  1201→  1201→(index):3681 [Sidebar-TVMaze] 0 TV shows from "KR" for 2026-08-23
+  1202→  1202→(index):7479 [System Status] {apiQueue: {…}, lazyLoader: {…}}
+  1203→  1203→(index):7479 [System Status] {apiQueue: {…}, lazyLoader: {…}}
+  1204→  1204→(index):7479 [System Status] {apiQueue: {…}, lazyLoader: {…}}
+  1205→  1205→(index):7479 [System Status] {apiQueue: {…}, lazyLoader: {…}}
+  1206→  1206→(index):7479 [System Status] {apiQueue: {…}, lazyLoader: {…}}
+  1207→  1207→(index):7479 [System Status] {apiQueue: {…}, lazyLoader: {…}}
+  1208→  1208→(index):7479 [System Status] {apiQueue: {…}, lazyLoader: {…}}
+  1209→  1209→(index):7479 [System Status] {apiQueue: {…}, lazyLoader: {…}}
+  1210→  1210→(index):7479 [System Status] {apiQueue: {…}, lazyLoader: {…}}
+  1211→  1211→(index):7479 [System Status] {apiQueue: {…}, lazyLoader: {…}}
+  1212→  1212→(index):7479 [System Status] {apiQueue: {…}, lazyLoader: {…}}
+  1213→  1213→(index):7479 [System Status] {apiQueue: {…}, lazyLoader: {…}}
+  1214→  1214→(index):7479 [System Status] {apiQueue: {…}, lazyLoader: {…}}
