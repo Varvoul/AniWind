@@ -1,0 +1,1 @@
+{"name": "aniumi-blob-cache", "version": "1.0.0", "description": "Simple Vercel Blob cache for AniWind API responses", "main": "api/blob-cache.js", "scripts": {"start": "vercel dev", "deploy": "vercel --prod"}, "dependencies": {"@vercel/blob": "^0.23.4"}, "engines": {"node": ">=18.0.0"}, "author": "AniUmi Team", "license": "MIT"}
