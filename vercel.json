@@ -35,7 +35,5 @@
 
     { "source": "/jikan/:path*",           "destination": "https://api.jikan.moe/v4/:path*" }
   ],
-  "crons": [
-    { "path": "/api/cache/refresh", "schedule": "0 3 * * *" }
-  ]
+  "crons": []
 }
