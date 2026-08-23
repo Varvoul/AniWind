@@ -1,16 +1,16 @@
 // ═══════════════════════════════════════════════════════════════════
-// VERCEL BLOB CACHE API - Private Store Edition v4.0
+// VERCEL BLOB CACHE API - Public Store Edition v5.0
 // 
 // Configuration:
-// - Store Type: PRIVATE (store_VcHlC7LrB4RyYVJn)
-// - Base URL: https://vchlc7lrb4ryyvjn.private.blob.vercel-storage.com
+// - Store ID: store_VcHlC7LrB4RyYVJn
+// - Access Mode: PUBLIC (store requires public access)
 //
 // Features:
 // - Stores COMPLETE raw JSON responses from TMDB/AniList/TVMaze APIs
 // - 6-hour TTL (Time-To-Live) auto-expiry
 // - Special pagination support for "recently-completed" section
 // - Works with existing proxy setup (t-umi, aniocen, etc.)
-// - Uses PRIVATE access for all Blob operations
+// - Uses PUBLIC access for all Blob operations (store requirement)
 //
 // Actions: ping, read, write, status, list, clear, clear-all
 // ═══════════════════════════════════════════════════════════════════
@@ -23,7 +23,6 @@ const CACHE_PREFIX = 'cache/';
 const TTL_SECONDS = 6 * 60 * 60; // 6 hours in seconds
 
 // All sections to cache (maps to blob keys)
-// Includes multiple naming conventions for compatibility
 const SECTIONS = {
   // Standard names (kebab-case)
   'hero-slider': 'hero-slider.json',
@@ -50,7 +49,7 @@ const SECTIONS = {
   'schedule-saturday': 'schedule/saturday.json',
   'schedule-sunday': 'schedule/sunday.json',
   
-  // CamelCase aliases (for compatibility with existing code)
+  // CamelCase aliases
   'heroSlider': 'hero-slider.json',
   'topAiring': 'top-airing.json',
   'newReleases': 'new-releases/all.json',
@@ -68,10 +67,10 @@ const SECTIONS = {
   'trendingMonth': 'trending/month.json',
   'mostFavourite': 'most-favourite.json',
   'popularAnime': 'popular-anime.json',
-  'upcoming': 'upcoming/movies.json',  // Generic upcoming
+  'upcoming': 'upcoming/movies.json',
 };
 
-// In-memory fallback storage (used only if Blob fails completely)
+// In-memory fallback storage
 const memoryStore = new Map();
 let blobAvailable = false;
 let blobError = null;
@@ -82,7 +81,7 @@ try {
   const blobModule = require('@vercel/blob');
   Blob = blobModule;
   blobAvailable = true;
-  console.log('[Blob Cache] ✅ @vercel/blob loaded (PRIVATE store mode)');
+  console.log('[Blob Cache] ✅ @vercel/blob loaded (PUBLIC store mode)');
 } catch (e) {
   blobAvailable = false;
   blobError = e.message;
@@ -156,7 +155,7 @@ export default async function handler(req, res) {
       _meta: { 
         ms: Date.now() - start, 
         ttl: TTL_SECONDS, 
-        storage: blobAvailable ? 'blob-private' : 'memory',
+        storage: blobAvailable ? 'blob-public' : 'memory',
         storeId: blobAvailable ? 'store_VcHlC7LrB4RyYVJn' : null
       }
     });
@@ -175,7 +174,7 @@ async function handlePing() {
   return { 
     message: 'pong', 
     blobAvailable, 
-    mode: blobAvailable ? 'PRIVATE' : 'memory-fallback',
+    mode: blobAvailable ? 'PUBLIC' : 'memory-fallback',
     storeId: 'store_VcHlC7LrB4RyYVJn',
     time: new Date().toISOString(),
     ...(blobError ? { _warn: blobError } : {})
@@ -187,40 +186,33 @@ async function readCache(section, page) {
   
   if (blobAvailable) {
     try {
-      // For private blobs, use get() to download content directly
-      const blob = await Blob.get(key, { access: 'private' });
+      // Check if blob exists and get metadata
+      const meta = await Blob.head(key);
       
-      if (!blob) {
+      if (!meta) {
         return { found: false, reason: 'not_cached' };
       }
       
-      // Parse the blob content
-      const data = await blob.text();
-      const parsed = JSON.parse(data);
-      
-      // Check if we can get metadata (uploadedAt for TTL)
-      let meta;
-      try {
-        meta = await Blob.head(key);
-      } catch (e) {
-        // Head might fail, use current time
-        meta = null;
-      }
-      
-      const uploadedAt = meta?.uploadedAt || new Date().toISOString();
+      const uploadedAt = meta.uploadedAt || new Date().toISOString();
       
       if (isExpired(uploadedAt)) {
         return { found: false, reason: 'expired', ttl: 0 };
       }
       
+      // Download the blob content
+      const blob = await Blob.get(key);
+      const data = await blob.text();
+      const parsed = JSON.parse(data);
+      
       console.log(`[Blob Cache] 📖 READ ${key} (${data.length} chars)`);
       return { 
         found: true, 
-        data: parsed, // Return actual parsed data for private blobs
+        data: parsed,
         size: data.length, 
         ttl: getTTL(uploadedAt),
-        source: 'blob-private',
-        at: uploadedAt
+        source: 'blob-public',
+        at: uploadedAt,
+        url: meta.url
       };
     } catch (e) {
       console.log(`[Blob Cache] ⚠️ Read failed: ${e.message}`);
@@ -243,21 +235,21 @@ async function writeCache(section, data, page) {
   
   if (blobAvailable) {
     try {
-      // ALWAYS use private access for this store
+      // Use PUBLIC access (store requirement)
       const blob = await Blob.put(key, json, { 
-        access: 'private', 
+        access: 'public', 
         contentType: 'application/json', 
         addRandomSuffix: false 
       });
       
-      console.log(`[Blob Cache] 💾 WRITTEN ${key} (${json.length} chars) to PRIVATE store`);
+      console.log(`[Blob Cache] 💾 WRITTEN ${key} (${json.length} chars) to PUBLIC store`);
       return { 
-        message: `[BLOB-PRIVATE] Cached: ${section}${page ? ` p${page}` : ''}`, 
+        message: `[BLOB-PUBLIC] Cached: ${section}${page ? ` p${page}` : ''}`, 
         key, 
         size: blob.size || json.length, 
         at: t,
-        url: blob.url, // Private URL (only accessible via server)
-        store: 'private'
+        url: blob.url,
+        store: 'public'
       };
     } catch (e) {
       console.error(`[Blob Cache] ❌ Write failed: ${e.message}`);
@@ -298,7 +290,7 @@ async function getStatus(section) {
           size: meta.size, 
           ttl: getTTL(meta.uploadedAt),
           at: meta.uploadedAt,
-          store: 'private'
+          store: 'public'
         };
       } catch (e) { return { section, found: false, status: 'error', error: e.message }; }
     } else {
@@ -313,7 +305,7 @@ async function getStatus(section) {
   let valid = 0, expired = 0, missing = 0, totalSize = 0;
 
   for (const [name, path] of Object.entries(SECTIONS)) {
-    if (path.endsWith('/')) continue; // Skip pagination prefix
+    if (path.endsWith('/')) continue;
     const key = CACHE_PREFIX + path;
     
     if (blobAvailable) {
@@ -327,7 +319,7 @@ async function getStatus(section) {
             size: m.size, 
             ttl: getTTL(m.uploadedAt),
             at: m.uploadedAt,
-            store: 'private'
+            store: 'public'
           };
           totalSize += m.size || 0; 
           v ? valid++ : expired++;
@@ -390,7 +382,7 @@ async function getStatus(section) {
       missing, 
       totalSize, 
       ttl: TTL_SECONDS, 
-      storage: blobAvailable ? 'blob-private' : 'memory',
+      storage: blobAvailable ? 'blob-public' : 'memory',
       storeId: 'store_VcHlC7LrB4RyYVJn'
     }, 
     sections: statuses 
@@ -403,14 +395,14 @@ async function listAll() {
       const { blobs } = await Blob.list({ prefix: CACHE_PREFIX });
       return { 
         count: blobs.length, 
-        store: 'private',
+        store: 'public',
         items: blobs.map(b => ({ 
           path: b.pathname.replace(CACHE_PREFIX,''), 
+          url: b.url,
           size: b.size, 
           at: b.uploadedAt, 
           exp: isExpired(b.uploadedAt), 
-          ttl: getTTL(b.uploadedAt),
-          url: '[private]' // Don't expose private URLs
+          ttl: getTTL(b.uploadedAt)
         })).sort((a,b) => new Date(b.at) - new Date(a.at)) 
       };
     } catch (e) { 
