@@ -181,7 +181,7 @@ async function writeCache(section, data, page) {
   const json = typeof data === 'string' ? data : JSON.stringify(data);
   
   if (blobAvailable) {
-    const blob = await Blob.put(key, json, { access: 'private', contentType: 'application/json', addRandomSuffix: false });
+    const blob = await Blob.put(key, json, { access: 'public', contentType: 'application/json', addRandomSuffix: false });
     console.log(`[Blob Cache] 💾 ${key} (${json.length} chars)`);
     return { message: `Cached: ${section}${page ? ` p${page}` : ''}`, key, url: blob.url, size: blob.size, at: blob.uploadedAt };
   } else {
