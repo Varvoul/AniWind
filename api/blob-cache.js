@@ -145,7 +145,25 @@ async function readCache(section, page) {
       const meta = await Blob.head(key);
       if (!meta) return { found: false, reason: 'not_cached' };
       if (isExpired(meta.uploadedAt)) return { found: false, reason: 'expired', ttl: 0 };
-      return { found: true, url: meta.url, size: meta.size, ttl: getTTL(meta.uploadedAt) };
+      
+      // For private blobs, download and return data directly
+      // For public blobs, return URL (client can fetch)
+      const isPrivate = !meta.url.startsWith('https://public-');
+      
+      if (isPrivate) {
+        // Download blob content server-side
+        const blob = await Blob.get(key);
+        const data = await blob.text();
+        return { 
+          found: true, 
+          data: JSON.parse(data), // Return actual parsed data
+          size: meta.size, 
+          ttl: getTTL(meta.uploadedAt),
+          source: 'blob-private'
+        };
+      } else {
+        return { found: true, url: meta.url, size: meta.size, ttl: getTTL(meta.uploadedAt), source: 'blob-public' };
+      }
     } catch (e) {
       return { found: false, reason: 'error', error: e.message };
     }
@@ -163,7 +181,7 @@ async function writeCache(section, data, page) {
   const json = typeof data === 'string' ? data : JSON.stringify(data);
   
   if (blobAvailable) {
-    const blob = await Blob.put(key, json, { access: 'public', contentType: 'application/json', addRandomSuffix: false });
+    const blob = await Blob.put(key, json, { access: 'private', contentType: 'application/json', addRandomSuffix: false });
     console.log(`[Blob Cache] 💾 ${key} (${json.length} chars)`);
     return { message: `Cached: ${section}${page ? ` p${page}` : ''}`, key, url: blob.url, size: blob.size, at: blob.uploadedAt };
   } else {
