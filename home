@@ -561,31 +561,33 @@
     .aniocean-lang-badge {
       padding: 3px 6px;
       border-radius: 4px;
-      font-size: 0.62rem;
+      font-size: 0.66rem;
       font-weight: 700;
       display: flex;
       align-items: center;
-      gap: 3px;
-      backdrop-filter: blur(8px);
-      box-shadow: 0 2px 6px rgba(0,0,0,0.25);
-      letter-spacing: 0.3px;
+      gap: 4px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+      letter-spacing: 0.2px;
+      text-shadow: 0 1px 1px rgba(0,0,0,0.35);
     }
     .aniocean-lang-badge i {
-      font-size: 0.6rem;
+      font-size: 0.66rem;
     }
     
-    /* Sub Badge - Cyan/Blue theme (matches site accent) */
+    /* Sub Badge — brand primary blue, solid (no blur) for reliable
+       contrast over busy poster art */
     .aniocean-lang-badge.sub-badge {
-      background: rgba(6, 182, 212, 0.85);
+      background: var(--btn-primary, #2b6cb0);
       color: #ffffff;
-      border: 1px solid rgba(34, 211, 238, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.25);
     }
     
-    /* Dub Badge - Purple/Violet theme (complementary) */
+    /* Dub Badge — brand indigo (matches genre-tag/popup-btn hues already
+       used elsewhere on the site), clearly distinct from sub-badge's blue */
     .aniocean-lang-badge.dub-badge {
-      background: rgba(139, 92, 246, 0.85);
+      background: var(--genre-tag-bg, #4c51bf);
       color: #ffffff;
-      border: 1px solid rgba(167, 139, 250, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.25);
     }
     
     /* Title Section - Below Poster (not overlaid) */
@@ -2740,8 +2742,6 @@
           trending: media.trending,
           nextEpisode: media.nextAiringEpisode,
           isAdult: media.isAdult,
-          is_sub: 1,
-          is_dub: 0,
           source: 'anilist'
         };
       }
@@ -3386,8 +3386,8 @@ async function loadNewAniocean() {
             </div>
             <!-- Sub/Dub Badges - Bottom Left -->
             <div class="aniocean-badge-lang">
-              ${anime.is_sub > 0 ? `<span class="aniocean-lang-badge sub-badge"><i class="fas fa-closed-captioning"></i> SUB ${anime.is_sub}</span>` : ''}
-              ${anime.is_dub > 0 ? `<span class="aniocean-lang-badge dub-badge"><i class="fas fa-microphone"></i> DUB ${anime.is_dub}</span>` : ''}
+              ${anime.is_sub > 0 ? `<span class="aniocean-lang-badge sub-badge" title="${anime.is_sub} subbed episode${anime.is_sub === 1 ? '' : 's'}"><i class="fas fa-closed-captioning"></i>${anime.is_sub}</span>` : ''}
+              ${anime.is_dub > 0 ? `<span class="aniocean-lang-badge dub-badge" title="${anime.is_dub} dubbed episode${anime.is_dub === 1 ? '' : 's'}"><i class="fas fa-microphone"></i>${anime.is_dub}</span>` : ''}
             </div>
           </div>
           <!-- Title Section - Below Poster -->
@@ -3401,35 +3401,58 @@ async function loadNewAniocean() {
     return true;
   }
 
+  // Shared formatter for Anikoto-shaped anime objects — used by BOTH the
+  // Neon DB tier and the live Anikoto proxy tier below, since the DB
+  // column is a cached snapshot of this exact same API response shape
+  // (mal_id, slug, poster, terms_by_type, is_sub, is_dub, etc.), not
+  // raw AniList data. Keeping one formatter means the real is_sub/is_dub
+  // episode counts always come through correctly, from either source.
+  async function formatAnikotoShapedItems(data) {
+    const formatted = data.map(anime => ({
+      // Never fall back to the Anikoto/internal `id` here — that is NOT a
+      // MAL id, and using it would silently link to the wrong anime.
+      // Missing/empty mal_id is backfilled below via confident title search.
+      mal_id: anime.mal_id || null,
+      title: anime.title,
+      slug: anime.slug,
+      poster: anime.poster,
+      score: anime.score || 'N/A',
+      type: anime.terms_by_type?.type?.[0] || 'TV',
+      rating: anime.rating || 'N/A',
+      description: anime.description || 'No description available.',
+      year: anime.year || '?',
+      duration: anime.duration ? anime.duration + 'm' : '?',
+      genres: anime.terms_by_type?.genre || [],
+      studio: anime.terms_by_type?.studios?.[0] || '?',
+      is_sub: anime.is_sub || 0,
+      is_dub: anime.is_dub || 0
+    }));
+
+    // Backfill any missing mal_id via confident Jikan title search before
+    // deduping (dedup keys on mal_id, so nulls must be resolved first or
+    // they'd collapse into a single entry).
+    const cleaned = cleanJikan(formatted);
+    const backfilled = await mapWithConcurrency(cleaned, 3, async (anime) => {
+      if (anime.mal_id) return anime; // already has one — leave as-is
+      const media = {
+        title: { english: anime.title, romaji: anime.title, native: null },
+        startDate: { year: (anime.year && anime.year !== '?') ? parseInt(anime.year, 10) : null },
+        episodes: null
+      };
+      const malId = await findMalIdByTitle(media);
+      if (!malId) return null; // no confident match — skip rather than risk a wrong link
+      return { ...anime, mal_id: malId };
+    });
+
+    return dedupById(backfilled.filter(Boolean), 'mal_id');
+  }
+
   // ----- PRIMARY: Neon DB (new_on_ruri) -----
   try {
-    const dbAnilistData = await window.dbAniListPage('new_on_ruri');
-    if (dbAnilistData?.Page?.media && dbAnilistData.Page.media.length > 0) {
-      console.log(`[New on Rowana] Using Neon DB (${dbAnilistData.Page.media.length} anime)...`);
-      const candidates = dbAnilistData.Page.media.filter(m => !m.isAdult);
-      const resolved = await mapWithConcurrency(candidates, 3, async (m) => {
-        let malId = m.idMal || null;
-        if (!malId) malId = await findMalIdByTitle(m);
-        if (!malId) return null; // no confident match — skip rather than risk a wrong link
-        const internal = anilistToInternal(m);
-        return {
-          mal_id: malId,
-          title: internal.title,
-          slug: internal.slug,
-          poster: internal.poster,
-          score: internal.score,
-          type: internal.type || 'TV',
-          rating: internal.rating,
-          description: internal.description || 'No description available.',
-          year: String(internal.year),
-          duration: internal.duration,
-          genres: internal.genres,
-          studio: internal.studio,
-          is_sub: 1,
-          is_dub: 0
-        };
-      });
-      const unique = dedupById(resolved.filter(Boolean), 'mal_id');
+    const dbAnime = (await window.getHomeData())?.new_on_ruri?.Anime;
+    if (Array.isArray(dbAnime) && dbAnime.length > 0) {
+      console.log(`[New on Rowana] Using Neon DB (${dbAnime.length} anime)...`);
+      const unique = await formatAnikotoShapedItems(dbAnime);
       if (unique.length > 0 && renderAnimeList(unique)) {
         console.log(`✓ Loaded ${unique.length} anime from Neon DB for "New on Rowana"`);
         return;
@@ -3444,46 +3467,8 @@ async function loadNewAniocean() {
     console.log('[New on Rowana] DB unavailable, trying Anikoto API...');
     const response = await fetchAnikoto('/recent-anime?page=1&per_page=100');
     if (response.ok && response.data && response.data.length > 0) {
-      const data = response.data;
-      const formatted = data.map(anime => ({
-        // Never fall back to the Anikoto/internal `id` here — that is NOT a
-        // MAL id, and using it would silently link to the wrong anime.
-        // Missing/empty mal_id is backfilled below via confident title search.
-        mal_id: anime.mal_id || null,
-        title: anime.title,
-        slug: anime.slug,
-        poster: anime.poster,
-        score: anime.score || 'N/A',
-        type: anime.terms_by_type?.type?.[0] || 'TV',
-        rating: anime.rating || 'N/A',
-        description: anime.description || 'No description available.',
-        year: anime.year || '?',
-        duration: anime.duration ? anime.duration + 'm' : '?',
-        genres: anime.terms_by_type?.genre || [],
-        studio: anime.terms_by_type?.studios?.[0] || '?',
-        is_sub: anime.is_sub || 0,
-        is_dub: anime.is_dub || 0
-      }));
+      const unique = await formatAnikotoShapedItems(response.data);
 
-      // Backfill any missing mal_id via confident Jikan title search before
-      // deduping (dedup keys on mal_id, so nulls must be resolved first or
-      // they'd collapse into a single entry).
-      const cleaned = cleanJikan(formatted);
-      const backfilled = await mapWithConcurrency(cleaned, 3, async (anime) => {
-        if (anime.mal_id) return anime; // already has one — leave as-is
-        const media = {
-          title: { english: anime.title, romaji: anime.title, native: null },
-          startDate: { year: (anime.year && anime.year !== '?') ? parseInt(anime.year, 10) : null },
-          episodes: null
-        };
-        const malId = await findMalIdByTitle(media);
-        if (!malId) return null; // no confident match — skip rather than risk a wrong link
-        return { ...anime, mal_id: malId };
-      });
-
-      // Deduplicate by mal_id
-      const unique = dedupById(backfilled.filter(Boolean), 'mal_id');
-      
       // Use exactly 6 rows (fixed limit)
       if (renderAnimeList(unique)) {
         console.log(`✓ Loaded ${unique.length} anime from Anikoto proxy for "New on Aniocean"`);
@@ -3495,6 +3480,9 @@ async function loadNewAniocean() {
   }
 
   // ----- FINAL FALLBACK: live AniList (DB and Anikoto both unavailable/empty) -----
+  // AniList has no sub/dub-availability data at all, so is_sub/is_dub are
+  // left at 0 here (honest "unknown") rather than guessed — the language
+  // badge simply won't render for these, same as any other 0-count item.
   console.log('[New on Rowana] Falling back to live AniList API...');
   try {
     const anilistData = await fetchAniList(`
@@ -3530,7 +3518,7 @@ async function loadNewAniocean() {
           duration: internal.duration,
           genres: internal.genres,
           studio: internal.studio,
-          is_sub: 1,
+          is_sub: 0,
           is_dub: 0
         };
       });
