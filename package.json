@@ -1,0 +1,1 @@
+{"name": "aniwind-api", "version": "1.0.0", "private": true, "scripts": {"start": "vercel dev"}, "dependencies": {"@neondatabase/serverless": "^1.10.0"}}

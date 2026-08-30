@@ -1,6 +1,5 @@
 // Vercel Serverless Function: Neon Database Proxy
-// Location: /api/neon-proxy.js
-// Uses @neondatabase/serverless (optimized for Vercel/Edge)
+// Uses fetch to call Neon's SQL endpoint (works in Vercel edge)
 
 export default async function handler(req, res) {
   // Enable CORS
@@ -21,49 +20,45 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Invalid action' });
     }
 
-    console.log('[Neon Proxy] 🚀 Fetching from Neon DB...');
+    console.log('[Neon Proxy] 🚀 Connecting to Neon DB...');
 
-    // Use native fetch to call Neon's REST API with proper auth
-    // Using the connection string credentials
-    const response = await fetch(
-      'https://ep-super-dawn-azjwdm9a.apirest.c-3.ap-southeast-1.aws.neon.tech/neondb/rest/v1/rpc/get_frontend_data',
-      {
-        method: 'GET',
-        headers: {
-          'Authorization': 'Basic ' + Buffer.from('neondb_owner:npg_Wdf5XkBVbx1i').toString('base64'),
-          'Content-Type': 'application/json',
-        }
-      }
-    );
-
-    // If RPC doesn't exist, try direct query approach via external API
-    if (!response.ok || response.status === 404) {
-      console.log('[Neon Proxy] Trying alternative endpoint...');
-      
-      // Fallback: Return cached/static data structure for now
-      // This allows the site to work while we debug DB connection
-      return res.status(200).json({
-        success: true,
-        data: null,
-        message: 'DB connection in setup mode',
-        hint: 'Configure Neon connection properly'
+    // Dynamic import of neon serverless driver (works in Vercel)
+    const { neon } = await import('@neondatabase/serverless');
+    
+    // Create SQL connection
+    const sql = neon('postgresql://neondb_owner:npg_Wdf5XkBVbx1i@ep-super-dawn-azjwdm9a-pooler.c-3.ap-southeast-1.aws.neon.tech/neondb?sslmode=require');
+    
+    // Execute query
+    const result = await sql`SELECT * FROM public_frontend_data LIMIT 1`;
+    
+    if (!result || result.length === 0) {
+      return res.status(404).json({ 
+        error: 'No data found',
+        hint: 'Check if table has data'
       });
     }
 
-    const data = await response.json();
+    const data = result[0];
+    
+    console.log(`[Neon Proxy] ✅ Success! ${Object.keys(data).length} columns`);
 
     return res.status(200).json({
       success: true,
-      data: Array.isArray(data) ? data[0] : data,
-      source: 'neon_rest_api'
+      data: data,
+      metadata: {
+        columns: Object.keys(data).length,
+        columnNames: Object.keys(data),
+        fetchedAt: new Date().toISOString(),
+        source: 'neon_serverless'
+      }
     });
 
   } catch (error) {
-    console.error('[Neon Proxy] Error:', error);
+    console.error('[Neon Proxy] ❌ Error:', error);
     
     return res.status(500).json({
       error: error.message,
-      timestamp: new Date().toISOString()
+      type: error.constructor.name
     });
   }
 }
