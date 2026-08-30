@@ -12,9 +12,18 @@
   // ═══════════════════════════════════════════════════════════════════
   // NEON DATABASE CONFIGURATION (PostgreSQL for optimized data serving)
   // ═══════════════════════════════════════════════════════════════════
+  // NOTE: Using Supabase Edge Function as proxy for Neon DB
+  // Direct REST API requires JWT token (not napi_ key), so we route through Supabase
+  
+  // Option A: Direct Neon REST (requires valid JWT - currently disabled)
   const NEON_REST_URL     = 'https://ep-super-dawn-azjwdm9a.apirest.c-3.ap-southeast-1.aws.neon.tech/neondb/rest/v1';
   const NEON_API_KEY      = 'napi_7fak07gaux9ioewri458o33psns69sf2nlycg8o69hasargl97jjwte55hgweiy7';
   const NEON_TABLE        = 'public_frontend_data';
+  
+  // Option B: Supabase Proxy URL (Edge Function that fetches from Neon)
+  // Create this function in Supabase Dashboard → Edge Functions → neon-proxy
+  const NEON_PROXY_URL    = `${SUPABASE_URL}/functions/v1/neon-proxy`;
+  const USE_NEON_PROXY    = true; // Set to true to use Supabase proxy
   
   // Neon DB Cache System - reduces API calls dramatically
   // Cache TTL: 10 minutes (matches automation update frequency)
@@ -65,35 +74,65 @@
    */
   async function _doNeonFetch() {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
     
     try {
-      const response = await fetch(`${NEON_REST_URL}/${NEON_TABLE}?limit=1&select=*`, {
-        method: 'GET',
-        headers: {
-          'apikey': NEON_API_KEY,
-          'Authorization': `Bearer ${NEON_API_KEY}`,
-          'Content-Type': 'application/json',
-          'Prefer': 'return=representation'
-        },
-        signal: controller.signal
-      });
+      let response;
+      
+      if (USE_NEON_PROXY) {
+        // ── METHOD 1: Via Supabase Edge Function Proxy ──
+        console.log('[Neon DB] 🔗 Using Supabase proxy...');
+        response = await fetch(NEON_PROXY_URL, {
+          method: 'POST',
+          headers: {
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ action: 'get_frontend_data' }),
+          signal: controller.signal
+        });
+      } else {
+        // ── METHOD 2: Direct Neon REST API ──
+        console.log('[Neon DB] 🔗 Using direct Neon REST...');
+        response = await fetch(`${NEON_REST_URL}/${NEON_TABLE}?limit=1&select=*`, {
+          method: 'GET',
+          headers: {
+            'apikey': NEON_API_KEY,
+            'Authorization': `Bearer ${NEON_API_KEY}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation'
+          },
+          signal: controller.signal
+        });
+      }
       
       clearTimeout(timeoutId);
       
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        const errorText = await response.text().catch(() => '');
+        throw new Error(`HTTP ${response.status}: ${errorText || response.statusText}`);
       }
       
-      const data = await response.json();
+      let data = await response.json();
       
-      if (!data || !Array.isArray(data) || data.length === 0) {
+      // Handle proxy wrapper format: { data: {...} }
+      if (data && data.data && typeof data.data === 'object') {
+        data = data.data;
+      }
+      
+      // Handle array response from direct REST
+      if (Array.isArray(data)) {
+        data = data.length > 0 ? data[0] : null;
+      }
+      
+      if (!data || typeof data !== 'object' || Object.keys(data).length === 0) {
         console.warn('[Neon DB] ⚠️ No data returned');
         return null;
       }
       
-      console.log('[Neon DB] ✅ Data fetched successfully (' + Object.keys(data[0]).length + ' columns)');
-      return data[0]; // Return first (and only) row
+      console.log('[Neon DB] ✅ Data fetched successfully (' + Object.keys(data).length + ' columns)');
+      return data;
       
     } catch (error) {
       clearTimeout(timeoutId);
