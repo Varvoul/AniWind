@@ -5808,20 +5808,37 @@ titleEl.style.color = 'transparent';
       }
 
       async function loadUpcoming() {
-        
-        console.log('[Upcoming] Starting queue-managed fetch: movies + TV + anime, each sequential/rate-limited, stopping once 50 collected...');
-        const todayDebug = new Date();
-        console.log(`[Upcoming] Today's date: ${todayDebug.toISOString().split('T')[0]}`);
-        
-        const [moviesRaw, tvRaw, anilistUpcomingAnime] = await Promise.all([
-          // MOVIES: paginated sequentially, stops once 50 genuinely-upcoming results found
-          fetchUpcomingMoviesTMDB(50),
-          // TV: paginated sequentially via /discover/tv (first_air_date.gte=today), stops once 50 found
-          fetchUpcomingTVTMDB(50),
-          // AniList: Upcoming JAPANESE TV/TV_SHORT anime only — paginated, rate-limited,
-          // stops as soon as 50 valid results are collected (see fetchUpcomingAnimeAniList above)
-          fetchUpcomingAnimeAniList(50)
-        ]);
+
+        // DB (Neon upcoming_shows) first — falls back to the live queue-managed
+        // TMDB/AniList fetchers below only for whichever piece the DB doesn't
+        // have data for.
+        const dbUp = (await window.getHomeData())?.upcoming_shows;
+        const dbUpMovies = dbUp?.tmdbMovie;
+        const dbUpTv = dbUp?.tmdbTV;
+        const dbUpAnime = dbUp?.Anime;
+
+        let moviesRaw, tvRaw, anilistUpcomingAnime;
+
+        if (Array.isArray(dbUpMovies) && dbUpMovies.length && Array.isArray(dbUpTv) && dbUpTv.length && Array.isArray(dbUpAnime) && dbUpAnime.length) {
+          console.log(`[Upcoming] Using Neon DB (${dbUpAnime.length} anime, ${dbUpTv.length} TV, ${dbUpMovies.length} movies)...`);
+          moviesRaw = dbUpMovies;
+          tvRaw = dbUpTv;
+          anilistUpcomingAnime = dbUpAnime;
+        } else {
+          console.log('[Upcoming] DB incomplete, starting queue-managed fetch: movies + TV + anime, each sequential/rate-limited, stopping once 50 collected...');
+          const todayDebug = new Date();
+          console.log(`[Upcoming] Today's date: ${todayDebug.toISOString().split('T')[0]}`);
+
+          [moviesRaw, tvRaw, anilistUpcomingAnime] = await Promise.all([
+            // MOVIES: paginated sequentially, stops once 50 genuinely-upcoming results found
+            (Array.isArray(dbUpMovies) && dbUpMovies.length) ? Promise.resolve(dbUpMovies) : fetchUpcomingMoviesTMDB(50),
+            // TV: paginated sequentially via /discover/tv (first_air_date.gte=today), stops once 50 found
+            (Array.isArray(dbUpTv) && dbUpTv.length) ? Promise.resolve(dbUpTv) : fetchUpcomingTVTMDB(50),
+            // AniList: Upcoming JAPANESE TV/TV_SHORT anime only — paginated, rate-limited,
+            // stops as soon as 50 valid results are collected (see fetchUpcomingAnimeAniList above)
+            (Array.isArray(dbUpAnime) && dbUpAnime.length) ? Promise.resolve(dbUpAnime) : fetchUpcomingAnimeAniList(50)
+          ]);
+        }
         
         const allTmdbMovies = moviesRaw;
         const allTmdbTV = tvRaw;
