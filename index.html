@@ -5926,6 +5926,13 @@ titleEl.style.color = 'transparent';
         
       } // End of loadPopularAnime()
       
+      // Jikan API base URL for schedule
+      const JIKAN_SCHEDULE_BASE = 'https://api.jikan.moe/v4/schedules';
+      
+      // Week offset for schedule navigation
+      let currentWeekOffset = 0;
+      const MAX_WEEK_OFFSET = 4; // Allow ±4 weeks navigation
+      
       async function fetchDayFromJikan(day) {
         try {
           const url = `${JIKAN_SCHEDULE_BASE}/${day}?sfw=true`;
