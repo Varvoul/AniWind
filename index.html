@@ -1023,10 +1023,18 @@
        screen width), this tab is horizontal-scroll on every device, matching
        how Top Airing / New on Aniumi already behave responsively. */
     .nr-hidden-rows { display:flex; flex-direction:column; gap:22px; margin-top:4px; }
+    .nr-hidden-row-header {
+      display:flex; align-items:center; justify-content:space-between;
+      margin-bottom:8px;
+    }
     .nr-hidden-row-label {
       font-size:0.78rem; font-weight:600; color:var(--text-muted, #94a3b8);
-      margin-bottom:8px; letter-spacing:0.2px;
+      letter-spacing:0.2px;
     }
+    /* These rows are always horizontal-scroll (not gated behind .nr-horiz-active
+       like the "All" tab's chevrons), so show them unconditionally on desktop —
+       .scroll-arrow's own @media rule already hides them under 1024px. */
+    .nr-hidden-row-header .nr-scroll-controls { display:flex; }
     .nr-hidden-scroll { padding-bottom:8px; }
     .nr-hidden-scroll .show-card-grid {
       flex: 0 0 auto;
@@ -2131,15 +2139,33 @@
         <div class="grid-container new-releases-grid" id="newReleasesGrid"></div>
         <div class="nr-hidden-rows" id="newReleasesHidden" style="display:none;">
           <div class="nr-hidden-row">
-            <div class="nr-hidden-row-label">🇰🇷🇯🇵 South Korea &amp; Japan</div>
+            <div class="nr-hidden-row-header">
+              <div class="nr-hidden-row-label">🇰🇷🇯🇵 South Korea &amp; Japan</div>
+              <div class="nr-scroll-controls">
+                <button class="scroll-arrow" id="nrHiddenRow1Left" title="Scroll left">‹</button>
+                <button class="scroll-arrow" id="nrHiddenRow1Right" title="Scroll right">›</button>
+              </div>
+            </div>
             <div class="horizontal-scroll nr-hidden-scroll" id="nrHiddenRow1"></div>
           </div>
           <div class="nr-hidden-row">
-            <div class="nr-hidden-row-label">🇵🇰🇮🇳 Pakistan &amp; India</div>
+            <div class="nr-hidden-row-header">
+              <div class="nr-hidden-row-label">🇵🇰🇮🇳 Pakistan &amp; India</div>
+              <div class="nr-scroll-controls">
+                <button class="scroll-arrow" id="nrHiddenRow2Left" title="Scroll left">‹</button>
+                <button class="scroll-arrow" id="nrHiddenRow2Right" title="Scroll right">›</button>
+              </div>
+            </div>
             <div class="horizontal-scroll nr-hidden-scroll" id="nrHiddenRow2"></div>
           </div>
           <div class="nr-hidden-row">
-            <div class="nr-hidden-row-label">🇹🇷 Turkey</div>
+            <div class="nr-hidden-row-header">
+              <div class="nr-hidden-row-label">🇹🇷 Turkey</div>
+              <div class="nr-scroll-controls">
+                <button class="scroll-arrow" id="nrHiddenRow3Left" title="Scroll left">‹</button>
+                <button class="scroll-arrow" id="nrHiddenRow3Right" title="Scroll right">›</button>
+              </div>
+            </div>
             <div class="horizontal-scroll nr-hidden-scroll" id="nrHiddenRow3"></div>
           </div>
         </div>
@@ -3375,11 +3401,47 @@ async function loadNewAniocean() {
     return true;
   }
 
-  // ── Serve from DB cache if available ──
-
-  // ----- PRIMARY: Anikoto proxy (100 items for 6 complete rows) -----
+  // ----- PRIMARY: Neon DB (new_on_ruri) -----
   try {
-    console.log('[New on Rowana] Trying Anikoto API...');
+    const dbAnilistData = await window.dbAniListPage('new_on_ruri');
+    if (dbAnilistData?.Page?.media && dbAnilistData.Page.media.length > 0) {
+      console.log(`[New on Rowana] Using Neon DB (${dbAnilistData.Page.media.length} anime)...`);
+      const candidates = dbAnilistData.Page.media.filter(m => !m.isAdult);
+      const resolved = await mapWithConcurrency(candidates, 3, async (m) => {
+        let malId = m.idMal || null;
+        if (!malId) malId = await findMalIdByTitle(m);
+        if (!malId) return null; // no confident match — skip rather than risk a wrong link
+        const internal = anilistToInternal(m);
+        return {
+          mal_id: malId,
+          title: internal.title,
+          slug: internal.slug,
+          poster: internal.poster,
+          score: internal.score,
+          type: internal.type || 'TV',
+          rating: internal.rating,
+          description: internal.description || 'No description available.',
+          year: String(internal.year),
+          duration: internal.duration,
+          genres: internal.genres,
+          studio: internal.studio,
+          is_sub: 1,
+          is_dub: 0
+        };
+      });
+      const unique = dedupById(resolved.filter(Boolean), 'mal_id');
+      if (unique.length > 0 && renderAnimeList(unique)) {
+        console.log(`✓ Loaded ${unique.length} anime from Neon DB for "New on Rowana"`);
+        return;
+      }
+    }
+  } catch (e) {
+    console.warn('[New on Rowana] Neon DB source failed:', e);
+  }
+
+  // ----- SECONDARY: Anikoto proxy (100 items for 6 complete rows) -----
+  try {
+    console.log('[New on Rowana] DB unavailable, trying Anikoto API...');
     const response = await fetchAnikoto('/recent-anime?page=1&per_page=100');
     if (response.ok && response.data && response.data.length > 0) {
       const data = response.data;
@@ -3432,10 +3494,10 @@ async function loadNewAniocean() {
     console.warn('Primary Anikoto source failed:', e);
   }
 
-  // ----- FALLBACK: DB (Neon new_on_ruri) first, then live AniList -----
-  console.log('[New on Rowana] Falling back to DB / AniList API...');
+  // ----- FINAL FALLBACK: live AniList (DB and Anikoto both unavailable/empty) -----
+  console.log('[New on Rowana] Falling back to live AniList API...');
   try {
-    const anilistData = (await window.dbAniListPage('new_on_ruri')) || await fetchAniList(`
+    const anilistData = await fetchAniList(`
       query ($perPage: Int) {
         Page(page: 1, perPage: $perPage) {
           media(type: ANIME, status: RELEASING, isAdult: false, sort: [TRENDING_DESC, POPULARITY_DESC]) {
@@ -5470,6 +5532,18 @@ titleEl.style.color = 'transparent';
         }
         el.innerHTML = items.map(s => buildReleaseCardHTML(s)).join('');
       }
+
+      /* ── Hidden tab: chevron + arrow-key scroll for each of the 3 rows,
+         same left/right pattern as Top Airing / the "All" tab. ── */
+      ['nrHiddenRow1', 'nrHiddenRow2', 'nrHiddenRow3'].forEach(rowId => {
+        const container = document.getElementById(rowId);
+        const leftBtn = document.getElementById(`${rowId}Left`);
+        const rightBtn = document.getElementById(`${rowId}Right`);
+        if (!container || !leftBtn || !rightBtn) return;
+        leftBtn.addEventListener('click', () => container.scrollBy({ left: -getRowScrollAmount(container), behavior: 'smooth' }));
+        rightBtn.addEventListener('click', () => container.scrollBy({ left: getRowScrollAmount(container), behavior: 'smooth' }));
+        enableArrowKeyScroll(container.closest('.nr-hidden-row'), container);
+      });
 
       let hiddenReleasesLoaded = false;
       let hiddenReleasesLoading = false;
