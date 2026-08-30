@@ -2247,128 +2247,6 @@
       const tmdbImg = (p,s='w500') => p ? `${TMDB_IMAGE}/${s}${p}` : '';
       const tmdbBack = (p) => p ? `${TMDB_IMAGE}/w1280${p}` : '';
 
-      /* ═══════════════════════════════════════════════════════════════════
-         NEON DATABASE DATA CONVERTERS
-         Transforms DB JSONB data into frontend-compatible format
-         ═══════════════════════════════════════════════════════════════════ */
-      
-      /**
-       * Convert AniList-style anime from DB to internal card format
-       * @param {Object} anime - AniList anime object from DB
-       * @param {string} prefix - ID prefix for routing
-       * @returns {Object} Formatted card object
-       */
-      function dbAnimeToCard(anime, prefix = 'anilist-air-') {
-        if (!anime) return null;
-        const title = anime.title?.userPreferred || anime.title?.romaji || anime.title?.english || 'Unknown';
-        return {
-          id: `${prefix}${anime.id}`,
-          mal_id: anime.idMal,
-          title: title,
-          poster: anime.coverImage?.large || anime.coverImage?.medium || '',
-          type: 'Anime',
-          duration: anime.duration ? `${anime.duration}m` : '?',
-          score: anime.averageScore ? String(anime.averageScore) : 'N/A',
-          status: anime.status === 'RELEASING' ? 'Airing' : anime.status,
-          episodes: anime.episodes || '?',
-          format: anime.format,
-          genres: anime.genres || [],
-          bannerImage: anime.bannerImage,
-          description: anime.description,
-          studios: anime.studios?.nodes?.map(n => n.name).join(', ') || '',
-          nextAiringEpisode: anime.nextAiringEpisode,
-          popularity: anime.popularity,
-          favourites: anime.favourites,
-          seasonYear: anime.seasonYear,
-          _source: 'neon-db'
-        };
-      }
-      
-      /**
-       * Convert TMDB TV show from DB to internal card format
-       * @param {Object} show - TMDB TV object from DB
-       * @returns {Object} Formatted card object
-       */
-      function dbTmdbTvToCard(show) {
-        if (!show) return null;
-        return {
-          id: `tmdb-tv-${show.id}`,
-          tmdb_id: show.id,
-          title: show.name || show.original_name || 'Unknown',
-          original_title: show.original_name || show.name,
-          poster: show.poster_path ? tmdbImg(show.poster_path) : '',
-          type: 'TV',
-          score: show.vote_average ? String(show.vote_average.toFixed(1)) : 'N/A',
-          status: 'Airing',
-          country: show.origin_country?.[0] || 'N/A',
-          voteCount: show.vote_count || 0,
-          backdrop: show.backdrop_path ? tmdbBack(show.backdrop_path) : '',
-          overview: show.overview,
-          popularity: show.popularity,
-          genre_ids: show.genre_ids,
-          _source: 'neon-db'
-        };
-      }
-      
-      /**
-       * Convert TMDB Movie from DB to internal card format
-       * @param {Object} movie - TMDB Movie object from DB
-       * @returns {Object} Formatted card object
-       */
-      function dbTmdbMovieToCard(movie) {
-        if (!movie) return null;
-        return {
-          id: `tmdb-mv-${movie.id}`,
-          tmdb_id: movie.id,
-          title: movie.title || movie.original_title || 'Unknown',
-          original_title: movie.original_title || movie.title,
-          poster: movie.poster_path ? tmdbImg(movie.poster_path) : '',
-          type: 'Movie',
-          score: movie.vote_average ? String(movie.vote_average.toFixed(1)) : 'N/A',
-          voteCount: movie.vote_count || 0,
-          backdrop: movie.backdrop_path ? tmdbBack(movie.backdrop_path) : '',
-          overview: movie.overview,
-          adult: movie.adult,
-          release_date: movie.release_date,
-          _source: 'neon-db'
-        };
-      }
-      
-      /**
-       * Convert Rowana/Anipix anime from DB to internal card format
-       * Used for new_on_ruri section which has different schema
-       * @param {Object} anime - Rowana anime object from DB
-       * @returns {Object} Formatted card object
-       */
-      function dbRowanaToCard(anime) {
-        if (!anime) return null;
-        return {
-          id: `rowana-${anime.id || anime.s_id}`,
-          s_id: anime.s_id,
-          slug: anime.slug,
-          title: anime.title,
-          native: anime.native,
-          poster: anime.poster,
-          type: 'Anime',
-          score: anime.score || 'N/A',
-          rating: anime.rating,
-          status: anime.status,
-          episodes: anime.episodes,
-          duration: anime.duration,
-          aired: anime.aired,
-          year: anime.year,
-          season: anime.season,
-          source: anime.source,
-          mal_id: anime.mal_id,
-          ani_id: anime.ani_id,
-          is_sub: anime.is_sub,
-          background_image: anime.background_image,
-          _source: 'neon-db-rowana'
-        };
-      }
-
-      console.log('[Neon Converters] ✅ Database-to-card converters loaded');
-
       /* ── INFO URL GENERATOR (SEO-Friendly) ──
        * Generates info page URLs with proper format:
        * - Anime: /info/anime/jikan-{mal_id}/slug
@@ -3423,64 +3301,209 @@
 window.anioceanData = {};
 
 async function loadNewAniocean() {
-        // ═══════════════════════════════════════════════════════════════════
-        // NEON DATABASE POWERED NEW ON ROWANA SECTION
-        // Uses Rowana-specific schema from DB
-        // ═══════════════════════════════════════════════════════════════════
-        
-        try {
-          console.log('[New On Rowana] 🚀 Loading from Neon Database...');
-          const dbData = await window.NeonDB.getSection('new_on_ruri');
-          
-          if (dbData && dbData.Anime) {
-            const cards = dbData.Anime
-              .filter(anime => anime?.poster && anime?.title)
-              .slice(0, 120) // 3 rows × 40 columns grid
-              .map(anime => ({
-                id: `rowana-${anime.id || anime.s_id}`,
-                s_id: anime.s_id,
-                slug: anime.slug,
-                title: anime.title,
-                native: anime.native,
-                poster: anime.poster,
-                type: 'Anime',
-                score: anime.score || 'N/A',
-                rating: anime.rating,
-                status: anime.status,
-                episodes: anime.episodes,
-                duration: anime.duration,
-                aired: anime.aired,
-                year: anime.year,
-                season: anime.season,
-                mal_id: anime.mal_id,
-                ani_id: anime.ani_id,
-                background_image: anime.background_image,
-                _source: 'neon-db-rowana'
-              }));
-            
-            console.log(`[New On Rowana] ✅ Loaded ${cards.length} items from DB`);
-            renderNewAniocean(cards);
-            
-            // Cache the result
-            if (window.CacheHelpers) {
-              CacheHelpers.cacheSection('newOnRowana', cards).catch(e => 
-                console.warn('[New On Rowana] ⚠️ Cache write failed:', e.message)
-              );
-            }
-            
-            return; // Success!
-          }
-          
-          console.warn('[New On Rowana] ⚠️ DB data invalid, falling back to API...');
-        } catch (error) {
-          console.error('[New On Rowana] ❌ DB fetch failed:', error.message);
-        }
-        
-        // FALLBACK: Original API-based loading would go here
-        console.log('[New On Rowana] 🔄 Using API fallback...');
-        
-      } // End of loadNewAniocean()
+  // ── INSTANT UI: Show skeleton IMMEDIATELY before any API calls ──
+  // This ensures users see loading state instead of empty space
+  // Use 24 cards to fill 3 rows × ~8 columns (matches grid layout)
+  generateAnioceanSkeleton(24);  // Show 24 skeleton cards while fetching
+  
+  // Helper to render the horizontal scroll list from an array of anime objects
+  // Container is now a flex horizontal scroll - works on all screen sizes
+  function renderAnimeList(animeList) {
+    const container = document.getElementById('newAnioceanGrid');
+    if (!animeList || animeList.length === 0) {
+      if (container) container.innerHTML = '<div style="flex:0 0 auto;width:100%;text-align:center;padding:40px;color:var(--text-muted)">No recent anime available</div>';
+      return false;
+    }
+    if (!container) return false;
+
+    // For horizontal scroll, show up to 80 items (matches the increased fetch quantity)
+    const MAX_SHOWS = 80;
+    const displayList = animeList.slice(0, MAX_SHOWS);
+
+    container.innerHTML = displayList.map(anime => {
+      const studio = anime.studio || '?';
+      const rating = anime.rating || 'N/A';
+      const type = anime.type || 'TV';
+      const score = anime.score || 'N/A';
+      const mal_id = anime.mal_id;
+
+      // Store popup data
+      window.anioceanData[mal_id] = {
+        title: anime.title,
+        slug: anime.slug,
+        mal_id: mal_id,
+        poster: anime.poster,
+        score: score,
+        type: type,
+        rating: rating,
+        description: anime.description || 'No description available.',
+        year: anime.year || '?',
+        duration: anime.duration || '?',
+        genres: anime.genres || [],
+        studios: [studio],
+        is_sub: anime.is_sub || 0,
+        is_dub: anime.is_dub || 0
+      };
+
+      return `
+        <a href="/info/anime/jikan-${mal_id}/${anime.slug}" 
+           class="aniocean-card" 
+           data-mal-id="${mal_id}"
+           onmouseenter="showAnikotoPopupById('${mal_id}', event)" 
+           onmouseleave="_onCardLeave()">
+          <div class="aniocean-poster">
+            <img src="${anime.poster}" alt="${anime.title}" 
+                 onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22300%22%3E%3Crect fill=%22%23132f4c%22 width=%22200%22 height=%22300%22/%3E%3Ctext fill=%22%2394a3b8%22 font-family=%22sans-serif%22 font-size=%2214%22 x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22%3ENo Image%3C/text%3E%3C/svg%3E'">
+            <!-- Score Badge - Top Right -->
+            <div class="aniocean-badge-score">
+              <i class="fas fa-star"></i> ${score}
+            </div>
+            <!-- Sub/Dub Badges - Bottom Left -->
+            <div class="aniocean-badge-lang">
+              ${anime.is_sub > 0 ? `<span class="aniocean-lang-badge sub-badge"><i class="fas fa-closed-captioning"></i> SUB ${anime.is_sub}</span>` : ''}
+              ${anime.is_dub > 0 ? `<span class="aniocean-lang-badge dub-badge"><i class="fas fa-microphone"></i> DUB ${anime.is_dub}</span>` : ''}
+            </div>
+          </div>
+          <!-- Title Section - Below Poster -->
+          <div class="aniocean-title-section">
+            <div class="aniocean-meta">${type} · ${rating}</div>
+            <div class="aniocean-title">${anime.title}</div>
+          </div>
+        </a>
+      `;
+    }).join('');
+    return true;
+  }
+
+  // ── Serve from DB cache if available ──
+
+  // ----- PRIMARY: Anikoto proxy (100 items for 6 complete rows) -----
+  try {
+    console.log('[New on Rowana] Trying Anikoto API...');
+    const response = await fetchAnikoto('/recent-anime?page=1&per_page=100');
+    if (response.ok && response.data && response.data.length > 0) {
+      const data = response.data;
+      const formatted = data.map(anime => ({
+        // Never fall back to the Anikoto/internal `id` here — that is NOT a
+        // MAL id, and using it would silently link to the wrong anime.
+        // Missing/empty mal_id is backfilled below via confident title search.
+        mal_id: anime.mal_id || null,
+        title: anime.title,
+        slug: anime.slug,
+        poster: anime.poster,
+        score: anime.score || 'N/A',
+        type: anime.terms_by_type?.type?.[0] || 'TV',
+        rating: anime.rating || 'N/A',
+        description: anime.description || 'No description available.',
+        year: anime.year || '?',
+        duration: anime.duration ? anime.duration + 'm' : '?',
+        genres: anime.terms_by_type?.genre || [],
+        studio: anime.terms_by_type?.studios?.[0] || '?',
+        is_sub: anime.is_sub || 0,
+        is_dub: anime.is_dub || 0
+      }));
+
+      // Backfill any missing mal_id via confident Jikan title search before
+      // deduping (dedup keys on mal_id, so nulls must be resolved first or
+      // they'd collapse into a single entry).
+      const cleaned = cleanJikan(formatted);
+      const backfilled = await mapWithConcurrency(cleaned, 3, async (anime) => {
+        if (anime.mal_id) return anime; // already has one — leave as-is
+        const media = {
+          title: { english: anime.title, romaji: anime.title, native: null },
+          startDate: { year: (anime.year && anime.year !== '?') ? parseInt(anime.year, 10) : null },
+          episodes: null
+        };
+        const malId = await findMalIdByTitle(media);
+        if (!malId) return null; // no confident match — skip rather than risk a wrong link
+        return { ...anime, mal_id: malId };
+      });
+
+      // Deduplicate by mal_id
+      const unique = dedupById(backfilled.filter(Boolean), 'mal_id');
       
+      // Use exactly 6 rows (fixed limit)
+      if (renderAnimeList(unique)) {
+        console.log(`✓ Loaded ${unique.length} anime from Anikoto proxy for "New on Aniocean"`);
+        return;
+      }
+    }
+  } catch (e) {
+    console.warn('Primary Anikoto source failed:', e);
+  }
+
+  // ----- FALLBACK: AniList (current season, reliable!) -----
+  console.log('[New on Rowana] Falling back to AniList API...');
+  try {
+    const anilistData = await fetchAniList(`
+      query ($perPage: Int) {
+        Page(page: 1, perPage: $perPage) {
+          media(type: ANIME, status: RELEASING, isAdult: false, sort: [TRENDING_DESC, POPULARITY_DESC]) {
+            ${ANILIST_ANIME_FIELDS}
+          }
+        }
+      }
+    `, { perPage: 80 });
+
+    if (anilistData?.Page?.media && anilistData.Page.media.length > 0) {
+      // Convert AniList format to our internal format — backfill any anime
+      // missing idMal via confident Jikan title search instead of guessing
+      // (AniList's own numeric `id` is NOT a MAL id and must never be used).
+      const candidates = anilistData.Page.media.filter(m => !m.isAdult);
+      const resolved = await mapWithConcurrency(candidates, 3, async (m) => {
+        let malId = m.idMal || null;
+        if (!malId) malId = await findMalIdByTitle(m);
+        if (!malId) return null; // no confident match — skip rather than risk a wrong link
+        const internal = anilistToInternal(m);
+        return {
+          mal_id: malId,
+          title: internal.title,
+          slug: internal.slug,
+          poster: internal.poster,
+          score: internal.score,
+          type: internal.type || 'TV',
+          rating: internal.rating,
+          description: internal.description || 'No description available.',
+          year: String(internal.year),
+          duration: internal.duration,
+          genres: internal.genres,
+          studio: internal.studio,
+          is_sub: 1,
+          is_dub: 0
+        };
+      });
+
+      // Deduplicate by mal_id
+      const unique = dedupById(resolved.filter(Boolean), 'mal_id');
+
+      if (unique.length === 0) {
+        throw new Error('No anime data from AniList');
+      }
+    
+    // Use exactly 6 rows (fixed limit)
+    if (renderAnimeList(unique)) {
+      console.log(`✓ Loaded ${unique.length} anime from AniList (fallback) for "New on Aniocean"`);
+      return;
+    }
+    }
+  } catch (error) {
+    console.error('✗ AniList fallback also failed:', error);
+  }
+
+  // All sources failed - show error message using renderAnimeList with empty array
+  console.log('[New on Rowana] All APIs failed - showing empty state');
+  renderAnimeList([]);
+}
+
+      /* ── TVMAZE INTEGRATION (Primary source for truly airing TV shows!) ── */
+      
+      /**
+       * Fetch TVMaze Schedule API - returns ONLY shows airing on specified date!
+       * Supports dynamic country and date parameters for maximum coverage.
+       * @param {string} country - ISO 3166-1 country code (default: 'US')
+       * @param {string} date - Date in YYYY-MM-DD format (optional, defaults to today)
+       * @returns {Array} Array of unique show objects with episode data
+       */
       async function fetchTVMazeSchedule(country = 'US', date = null) {
         try {
           // Build URL with optional date parameter
@@ -3938,140 +3961,473 @@ async function loadNewAniocean() {
       };
 
       async function loadHero() {
+        // ── Fetch TMDB TV (current-year filter) + ALL airing Anilist anime ────
+        // TMDB /tv/on_the_air with first_air_date current-year filter = fresh TV content!
+        // NO TVMaze in hero slider - keeping it simple and reliable!
+        
+        const [tmdbTvResults, anilistResults] = await Promise.allSettled([
+          // PRIMARY: TMDB /tv/on_the_air with current-year filter for TV shows
+          Promise.allSettled([
+            fetchTMDB('/tv/on_the_air', 'page=1'),
+            fetchTMDB('/tv/on_the_air', 'page=2'),
+            fetchTMDB('/tv/on_the_air', 'page=3'),
+            fetchTMDB('/tv/on_the_air', 'page=4'),
+            fetchTMDB('/tv/on_the_air', 'page=5'),
+            fetchTMDB('/tv/on_the_air', 'page=6'),
+          ]),
+          
+          // Anilist: ALL currently airing anime (multiple pages for comprehensive coverage)
+          Promise.allSettled([
+            fetchAniList(`
+              query ($page: Int) {
+                Page(page: $page, perPage: ${HERO_CONFIG.anilistPerPage}) {
+                  media(type: ANIME, status: RELEASING, isAdult: false, sort: POPULARITY_DESC) {
+                    id
+                    idMal
+                    title { romaji english native }
+                    bannerImage
+                    coverImage { large medium }
+                    averageScore
+                    episodes
+                    format
+                    genres
+                    tags { name rank }
+                    startDate { year month day }
+                    studios(isMain: true) { nodes { name } }
+                    description
+                    nextAiringEpisode { episode airingAt timeUntilAiring }
+                  }
+                }
+              }
+            `, { page: 1 }),
+            fetchAniList(`
+              query ($page: Int) {
+                Page(page: $page, perPage: ${HERO_CONFIG.anilistPerPage}) {
+                  media(type: ANIME, status: RELEASING, isAdult: false, sort: POPULARITY_DESC) {
+                    id
+                    idMal
+                    title { romaji english native }
+                    bannerImage
+                    coverImage { large medium }
+                    averageScore
+                    episodes
+                    format
+                    genres
+                    tags { name rank }
+                    startDate { year month day }
+                    studios(isMain: true) { nodes { name } }
+                    description
+                    nextAiringEpisode { episode airingAt timeUntilAiring }
+                  }
+                }
+              }
+            `, { page: 2 })
+          ])
+        ]);
+
         // ═══════════════════════════════════════════════════════════════════
-        // NEON DATABASE POWERED HERO SLIDER
-        // Fetches pre-processed data from DB instead of live API calls
-        // Falls back to original API logic if DB fails
+        // TMDB TV SOURCE: Extract and filter with current-year filter
         // ═══════════════════════════════════════════════════════════════════
         
-        try {
-          console.log('[Hero] 🚀 Loading from Neon Database...');
-          const dbData = await window.NeonDB.getSection('hero_slider');
-          
-          if (dbData && dbData.Anime && dbData.tmdbTV) {
-            console.log(`[Hero] ✅ DB Data loaded: ${dbData.Anime.length} anime + ${Object.keys(dbData.tmdbTV).length} TMDB TV entries`);
-            
-            // Convert DB data to slide format
-            const slugify = t => (t||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
-            const formatMap = { TV: 'TV', TV_SHORT: 'TV Short', MOVIE: 'Movie', OVA: 'OVA', ONA: 'ONA', SPECIAL: 'Special' };
-            
-            // Process TMDB TV shows
-            const tmdbTvArray = Array.isArray(dbData.tmdbTV) ? dbData.tmdbTV : Object.values(dbData.tmdbTV).flat();
-            const tmdbSlides = tmdbTvArray
-              .filter(t => t?.backdrop_path) // Must have backdrop for hero
-              .slice(0, HERO_CONFIG.tmdbTargetCount)
-              .map(t => ({
-                id: `tmdb-tv-${t.id}`,
-                title:          t.name || t.original_name || 'Unknown',
-                source:         'tmdb',
-                type:           'TV Show',
-                genres:         [],
-                themes:         [],
-                score:          t.vote_average ? Number(t.vote_average).toFixed(1) : 'N/A',
-                year:           (t.first_air_date||'').slice(0,4) || '',
-                duration:       '',
-                episodes:       '?',
-                synopsis:       (t.overview||'').slice(0,320),
-                backdrop:       `https://image.tmdb.org/t/p/w1280${t.backdrop_path}`,
-                backdrop_orig:  `https://image.tmdb.org/t/p/original${t.backdrop_path}`,
-                backdrop_mobile:`https://image.tmdb.org/t/p/w780${t.backdrop_path}`,
-                poster:         t.poster_path ? `https://image.tmdb.org/t/p/w500${t.poster_path}` : '',
-                certification:  'TV-14',
-                studio:         '',
-                tmdb_id:        t.id,
-                status_color:   '#818cf8',
-                status_label:   '● Ongoing',
-                infoHref:       `/info/tv/tmdb-tv-${t.id}/${slugify(t.name || t.original_name)}-season-1`,
-                _source: 'neon-db'
-              }));
-            
-            // Process Anilist anime (already have bannerImage!)
-            const anilistSlides = dbData.Anime
-              .filter(m => m?.bannerImage) // Must have banner for hero
-              .slice(0, HERO_CONFIG.anilistTargetCount)
-              .map(m => {
-                const genres = (m.genres || []).filter(Boolean);
-                const themes = (m.tags || []).filter(t => t.rank >= 60).map(t => t.name).slice(0, 2);
-                const year = m.startDate?.year?.toString() || '';
-                const studio = m.studios?.nodes?.[0]?.name || '';
-                
-                return {
-                  id:             `anilist-${m.id}`,
-                  title:          m.title?.romaji || m.title?.english || 'Unknown Anime',
-                  source:         'anilist',
-                  type:           formatMap[m.format] || m.format || 'Anime',
-                  genres:         genres,
-                  themes:         themes,
-                  score:          m.averageScore ? Number(m.averageScore / 10).toFixed(1) : 'N/A',
-                  year:           year,
-                  duration:       '',
-                  episodes:       m.episodes ? String(m.episodes) : (m.nextAiringEpisode ? String(m.nextAiringEpisode.episode - 1) : '?'),
-                  synopsis:       (m.description || '').replace(/<[^>]*>/g, '').slice(0, 320),
-                  backdrop:       m.bannerImage,
-                  backdrop_orig:  m.bannerImage,
-                  backdrop_mobile:m.bannerImage,
-                  poster:         m.coverImage?.large || m.coverImage?.medium || '',
-                  certification:  'TV-14',
-                  studio:         studio,
-                  mal_id:         m.idMal,
-                  anilist_id:     m.id,
-                  image_source:   'anilist-banner',
-                  image_confidence: 100,
-                  status_color:   '#38bdf8',
-                  status_label:   '● Airing Now',
-                  infoHref:       `/info/anime/jikan-${m.idMal}/${slugify(m.title?.romaji || m.title?.english)}`,
-                  _source: 'neon-db'
-                };
-              });
-            
-            // Merge: ANIME FIRST pattern (~70% Anilist)
-            const merged = [];
-            let tmdbIdx = 0, anilistIdx = 0;
-            
-            while (anilistIdx < anilistSlides.length && tmdbIdx < tmdbSlides.length) {
-              if ((merged.length % 2 === 0 || tmdbIdx >= tmdbSlides.length) && anilistIdx < anilistSlides.length) {
-                merged.push(anilistSlides[anilistIdx++]);
-              }
-              if (tmdbIdx < tmdbSlides.length && (merged.length % 2 === 1)) {
-                merged.push(tmdbSlides[tmdbIdx++]);
-              }
+        let topTmdbShows = [];
+        
+        if (tmdbTvResults.status === 'fulfilled') {
+          // Collect all TMDB results from multiple pages
+          let rawTmdbShows = [];
+          for (const t of tmdbTvResults.value) {
+            if (t.status === 'fulfilled' && t.value?.results) {
+              rawTmdbShows.push(...t.value.results);
             }
-            
-            while (anilistIdx < anilistSlides.length && merged.length < HERO_CONFIG.maxTotalSlides) {
-              merged.push(anilistSlides[anilistIdx++]);
-            }
-            
-            heroData = merged.slice(0, HERO_CONFIG.maxTotalSlides);
-            
-            console.log(`[Hero] ✅ ${tmdbSlides.length} TMDB + ${anilistSlides.length} Anilist = ${heroData.length} total slides (from DB)`);
-            renderHero();
-            
-            // Cache the result
-            if (window.CacheHelpers) {
-              CacheHelpers.cacheSection('heroSlider', heroData).catch(e => 
-                console.warn('[Hero Slider] ⚠️ Cache write failed:', e.message)
-              );
-            }
-            
-            return; // Success! Skip fallback
           }
           
-          console.warn('[Hero] ⚠️ DB data invalid, falling back to API...');
-        } catch (error) {
-          console.error('[Hero] ❌ DB fetch failed, using API fallback:', error.message);
+          // Deduplicate by ID
+          const seenTmdb = new Set();
+          const uniqueTmdb = [];
+          for (const t of rawTmdbShows) {
+            if (!t.id || seenTmdb.has(t.id)) continue;
+            seenTmdb.add(t.id);
+            uniqueTmdb.push(t);
+          }
+          
+          // Apply CURRENT-YEAR FILTER to ensure fresh content
+          const currentYear = new Date().getFullYear().toString();
+          const freshTmdbShows = uniqueTmdb.filter(show => {
+            if (!show.backdrop_path) return false;  // Must have backdrop for hero
+            if (!show.first_air_date || !show.first_air_date.startsWith(currentYear)) return false;
+            return true;
+          });
+          
+          // Sort by popularity
+          freshTmdbShows.sort((a, b) => (b.popularity||0) - (a.popularity||0));
+          topTmdbShows = freshTmdbShows.slice(0, HERO_CONFIG.tmdbTargetCount);
+          
+          console.log(`[Hero] 📺 TMDB TV with ${currentYear} filter: ${topTmdbShows.length} shows ready`);
+        } else {
+          console.warn('[Hero] ⚠️ TMDB TV fetch failed');
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // ANILIST FETCHING: ALL currently airing anime (multiple pages)
+        // ═══════════════════════════════════════════════════════════════════
+        
+        // ── 3b) Collect ALL Anilist airing anime from all fetched pages ──
+        let rawAnilistAnime = [];
+        if (anilistResults.status === 'fulfilled') {
+          for (const pageResult of anilistResults.value) {
+            if (pageResult.status === 'fulfilled' && pageResult.value?.Page?.media) {
+              rawAnilistAnime.push(...pageResult.value.Page.media);
+            }
+          }
         }
         
+        // Filter: Must have banner image for hero slider
+        const filteredAnilistAnime = rawAnilistAnime.filter(m => m.bannerImage);
+        
+        // Remove duplicates (safety check)
+        const seenAnilist = new Set();
+        const uniqueAnilistAnime = [];
+        for (const anime of filteredAnilistAnime) {
+          if (!seenAnilist.has(anime.id)) {
+            seenAnilist.add(anime.id);
+            uniqueAnilistAnime.push(anime);
+          }
+        }
+        
+        // Sort by: next airing episode soonest first, then popularity
+        uniqueAnilistAnime.sort((a, b) => {
+          // Prioritize anime with upcoming episodes (airing soon!)
+          const timeA = a.nextAiringEpisode?.timeUntilAiring || Infinity;
+          const timeB = b.nextAiringEpisode?.timeUntilAiring || Infinity;
+          if (timeA !== timeB) return timeA - timeB;
+          // Then by popularity as tiebreaker
+          return (b.averageScore||0) * (b.popularity||0) - (a.averageScore||0) * (a.popularity||0);
+        });
+        
+        // Take target count (increased to show more airing anime!)
+        const topAnilistAnime = uniqueAnilistAnime.slice(0, HERO_CONFIG.anilistTargetCount);
+
+        const sourceType = 'TMDB Current-Year';
+        console.log(`[Hero] 🎬 Fetched ${topTmdbShows.length} TV (${sourceType}) + ${topAnilistAnime.length} Anilist airing anime`);
+        console.log(`[Hero] 📅 Source: ${sourceType} - current-year filter applied for fresh content`);
+
         // ═══════════════════════════════════════════════════════════════════
-        // FALLBACK: Original API-based loading (if DB fails)
+        // HYBRID IMAGE RESOLUTION PIPELINE
+        // Priority: Anilist Banner → Safe TMDB Backdrop → Jikan Large Image
         // ═══════════════════════════════════════════════════════════════════
+
+        // ── Helper: Calculate string similarity (for TMDB validation) ──
+        const calculateSimilarity = (str1, str2) => {
+          const s1 = str1.toLowerCase().replace(/[^a-z0-9]/g, '');
+          const s2 = str2.toLowerCase().replace(/[^a-z0-9]/g, '');
+          if (!s1 || !s2) return 0;
+          const longer = s1.length > s2.length ? s1 : s2;
+          const shorter = s1.length > s2.length ? s2 : s1;
+          if (longer.length === 0) return 1;
+          const costs = Array(shorter.length + 1).fill(0).map((_, i) => i);
+          for (let i = 1; i <= longer.length; i++) {
+            let prev = i;
+            for (let j = 1; j <= shorter.length; j++) {
+              const cost = longer[i-1] !== shorter[j-1] ? 1 : 0;
+              prev = Math.min(prev + 1, costs[j] + 1, costs[j-1] + cost);
+              costs[j] = prev;
+            }
+          }
+          return (1 - costs[shorter.length] / longer.length);
+        };
+
+        // ── Step 1: Fetch Anilist Banner by mal_id (PRIMARY SOURCE) ────
+        const fetchAnilistBanner = async (malId, fallbackTitle) => {
+          try {
+            // Try by mal_id first (100% accurate match)
+            const result = await fetchAniList(`
+              query ($malId: Int) {
+                Media(idMal: $malId, type: ANIME) {
+                  id
+                  title { romaji english native }
+                  bannerImage
+                  isAdult
+                }
+              }
+            `, { malId: malId });
+            
+            if (result?.Media && !result.Media.isAdult) {
+              return {
+                bannerImage: result.Media.bannerImage,
+                source: 'anilist-mal-id',
+                confidence: 100,
+                anilistId: result.Media.id
+              };
+            }
+            
+            // Fallback: Try title search if mal_id lookup failed
+            if (fallbackTitle) {
+              const titleResult = await fetchAniList(`
+                query ($search: String) {
+                  Page(page: 1, perPage: 1) {
+                    media(search: $search, type: ANIME, isAdult: false) {
+                      id
+                      title { romaji english }
+                      bannerImage
+                      idMal
+                    }
+                  }
+                }
+              `, { search: fallbackTitle });
+              
+              if (titleResult?.Page?.media?.length > 0) {
+                const media = titleResult.Page.media[0];
+                // Verify it's likely the same anime via similarity check
+                const similarity = Math.max(
+                  calculateSimilarity(fallbackTitle, media.title?.romaji || ''),
+                  calculateSimilarity(fallbackTitle, media.title?.english || '')
+                );
+                
+                if (similarity > 0.7 && media.bannerImage) {
+                  return {
+                    bannerImage: media.bannerImage,
+                    source: 'anilist-title-search',
+                    confidence: Math.round(similarity * 100),
+                    anilistId: media.id
+                  };
+                }
+              }
+            }
+            
+            return null;
+          } catch(e) {
+            console.warn(`[Hero Image] Anilist lookup failed for mal_id ${malId}:`, e.message);
+            return null;
+          }
+        };
+
+        // ── Step 2: Safe TMDB Search (SECONDARY FALLBACK) ──────────────
+        const safeTmdbBackdropSearch = async (title, year, episodes) => {
+          try {
+            if (!title) return null;
+            
+            // Build search query with animation filter
+            const searchQuery = `${encodeURIComponent(title)}&with_genres=16`;
+            const yearParam = year ? `&first_air_date_year=${year}` : '';
+            
+            const results = await fetchTMDB('/search/tv', `${searchQuery}${yearParam}&page=1`);
+            
+            if (!results?.results?.length) return null;
+            
+            // Validate each result strictly
+            for (const tv of results.results.slice(0, 5)) { // Check top 5 results only
+              // Must have backdrop
+              if (!tv.backdrop_path) continue;
+              
+              // Must be animation genre (genre 16)
+              const isAnimation = tv.genre_ids?.includes(16);
+              if (!isAnimation) continue;
+              
+              // Title similarity check (must be >80% confident)
+              const titleSim = Math.max(
+                calculateSimilarity(title, tv.name || ''),
+                calculateSimilarity(title, tv.original_name || '')
+              );
+              
+              if (titleSim < 0.8) continue;
+              
+              // Episode count validation (if we have episode data)
+              if (episodes && tv.number_of_episodes) {
+                const epDiff = Math.abs(tv.number_of_episodes - parseInt(episodes));
+                // Allow some flexibility (within 10 episodes or within 50%)
+                if (epDiff > 10 && epDiff > parseInt(episodes) * 0.5) continue;
+              }
+              
+              // All checks passed! Return this result
+              return {
+                backdrop: `https://image.tmdb.org/t/p/w1280${tv.backdrop_path}`,
+                backdrop_orig: `https://image.tmdb.org/t/p/original${tv.backdrop_path}`,
+                backdrop_mobile: `https://image.tmdb.org/t/p/w780${tv.backdrop_path}`,
+                tmdbId: tv.id,
+                source: 'tmdb-safe-match',
+                confidence: Math.round(titleSim * 100)
+              };
+            }
+            
+            return null; // No valid matches found
+          } catch(e) {
+            console.warn(`[Hero Image] TMDB safe search failed for "${title}":`, e.message);
+            return null;
+          }
+        };
+
+        // ── Step 3: Jikan Image Extractor (FINAL FALLBACK) ─────────────
+        const getJikanFallbackImage = (anime) => ({
+          backdrop:       anime.images?.webp?.large_image_url || anime.images?.jpg?.large_image_url || anime.image_url,
+          backdrop_orig:  anime.images?.webp?.large_image_url || anime.images?.jpg?.large_image_url || anime.image_url,
+          backdrop_mobile: anime.images?.webp?.image_url || anime.images?.jpg?.image_url || anime.image_url,
+          poster:         anime.images?.jpg?.image_url || anime.image_url,
+          source:         'jikan-fallback',
+          confidence:     60  // Lower confidence since it's poster format
+        });
+
+        // ── Step 4: Main Image Resolution Pipeline ─────────────────────
+        const resolveAnimeImage = async (anime) => {
+          const { mal_id, title, episodes, airing_start } = anime;
+          const year = (airing_start || '').slice(0, 4);
+          
+          console.log(`[Hero Image] 🔍 Resolving image for: "${title}" (mal_id: ${mal_id})`);
+          
+          // STEP 1: Try Anilist first (primary - has proper banners!)
+          try {
+            const anilistResult = await fetchAnilistBanner(mal_id, title);
+            
+            if (anilistResult?.bannerImage) {
+              console.log(`[Hero Image] ✅ Anilist banner found for "${title}" (${anilistResult.source}, confidence: ${anilistResult.confidence}%)`);
+              console.log(`[Hero Image]    Banner URL: ${anilistResult.bannerImage.substring(0, 80)}...`);
+              return {
+                backdrop: anilistResult.bannerImage,
+                backdrop_orig: anilistResult.bannerImage,
+                backdrop_mobile: anilistResult.bannerImage,
+                poster: getJikanFallbackImage(anime).poster,  // Keep Jikan poster for info card
+                source: anilistResult.source,
+                confidence: anilistResult.confidence,
+                anilistId: anilistResult.anilistId
+              };
+            } else {
+              console.log(`[Hero Image] ❌ No Anilist banner for "${title}" (result: ${JSON.stringify(anilistResult)})`);
+            }
+          } catch(e) {
+            console.error(`[Hero Image] 💥 Error in Anilist lookup for "${title}":`, e);
+          }
+          
+          // STEP 2: Try safe TMDB search (secondary - has backdrops!)
+          try {
+            const tmdbResult = await safeTmdbBackdropSearch(title, year, episodes);
+            
+            if (tmdbResult) {
+              console.log(`[Hero Image] ✅ TMDB backdrop found for "${title}" (${tmdbResult.confidence}% match)`);
+              return {
+                ...tmdbResult,
+                poster: getJikanFallbackImage(anime).poster,  // Keep Jikan poster for info card
+              };
+            } else {
+              console.log(`[Hero Image] ❌ No TMDB match for "${title}"`);
+            }
+          } catch(e) {
+            console.error(`[Hero Image] 💥 Error in TMDB search for "${title}":`, e);
+          }
+          
+          // STEP 3: Fall back to Jikan large image (final fallback)
+          console.log(`[Hero Image] ⚠️ Using Jikan fallback for "${title}"`);
+          return getJikanFallbackImage(anime);
+        };
+
+        // ── 4a) Map TMDB slides ─────────────────────────────────────────
+        const tmdbSlides = topTmdbShows.map(t => ({
+          id:             `tmdb-tv-${t.id}`,
+          title:          t.name || t.original_name || 'Unknown',
+          source:         'tmdb',
+          type:           'TV Show',
+          genres:         [],
+          themes:         [],
+          score:          t.vote_average ? Number(t.vote_average).toFixed(1) : 'N/A',
+          year:           (t.first_air_date||'').slice(0,4) || '',
+          duration:       '',
+          episodes:       '?',
+          synopsis:       (t.overview||'').slice(0,320),
+          backdrop:       `https://image.tmdb.org/t/p/w1280${t.backdrop_path}`,
+          backdrop_orig:  `https://image.tmdb.org/t/p/original${t.backdrop_path}`,
+          backdrop_mobile:`https://image.tmdb.org/t/p/w780${t.backdrop_path}`,
+          poster:         t.poster_path ? `https://image.tmdb.org/t/p/w500${t.poster_path}` : '',
+          certification:  'TV-14',
+          studio:         '',
+          tmdb_id:        t.id,
+          status_color:   '#818cf8',
+          status_label:   '● Ongoing',
+          infoHref:       `/info/tv/tmdb-tv-${t.id}/${(t.name||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')}-season-1`,
+        }));
+
+        // ── 4b) Map Anilist slides (already have bannerImage!) ──────────
+        console.log(`[Hero Image] Mapping ${topAnilistAnime.length} Anilist anime with banner images...`);
         
-        console.log('[Hero] 🔄 Using API fallback...');
+        const anilistSlides = topAnilistAnime.map(m => {
+          const slugify = t => (t||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+          const genres = (m.genres || []).filter(Boolean);
+          const themes = (m.tags || []).filter(t => t.rank >= 60).map(t => t.name).slice(0, 2);  // Top 2 popular themes
+          const year = m.startDate?.year?.toString() || '';
+          const studio = m.studios?.nodes?.[0]?.name || '';
+          const formatMap = { TV: 'TV', TV_SHORT: 'TV Short', MOVIE: 'Movie', OVA: 'OVA', ONA: 'ONA', SPECIAL: 'Special' };
+          
+          return {
+            id:             `anilist-${m.id}`,
+            title:          m.title?.romaji || m.title?.english || 'Unknown Anime',
+            source:         'anilist',  // Primary source is Anilist!
+            type:           formatMap[m.format] || m.format || 'Anime',
+            genres:         genres,
+            themes:         themes,
+            score:          m.averageScore ? Number(m.averageScore / 10).toFixed(1) : 'N/A',
+            year:           year,
+            duration:       '',
+            episodes:       m.episodes ? String(m.episodes) : (m.nextAiringEpisode ? String(m.nextAiringEpisode.episode - 1) : '?'),
+            synopsis:       (m.description || '').replace(/<[^>]*>/g, '').slice(0, 320),
+            // Anilist provides high-quality banner directly!
+            backdrop:       m.bannerImage,
+            backdrop_orig:  m.bannerImage,
+            backdrop_mobile:m.bannerImage,
+            poster:         m.coverImage?.large || m.coverImage?.medium || '',
+            certification:  'TV-14',
+            studio:         studio,
+            mal_id:         m.idMal,
+            anilist_id:     m.id,
+            image_source:   'anilist-banner',  // Direct from Anilist!
+            image_confidence: 100,
+            status_color:   '#38bdf8',  /* Sky blue - matches site theme! */
+            status_label:   '● Airing Now',
+            infoHref:       `/info/anime/jikan-${m.idMal}/${slugify(m.title?.romaji || m.title?.english)}`,
+          };
+        });
         
-        // NOTE: Full fallback implementation would go here
-        // For now, we rely on DB data as primary source
+        // All Anilist entries should have valid bannerImages (we filtered earlier)
+        const jikanSlides = anilistSlides;
         
-      } // End of loadHero()
-      
+        // Log image source distribution
+        const imageSources = {};
+        jikanSlides.forEach(s => {
+          imageSources[s.image_source] = (imageSources[s.image_source] || 0) + 1;
+        });
+        console.log(`[Hero Image] Resolution complete:`, imageSources);
+
+        // ── 5) Merge: ANIME FIRST pattern (~70% Anilist) ────────────────
+        // Total: ~27 Anilist + 13 TMDB = ~40 slides (Anilist ≈ 67-70%)
+        // Pattern: Anime starts first, then alternates (Anime+TMDB)
+        // After all 13 TMDB used, continue with remaining Anilist only
+        const merged = [];
+        let tmdbIdx = 0, anilistIdx = 0;
+        
+        // Phase 1: Alternate starting with ANIME FIRST
+        while (anilistIdx < jikanSlides.length && tmdbIdx < tmdbSlides.length) {
+          // Always start with Anime on odd positions (0,2,4...)
+          if ((merged.length % 2 === 0 || tmdbIdx >= tmdbSlides.length) && anilistIdx < jikanSlides.length) {
+            merged.push(jikanSlides[anilistIdx++]);
+          }
+          // Then add TMDB on even positions (1,3,5...)
+          if (tmdbIdx < tmdbSlides.length && (merged.length % 2 === 1)) {
+            merged.push(tmdbSlides[tmdbIdx++]);
+          }
+        }
+        
+        // Phase 2: Add remaining Anilist after TMDB is exhausted
+        while (anilistIdx < jikanSlides.length && merged.length < HERO_CONFIG.maxTotalSlides) {
+          merged.push(jikanSlides[anilistIdx++]);
+        }
+        
+        heroData = merged.slice(0, HERO_CONFIG.maxTotalSlides); // Max slides from config
+
+        console.log(`[Hero] ${tmdbSlides.length} TMDB + ${jikanSlides.length} Jikan = ${heroData.length} total slides`);
+        renderHero();
+        
+        // ✅ CACHE: Write to professional cache system
+        if (window.CacheHelpers) {
+          CacheHelpers.cacheSection('heroSlider', heroData).catch(e => 
+            console.warn('[Hero Slider] ⚠️ Cache write failed:', e.message)
+          );
+        }
+      }
       /* HERO ACCENT COLOR (Neon-cached via Worker) */
 const ACCENT_WORKER_URL = 'https://hero-accent-cache.zeraf.workers.dev';
 
@@ -4280,85 +4636,99 @@ titleEl.style.color = 'transparent';
 
       /* ── TOP AIRING ── */
       async function loadTopAiring() {
-        // ═══════════════════════════════════════════════════════════════════
-        // NEON DATABASE POWERED TOP AIRING SECTION
-        // ═══════════════════════════════════════════════════════════════════
         
-        try {
-          console.log('[Top Airing] 🚀 Loading from Neon Database...');
-          const dbData = await window.NeonDB.getSection('top_airing');
+        // Fetch TV using TVMaze (PRIMARY - truly airing!) + AniList airing anime
+        const [tvmazeResult, anilistAir] = await Promise.all([
+          // PRIMARY: TVMaze Multi-Country for maximum scripted content!
+          getTVMazeShowsWithTMDBData(25, true),  // 25 shows, multi-country enabled
           
-          if (dbData && (dbData.Anime || dbData.tmdbTV)) {
-            const tv = [];
-            const anime = [];
-            
-            // Process TV shows from DB
-            if (dbData.tmdbTV) {
-              const tmdbArray = Array.isArray(dbData.tmdbTV) ? dbData.tmdbTV : Object.values(dbData.tmdbTV).flat();
-              tv.push(...tmdbArray
-                .filter(item => item?.poster_path)
-                .slice(0, 20)
-                .map(item => ({
-                  id:`tmdb-tv-${item.id}`, 
-                  title:item.name, 
-                  poster:`https://image.tmdb.org/t/p/w500${item.poster_path}`, 
-                  type:'TV',
-                  score:(item.vote_average||0).toFixed(1),
-                  status:'Airing',
-                  country: item.origin_country?.[0] || 'N/A',
-                  voteCount: item.vote_count || 0,
-                  _source: 'neon-db'
-                }))
-              );
+          // AniList: Currently airing anime sorted by popularity
+          fetchAniList(`
+            query ($perPage: Int) {
+              Page(page: 1, perPage: $perPage) {
+                media(type: ANIME, status: RELEASING, format_in: [TV, TV_SHORT, OVA], isAdult: false, sort: [POPULARITY_DESC]) {
+                  ${ANILIST_ANIME_FIELDS}
+                }
+              }
             }
-            
-            // Process anime from DB
-            if (dbData.Anime) {
-              anime.push(...dbData.Anime
-                .filter(m => !m.isAdult && m.coverImage)
-                .slice(0, 30)
-                .map(m => ({
-                  id:`anilist-air-${m.id}`,
-                  mal_id: m.idMal,
-                  title: m.title?.userPreferred || m.title?.romaji || m.title?.english,
-                  poster: m.coverImage?.large || m.coverImage?.medium,
-                  type: 'Anime',
-                  duration: m.duration ? `${m.duration}m` : '?',
-                  score: m.averageScore ? String(m.averageScore) : 'N/A',
-                  status: m.status === 'RELEASING' ? 'Airing' : m.status,
-                  episodes: String(m.episodes || '?'),
-                  _source: 'neon-db'
-                }))
-              );
-            }
-            
-            const combined = [...tv, ...anime].slice(0, 60);
-            
-            console.log(`[Top Airing] ✅ DB Data: ${tv.length} TV + ${anime.length} Anime = ${combined.length} total`);
-            renderTopAiring(combined);
-            
-            // Cache the result
-            if (window.CacheHelpers) {
-              CacheHelpers.cacheSection('topAiring', combined).catch(e => 
-                console.warn('[Top Airing] ⚠️ Cache write failed:', e.message)
-              );
-            }
-            
-            return; // Success!
-          }
+          `, { perPage: 30 })
+        ]);
+        
+        // Process TVMaze results (handle both Promise.allSettled and direct array)
+        const tvmazeShows = tvmazeResult.status ? tvmazeResult.value : tvmazeResult;
+        
+        // Build TV list from bridged TVMaze+TMDB data
+        let tv = [];
+        
+        if (Array.isArray(tvmazeShows) && tvmazeShows.length > 0) {
+          console.log(`[Top Airing] 📺 Using TVMaze Multi-Country: ${tvmazeShows.length} shows`);
           
-          console.warn('[Top Airing] ⚠️ DB data invalid, falling back to API...');
-        } catch (error) {
-          console.error('[Top Airing] ❌ DB fetch failed:', error.message);
+          tv = tvmazeShows
+            .filter(item => item.tmdb && item.tmdb.poster_path)  // Must have poster
+            .map(item => ({
+              id:`tmdb-tv-${item.tmdb.id}`, 
+              title:item.tmdb.name, 
+              poster:tmdbImg(item.tmdb.poster_path), 
+              type:'TV',
+              score:(item.tmdb.vote_average||0).toFixed(1),
+              status:'Airing',  // Truly airing from TVMaze!
+              country: item.tvmaze._sourceCountry || 'N/A',
+              episodeNumber: item.tvmaze._episode ? item.tvmaze._episode.number : null,
+              voteCount: item.tmdb.vote_count || 0,
+              _source: 'tvmaze',
+              episodeInfo: item.tvmaze._episode ? `E${item.tvmaze._episode.number}` : null
+            }))
+            .slice(0, 20);
+            
+          console.log(`[Top Airing] ✅ TVMaze TV ready: ${tv.length} shows`);
+        } else {
+          // FALLBACK to TMDB /tv/on_the_air if TVMaze fails
+          console.warn('[Top Airing] ⚠️ TVMaze failed, falling back to TMDB /tv/on_the_air...');
+          const tvOnAir = await fetchTMDB('/tv/on_the_air', 'page=1');
+          
+          tv = (tvOnAir.results||[]).slice(0,20).map(i => ({
+            id:`tmdb-tv-${i.id}`, title:i.name, poster:tmdbImg(i.poster_path), type:'TV',
+            score:(i.vote_average||0).toFixed(1),
+            status:'Airing',
+            country: (i.origin_country && i.origin_country.length) ? i.origin_country[0] : 'N/A',
+            episodeNumber: null,
+            voteCount: i.vote_count || 0,
+            _source: 'tmdb-fallback'
+          }));
         }
         
-        // FALLBACK: Original API-based loading
-        console.log('[Top Airing] 🔄 Using API fallback...');
+        // Convert AniList data
+        const anime = [];
+        if (anilistAir?.Page?.media) {
+          for (const m of anilistAir.Page.media) {
+            if (!m.isAdult) {
+              const internal = anilistToInternal(m);
+              anime.push({
+                id:`anilist-air-${m.id}`,
+                mal_id: internal.mal_id,
+                title: internal.title,
+                poster: internal.poster,
+                type: 'Anime',
+                duration: internal.duration || '?',
+                score: internal.score,
+                status: internal.status,
+                episodes: String(internal.episodes),
+              });
+            }
+          }
+        }
         
-        // NOTE: Full fallback would call original API functions here
+        // Deduplicate combined list by id
+        const combined = dedupById([...tv, ...anime], 'id').slice(0,60);
+        renderTopAiring(combined);
         
-      } // End of loadTopAiring()
-      
+        // ✅ CACHE: Write to professional cache system
+        if (window.CacheHelpers) {
+          CacheHelpers.cacheSection('topAiring', combined).catch(e => 
+            console.warn('[Top Airing] ⚠️ Cache write failed:', e.message)
+          );
+        }
+      }
       function renderTopAiring(shows) {
         const container = document.getElementById('topAiringScroll');
         container.innerHTML = shows.map(s => {
@@ -4521,172 +4891,422 @@ titleEl.style.color = 'transparent';
       let currentNewReleasesFilter = 'all'; // tracks active tab (all/anime/movie/tv)
 
       async function loadNewReleases() {
-        // ═══════════════════════════════════════════════════════════════════
-        // NEON DATABASE POWERED NEW RELEASES
-        // Uses "All" tab data by default, "Hidden" tab uses hidden_tab column
-        // ═══════════════════════════════════════════════════════════════════
+        
+        console.log('[New Releases] 🚀 Starting optimized fetch with API queue...');
+        const startTime = Date.now();
+        
+        // Calculate target shows for 6 complete rows
+        function calcColsForGrid() {
+          const w = window.innerWidth;
+          if (w <= 520) return 2;
+          if (w <= 768) return 4;
+          if (w <= 992) return 5;
+          if (w <= 1400) return 6;
+          if (w <= 1800) return 7;
+          return 8;
+        }
+        const TARGET_ROWS = 6;
+        const cols = calcColsForGrid();
+        const TARGET_SHOWS = TARGET_ROWS * cols; // 42-48 shows
+        
+        // ─── OPTIMIZED: Use queued API calls with automatic retry ───
+        // Each call goes through the API Queue Manager which:
+        // - Limits concurrent requests to 3
+        // - Adds 800ms delay between batches
+        // - Retries failed requests up to 3 times with exponential backoff
         
         try {
-          console.log('[New Releases] 🚀 Loading from Neon Database...');
+          // Fetch all sources using QUEUED calls (throttled + retry)
+          const [nowMovies, nowMovies2, tvmazeTvShows, anilistNow] = await Promise.allSettled([
+            queuedFetchTMDB('/movie/now_playing', `page=1`),
+            queuedFetchTMDB('/movie/now_playing', `page=2`),
+            // PRIMARY: TVMaze for truly airing TV shows!
+            queuedGetTVMazeShows(30),
+            // AniList: Current season anime (HIGHEST PRIORITY - was timing out!)
+            queuedFetchAniList(`
+              query ($perPage: Int) {
+                Page(page: 1, perPage: $perPage) {
+                  media(type: ANIME, status: RELEASING, isAdult: false, sort: [TRENDING_DESC, POPULARITY_DESC]) {
+                    ${ANILIST_ANIME_FIELDS}
+                  }
+                }
+              }
+            `, { perPage: 50 })
+          ]);
+          // Extract results safely (handle both settled and direct values)
+          const extractResult = (result) => result.status === 'fulfilled' ? result.value : null;
+          const movies1 = extractResult(nowMovies);
+          const movies2 = extractResult(nowMovies2);
+          const tvmazeRaw = extractResult(tvmazeTvShows);
+          const anilistRaw = extractResult(anilistNow);
           
-          // Fetch both main releases AND hidden tab data in parallel
-          const [releasesData, hiddenData] = await Promise.all([
-            window.NeonDB.getSection('new_releases'),
-            window.NeonDB.getSection('Hidden_tab')
+          // Log any failures for debugging
+          if (nowMovies.status === 'rejected') console.warn('[New Releases] ⚠️ TMDB Movies Page 1 failed:', nowMovies.reason?.message);
+          if (nowMovies2.status === 'rejected') console.warn('[New Releases] ⚠️ TMDB Movies Page 2 failed:', nowMovies2.reason?.message);
+          if (tvmazeTvShows.status === 'rejected') console.warn('[New Releases] ⚠️ TVMaze failed:', tvmazeTvShows.reason?.message);
+          if (anilistNow.status === 'rejected') console.error('[New Releases] ❌ Anilist FAILED (this was causing empty anime!):', anilistNow.reason?.message);
+        
+        // Merge multiple pages for each source
+        // 🎯 MOVIE FILTER: Only keep movies released in CURRENT YEAR (fresh content!)
+        const currentYearForMovies = new Date().getFullYear().toString();
+        const allMovies = [...(movies1?.results||[]), ...(movies2?.results||[])]
+          .filter(i => {
+            // Must have poster image
+            if (!i.poster_path) return false;
+            // Must have release_date starting with current year (e.g., "2026-...")
+            if (!i.release_date || !i.release_date.startsWith(currentYearForMovies)) return false;
+            return true;
+          })
+          .map(i => ({
+            id:`tmdb-mv-${i.id}`, title:i.title, poster:tmdbImg(i.poster_path), type:'Movie',
+            score:(i.vote_average||0).toFixed(1), details:'1h 45m', cert:'PG-13', quality:'HD',
+            releaseDate: i.release_date
+          })).slice(0, TARGET_SHOWS);
+        
+        console.log(`[New Releases] 📅 Filtered movies: keeping only ${currentYearForMovies} releases (${allMovies.length} passed)`);
+        
+        // 🎯 TV SHOWS FROM TVMAZE (Primary source - truly airing!)
+        let allTv = [];
+        
+        // Handle both Promise.allSettled format AND direct array result
+        const tvmazeResult = tvmazeRaw?.status ? tvmazeRaw.value : tvmazeRaw;
+        
+        if (Array.isArray(tvmazeResult) && tvmazeResult.length > 0) {
+          console.log(`[New Releases] 📺 Using TVMaze for TV: ${tvmazeResult.length} shows`);
+          
+          allTv = tvmazeResult
+            .filter(item => item.tmdb && item.tmdb.poster_path)  // Must have poster
+            .map(item => ({
+              id:`tmdb-tv-${item.tmdb.id}`, 
+              title:item.tmdb.name, 
+              poster:tmdbImg(item.tmdb.poster_path), 
+              type:'TV',
+              score:(item.tmdb.vote_average||0).toFixed(1), 
+              details: item.tvmaze._episode ? `E${item.tvmaze._episode.number}` : 'E?', 
+              cert:'PG-13', 
+              quality:'HD',
+              _source: 'tvmaze'
+            }))
+            .slice(0, TARGET_SHOWS);
+            
+          console.log(`[New Releases] ✅ TVMaze TV ready: ${allTv.length} shows`);
+        } else {
+          // FALLBACK to TMDB /tv/on_the_air if TVMaze fails
+          console.warn('[New Releases] ⚠️ TVMaze failed, falling back to TMDB /tv/on_the_air...');
+          const [onAirTv, onAirTv2] = await Promise.all([
+            fetchTMDB('/tv/on_the_air', `page=1`),
+            fetchTMDB('/tv/on_the_air', `page=2`)
           ]);
           
-          if (releasesData && (releasesData.Anime || releasesData.tmdbTV || releasesData.tmdbMovie)) {
-            console.log('[New Releases] ✅ Main releases data loaded from DB');
-            
-            // Convert all types for "All" tab (default view)
-            const allItems = [];
-            
-            // Add anime
-            if (releasesData.Anime) {
-              allItems.push(...releasesData.Anime
-                .filter(m => !m.isAdult && m.coverImage)
-                .slice(0, 25)
-                .map(m => ({
-                  id: `anilist-nr-${m.id}`,
-                  mal_id: m.idMal,
-                  title: m.title?.userPreferred || m.title?.romaji,
-                  poster: m.coverImage?.large || m.coverImage?.medium,
-                  type: 'Anime',
-                  score: m.averageScore ? String(m.averageScore) : 'N/A',
-                  status: m.status,
-                  episodes: String(m.episodes || '?'),
-                  format: m.format,
-                  genres: m.genres || [],
-                  _source: 'neon-db-all'
-                }))
-              );
-            }
-            
-            // Add TV shows
-            if (releasesData.tmdbTV) {
-              const tvArray = Array.isArray(releasesData.tmdbTV) ? releasesData.tmdbTV : Object.values(releasesData.tmdbTV).flat();
-              allItems.push(...tvArray
-                .filter(t => t?.poster_path)
-                .slice(0, 15)
-                .map(t => ({
-                  id: `tmdb-nr-tv-${t.id}`,
-                  tmdb_id: t.id,
-                  title: t.name || t.original_name,
-                  poster: `https://image.tmdb.org/t/p/w500${t.poster_path}`,
-                  type: 'TV',
-                  score: (t.vote_average||0).toFixed(1),
-                  voteCount: t.vote_count || 0,
-                  _source: 'neon-db-all'
-                }))
-              );
-            }
-            
-            // Add movies
-            if (releasesData.tmdbMovie) {
-              const movieArray = Array.isArray(releasesData.tmdbMovie) ? releasesData.tmdbMovie : Object.values(releasesData.tmdbMovie).flat();
-              allItems.push(...movieArray
-                .filter(m => m?.poster_path && !m.adult)
-                .slice(0, 15)
-                .map(m => ({
-                  id: `tmdb-nr-mv-${m.id}`,
-                  tmdb_id: m.id,
-                  title: m.title || m.original_title,
-                  poster: `https://image.tmdb.org/t/p/w500${m.poster_path}`,
-                  type: 'Movie',
-                  score: (m.vote_average||0).toFixed(1),
-                  voteCount: m.vote_count || 0,
-                  _source: 'neon-db-all'
-                }))
-              );
-            }
-            
-            // Store for filter tabs
-            allReleases = {
-              all: allItems,
-              anime: allItems.filter(i => i.type === 'Anime'),
-              movie: allItems.filter(i => i.type === 'Movie'),
-              tv: allItems.filter(i => i.type === 'TV')
-            };
-            _newReleasesCache = allReleases;
-            
-            console.log(`[New Releases] ✅ All tab: ${allItems.length} items (from DB)`);
-            renderNewReleases(allItems);
-            
-            // ════════════════════════════════════════════════════════════
-            // HIDDEN TAB DATA (separate column in DB)
-            // ════════════════════════════════════════════════════════════
-            if (hiddenData && (hiddenData.TMDB_TV || hiddenData.TMDB_Movie)) {
-              console.log('[New Releases] ✅ Hidden tab data loaded from DB');
-              
-              const hiddenItems = [];
-              
-              // Hidden TV shows from multiple countries
-              if (hiddenData.TMDB_TV) {
-                Object.entries(hiddenData.TMDB_TV).forEach(([country, shows]) => {
-                  if (Array.isArray(shows)) {
-                    hiddenItems.push(...shows
-                      .filter(s => s?.poster_path)
-                      .slice(0, 5) // Limit per country
-                      .map(s => ({
-                        id: `tmdb-hd-tv-${s.id}`,
-                        tmdb_id: s.id,
-                        title: s.name || s.original_name,
-                        poster: `https://image.tmdb.org/t/p/w500${s.poster_path}`,
-                        type: 'TV',
-                        score: (s.vote_average||0).toFixed(1),
-                        country: country,
-                        _source: 'neon-db-hidden'
-                      }))
-                    );
-                  }
-                });
-              }
-              
-              // Hidden movies
-              if (hiddenData.TMDB_Movie) {
-                const hiddenMovies = Array.isArray(hiddenData.TMDB_Movie) ? hiddenData.TMDB_Movie : Object.values(hiddenData.TMDB_Movie).flat();
-                hiddenItems.push(...hiddenMovies
-                  .filter(m => m?.poster_path && !m.adult)
-                  .slice(0, 20)
-                  .map(m => ({
-                    id: `tmdb-hd-mv-${m.id}`,
-                    tmdb_id: m.id,
-                    title: m.title || m.original_title,
-                    poster: `https://image.tmdb.org/t/p/w500${m.poster_path}`,
-                    type: 'Movie',
-                    score: (m.vote_average||0).toFixed(1),
-                    _source: 'neon-db-hidden'
-                  }))
-                );
-              }
-              
-              // Store hidden items separately for toggle
-              window._hiddenReleasesData = hiddenItems.slice(0, 50); // Limit total hidden items
-              console.log(`[New Releases] ✅ Hidden tab: ${hiddenItems.length} items (from DB)`);
-            }
-            
-            // Cache the result
-            if (window.CacheHelpers) {
-              CacheHelpers.cacheSection('newReleases', allReleases).catch(e => 
-                console.warn('[New Releases] ⚠️ Cache write failed:', e.message)
-              );
-            }
-            
-            return; // Success!
-          }
-          
-          console.warn('[New Releases] ⚠️ DB data invalid, falling back to API...');
-        } catch (error) {
-          console.error('[New Releases] ❌ DB fetch failed:', error.message);
+          allTv = [...(onAirTv?.results||[]), ...(onAirTv2?.results||[])]
+            .filter(i => i.poster_path)
+            .map(i => ({
+              id:`tmdb-tv-${i.id}`, title:i.name, poster:tmdbImg(i.poster_path), type:'TV',
+              score:(i.vote_average||0).toFixed(1), details: 'S?', cert:'PG-13', quality:'HD',
+              _source: 'tmdb-fallback'
+            }))
+            .slice(0, TARGET_SHOWS);
         }
         
-        // FALLBACK: Original API-based loading
-        console.log('[New Releases] 🔄 Using API fallback...');
+        // Convert AniList data (replacing Jikan seasons/now)
+        const anime = [];
+        if (anilistRaw?.Page?.media) {
+          console.log(`[New Releases] 🎌 Anilist success! Got ${anilistRaw.Page.media.length} anime`);
+          for (const m of anilistRaw.Page.media.slice(0, TARGET_SHOWS)) {
+            if (!m.isAdult) {
+              const internal = anilistToInternal(m);
+              anime.push({
+                id:`anilist-${m.id}`,
+                mal_id: internal.mal_id,
+                title: internal.title,
+                poster: internal.poster,
+                type: 'Anime',
+                score: internal.score,
+                duration: internal.duration || '?',
+                status: internal.status,
+                rating: internal.rating,
+                quality: 'HD'
+              });
+            }
+          }
+        }
         
-        // NOTE: Full fallback implementation would go here
+        // Trim each category to complete rows
+        const trimToCompleteRows = (arr) => {
+          const trimmed = Math.floor(arr.length / cols) * cols;
+          return arr.slice(0, trimmed || arr.length);
+        };
         
-      } // End of loadNewReleases()
-      
+        // 🎯 RESTRUCTURED: User wants specific order - Animes FIRST, then TV, then Movies!
+        // Toggle "all" shows: Row 1=Anilist Anime, Row 2=TVMaze TV, Row 3=TMDB Movies
+        // Toggle "anime" shows: Only Anilist Anime (same as "all" tab 1st row)
+        
+        console.log(`[New Releases] 📊 Content breakdown:`);
+        console.log(`  • Anilist Airing Anime: ${anime.length} shows`);
+        console.log(`  • TVMaze TV Shows: ${allTv.length} shows`);
+        console.log(`  • TMDB Movies (${currentYearForMovies}): ${allMovies.length} shows`);
+        
+        allReleases = { 
+          // "All" tab: Anime first, then TV, then Movies (user's preferred order!)
+          all: trimToCompleteRows(dedupById([...anime, ...allTv, ...allMovies], 'id')), 
+          
+          // "Anime" tab: ONLY Anilist airing anime (same content as "all" tab's first section)
+          anime: trimToCompleteRows(anime), 
+          
+          // "Movies" tab: Only current-year TMDB movies
+          movie: trimToCompleteRows(allMovies), 
+          
+          // "TV" tab: TVMaze TV shows (truly airing!)
+          tv: trimToCompleteRows(allTv) 
+        };
+        _newReleasesCache = allReleases;
+        updateNewReleasesCounts();
+        renderNewReleases('all');
+        
+        // ✅ CACHE: Write to professional cache system (with all tabs)
+        if (window.CacheHelpers) {
+          CacheHelpers.cacheSection('newReleases', {
+            all: allReleases.all,
+            anime: allReleases.anime,
+            movie: allReleases.movie,
+            series: allReleases.tv,  // Map 'tv' to 'series' for cache
+            hidden: []  // Hidden tab data if available
+          }).catch(e => 
+            console.warn('[New Releases] ⚠️ Cache write failed:', e.message)
+          );
+        }
+        
+        const duration = Date.now() - startTime;
+        console.log(`[New Releases] ✅ Completed in ${duration}ms (with API queue optimization)`);
+        
+        // Note: If anilistRaw is null, anime array will be empty but TV/Movies will still show
+        if (!anilistRaw?.Page?.media) {
+          console.error('[New Releases] 💀 Anilist completely failed after all retries! Anime will be missing.');
+        }
+        
+        } catch (error) {
+          const duration = Date.now() - startTime;
+          console.error(`[New Releases] ❌ Failed after ${duration}ms:`, error);
+          
+          // Show error state in the grid
+          const gridContainer = document.getElementById('newReleasesGrid');
+          if (gridContainer) {
+            gridContainer.innerHTML = `
+              <div style="grid-column:1/-1;text-align:center;padding:60px 20px;color:var(--text-muted);">
+                <div style="font-size:2.5rem;margin-bottom:16px;">⚠️</div>
+                <div style="font-size:1.1rem;margin-bottom:8px;">Failed to load New Releases</div>
+                <div style="font-size:0.85rem;opacity:0.7;margin-bottom:20px;">${error.message}</div>
+                <button onclick="window.lazyLoader.reloadSection('newReleasesGrid')" 
+                        style="padding:10px 24px;background:var(--btn-primary);color:#fff;border:none;border-radius:var(--radius-md);cursor:pointer;font-size:0.9rem;">
+                  <i class="fas fa-redo" style="margin-right:8px;"></i>Try Again
+                </button>
+              </div>
+            `;
+          }
+        }
+      }
+      function updateNewReleasesCounts() {
+        const setCount = (id, n) => { const el = document.getElementById(id); if (el) el.textContent = n > 0 ? n : ''; };
+        setCount('nrCountAll',   (allReleases.all||[]).length);
+        setCount('nrCountAnime', (allReleases.anime||[]).length);
+        setCount('nrCountMovie', (allReleases.movie||[]).length);
+        setCount('nrCountTv',    (allReleases.tv||[]).length);
+      }
+
+      /* Single card markup builder shared by both the vertical grid and the
+         horizontal "All" layout, so both stay visually identical. */
+      function buildReleaseCardHTML(s, { featured = false } = {}) {
+        const hasPoster = s.poster && s.poster !== '' && s.poster !== 'null' && s.poster !== 'undefined';
+        const posterStyle = hasPoster ? `background-image:url('${s.poster}');` : 'background:linear-gradient(135deg, #1e293b 0%, #334155 100%);';
+        const noImageClass = hasPoster ? '' : 'no-image';
+        const featuredCls = featured ? ' nr-featured' : '';
+        const featuredRibbon = featured ? `<span class="nr-featured-ribbon">New</span>` : '';
+
+        if (s.type === 'Anime') {
+          const ratingText = RATING_EXPLAIN[s.rating] || s.rating;
+          return `<div class="show-card-grid${featuredCls}" style="position:relative;">
+            ${featuredRibbon}
+            <a href="${infoUrl(s)}" class="show-card-grid" style="position:static;">
+              <div class="card-poster ${noImageClass}" style="${posterStyle}">
+                <span class="poster-status-badge">${s.status}</span>
+                <span class="poster-rating-badge" title="${ratingText}"><i class="fas fa-star"></i> ${s.score}</span>
+                <div class="play-overlay"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" fill="white"/></svg></div>
+              </div>
+              <div class="card-info-grid">
+                <div class="card-meta-sm"><span class="nr-type-dot nr-anime"></span>${s.type} · ${s.duration==='?'?'?':s.duration} · ${ratingText || s.rating}</div>
+                <div class="card-title">${s.title}</div>
+              </div>
+            </a>
+            ${generateCardButtons(s, { compact: true, showBookmark: false, showDetails: false })}
+          </div>`;
+        } else if (s.type === 'Movie') {
+          return `<div class="show-card-grid${featuredCls}" style="position:relative;">
+            ${featuredRibbon}
+            <a href="${infoUrl(s)}" class="show-card-grid" style="position:static;">
+              <div class="card-poster ${noImageClass}" style="${posterStyle}">
+                <span class="quality-badge">${s.quality}</span>
+                <span class="score-badge"><i class="fas fa-star"></i> ${s.score}</span>
+                <div class="play-overlay"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" fill="white"/></svg></div>
+              </div>
+              <div class="card-info-grid">
+                <div class="card-meta-sm"><span class="nr-type-dot nr-movie"></span>${s.type} · ${s.details} · ${s.cert}</div>
+                <div class="card-title">${s.title}</div>
+              </div>
+            </a>
+            ${generateCardButtons(s, { compact: true, showBookmark: false, showDetails: false })}
+          </div>`;
+        } else {
+          return `<div class="show-card-grid${featuredCls}" style="position:relative;">
+            ${featuredRibbon}
+            <a href="${infoUrl(s)}" class="show-card-grid" style="position:static;">
+              <div class="card-poster ${noImageClass}" style="${posterStyle}">
+                <span class="quality-badge">${s.quality}</span>
+                <span class="score-badge"><i class="fas fa-star"></i> ${s.score}</span>
+                <div class="play-overlay"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" fill="white"/></svg></div>
+              </div>
+              <div class="card-info-grid">
+                <div class="card-meta-sm"><span class="nr-type-dot nr-tv"></span>${s.type} · ${s.details} · ${s.cert}</div>
+                <div class="card-title">${s.title}</div>
+              </div>
+            </a>
+            ${generateCardButtons(s, { compact: true, showBookmark: false, showDetails: false })}
+         </div>`;
+        }
+      }
+
+      /* ── Horizontal "All" layout (computer only): row1 = anime, row2 = movie/TV ── */
+      const NR_HORIZ_MIN_WIDTH = 1024;
+      function nrCalcCols() {
+        const w = window.innerWidth;
+        if (w > 1800) return 7;
+        if (w > 1400) return 6;
+        if (w > 1200) return 5;
+        return 4; // 1024–1200
+      }
+      function nrIsHorizontalActive() {
+        return currentNewReleasesFilter === 'all' && window.innerWidth > NR_HORIZ_MIN_WIDTH;
+      }
+      function nrBuildHorizontalList() {
+        // Row 1 = anime, Row 2 = TMDB TV, Row 3 = TMDB movies. Interleaving
+        // in triples lets grid-auto-flow:column sort them into their rows
+        // automatically (item1->row1, item2->row2, item3->row3, item4->row1, ...).
+        const animeList = allReleases.anime || [];
+        const tvList = allReleases.tv || [];
+        const movieList = allReleases.movie || [];
+        const n = Math.min(animeList.length, tvList.length, movieList.length);
+        const combined = [];
+        for (let i = 0; i < n; i++) {
+          combined.push(animeList[i], tvList[i], movieList[i]);
+        }
+        // Append any leftovers from longer lists at the end
+        combined.push(...animeList.slice(n), ...tvList.slice(n), ...movieList.slice(n));
+        return combined;
+      }
+      function nrLayoutColumns() {
+        const grid = document.getElementById('newReleasesGrid');
+        if (!grid || !grid.classList.contains('nr-horizontal')) return;
+        const cols = nrCalcCols();
+        const gap = 14;
+        const containerWidth = grid.clientWidth;
+        const colWidth = Math.floor((containerWidth - gap * (cols - 1)) / cols);
+        grid.style.setProperty('--nr-col-width', colWidth + 'px');
+        grid.dataset.nrCols = cols;
+      }
+      function nrGetScrollAmount() {
+        const grid = document.getElementById('newReleasesGrid');
+        return grid ? grid.clientWidth : 0;
+      }
+      let _nrResizeTimer = null;
+      window.addEventListener('resize', () => {
+        clearTimeout(_nrResizeTimer);
+        _nrResizeTimer = setTimeout(() => {
+          const shouldBeHorizontal = nrIsHorizontalActive();
+          const grid = document.getElementById('newReleasesGrid');
+          if (!grid) return;
+          const isHorizontal = grid.classList.contains('nr-horizontal');
+          if (shouldBeHorizontal !== isHorizontal) {
+            // Crossed the desktop breakpoint or tab changed layout mode — re-render fully
+            renderNewReleases(currentNewReleasesFilter);
+          } else if (shouldBeHorizontal) {
+            nrLayoutColumns();
+          }
+        }, 200);
+      });
+      let _nrScrollWired = false;
+      function nrWireScrollControls() {
+        if (_nrScrollWired) return;
+        _nrScrollWired = true;
+        const leftBtn = document.getElementById('nrScrollLeft');
+        const rightBtn = document.getElementById('nrScrollRight');
+        const grid = document.getElementById('newReleasesGrid');
+        const section = grid ? grid.closest('.section') : null;
+        if (leftBtn) leftBtn.addEventListener('click', () => grid.scrollBy({ left: -nrGetScrollAmount(), behavior: 'smooth' }));
+        if (rightBtn) rightBtn.addEventListener('click', () => grid.scrollBy({ left: nrGetScrollAmount(), behavior: 'smooth' }));
+        if (section && grid) {
+          document.addEventListener('keydown', (e) => {
+            if (!grid.classList.contains('nr-horizontal')) return;
+            if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') &&
+                (section.matches(':hover') || grid.matches(':hover'))) {
+              e.preventDefault();
+              grid.scrollBy({ left: e.key === 'ArrowLeft' ? -nrGetScrollAmount() : nrGetScrollAmount(), behavior: 'smooth' });
+            }
+          });
+        }
+        // Belt-and-suspenders: recompute column width whenever the container's
+        // actual box size changes (sidebar/font/image reflows, not just window resize)
+        if (grid && 'ResizeObserver' in window) {
+          const ro = new ResizeObserver(() => {
+            if (grid.classList.contains('nr-horizontal')) nrLayoutColumns();
+          });
+          ro.observe(grid);
+        }
+      }
+
+      function renderNewReleases(filter) {
+        const grid = document.getElementById('newReleasesGrid');
+        const controls = document.getElementById('nrScrollControls')?.closest('.nr-header-controls');
+        const useHorizontal = filter === 'all' && window.innerWidth > NR_HORIZ_MIN_WIDTH;
+        const data = useHorizontal ? nrBuildHorizontalList() : (allReleases[filter] || []);
+
+        if (!data.length) {
+          grid.classList.remove('nr-horizontal');
+          grid.style.removeProperty('--nr-col-width');
+          if (controls) controls.classList.remove('nr-horiz-active');
+          grid.innerHTML = `<div class="nr-empty-state">
+            <i class="fas fa-inbox"></i>
+            <span>No ${filter === 'all' ? 'releases' : filter} available right now</span>
+          </div>`;
+          return;
+        }
+
+        grid.classList.toggle('nr-horizontal', useHorizontal);
+        if (controls) controls.classList.toggle('nr-horiz-active', useHorizontal);
+
+        grid.innerHTML = data.map((s, idx) => buildReleaseCardHTML(s, { featured: !useHorizontal && idx === 0 })).join('');
+
+        if (useHorizontal) {
+          nrLayoutColumns();
+          nrWireScrollControls();
+          grid.scrollLeft = 0;
+        } else {
+          grid.style.removeProperty('--nr-col-width');
+        }
+      }
+      /* ══════════════════════════════════════════════════════════════════
+         "HIDDEN" TAB — country-grouped Movies+TV, TMDB /discover
+         Row 1: South Korea + Japan   Row 2: Pakistan + India   Row 3: Turkey
+         ══════════════════════════════════════════════════════════════════ */
+      const nrHiddenSleep = (ms) => new Promise(r => setTimeout(r, ms));
+      const NR_HIDDEN_RATE_LIMIT_MS = 350; // gap between sequential t-umi calls
+
+      /**
+       * Fetch up to `targetPerType` valid (poster + name/title present) movies
+       * AND `targetPerType` valid TV shows for one country, for the CURRENT
+       * calendar year — date range is computed from `new Date()` every call,
+       * never hardcoded, so it always covers "this year" automatically.
+       * Paginates only as far as needed to fill the quota (stops early),
+       * and respects rate limits with a delay between every page/call.
+       */
       async function fetchCountryMoviesAndTV(countryCode, targetPerType = 20, maxPages = 5) {
         const year = new Date().getFullYear();
         const movies = [], tvShows = [];
@@ -5254,309 +5874,496 @@ titleEl.style.color = 'transparent';
       }
 
       async function loadCompleted(page=1) {
-        // ═══════════════════════════════════════════════════════════════════
-        // NEON DATABASE POWERED RECENTLY COMPLETED SECTION
-        // Page 1 from DB, subsequent pages use API fallback
-        // ═══════════════════════════════════════════════════════════════════
+        completedCurrentPage = page;
+        const requestId = ++_completedRequestId;
+
+        // Respond INSTANTLY: show skeleton immediately, disable pagination
+        // controls while this page loads so clicks feel instant instead of
+        // waiting on the network.
+        const cols = calcCompletedCols();
+        const TARGET_ROWS = completedRowsForViewport();
+        renderCompletedSkeleton(cols * TARGET_ROWS);
+        renderPagination(page, true);
+
+        // Fetch enough TMDB pages (20 results/page) to cover TARGET_SHOWS
+        // for both TV and movies — scales up automatically as rows/cols grow.
+        const TARGET_SHOWS = TARGET_ROWS * cols;  // e.g., 9×8=72 on wide desktop
+        const tmdbPagesNeeded = Math.max(2, Math.ceil(TARGET_SHOWS / 20));
         
-        // For page 1, try DB first
-        if (page === 1) {
-          try {
-            console.log('[Recently Completed] 🚀 Loading page 1 from Neon Database...');
-            const dbData = await window.NeonDB.getSection('recently_completed');
+        // Date range: Last 6 months for "recently completed" content
+        const today = new Date().toISOString().split('T')[0]; // "2026-08-13"
+        const sixMonthsAgo = new Date(Date.now() - 6*30*24*60*60*1000).toISOString().split('T')[0];
+
+        console.log(`[Completed] 📄 Loading page ${page} (tmdbPages: ${tmdbPagesNeeded}, range: ${sixMonthsAgo} to ${today})`);
+
+        // TV: Recently COMPLETED/ENDED shows (not currently airing) sorted by newest first
+        // with_status=ended ensures we only get finished series, not ongoing ones
+        const tvFetches = Array.from({length: tmdbPagesNeeded}, (_, i) =>
+          fetchTMDB('/discover/tv', `sort_by=first_air_date.desc&with_status=ended&first_air_date.gte=${sixMonthsAgo}&first_air_date.lte=${today}&page=${page+i}`));
+        
+        // Movies: Recently released movies (theatrical/Digital/TV movie) sorted by newest first
+        const movieFetches = Array.from({length: tmdbPagesNeeded}, (_, i) =>
+          fetchTMDB('/discover/movie', `sort_by=release_date.desc&with_release_type=2|3&release_date.gte=${sixMonthsAgo}&release_date.lte=${today}&page=${page+i}`));
+
+        // Use Promise.allSettled so Anilist failure doesn't kill TV/Movie data!
+        const [tvResult, movieResult, anilistResult] = await Promise.allSettled([
+          Promise.all(tvFetches),
+          Promise.all(movieFetches),
+          // AniList: Pure recently completed TV ANIME only!
+          // FIXED: Now fetches actual TV/TV_SHORT anime that recently finished,
+          // not music videos, specials, or random ONAs.
+          // DYNAMIC YEAR: Automatically uses current/recent season year
+          // SORT: END_DATE_DESC = newest completions first (page 1 = most recent)
+          // Uses QUEUED fetch with automatic retry on timeout!
+          (async () => {
+            const now = new Date();
+            const currentYear = now.getFullYear();
+            const currentMonth = now.getMonth() + 1; // 1-12
             
-            if (dbData && dbData.Anime) {
-              const items = dbData.Anime
-                .filter(m => !m.isAdult && m.coverImage)
-                .slice(0, 50)
-                .map(m => ({
-                  id: `anilist-comp-${m.id}`,
-                  mal_id: m.idMal,
-                  title: m.title?.userPreferred || m.title?.romaji || m.title?.english,
-                  poster: m.coverImage?.large || m.coverImage?.medium,
-                  type: 'Anime',
-                  score: m.averageScore ? String(m.averageScore) : 'N/A',
-                  status: m.status === 'FINISHED' ? 'Completed' : m.status,
-                  episodes: String(m.episodes || '?'),
-                  format: m.format,
-                  genres: m.genres || [],
-                  studios: m.studios?.nodes?.map(n => n.name).join(', ') || '',
-                  _source: 'neon-db'
-                }));
-              
-              console.log(`[Recently Completed] ✅ Page 1: ${items.length} items from DB`);
-              
-              // Also prepare TMDB data if available
-              const tmdbItems = [];
-              if (dbData.tmdbTV) {
-                const tvArray = Array.isArray(dbData.tmdbTV) ? dbData.tmdbTV : Object.values(dbData.tmdbTV).flat();
-                tmdbItems.push(...tvArray
-                  .filter(t => t?.poster_path)
-                  .slice(0, 20)
-                  .map(t => ({
-                    id: `tmdb-comp-${t.id}`,
-                    tmdb_id: t.id,
-                    title: t.name || t.original_name,
-                    poster: `https://image.tmdb.org/t/p/w500${t.poster_path}`,
-                    type: 'TV',
-                    score: (t.vote_average||0).toFixed(1),
-                    _source: 'neon-db'
-                  }))
-                );
-              }
-              if (dbData.tmdbMovie) {
-                const movieArray = Array.isArray(dbData.tmdbMovie) ? dbData.tmdbMovie : Object.values(dbData.tmdbMovie).flat();
-                tmdbItems.push(...movieArray
-                  .filter(m => m?.poster_path && !m.adult)
-                  .slice(0, 20)
-                  .map(m => ({
-                    id: `tmdb-movie-comp-${m.id}`,
-                    tmdb_id: m.id,
-                    title: m.title || m.original_title,
-                    poster: `https://image.tmdb.org/t/p/w500${m.poster_path}`,
-                    type: 'Movie',
-                    score: (m.vote_average||0).toFixed(1),
-                    _source: 'neon-db'
-                  }))
-                );
-              }
-              
-              // Interleave anime and TMDB content
-              const maxLen = Math.max(items.length, tmdbItems.length);
-              const interleaved = [];
-              for (let i = 0; i < maxLen; i++) {
-                if (i < items.length) interleaved.push(items[i]);
-                if (i < tmdbItems.length) interleaved.push(tmdbItems[i]);
-              }
-              
-              renderCompleted(interleaved.slice(0, 60), page);
-              
-              // Cache page 1
-              if (window.CacheHelpers) {
-                CacheHelpers.cacheSection('completed', { page1: interleaved.slice(0, 60) }).catch(e => 
-                  console.warn('[Completed] ⚠️ Cache write failed:', e.message)
-                );
-              }
-              
-              return; // Success!
+            // Determine which season years to include (current + previous for overlap)
+            // Anime seasons: Winter (Jan-Mar), Spring (Apr-Jun), Jul-Sep, Oct-Dec
+            let targetYear = currentYear;
+            if (currentMonth === 1) {
+              // In January, mostly still showing previous year's anime ending
+              targetYear = currentYear - 1;
             }
             
-            console.warn('[Recently Completed] ⚠️ DB data invalid, falling back to API...');
-          } catch (error) {
-            console.error('[Recently Completed] ❌ DB fetch failed:', error.message);
-          }
-        }
+            // Build query for recently completed TV anime
+            const completedQuery = `
+              query ($year: Int, $page: Int, $perPage: Int) {
+                Page(page: $page, perPage: $perPage) {
+                  media(
+                    type: ANIME, 
+                    status: FINISHED, 
+                    format_in: [TV, TV_SHORT],
+                    seasonYear: $year,
+                    isAdult: false, 
+                    sort: [END_DATE_DESC]
+                  ) {
+                    ${ANILIST_ANIME_FIELDS}
+                  }
+                }
+              }
+            `;
+            
+            const completedVars = { year: targetYear, page: page, perPage: 100 };
+            
+            // Use QUEUED fetch with retry logic (fixes CORS/timeout issues!)
+            return await queuedFetchAniList(completedQuery, completedVars);
+          })()
+        ]);
+
+        // Extract results safely (handle both success and failure)
+        const tvResults = tvResult.status === 'fulfilled' ? tvResult.value : [];
+        const movieResults = movieResult.status === 'fulfilled' ? movieResult.value : [];
         
-        // For page > 1 or DB failure, use original API logic
-        if (page > 1) {
-          console.log(`[Recently Completed] 🔄 Loading page ${page} from API (DB only has page 1)...`);
+        // Log Anilist status specifically
+        if (anilistResult.status === 'rejected') {
+          console.error(`[Completed] ❌ Anilist fetch FAILED:`, anilistResult.reason?.message || anilistResult.reason);
+          var anilistComp = null; // Will show empty anime but TV/Movies still work!
         } else {
-          console.log('[Recently Completed] 🔄 Using API fallback...');
+          var anilistComp = anilistResult.value;
+          
+          if (anilistComp?.Page?.media) {
+            console.log(`[Completed] 🎌 Anilist success! Got ${anilistComp.Page.media.length} anime`);
+          } else if (anilistComp?.errors) {
+            console.error(`[Completed] ❌ Anilist returned errors:`, JSON.stringify(anilistComp.errors));
+          } else if (anilistComp?.data) {
+            // Might be wrapped in a data property
+            if (anilistComp.data.Page?.media) {
+              anilistComp = anilistComp.data; // Fix the structure
+            }
+          }
+        }
+
+        // DEBUG: Log first item from each TMDB page to verify pagination works
+        tvResults.forEach((r, i) => {
+          console.log(`[Completed] 📺 TV page ${page+i}: ${(r.results||[]).length} results | First: "${r.results?.[0]?.name}" (id:${r.results?.[0]?.id})`);
+        });
+        movieResults.forEach((r, i) => {
+          console.log(`[Completed] 🎬 Movie page ${page+i}: ${(r.results||[]).length} results | First: "${r.results?.[0]?.title}" (id:${r.results?.[0]?.id})`);
+        });
+
+        // A newer page click landed after this one started — drop this
+        // response so a slow page 2 fetch can't clobber page 5's grid.
+        if (requestId !== _completedRequestId) return;
+
+        // Merge multiple TMDB pages (ascending order - oldest first)
+        const allTmdbTv = tvResults.flatMap(r => r.results || []);
+        const allTmdbMovies = movieResults.flatMap(r => r.results || []);
+
+        // Convert AniList completed anime — backfill missing MAL ids via
+        // title search instead of dropping the anime outright, so grid
+        // density isn't lost just because AniList lacks a MAL mapping.
+        //
+        // Candidate pool is 2x TARGET_SHOWS (not just TARGET_SHOWS) — some
+        // fraction of candidates won't resolve a confident mal_id via
+        // backfill and get dropped (see the `if (!malId) return null;`
+        // below), so starting with only exactly TARGET_SHOWS candidates
+        // meant a page could end up showing noticeably fewer anime than
+        // intended. The larger pool means losses there don't shrink the
+        // final anime count nearly as much.
+        let anilistItems = [];
+        if (anilistComp?.Page?.media) {
+          const candidates = anilistComp.Page.media.slice(0, TARGET_SHOWS * 2).filter(m => !m.isAdult);
+          const resolved = await mapWithConcurrency(candidates, 3, async (m) => {
+            let malId = m.idMal || null;
+            if (!malId) {
+              malId = await findMalIdByTitle(m);
+            }
+            // Still no confident mal_id after backfill attempt — skip this
+            // one rather than risk a broken or (worse) wrong-anime link.
+            if (!malId) return null;
+            const internal = anilistToInternal(m);
+            
+            return {
+              id:`anilist-comp-${m.id}`,
+              mal_id: malId,
+              title: internal.title,
+              poster: internal.poster,
+              type: internal.type || 'Anime',
+              year: String(internal.year),
+              score: internal.score,
+              quality: 'HD'
+            };
+          });
+          anilistItems = resolved.filter(Boolean);
+        }
+
+        if (requestId !== _completedRequestId) return;
+
+        // Create items arrays - take enough to fill 6 rows
+        // FILTER: Remove items without valid poster!
+        const tmdbTvItems = allTmdbTv
+          .filter(i => i.poster_path && i.poster_path !== 'null' && i.poster_path !== 'undefined')
+          .map(i=>({
+            id:`tmdb-comp-${i.id}`,tmdb_id:i.id,title:i.name,poster:tmdbImg(i.poster_path),
+            type:'TV',year:(i.first_air_date||'').slice(0,4),
+            score:(i.vote_average||0).toFixed(1),quality:'HD'
+          }))
+          .slice(0, TARGET_SHOWS);
+
+        const tmdbMovieItems = allTmdbMovies
+          .filter(i => i.poster_path && i.poster_path !== 'null' && i.poster_path !== 'undefined')
+          .map(i=>({
+            id:`tmdb-movie-comp-${i.id}`,tmdb_id:i.id,title:i.title,poster:tmdbImg(i.poster_path),
+            type:'Movie',year:(i.release_date||'').slice(0,4),
+            score:(i.vote_average||0).toFixed(1),quality:'HD'
+          }))
+          .slice(0, TARGET_SHOWS);
+
+        // Also filter Anilist completed anime without posters
+        const anilistItemsFiltered = anilistItems.filter(a =>
+          a.poster && a.poster !== '' && a.poster !== 'null' && a.poster !== 'undefined'
+        );
+
+        // Interleave in [Anime][TV][Movie] ratio, repeating.
+        const interleaved = [];
+        const maxLen = Math.max(anilistItemsFiltered.length, tmdbTvItems.length, tmdbMovieItems.length);
+        for (let i = 0; i < maxLen; i++) {
+          if (i < anilistItemsFiltered.length) interleaved.push(anilistItemsFiltered[i]);
+          if (i < tmdbTvItems.length)          interleaved.push(tmdbTvItems[i]);
+          if (i < tmdbMovieItems.length)        interleaved.push(tmdbMovieItems[i]);
+        }
+        // Trim to exactly 6 complete rows (no incomplete last row!)
+        const trimTo = Math.min(Math.floor(interleaved.length/cols)*cols, TARGET_SHOWS);
+        const list = interleaved.slice(0, trimTo || TARGET_SHOWS);
+        document.getElementById('completedGrid').innerHTML = list.map(s => renderCompletedCard(s)).join('');
+        renderPagination(page, false);
+      }
+      function renderPagination(page, isLoading=false) {
+        const total = 30; // Max 30 pages of recently completed anime
+        const nav = document.getElementById('completedPagination');
+        
+        // Responsive: Desktop shows 6 pages, Mobile shows 4 pages
+        const isMobile = window.innerWidth <= 768;
+        const visiblePages = isMobile ? 4 : 6;
+        
+        let html = `<button ${(page===1||isLoading)?'disabled':''} id="compPrev">Previous</button><div style="display:flex;gap:4px;flex-wrap:wrap;">`;
+        
+        // Calculate visible range centered on current page
+        const halfRange = Math.floor(visiblePages / 2);
+        let start = Math.max(1, page - halfRange);
+        let end = Math.min(total, start + visiblePages - 1);
+        
+        // Adjust start if we're near the end
+        if (end - start + 1 < visiblePages) {
+          start = Math.max(1, end - visiblePages + 1);
         }
         
-        // NOTE: Full fallback implementation for pagination would go here
-        
-      } // End of loadCompleted()
-      
+        for (let i=start; i<=end; i++) {
+          html += `<button class="${i===page?'active':''}" data-page="${i}" ${isLoading?'disabled':''}>${i}</button>`;
+        }
+        html += `</div><button ${(page>=total||isLoading)?'disabled':''} id="compNext">Next</button>`;
+        nav.innerHTML = html;
+        nav.classList.toggle('pagination-loading', isLoading);
+        if (isLoading) return; // buttons are disabled; skip attaching new handlers until data lands
+        document.getElementById('compPrev')?.addEventListener('click', ()=>loadCompleted(page-1));
+        document.getElementById('compNext')?.addEventListener('click', ()=>loadCompleted(page+1));
+        nav.querySelectorAll('button[data-page]').forEach(b => {
+          b.addEventListener('click', ()=>loadCompleted(parseInt(b.dataset.page)));
+        });
+      }
+
+      // Re-fetch when crossing the desktop breakpoint so the row count
+      // (6 vs 9) and grid density stay correct after a resize.
+      let _completedWasDesktop = window.innerWidth > 1100;
+      window.addEventListener('resize', () => {
+        const isDesktop = window.innerWidth > 1100;
+        if (isDesktop !== _completedWasDesktop) {
+          _completedWasDesktop = isDesktop;
+          loadCompleted(completedCurrentPage);
+        }
+      });
+
+      /* ── SHARED CARD RENDERERS ── */
+      function renderCompletedCard(s) {
+        // Check if poster is valid (not empty, not undefined)
+        const hasPoster = s.poster && s.poster !== '' && s.poster !== 'null' && s.poster !== 'undefined';
+        const posterStyle = hasPoster ? `background-image:url('${s.poster}');` : 'background:linear-gradient(135deg, #1e293b 0%, #334155 100%);';
+        const noImageClass = hasPoster ? '' : 'no-image';
+        return `<div class="show-card-grid" style="position:relative;">
+          <a href="${infoUrl(s)}" class="show-card-grid" style="position:static;">
+            <div class="card-poster ${noImageClass}" style="${posterStyle}">
+              <span class="quality-badge">${s.quality||'HD'}</span>
+              <div class="play-overlay"><svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21" fill="white"/></svg></div>
+            </div>
+            <div class="card-info-grid">
+              <div class="card-meta-sm">${s.type} · ${s.year||'?'} · <i class="fas fa-star"></i> ${s.score}</div>
+              <div class="card-title">${s.title}</div>
+            </div>
+          </a>
+          ${generateCardButtons(s, { compact: true, showBookmark: false, showDetails: false })}
+        </div>`;
+      }
+      function renderShowCard(s) {
+        return `<div class="sidebar-list-item" style="position:relative;">
+          <a href="${infoUrl(s)}" class="sidebar-list-item" style="position:static;" onmouseenter="showPopup(event,'${s.id}')" onmouseleave="_onCardLeave()">
+            <span class="sidebar-rank">${s.rank||''}</span>
+            <img class="sidebar-poster" src="${s.poster}" onerror="this.style.display='none'">
+            <div class="sidebar-info"><h4>${s.title}</h4><div class="side-meta"><i class="fas fa-star"></i> ${s.score} · ${s.type}</div></div>
+          </a>
+          ${generateCardButtons(s, { compact: true, showBookmark: false, showDetails: false })}
+        </div>`;
+      }
+
+      /* ── TRENDING ── */
+      let trendingData=[];
+      let _trendingCache = {};
       async function loadTrending(period='today') {
-        // ═══════════════════════════════════════════════════════════════════
-        // NEON DATABASE POWERED TRENDING NOW SECTION
-        // ═══════════════════════════════════════════════════════════════════
-        
-        try {
-          console.log('[Trending Now] 🚀 Loading from Neon Database...');
-          const dbData = await window.NeonDB.getSection('trending_now');
-          
-          if (dbData && (dbData.Anime || dbData.tmdbTV)) {
-            const items = [];
-            
-            // Add anime
-            if (dbData.Anime) {
-              items.push(...dbData.Anime
-                .filter(m => !m.isAdult && m.coverImage)
-                .slice(0, 20)
-                .map(m => ({
-                  id: `anilist-tr-${m.id}`,
-                  mal_id: m.idMal,
-                  title: m.title?.userPreferred || m.title?.romaji,
-                  poster: m.coverImage?.large || m.coverImage?.medium,
-                  type: 'Anime',
-                  score: m.averageScore ? String(m.averageScore) : 'N/A',
-                  popularity: m.popularity,
-                  genres: m.genres || [],
-                  _source: 'neon-db'
-                }))
-              );
-            }
-            
-            // Add TMDB TV/Movies
-            if (dbData.tmdbTV) {
-              const tvArray = Array.isArray(dbData.tmdbTV) ? dbData.tmdbTV : Object.values(dbData.tmdbTV).flat();
-              items.push(...tvArray
-                .filter(t => t?.poster_path)
-                .slice(0, 10)
-                .map(t => ({
-                  id: `tmdb-tr-${t.id}`,
-                  tmdb_id: t.id,
-                  title: t.name || t.original_title,
-                  poster: `https://image.tmdb.org/t/p/w185${t.poster_path}`,
-                  type: 'TV',
-                  score: (t.vote_average||0).toFixed(1),
-                  popularity: t.popularity,
-                  _source: 'neon-db'
-                }))
-              );
-            }
-            
-            if (dbData.tmdbMovie) {
-              const movieArray = Array.isArray(dbData.tmdbMovie) ? dbData.tmdbMovie : Object.values(dbData.tmdbMovie).flat();
-              items.push(...movieArray
-                .filter(m => m?.poster_path && !m.adult)
-                .slice(0, 10)
-                .map(m => ({
-                  id: `tmdb-tr-mv-${m.id}`,
-                  tmdb_id: m.id,
-                  title: m.title || m.original_title,
-                  poster: `https://image.tmdb.org/t/p/w185${m.poster_path}`,
-                  type: 'Movie',
-                  score: (m.vote_average||0).toFixed(1),
-                  popularity: m.popularity,
-                  _source: 'neon-db'
-                }))
-              );
-            }
-            
-            console.log(`[Trending Now] ✅ ${items.length} items from DB`);
-            renderTrending(items);
-            
-            // Cache
-            if (window.CacheHelpers) {
-              CacheHelpers.cacheSection('trending', items).catch(e => 
-                console.warn('[Trending] ⚠️ Cache write failed:', e.message)
-              );
-            }
-            
-            return; // Success!
-          }
-          
-          console.warn('[Trending Now] ⚠️ DB data invalid, falling back to API...');
-        } catch (error) {
-          console.error('[Trending Now] ❌ DB fetch failed:', error.message);
+        const periodKey = period === 'today' ? 'day' : period;
+        if (_trendingCache[periodKey] && _trendingCache[periodKey].length) {
+          trendingData = _trendingCache[periodKey];
+          trendingData.forEach((item, i) => item.rank = i + 1);
+          const el = document.getElementById('trendingList');
+          if (el) el.innerHTML = trendingData.map(s => renderShowCard(s)).join('');
+          return;
         }
         
-        // FALLBACK: Original API-based loading
-        console.log('[Trending Now] 🔄 Using API fallback...');
+        // Using TMDB + AniList (replacing Jikan)
+        let tmdb, anilistTrend;
         
-        // NOTE: Full fallback would go here
+        if(period==='today') { 
+          tmdb=await fetchTMDB('/trending/all/day'); 
+          anilistTrend=await fetchAniList(`query { Page(page:1, perPage:10) { media(type:ANIME, status:RELEASING, isAdult:false, sort:TRENDING_DESC) { ${ANILIST_ANIME_FIELDS} } } }`); 
+        }
+        else if(period==='week') { 
+          tmdb=await fetchTMDB('/trending/all/week'); 
+          anilistTrend=await fetchAniList(`query { Page(page:1, perPage:10) { media(type:ANIME, isAdult:false, sort:TRENDING_DESC) { ${ANILIST_ANIME_FIELDS} } } }`); 
+        }
+        else { 
+          const d=new Date();d.setDate(d.getDate()-30); 
+          tmdb=await fetchTMDB('/discover/movie',`primary_release_date.gte=${d.toISOString().split('T')[0]}&sort_by=popularity.desc`); 
+          anilistTrend=await fetchAniList(`query { Page(page:1, perPage:10) { media(type:ANIME, isAdult:false, sort:POPULARITY_DESC) { ${ANILIST_ANIME_FIELDS} } } }`); 
+        }
         
-      } // End of loadTrending()
-      
+        // Convert AniList data
+        const anilistItems = [];
+        if (anilistTrend?.Page?.media) {
+          for (const m of anilistTrend.Page.media) {
+            if (!m.isAdult) {
+              const internal = anilistToInternal(m);
+              anilistItems.push({
+                id:`anilist-tr-${m.id}`,
+                mal_id: internal.mal_id,
+                title: internal.title,
+                poster: internal.poster,
+                type:'Anime',
+                score: internal.score,
+                genres: internal.genres,
+                synopsis: internal.description || '',
+                release_date: `${internal.year}` || ''
+              });
+            }
+          }
+        }
+        
+        trendingData = [
+          ...(tmdb.results||[]).slice(0,10).map(i => ({
+            id:`tmdb-tr-${i.id}`, tmdb_id: i.id, title:i.title||i.name, poster:tmdbImg(i.poster_path,'w185'),
+            type:i.media_type==='movie'?'Movie':'TV', score:(i.vote_average||0).toFixed(1),
+            genres:(i.genre_ids||[]).map(id=>GENRE_MAP[id]||id),
+            overview:i.overview||'',
+            release_date:i.release_date||i.first_air_date||'',
+            media_type:i.media_type
+          })),
+          ...anilistItems
+        ].sort((a,b)=>b.score-a.score).slice(0,20);
+        trendingData.forEach((item,i)=>item.rank=i+1);
+        document.getElementById('trendingList').innerHTML = trendingData.map(s => renderShowCard(s)).join('');
+        // Merge all periods and save — 5h TTL
+      }
+      document.getElementById('trendingTabs').addEventListener('click', e => {
+        if(e.target.classList.contains('toggle-tab')) {
+          document.querySelectorAll('#trendingTabs .toggle-tab').forEach(t=>t.classList.remove('active'));
+          e.target.classList.add('active');
+          
+          // Move glider to active tab
+          moveGlider('trendingTabs', 'trendingGlider', e.target);
+          
+          loadTrending(e.target.dataset.period);
+        }
+      });
+
+      /* ── POPULAR (sidebar) — Mix of TMDB + AniList popular ── */
+      let popularData = [];
       async function loadPopular() {
-        // ═══════════════════════════════════════════════════════════════════
-        // NEON DATABASE POWERED MOST FAVOURITE SECTION
-        // Uses "most_favourite" column from DB
-        // ═══════════════════════════════════════════════════════════════════
         
-        try {
-          console.log('[Most Favourite] 🚀 Loading from Neon Database...');
-          const dbData = await window.NeonDB.getSection('most_favourite');
-          
-          if (dbData && (dbData.Anime || dbData.tmdbTV)) {
-            const items = [];
-            
-            // Add anime (primary)
-            if (dbData.Anime) {
-              items.push(...dbData.Anime
-                .filter(m => !m.isAdult && m.coverImage)
-                .slice(0, 20)
-                .map(m => ({
-                  id: `anilist-pop-${m.id}`,
-                  mal_id: m.idMal,
-                  title: m.title?.userPreferred || m.title?.romaji,
-                  poster: m.coverImage?.large || m.coverImage?.medium,
-                  type: 'Anime',
-                  score: m.averageScore ? String(m.averageScore) : 'N/A',
-                  favourites: m.favourites,
-                  popularity: m.popularity,
-                  genres: m.genres || [],
-                  _source: 'neon-db'
-                }))
-              );
+        // Fetch BOTH TMDB and AniList for mixed results
+        const [tmdbMovies, tmdbTV, anilistPop] = await Promise.all([
+          fetchTMDB('/discover/movie', 'sort_by=vote_count.desc&vote_count.gte=5000&language=en-US&page=1'),
+          fetchTMDB('/discover/tv',    'sort_by=vote_count.desc&vote_count.gte=2000&language=en-US&page=1'),
+          // AniList: 8 most popular anime
+          fetchAniList(`
+            query ($perPage: Int) {
+              Page(page: 1, perPage: $perPage) {
+                media(type: ANIME, isAdult: false, sort: [POPULARITY_DESC]) {
+                  ${ANILIST_ANIME_FIELDS}
+                }
+              }
             }
-            
-            // Add TMDB content
-            if (dbData.tmdbTV) {
-              const tvArray = Array.isArray(dbData.tmdbTV) ? dbData.tmdbTV : Object.values(dbData.tmdbTV).flat();
-              items.push(...tvArray
-                .filter(t => t?.poster_path)
-                .slice(0, 8)
-                .map(t => ({
-                  id: `tmdb-pop-tv-${t.id}`,
-                  tmdb_id: t.id,
-                  title: t.name || t.original_name,
-                  poster: `https://image.tmdb.org/t/p/w185${t.poster_path}`,
-                  type: 'TV',
-                  score: (t.vote_average||0).toFixed(1),
-                  voteCount: t.vote_count || 0,
-                  _source: 'neon-db'
-                }))
-              );
+          `, { perPage: 10 })
+        ]);
+        
+        const allMovies = tmdbMovies.results || [];
+        const allTV     = tmdbTV.results || [];
+
+        // TMDB items (movies + TV)
+        const tmdbItems = [
+          ...allMovies.slice(0, 5).map(i => ({
+            id:`tmdb-pop-${i.id}`,
+            tmdb_id: i.id,
+            title: i.title||'Unknown',
+            poster: tmdbImg(i.poster_path, 'w185'),
+            type: 'Movie',
+            score: i.vote_average ? Number(i.vote_average).toFixed(1) : 'N/A',
+            year: (i.release_date||'').slice(0,4) || '—',
+            certification: 'PG-13',
+            duration: i.runtime ? `${i.runtime} min` : '—',
+            genres: (i.genre_ids||[]).map(id => GENRE_MAP[id]).filter(Boolean),
+            synopsis: i.overview || 'No description available.',
+            studio: '—',
+          })),
+          ...allTV.slice(0, 5).map(i => ({
+            id:`tmdb-tvpop-${i.id}`,
+            tmdb_id: i.id,
+            title: i.name||'Unknown',
+            poster: tmdbImg(i.poster_path, 'w185'),
+            type: 'TV',
+            score: i.vote_average ? Number(i.vote_average).toFixed(1) : 'N/A',
+            year: (i.first_air_date||'').slice(0,4) || '—',
+            certification: 'TV-14',
+            duration: '—',
+            genres: (i.genre_ids||[]).map(id => GENRE_MAP[id]).filter(Boolean),
+            synopsis: i.overview || 'No description available.',
+            studio: (i.networks||[])[0]?.name || '—',
+          }))
+        ];
+        
+        // AniList items (8 popular anime)
+        const anilistItems = [];
+        if (anilistPop?.Page?.media) {
+          for (const m of anilistPop.Page.media.slice(0, 8)) {
+            if (!m.isAdult) {
+              const internal = anilistToInternal(m);
+              anilistItems.push({
+                id: `anilist-pop-${m.id}`,
+                title: internal.title,
+                poster: internal.poster,
+                type: 'Anime',
+                score: internal.score,
+                year: String(internal.year),
+                certification: internal.rating,
+                duration: internal.duration,
+                genres: internal.genres,
+                synopsis: internal.description || 'No description available.',
+                studio: internal.studio,
+                mal_id: internal.mal_id,
+                anilist_id: m.id,
+              });
             }
-            
-            if (dbData.tmdbMovie) {
-              const movieArray = Array.isArray(dbData.tmdbMovie) ? dbData.tmdbMovie : Object.values(dbData.tmdbMovie).flat();
-              items.push(...movieArray
-                .filter(m => m?.poster_path && !m.adult)
-                .slice(0, 8)
-                .map(m => ({
-                  id: `tmdb-pop-mv-${m.id}`,
-                  tmdb_id: m.id,
-                  title: m.title || m.original_title,
-                  poster: `https://image.tmdb.org/t/p/w185${m.poster_path}`,
-                  type: 'Movie',
-                  score: (m.vote_average||0).toFixed(1),
-                  voteCount: m.vote_count || 0,
-                  _source: 'neon-db'
-                }))
-              );
-            }
-            
-            console.log(`[Most Favourite] ✅ ${items.length} items from DB`);
-            renderPopular(items);
-            
-            // Cache
-            if (window.CacheHelpers) {
-              CacheHelpers.cacheSection('popular', items).catch(e => 
-                console.warn('[Most Favourite] ⚠️ Cache write failed:', e.message)
-              );
-            }
-            
-            return; // Success!
           }
-          
-          console.warn('[Most Favourite] ⚠️ DB data invalid, falling back to API...');
-        } catch (error) {
-          console.error('[Most Favourite] ❌ DB fetch failed:', error.message);
+        }
+
+        // Interleave: Anime first, then TMDB, alternating
+        // Pattern: Anime, TMDB Movie, Anime, TMDB TV, repeat...
+        const merged = [];
+        let tmdbIdx = 0, anilistIdx = 0;
+        
+        while ((tmdbIdx < tmdbItems.length || anilistIdx < anilistItems.length) && merged.length < 13) {
+          // Start with Anime on odd positions
+          if (anilistIdx < anilistItems.length && (merged.length % 2 === 0)) {
+            merged.push(anilistItems[anilistIdx++]);
+          } else if (tmdbIdx < tmdbItems.length) {
+            merged.push(tmdbItems[tmdbIdx++]);
+          } else if (anilistIdx < anilistItems.length) {
+            // If TMDB exhausted, add remaining anime
+            merged.push(anilistItems[anilistIdx++]);
+          }
         }
         
-        // FALLBACK: Original API-based loading would continue here...
-        // NOTE: Full fallback implementation removed for brevity - DB is primary source
-        
-      } // End of loadPopular()
-      
-      /* ════════════════════════════════════════════════════════════
-         POPUP MANAGER - Card hover popup system
-         ════════════════════════════════════════════════════════════ */
-      window._popupManager = {
-        isVisible: false,
-        currentId: null,
-        anchorEl: null,
-        showTimer: null,
-        hideTimer: null,
-        mouseX: 0,
-        mouseY: 0,
-        lastMoveDate: 0,
-        
+        const data = dedupById(merged, 'id').slice(0, 13);
+        data.forEach((item, i) => item.rank = i + 1);
+        popularData = data;
+
+        document.getElementById('popularList').innerHTML = data.map(s => `
+          <a href="${infoUrl(s)}" class="sidebar-list-item" onmouseenter="showPopup(event,'${s.id}')" onmouseleave="_onCardLeave()">
+            <span class="sidebar-rank">${s.rank}</span>
+            <img class="sidebar-poster" src="${s.poster}" onerror="this.style.display='none'">
+            <div class="sidebar-info">
+              <h4>${s.title}</h4>
+              <div class="side-meta">
+                <i class="fas fa-star" style="color:var(--accent-gold)"></i> ${s.score}
+                &nbsp;·&nbsp;${s.type}
+                &nbsp;·&nbsp;${s.year}
+              </div>
+            </div>
+          </a>`).join('');
+      }
+
+      /* ── POPUP (FIXED) - Anchored Anti-flicker System (Netflix/Anikoto style) ── */
+     
+     // Advanced popup state management with card-anchored positioning
+     // This positions popup NEXT to the hovered card, not centered on screen!
+     window._popupManager = {
+       // State
+       isVisible: false,
+       currentId: null,          // Currently displayed item ID
+       hideTimer: null,
+       showTimer: null,
+       anchorEl: null,           // The card element we're anchored to
+       mouseX: 0,                // Track mouse position for gap detection
+       mouseY: 0,
+       lastMoveDate: 0,          // For detecting mouse movement
+       
+       // Timing config (tuned for anchored popup with mouse tracking)
+       SHOW_DELAY: 80,           // Very small delay before showing (prevents flicker)
+       HIDE_DELAY: 500,          // Generous delay - we have mouse tracking now
+       POPUP_WIDTH: 340,         // Match CSS width
+       MARGIN: 10,               // Gap between card and popup
+       GAP_BRIDGE: 50,           // Extra pixels of \"invisible bridge\" toward card
+       
+       // Initialize
        init: function() {
          this.setupPopupEvents();
          // Track mouse position globally for gap detection
@@ -5754,8 +6561,8 @@ titleEl.style.color = 'transparent';
 
      // Legacy wrapper functions for compatibility
      window.showPopup = function(e, id) {
-       // Find show data from all sources (use window-level variables with empty array fallbacks)
-       const show = [...(window.upcomingShows || []), ...(window.trendingData || []), ...(window.popularData || []), ...Object.values(window.anioceanData || {})].find(s => s.id === id || s.mal_id == id);
+       // Find show data from all sources
+       const show = [...upcomingShows, ...trendingData, ...popularData, ...Object.values(window.anioceanData || {})].find(s => s.id === id || s.mal_id == id);
        if (!show) return;
 
        // Request show through manager WITH anchor element for positioning!
@@ -5763,7 +6570,7 @@ titleEl.style.color = 'transparent';
        window._popupManager.requestShow(id, anchorEl);
 
        // Update content immediately (but manager controls visibility)
-       const isUpcoming = (window.upcomingShows || []).some(s => s.id === id);
+       const isUpcoming = upcomingShows.some(s => s.id === id);
 
        let buttonHtml = '';
        if (isUpcoming) {
@@ -5879,60 +6686,244 @@ titleEl.style.color = 'transparent';
 
       /* ── POPULAR ANIME (Miruro-style list, sorted by score+popularity+rank) ── */
       async function loadPopularAnime() {
-        // ═══════════════════════════════════════════════════════════════════
-        // NEON DATABASE POWERED POPULAR ANIME SIDEBAR
-        // Uses "popular_anime" column from DB (simple array format)
-        // ═══════════════════════════════════════════════════════════════════
-        
         try {
-          console.log('[Popular Anime] 🚀 Loading from Neon Database...');
-          const dbData = await window.NeonDB.getSection('popular_anime');
           
-          if (dbData && Array.isArray(dbData) && dbData.length > 0) {
-            const items = dbData
-              .filter(m => !m.isAdult && m.coverImage?.large)
-              .slice(0, 28) // Sidebar shows ~7 rows × 4 visible
-              .map((m, idx) => ({
-                id: `pa-${m.id}`,
-                rank: idx + 1,
-                mal_id: m.idMal,
-                title: m.title?.userPreferred || m.title?.romaji || m.title?.english,
-                poster: m.coverImage.large,
-                score: m.averageScore ? String(m.averageScore) : 'N/A',
-                episodes: m.episodes,
-                format: m.format,
-                status: m.status,
-                genres: m.genres || [],
-                year: m.startDate?.year,
-                popularity: m.popularity,
-                _source: 'neon-db'
-              }));
-            
-            console.log(`[Popular Anime] ✅ ${items.length} items from DB`);
-            renderPopularAnime(items);
-            
-            return; // Success!
-          }
+          // Fetch popular anime using AniList (replacing Jikan!)
+          const [anilistPop, anilistTop] = await Promise.all([
+            fetchAniList(`
+              query ($perPage: Int) {
+                Page(page: 1, perPage: $perPage) {
+                  media(type: ANIME, isAdult: false, sort: [POPULARITY_DESC]) {
+                    ${ANILIST_ANIME_FIELDS}
+                  }
+                }
+              }
+            `, { perPage: 30 }),
+            fetchAniList(`
+              query ($perPage: Int) {
+                Page(page: 1, perPage: $perPage) {
+                  media(type: ANIME, isAdult: false, sort: [SCORE_DESC]) {
+                    ${ANILIST_ANIME_FIELDS}
+                  }
+                }
+              }
+            `, { perPage: 25 })
+          ]);
           
-          console.warn('[Popular Anime] ⚠️ DB data invalid or empty, falling back to API...');
-        } catch (error) {
-          console.error('[Popular Anime] ❌ DB fetch failed:', error.message);
+          // Merge and deduplicate
+          const allMedia = [
+            ...(anilistPop?.Page?.media || []),
+            ...(anilistTop?.Page?.media || [])
+          ];
+          
+          const seen = new Set();
+          const unique = allMedia.filter(m => {
+            if (seen.has(m.id)) return false;
+            seen.add(m.id);
+            return true;
+          });
+          
+          // Score each anime: weighted combo of AniList score + popularity + trending
+          const scored = unique.map(m => {
+            const avgScore    = m.averageScore || 0;
+            const popBonus    = m.popularity ? Math.min(100000 / m.popularity, 10) : 0;
+            const trendBonus  = m.trending ? m.trending * 0.5 : 0;
+            return { ...m, _w: avgScore * 0.7 + popBonus + trendBonus };
+          });
+          scored.sort((a, b) => b._w - a._w);
+          const top28 = scored.slice(0, 28);
+
+          const slugify = t => (t||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+
+          const el = document.getElementById('popularAnimeList');
+          if (!el) return;
+
+          el.innerHTML = top28.map((m, idx) => {
+            const internal = anilistToInternal(m);
+            const rank     = idx + 1;
+            const rankCls  = rank <= 3 ? ` rank-${rank}` : '';
+            const title    = internal.title;
+            const slug     = slugify(title);
+            // Use mal_id for jikan format: /info/anime/jikan-{mal_id}/slug
+            const malId = internal.mal_id || m.idMal || m.id;
+            const href     = `/info/anime/jikan-${malId}/${slug}`;
+            const poster   = internal.poster;
+            const bgImg    = poster;
+            const type     = internal.type || 'TV';
+            const eps      = String(internal.episodes);
+            const score    = internal.score;
+            const studio   = internal.studio || '—';
+            const genres   = internal.genres?.slice(0,4) || [];
+
+            return `<a href="${href}" class="pa-row${rankCls}" style="--pa-bg:url('${bgImg}')">
+              <span class="pa-rank">${rank}</span>
+              <img class="pa-poster" src="${poster}" alt="${title.replace(/"/g,'&quot;')}" loading="lazy" onerror="this.style.opacity='0'">
+              <div class="pa-info">
+                <div class="pa-title">${title}</div>
+                <div class="pa-meta">
+                  <span class="pa-tag">${type}</span>
+                  <span class="pa-tag"><i class="fas fa-play" style="font-size:.5rem"></i> ${eps} eps</span>
+                  <span class="pa-score"><i class="fas fa-star"></i> ${score}</span>
+                  ${studio !== '—' ? `<span class="pa-tag">${studio}</span>` : ''}
+                  ${genres.map(g=>`<span class="pa-tag">${g}</span>`).join('')}
+                </div>
+              </div>
+            </a>`;
+          }).join('');
+          
+          // Save to DB — 5h TTL
+        } catch(err) {
+          console.warn('[loadPopularAnime] failed:', err);
         }
+      }
+
+      /* ── SKELETON SCREENS — injected before any real data loads ── */
+      function skCards(n, w='140px', h='200px') {
+        return Array.from({length:n}, () => `
+          <div class="skeleton-card" style="width:${w};flex-shrink:0;">
+            <div class="skeleton sk-poster"></div>
+            <div class="skeleton sk-line w80"></div>
+            <div class="skeleton sk-line w60"></div>
+          </div>`).join('');
+      }
+      function skPaRows(n=8) {
+        return Array.from({length:n}, (_,i) => `
+          <div class="sk-pa-row">
+            <div class="skeleton sk-pa-rank"></div>
+            <div class="skeleton sk-pa-img"></div>
+            <div class="sk-pa-body">
+              <div class="skeleton sk-pa-title"></div>
+              <div class="sk-pa-meta">
+                ${Array.from({length:4},(_,j)=>`<div class="skeleton sk-pa-tag" style="width:${44+j*14}px"></div>`).join('')}
+              </div>
+            </div>
+          </div>`).join('');
+      }
+      function skSideRows(n=10) {
+        return Array.from({length:n}, () => `
+          <div class="sk-side-row">
+            <div class="skeleton sk-side-rank"></div>
+            <div class="skeleton sk-side-img"></div>
+            <div class="sk-side-body">
+              <div class="skeleton sk-side-t"></div>
+              <div class="skeleton sk-side-m"></div>
+            </div>
+          </div>`).join('');
+      }
+      function skSchedRows(n=8) {
+        return Array.from({length:n}, () => `
+          <div class="sk-sched-row">
+            <div class="skeleton sk-sched-img"></div>
+            <div class="sk-sched-body">
+              <div class="skeleton sk-sched-t"></div>
+              <div class="skeleton sk-sched-m"></div>
+            </div>
+          </div>`).join('');
+      }
+      function injectSkeletons() {
+        const $ = id => document.getElementById(id);
+        // Hero — only replace the slides container, keep nav/dots/buttons intact
+        const slides = $('slidesContainer');
+        if (slides) slides.innerHTML = `<div class="skeleton sk-hero" style="border-radius:0;"></div>`;
+        // Horizontal scroll sections (cards)
+        [['topAiringList',8],['newReleasesList',8],['upcomingList',8],
+         ['trendingList',8],['newAnioceanGrid',14],['completedGrid',10]
+        ].forEach(([id,n]) => { const el=$(id); if(el) el.innerHTML=`<div style="display:flex;gap:10px;overflow:hidden;">${skCards(n)}</div>`; });
+        // Popular Anime list
+        const pa = $('popularAnimeList'); if(pa) pa.innerHTML = skPaRows(12);
+        // Sidebar (Most Popular)
+        const pop = $('popularList'); if(pop) pop.innerHTML = skSideRows(10);
+        // Schedule tabs
+        document.querySelectorAll('.schedule-day-content,.sched-content,[id^="sched-"]').forEach(el => {
+          el.innerHTML = skSchedRows(8);
+        });
+      }
+
+      // Grid-shaped skeleton used when paginating "Recently Completed" — shows
+      // the same column/row layout the real grid will use, so the swap-in
+      // feels seamless instead of a layout jump.
+      function renderCompletedSkeleton(n=42) {
+        const el = document.getElementById('completedGrid');
+        if (!el) return;
+        el.innerHTML = Array.from({length:n}, () => `
+          <div class="show-card-grid skeleton-card" style="position:relative;">
+            <div class="skeleton sk-poster" style="aspect-ratio:3/4.5;border-radius:var(--radius-md);"></div>
+            <div class="card-info-grid">
+              <div class="skeleton sk-line w60" style="height:9px;margin-top:8px;"></div>
+              <div class="skeleton sk-line w80" style="height:11px;margin-top:6px;"></div>
+            </div>
+          </div>`).join('');
+      }
+
+      // Skeleton for "New on Rowana" section — matches aniocean-card style EXACTLY
+      // Uses SAME grid layout (40 columns × 165px, gap:12px) as real data
+      function generateAnioceanSkeleton(count=24) {
+        const container = document.getElementById('newAnioceanGrid');
+        if (!container) return;
         
-        // FALLBACK: Original API-based loading
-        console.log('[Popular Anime] 🔄 Using API fallback...');
+        // Generate skeleton cards that MIRROR the exact HTML structure of real aniocean-cards
+        // This ensures identical sizing, gaps, and grid positioning
+        container.innerHTML = Array.from({length: count}, (_, i) => `
+          <a href="#" class="aniocean-card skeleton-card" onclick="return false;" 
+             style="pointer-events:none;animation-delay:${i * 40}ms;">
+            <!-- Poster section - matches .aniocean-poster exactly -->
+            <div class="aniocean-poster">
+              <!-- Skeleton poster background (uses existing skeletonWave animation) -->
+              <div class="skeleton sk-poster" style="
+                position:absolute;
+                inset:0;
+                border-radius:var(--radius-md);
+              "></div>
+              <!-- Score badge placeholder (top-right) -->
+              <div class="skeleton" style="
+                position:absolute;
+                top:6px;
+                right:6px;
+                width:42px;
+                height:20px;
+                border-radius:10px;
+              "></div>
+              <!-- Sub/Dub badge placeholder (bottom-left) -->
+              <div class="skeleton" style="
+                position:absolute;
+                bottom:6px;
+                left:6px;
+                width:38px;
+                height:18px;
+                border-radius:9px;
+              "></div>
+            </div>
+            <!-- Title section below poster - matches .aniocean-title-section exactly -->
+            <div class="aniocean-title-section">
+              <!-- Meta line placeholder (type · rating) -->
+              <div class="skeleton sk-line w60" style="height:10px;margin-bottom:7px;"></div>
+              <!-- Title line placeholder -->
+              <div class="skeleton sk-line w95" style="height:12px;"></div>
+            </div>
+          </a>
+        `).join('');
         
-        // NOTE: Full fallback would go here
-        
-      } // End of loadPopularAnime()
+        console.log(`[New on Rowana] 💀 Showing ${count} skeleton cards in grid layout while loading...`);
+      }
+
+      /* ════════════════════════════════════════════════════════════
+         SCHEDULE SECTION - REBUILT (Self-hosted Jikan API)
+         Features: Parallel fetch, Week nav, 5-month limit, Show More
+         ════════════════════════════════════════════════════════════ */
       
-      // Jikan API base URL for schedule
-      const JIKAN_SCHEDULE_BASE = 'https://api.jikan.moe/v4/schedules';
+      // Configuration
+      const JIKAN_SCHEDULE_BASE = 'https://jikan-api-bohb.onrender.com/v4/schedule';
+      const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+      const DAY_FULL_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+      const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       
-      // Week offset for schedule navigation
-      let currentWeekOffset = 0;
-      const MAX_WEEK_OFFSET = 4; // Allow ±4 weeks navigation
-      
+      let scheduleData = null;           // { monday: [anime], tuesday: [...], ... }
+      let currentDay = null;             // 'monday' ... 'sunday'
+      let currentWeekOffset = 0;         // weeks from today's week start
+      const MAX_WEEK_OFFSET = 20;        // ~5 months limit (20 weeks)
+      const VISIBLE_COUNT = 9;           // Show 9 animes per day initially
+
+      // ---------- Helper: Fetch single day from self-hosted Jikan ----------
       async function fetchDayFromJikan(day) {
         try {
           const url = `${JIKAN_SCHEDULE_BASE}/${day}?sfw=true`;
@@ -5964,9 +6955,6 @@ titleEl.style.color = 'transparent';
         }
       }
 
-      // Days of the week for schedule
-      const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-      
       // ---------- Helper: Fetch ALL 7 days in parallel (rate-limit safe) ----------
       async function fetchAllDaysParallel() {
         console.log('[Schedule] 🚀 Starting parallel fetch of all 7 days...');
@@ -6393,114 +7381,6 @@ titleEl.style.color = 'transparent';
         clearTimeout(resizeTimeout);
         resizeTimeout = setTimeout(initGliders, 100);
       });
-
-      // Inject skeleton placeholders for instant visual feedback
-      function injectSkeletons() {
-        // Helper to create card skeleton
-        const cardSk = () => `
-          <div class="skeleton-card">
-            <div class="sk-poster skeleton"></div>
-            <div class="sk-line w80 skeleton"></div>
-            <div class="sk-line w60 skeleton"></div>
-          </div>`;
-        
-        // Helper to create PA-style row skeleton
-        const paRowSk = () => `
-          <div class="sk-pa-row">
-            <div class="sk-pa-rank skeleton"></div>
-            <div class="sk-pa-img skeleton"></div>
-            <div class="sk-pa-body">
-              <div class="sk-pa-title skeleton"></div>
-              <div class="sk-pa-meta">
-                <div class="sk-pa-tag skeleton" style="width:40px"></div>
-                <div class="sk-pa-tag skeleton" style="width:50px"></div>
-              </div>
-            </div>
-          </div>`;
-
-        // Helper to create sidebar row skeleton  
-        const sideRowSk = () => `
-          <div class="sk-side-row">
-            <div class="sk-side-rank skeleton"></div>
-            <div class="sk-side-img skeleton"></div>
-            <div class="sk-side-body">
-              <div class="sk-side-t skeleton"></div>
-              <div class="sk-side-m skeleton"></div>
-            </div>
-          </div>`;
-
-        // Helper to create schedule row skeleton
-        const schedSk = () => `
-          <div class="sk-sched-row">
-            <div class="sk-sched-img skeleton"></div>
-            <div class="sk-sched-body">
-              <div class="sk-sched-t skeleton"></div>
-              <div class="sk-sched-m skeleton"></div>
-            </div>
-          </div>`;
-
-        // Hero slider skeleton
-        const heroContainer = document.getElementById('slidesContainer');
-        if (heroContainer && !heroContainer.innerHTML.trim()) {
-          heroContainer.innerHTML = `<div class="sk-hero skeleton"></div>`;
-        }
-
-        // Top Airing - horizontal scroll with cards
-        const taContainer = document.getElementById('topAiringScroll');
-        if (taContainer && !taContainer.innerHTML.trim()) {
-          taContainer.innerHTML = Array(8).fill(cardSk()).join('');
-        }
-
-        // New Releases - grid with cards
-        const nrContainer = document.getElementById('newReleasesGrid');
-        if (nrContainer && !nrContainer.innerHTML.trim()) {
-          nrContainer.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;">${Array(12).fill(cardSk()).join('')}</div>`;
-        }
-
-        // New on Rowana - horizontal scroll
-        const norContainer = document.getElementById('newAnioceanGrid');
-        if (norContainer && !norContainer.innerHTML.trim()) {
-          norContainer.innerHTML = Array(6).fill(cardSk()).join('');
-        }
-
-        // Upcoming - horizontal scroll
-        const upContainer = document.getElementById('upcomingScroll');
-        if (upContainer && !upContainer.innerHTML.trim()) {
-          upContainer.innerHTML = Array(6).fill(cardSk()).join('');
-        }
-
-        // Recently Completed - grid
-        const rcContainer = document.getElementById('completedGrid');
-        if (rcContainer && !rcContainer.innerHTML.trim()) {
-          rcContainer.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;">${Array(8).fill(cardSk()).join('')}</div>`;
-        }
-
-        // Trending Now - sidebar list
-        const trContainer = document.getElementById('trendingList');
-        if (trContainer && !trContainer.innerHTML.trim()) {
-          trContainer.innerHTML = Array(5).fill(sideRowSk()).join('');
-        }
-
-        // Most Popular - sidebar list
-        const mpContainer = document.getElementById('popularList');
-        if (mpContainer && !mpContainer.innerHTML.trim()) {
-          mpContainer.innerHTML = Array(5).fill(sideRowSk()).join('');
-        }
-
-        // Popular Anime - PA list
-        const paContainer = document.getElementById('popularAnimeList');
-        if (paContainer && !paContainer.innerHTML.trim()) {
-          paContainer.innerHTML = Array(7).fill(paRowSk()).join('');
-        }
-
-        // Schedule body
-        const schedContainer = document.getElementById('eswBody');
-        if (schedContainer && !schedContainer.innerHTML.trim()) {
-          schedContainer.innerHTML = Array(8).fill(schedSk()).join('');
-        }
-        
-        console.log('[Skeletons] ✅ Skeleton placeholders injected');
-      }
 
       function init() {
         console.log('═══════════════════════════════════════════════════════════');
