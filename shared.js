@@ -8,6 +8,131 @@
   const SUPABASE_URL      = 'https://uhjucwqiadymmogmwkxc.supabase.co';
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVoanVjd3FpYWR5bW1vZ213a3hjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1MTY0NDcsImV4cCI6MjA5NzA5MjQ0N30.nJZQftmkbu0Ix-4lgtfzJcm_qIkI32e3SykF49XPrlg';
   const supabase          = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  
+  // ═══════════════════════════════════════════════════════════════════
+  // NEON DATABASE CONFIGURATION (PostgreSQL for optimized data serving)
+  // ═══════════════════════════════════════════════════════════════════
+  const NEON_REST_URL     = 'https://ep-super-dawn-azjwdm9a.apirest.c-3.ap-southeast-1.aws.neon.tech/neondb/rest/v1';
+  const NEON_API_KEY      = 'napi_7fak07gaux9ioewri458o33psns69sf2nlycg8o69hasargl97jjwte55hgweiy7';
+  const NEON_TABLE        = 'public_frontend_data';
+  
+  // Neon DB Cache System - reduces API calls dramatically
+  // Cache TTL: 10 minutes (matches automation update frequency)
+  const NEON_CACHE_TTL     = 10 * 60 * 1000; // 10 minutes in ms
+  let _neonCache           = {
+    data: null,
+    timestamp: 0,
+    pending: null // Pending promise to prevent duplicate fetches
+  };
+  
+  /**
+   * Fetch all section data from Neon DB (single optimized query)
+   * Uses caching to prevent DB overload - serves countless users efficiently
+   * @returns {Promise<Object|null>} All section data or null on error
+   */
+  async function fetchNeonData() {
+    const now = Date.now();
+    
+    // Return cached data if still fresh
+    if (_neonCache.data && (now - _neonCache.timestamp) < NEON_CACHE_TTL) {
+      console.log('[Neon DB] ✅ Serving from cache (' + Math.round((now - _neonCache.timestamp)/1000) + 's old)');
+      return _neonCache.data;
+    }
+    
+    // If a fetch is already in progress, wait for it
+    if (_neonCache.pending) {
+      console.log('[Neon DB] ⏳ Waiting for existing fetch...');
+      return _neonCache.pending;
+    }
+    
+    // Start new fetch
+    console.log('[Neon DB] 🚀 Fetching fresh data from database...');
+    _neonCache.pending = _doNeonFetch();
+    
+    try {
+      const data = await _neonCache.pending;
+      _neonCache.data = data;
+      _neonCache.timestamp = now;
+      return data;
+    } finally {
+      _neonCache.pending = null;
+    }
+  }
+  
+  /**
+   * Internal function to actually fetch from Neon REST API
+   * @returns {Promise<Object>} Parsed JSON data
+   */
+  async function _doNeonFetch() {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout
+    
+    try {
+      const response = await fetch(`${NEON_REST_URL}/${NEON_TABLE}?limit=1&select=*`, {
+        method: 'GET',
+        headers: {
+          'apikey': NEON_API_KEY,
+          'Authorization': `Bearer ${NEON_API_KEY}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation'
+        },
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      
+      if (!data || !Array.isArray(data) || data.length === 0) {
+        console.warn('[Neon DB] ⚠️ No data returned');
+        return null;
+      }
+      
+      console.log('[Neon DB] ✅ Data fetched successfully (' + Object.keys(data[0]).length + ' columns)');
+      return data[0]; // Return first (and only) row
+      
+    } catch (error) {
+      clearTimeout(timeoutId);
+      console.error('[Neon DB] ❌ Fetch failed:', error.message);
+      throw error;
+    }
+  }
+  
+  /**
+   * Get specific section data from cache or fetch
+   * @param {string} columnName - DB column name (e.g., 'hero_slider', 'top_airing')
+   * @returns {Promise<Object|Array|null>} Section data
+   */
+  async function getNeonSection(columnName) {
+    const data = await fetchNeonData();
+    if (!data || !data[columnName]) {
+      console.warn(`[Neon DB] ⚠️ Column "${columnName}" not found or empty`);
+      return null;
+    }
+    return data[columnName];
+  }
+  
+  /**
+   * Force refresh Neon cache (use after manual updates)
+   */
+  function invalidateNeonCache() {
+    _neonCache.data = null;
+    _neonCache.timestamp = 0;
+    console.log('[Neon DB] 🗑️ Cache invalidated');
+  }
+  
+  // Expose globally for use in index.html and other pages
+  window.NeonDB = {
+    fetchAll: fetchNeonData,
+    getSection: getNeonSection,
+    invalidateCache: invalidateNeonCache,
+    get CACHE_TTL() { return NEON_CACHE_TTL; }
+  };
+  
   const CF_WORKER_URL     = 'https://aniocen.bionmovies47.workers.dev';
   // Fallback TMDB proxy (mapplee) - used when t-umi fails or rate-limits
   const MAPLEE_API_URL    = 'https://mapplee.com/api/tmdb';
