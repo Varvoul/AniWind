@@ -1,5 +1,5 @@
 // Vercel Serverless Function: Neon Database Proxy
-// Uses fetch to call Neon's SQL endpoint (works in Vercel edge)
+// Simple version using node-postgres (pg) which works in Node.js 18+
 
 export default async function handler(req, res) {
   // Enable CORS
@@ -20,27 +20,61 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Invalid action' });
     }
 
-    console.log('[Neon Proxy] 🚀 Connecting to Neon DB...');
+    console.log('[Neon Proxy] 🚀 Connecting to Neon DB at:', new Date().toISOString());
 
-    // Dynamic import of neon serverless driver (works in Vercel)
-    const { neon } = await import('@neondatabase/serverless');
+    // Try multiple connection methods
+    let data = null;
     
-    // Create SQL connection
-    const sql = neon('postgresql://neondb_owner:npg_Wdf5XkBVbx1i@ep-super-dawn-azjwdm9a-pooler.c-3.ap-southeast-1.aws.neon.tech/neondb?sslmode=require');
+    // Method 1: Try @neondatabase/serverless
+    try {
+      const { neon } = await import('@neondatabase/serverless');
+      const sql = neon('postgresql://neondb_owner:npg_Wdf5XkBVbx1i@ep-super-dawn-azjwdm9a-pooler.c-3.ap-southeast-1.aws.neon.tech/neondb?sslmode=require');
+      const result = await sql`SELECT * FROM public_frontend_data LIMIT 1`;
+      if (result && result.length > 0) {
+        data = result[0];
+        console.log('[Neon Proxy] ✅ Connected via @neondatabase/serverless');
+      }
+    } catch (neonError) {
+      console.warn('[Neon Proxy] ⚠️ @neondatabase/serverless failed:', neonError.message);
+      
+      // Method 2: Try pg (node-postgres)
+      try {
+        const pg = await import('pg');
+        const { Pool } = pg.default || pg;
+        
+        const pool = new Pool({
+          connectionString: 'postgresql://neondb_owner:npg_Wdf5XkBVbx1i@ep-super-dawn-azjwdm9a-pooler.c-3.ap-southeast-1.aws.neon.tech/neondb?sslmode=require',
+          max: 1,
+          connectionTimeoutMillis: 5000,
+          idleTimeoutMillis: 10000,
+        });
+        
+        const client = await pool.connect();
+        try {
+          const result = await client.query('SELECT * FROM public_frontend_data LIMIT 1');
+          if (result.rows && result.rows.length > 0) {
+            data = result.rows[0];
+            console.log('[Neon Proxy] ✅ Connected via pg (node-postgres)');
+          }
+        } finally {
+          client.release();
+          await pool.end();
+        }
+      } catch (pgError) {
+        console.error('[Neon Proxy] ❌ Both methods failed:', { 
+          neonError: neonError.message, 
+          pgError: pgError.message 
+        });
+        throw new Error(`DB connection failed: ${pgError.message}`);
+      }
+    }
     
-    // Execute query
-    const result = await sql`SELECT * FROM public_frontend_data LIMIT 1`;
-    
-    if (!result || result.length === 0) {
+    if (!data) {
       return res.status(404).json({ 
         error: 'No data found',
-        hint: 'Check if table has data'
+        hint: 'Table may be empty'
       });
     }
-
-    const data = result[0];
-    
-    console.log(`[Neon Proxy] ✅ Success! ${Object.keys(data).length} columns`);
 
     return res.status(200).json({
       success: true,
@@ -48,17 +82,16 @@ export default async function handler(req, res) {
       metadata: {
         columns: Object.keys(data).length,
         columnNames: Object.keys(data),
-        fetchedAt: new Date().toISOString(),
-        source: 'neon_serverless'
+        fetchedAt: new Date().toISOString()
       }
     });
 
   } catch (error) {
-    console.error('[Neon Proxy] ❌ Error:', error);
+    console.error('[Neon Proxy] ❌ Fatal error:', error);
     
     return res.status(500).json({
       error: error.message,
-      type: error.constructor.name
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 }
