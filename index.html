@@ -5754,8 +5754,8 @@ titleEl.style.color = 'transparent';
 
      // Legacy wrapper functions for compatibility
      window.showPopup = function(e, id) {
-       // Find show data from all sources
-       const show = [...upcomingShows, ...trendingData, ...popularData, ...Object.values(window.anioceanData || {})].find(s => s.id === id || s.mal_id == id);
+       // Find show data from all sources (use window-level variables with empty array fallbacks)
+       const show = [...(window.upcomingShows || []), ...(window.trendingData || []), ...(window.popularData || []), ...Object.values(window.anioceanData || {})].find(s => s.id === id || s.mal_id == id);
        if (!show) return;
 
        // Request show through manager WITH anchor element for positioning!
@@ -5763,7 +5763,7 @@ titleEl.style.color = 'transparent';
        window._popupManager.requestShow(id, anchorEl);
 
        // Update content immediately (but manager controls visibility)
-       const isUpcoming = upcomingShows.some(s => s.id === id);
+       const isUpcoming = (window.upcomingShows || []).some(s => s.id === id);
 
        let buttonHtml = '';
        if (isUpcoming) {
@@ -5957,6 +5957,9 @@ titleEl.style.color = 'transparent';
         }
       }
 
+      // Days of the week for schedule
+      const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+      
       // ---------- Helper: Fetch ALL 7 days in parallel (rate-limit safe) ----------
       async function fetchAllDaysParallel() {
         console.log('[Schedule] 🚀 Starting parallel fetch of all 7 days...');
