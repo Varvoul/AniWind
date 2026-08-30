@@ -12,18 +12,16 @@
   // ═══════════════════════════════════════════════════════════════════
   // NEON DATABASE CONFIGURATION (PostgreSQL for optimized data serving)
   // ═══════════════════════════════════════════════════════════════════
-  // NOTE: Using Supabase Edge Function as proxy for Neon DB
-  // Direct REST API requires JWT token (not napi_ key), so we route through Supabase
+  // Using Vercel Serverless Function as proxy (site is hosted on Vercel)
+  // Direct REST API requires JWT token, so we route through our own API
   
-  // Option A: Direct Neon REST (requires valid JWT - currently disabled)
+  // Vercel API Proxy endpoint (auto-deploys with your site)
+  const NEON_PROXY_URL    = '/api/neon-proxy';
+  const USE_NEON_PROXY    = true; // Use Vercel API proxy
+  
+  // Fallback: Direct Neon REST (requires valid JWT - currently disabled)
   const NEON_REST_URL     = 'https://ep-super-dawn-azjwdm9a.apirest.c-3.ap-southeast-1.aws.neon.tech/neondb/rest/v1';
   const NEON_API_KEY      = 'napi_7fak07gaux9ioewri458o33psns69sf2nlycg8o69hasargl97jjwte55hgweiy7';
-  const NEON_TABLE        = 'public_frontend_data';
-  
-  // Option B: Supabase Proxy URL (Edge Function that fetches from Neon)
-  // Create this function in Supabase Dashboard → Edge Functions → neon-proxy
-  const NEON_PROXY_URL    = `${SUPABASE_URL}/functions/v1/neon-proxy`;
-  const USE_NEON_PROXY    = true; // Set to true to use Supabase proxy
   
   // Neon DB Cache System - reduces API calls dramatically
   // Cache TTL: 10 minutes (matches automation update frequency)
@@ -80,13 +78,11 @@
       let response;
       
       if (USE_NEON_PROXY) {
-        // ── METHOD 1: Via Supabase Edge Function Proxy ──
-        console.log('[Neon DB] 🔗 Using Supabase proxy...');
+        // ── METHOD 1: Via Vercel Serverless API Proxy ──
+        console.log('[Neon DB] 🔗 Using Vercel API proxy...');
         response = await fetch(NEON_PROXY_URL, {
           method: 'POST',
           headers: {
-            'apikey': SUPABASE_ANON_KEY,
-            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({ action: 'get_frontend_data' }),
