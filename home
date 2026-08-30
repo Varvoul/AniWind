@@ -1023,10 +1023,18 @@
        screen width), this tab is horizontal-scroll on every device, matching
        how Top Airing / New on Aniumi already behave responsively. */
     .nr-hidden-rows { display:flex; flex-direction:column; gap:22px; margin-top:4px; }
+    .nr-hidden-row-header {
+      display:flex; align-items:center; justify-content:space-between;
+      margin-bottom:8px;
+    }
     .nr-hidden-row-label {
       font-size:0.78rem; font-weight:600; color:var(--text-muted, #94a3b8);
-      margin-bottom:8px; letter-spacing:0.2px;
+      letter-spacing:0.2px;
     }
+    /* These rows are always horizontal-scroll (not gated behind .nr-horiz-active
+       like the "All" tab's chevrons), so show them unconditionally on desktop —
+       .scroll-arrow's own @media rule already hides them under 1024px. */
+    .nr-hidden-row-header .nr-scroll-controls { display:flex; }
     .nr-hidden-scroll { padding-bottom:8px; }
     .nr-hidden-scroll .show-card-grid {
       flex: 0 0 auto;
@@ -2131,15 +2139,33 @@
         <div class="grid-container new-releases-grid" id="newReleasesGrid"></div>
         <div class="nr-hidden-rows" id="newReleasesHidden" style="display:none;">
           <div class="nr-hidden-row">
-            <div class="nr-hidden-row-label">🇰🇷🇯🇵 South Korea &amp; Japan</div>
+            <div class="nr-hidden-row-header">
+              <div class="nr-hidden-row-label">🇰🇷🇯🇵 South Korea &amp; Japan</div>
+              <div class="nr-scroll-controls">
+                <button class="scroll-arrow" id="nrHiddenRow1Left" title="Scroll left">‹</button>
+                <button class="scroll-arrow" id="nrHiddenRow1Right" title="Scroll right">›</button>
+              </div>
+            </div>
             <div class="horizontal-scroll nr-hidden-scroll" id="nrHiddenRow1"></div>
           </div>
           <div class="nr-hidden-row">
-            <div class="nr-hidden-row-label">🇵🇰🇮🇳 Pakistan &amp; India</div>
+            <div class="nr-hidden-row-header">
+              <div class="nr-hidden-row-label">🇵🇰🇮🇳 Pakistan &amp; India</div>
+              <div class="nr-scroll-controls">
+                <button class="scroll-arrow" id="nrHiddenRow2Left" title="Scroll left">‹</button>
+                <button class="scroll-arrow" id="nrHiddenRow2Right" title="Scroll right">›</button>
+              </div>
+            </div>
             <div class="horizontal-scroll nr-hidden-scroll" id="nrHiddenRow2"></div>
           </div>
           <div class="nr-hidden-row">
-            <div class="nr-hidden-row-label">🇹🇷 Turkey</div>
+            <div class="nr-hidden-row-header">
+              <div class="nr-hidden-row-label">🇹🇷 Turkey</div>
+              <div class="nr-scroll-controls">
+                <button class="scroll-arrow" id="nrHiddenRow3Left" title="Scroll left">‹</button>
+                <button class="scroll-arrow" id="nrHiddenRow3Right" title="Scroll right">›</button>
+              </div>
+            </div>
             <div class="horizontal-scroll nr-hidden-scroll" id="nrHiddenRow3"></div>
           </div>
         </div>
@@ -3375,11 +3401,47 @@ async function loadNewAniocean() {
     return true;
   }
 
-  // ── Serve from DB cache if available ──
-
-  // ----- PRIMARY: Anikoto proxy (100 items for 6 complete rows) -----
+  // ----- PRIMARY: Neon DB (new_on_ruri) -----
   try {
-    console.log('[New on Rowana] Trying Anikoto API...');
+    const dbAnilistData = await window.dbAniListPage('new_on_ruri');
+    if (dbAnilistData?.Page?.media && dbAnilistData.Page.media.length > 0) {
+      console.log(`[New on Rowana] Using Neon DB (${dbAnilistData.Page.media.length} anime)...`);
+      const candidates = dbAnilistData.Page.media.filter(m => !m.isAdult);
+      const resolved = await mapWithConcurrency(candidates, 3, async (m) => {
+        let malId = m.idMal || null;
+        if (!malId) malId = await findMalIdByTitle(m);
+        if (!malId) return null; // no confident match — skip rather than risk a wrong link
+        const internal = anilistToInternal(m);
+        return {
+          mal_id: malId,
+          title: internal.title,
+          slug: internal.slug,
+          poster: internal.poster,
+          score: internal.score,
+          type: internal.type || 'TV',
+          rating: internal.rating,
+          description: internal.description || 'No description available.',
+          year: String(internal.year),
+          duration: internal.duration,
+          genres: internal.genres,
+          studio: internal.studio,
+          is_sub: 1,
+          is_dub: 0
+        };
+      });
+      const unique = dedupById(resolved.filter(Boolean), 'mal_id');
+      if (unique.length > 0 && renderAnimeList(unique)) {
+        console.log(`✓ Loaded ${unique.length} anime from Neon DB for "New on Rowana"`);
+        return;
+      }
+    }
+  } catch (e) {
+    console.warn('[New on Rowana] Neon DB source failed:', e);
+  }
+
+  // ----- SECONDARY: Anikoto proxy (100 items for 6 complete rows) -----
+  try {
+    console.log('[New on Rowana] DB unavailable, trying Anikoto API...');
     const response = await fetchAnikoto('/recent-anime?page=1&per_page=100');
     if (response.ok && response.data && response.data.length > 0) {
       const data = response.data;
@@ -3432,8 +3494,8 @@ async function loadNewAniocean() {
     console.warn('Primary Anikoto source failed:', e);
   }
 
-  // ----- FALLBACK: AniList (current season, reliable!) -----
-  console.log('[New on Rowana] Falling back to AniList API...');
+  // ----- FINAL FALLBACK: live AniList (DB and Anikoto both unavailable/empty) -----
+  console.log('[New on Rowana] Falling back to live AniList API...');
   try {
     const anilistData = await fetchAniList(`
       query ($perPage: Int) {
@@ -3964,20 +4026,32 @@ async function loadNewAniocean() {
         // ── Fetch TMDB TV (current-year filter) + ALL airing Anilist anime ────
         // TMDB /tv/on_the_air with first_air_date current-year filter = fresh TV content!
         // NO TVMaze in hero slider - keeping it simple and reliable!
-        
+
+        // DB (Neon hero_slider) first for each source independently — the
+        // same downstream filter/sort/dedup logic below runs either way,
+        // so behavior is identical whichever source fed it. Falls back to
+        // the live calls per-source when the DB doesn't have that piece.
+        const dbHS = (await window.getHomeData())?.hero_slider;
+        const dbHSTv = dbHS?.tmdbTV;
+        const dbHSAnime = dbHS?.Anime;
+
         const [tmdbTvResults, anilistResults] = await Promise.allSettled([
-          // PRIMARY: TMDB /tv/on_the_air with current-year filter for TV shows
-          Promise.allSettled([
-            fetchTMDB('/tv/on_the_air', 'page=1'),
-            fetchTMDB('/tv/on_the_air', 'page=2'),
-            fetchTMDB('/tv/on_the_air', 'page=3'),
-            fetchTMDB('/tv/on_the_air', 'page=4'),
-            fetchTMDB('/tv/on_the_air', 'page=5'),
-            fetchTMDB('/tv/on_the_air', 'page=6'),
-          ]),
-          
-          // Anilist: ALL currently airing anime (multiple pages for comprehensive coverage)
-          Promise.allSettled([
+          // PRIMARY: DB tmdbTV if present, else TMDB /tv/on_the_air (current-year filter) for TV shows
+          (Array.isArray(dbHSTv) && dbHSTv.length)
+            ? Promise.resolve([{ status: 'fulfilled', value: { results: dbHSTv } }])
+            : Promise.allSettled([
+                fetchTMDB('/tv/on_the_air', 'page=1'),
+                fetchTMDB('/tv/on_the_air', 'page=2'),
+                fetchTMDB('/tv/on_the_air', 'page=3'),
+                fetchTMDB('/tv/on_the_air', 'page=4'),
+                fetchTMDB('/tv/on_the_air', 'page=5'),
+                fetchTMDB('/tv/on_the_air', 'page=6'),
+              ]),
+
+          // Anilist: DB Anime if present, else all currently airing anime (multiple live pages)
+          (Array.isArray(dbHSAnime) && dbHSAnime.length)
+            ? Promise.resolve([{ status: 'fulfilled', value: { Page: { media: dbHSAnime } } }])
+            : Promise.allSettled([
             fetchAniList(`
               query ($page: Int) {
                 Page(page: $page, perPage: ${HERO_CONFIG.anilistPerPage}) {
@@ -4637,13 +4711,21 @@ titleEl.style.color = 'transparent';
       /* ── TOP AIRING ── */
       async function loadTopAiring() {
         
+        // DB (Neon top_airing.Anime) first for the anime portion; TV stays
+        // on TVMaze (its existing primary source — richer / truly-airing
+        // episode data than the DB's tmdbTV cache currently provides).
+        const dbTA = (await window.getHomeData())?.top_airing;
+        const dbTAAnime = dbTA?.Anime;
+
         // Fetch TV using TVMaze (PRIMARY - truly airing!) + AniList airing anime
         const [tvmazeResult, anilistAir] = await Promise.all([
           // PRIMARY: TVMaze Multi-Country for maximum scripted content!
           getTVMazeShowsWithTMDBData(25, true),  // 25 shows, multi-country enabled
           
-          // AniList: Currently airing anime sorted by popularity
-          fetchAniList(`
+          // AniList: DB Anime if present, else currently airing anime sorted by popularity
+          (Array.isArray(dbTAAnime) && dbTAAnime.length)
+            ? Promise.resolve({ Page: { media: dbTAAnime } })
+            : fetchAniList(`
             query ($perPage: Int) {
               Page(page: 1, perPage: $perPage) {
                 media(type: ANIME, status: RELEASING, format_in: [TV, TV_SHORT, OVA], isAdult: false, sort: [POPULARITY_DESC]) {
@@ -4916,14 +4998,25 @@ titleEl.style.color = 'transparent';
         // - Retries failed requests up to 3 times with exponential backoff
         
         try {
+          // DB (Neon new_releases) first — one cached fetch covers anime,
+          // TV and movies for ALL FOUR tabs (all/anime/movie/tv), so the
+          // frontend never needs to hit the DB again when the user
+          // switches tabs. Any piece the DB doesn't have yet (currently
+          // empty for some sections) falls straight through to the
+          // existing live-API calls below, untouched.
+          const _dbNR = await window.getHomeData();
+          const dbNRMovies = _dbNR?.new_releases?.tmdbMovie;
+          const dbNRAnime  = _dbNR?.new_releases?.Anime;
+          const dbNRTv     = _dbNR?.new_releases?.tmdbTV;
+
           // Fetch all sources using QUEUED calls (throttled + retry)
           const [nowMovies, nowMovies2, tvmazeTvShows, anilistNow] = await Promise.allSettled([
-            queuedFetchTMDB('/movie/now_playing', `page=1`),
-            queuedFetchTMDB('/movie/now_playing', `page=2`),
-            // PRIMARY: TVMaze for truly airing TV shows!
-            queuedGetTVMazeShows(30),
-            // AniList: Current season anime (HIGHEST PRIORITY - was timing out!)
-            queuedFetchAniList(`
+            (Array.isArray(dbNRMovies) && dbNRMovies.length) ? Promise.resolve({ results: dbNRMovies }) : queuedFetchTMDB('/movie/now_playing', `page=1`),
+            (Array.isArray(dbNRMovies) && dbNRMovies.length) ? Promise.resolve({ results: [] }) : queuedFetchTMDB('/movie/now_playing', `page=2`),
+            // PRIMARY: DB tmdbTV if present, else TVMaze for truly airing TV shows!
+            (Array.isArray(dbNRTv) && dbNRTv.length) ? Promise.resolve(null) : queuedGetTVMazeShows(30),
+            // AniList: DB new_releases.Anime if present, else live current-season fetch
+            (Array.isArray(dbNRAnime) && dbNRAnime.length) ? Promise.resolve({ Page: { media: dbNRAnime } }) : queuedFetchAniList(`
               query ($perPage: Int) {
                 Page(page: 1, perPage: $perPage) {
                   media(type: ANIME, status: RELEASING, isAdult: false, sort: [TRENDING_DESC, POPULARITY_DESC]) {
@@ -4991,12 +5084,14 @@ titleEl.style.color = 'transparent';
             
           console.log(`[New Releases] ✅ TVMaze TV ready: ${allTv.length} shows`);
         } else {
-          // FALLBACK to TMDB /tv/on_the_air if TVMaze fails
-          console.warn('[New Releases] ⚠️ TVMaze failed, falling back to TMDB /tv/on_the_air...');
-          const [onAirTv, onAirTv2] = await Promise.all([
-            fetchTMDB('/tv/on_the_air', `page=1`),
-            fetchTMDB('/tv/on_the_air', `page=2`)
-          ]);
+          // DB (Neon new_releases.tmdbTV) first, else TMDB /tv/on_the_air
+          console.warn('[New Releases] ⚠️ TVMaze skipped/failed, checking DB / TMDB /tv/on_the_air...');
+          const [onAirTv, onAirTv2] = (Array.isArray(dbNRTv) && dbNRTv.length)
+            ? [{ results: dbNRTv }, { results: [] }]
+            : await Promise.all([
+                fetchTMDB('/tv/on_the_air', `page=1`),
+                fetchTMDB('/tv/on_the_air', `page=2`)
+              ]);
           
           allTv = [...(onAirTv?.results||[]), ...(onAirTv2?.results||[])]
             .filter(i => i.poster_path)
@@ -5394,12 +5489,25 @@ titleEl.style.color = 'transparent';
         };
       }
 
-      /** Fetches + builds one row's card list for a group of countries, sequentially. */
+      /** Fetches + builds one row's card list for a group of countries, sequentially.
+       *  DB (Neon hidden_tab, country-keyed) first per country; only falls
+       *  back to the live TMDB /discover calls for a country the DB doesn't
+       *  have data for yet. */
       async function nrFetchHiddenRow(countries, targetPerType = 20) {
         const items = [];
+        const dbHidden = (await window.getHomeData())?.hidden_tab;
         for (let i = 0; i < countries.length; i++) {
-          if (i > 0) await nrHiddenSleep(NR_HIDDEN_RATE_LIMIT_MS);
-          const { movies, tvShows, country } = await fetchCountryMoviesAndTV(countries[i], targetPerType);
+          const country = countries[i];
+          const dbMovies = dbHidden?.TMDB_Movie?.[country];
+          const dbTv = dbHidden?.TMDB_TV?.[country];
+          let movies, tvShows;
+          if ((Array.isArray(dbMovies) && dbMovies.length) || (Array.isArray(dbTv) && dbTv.length)) {
+            movies = (dbMovies || []).slice(0, targetPerType);
+            tvShows = (dbTv || []).slice(0, targetPerType);
+          } else {
+            if (i > 0) await nrHiddenSleep(NR_HIDDEN_RATE_LIMIT_MS);
+            ({ movies, tvShows } = await fetchCountryMoviesAndTV(country, targetPerType));
+          }
           // Interleave movie/TV per country instead of "all movies then all TV"
           const n = Math.max(movies.length, tvShows.length);
           for (let j = 0; j < n; j++) {
@@ -5424,6 +5532,18 @@ titleEl.style.color = 'transparent';
         }
         el.innerHTML = items.map(s => buildReleaseCardHTML(s)).join('');
       }
+
+      /* ── Hidden tab: chevron + arrow-key scroll for each of the 3 rows,
+         same left/right pattern as Top Airing / the "All" tab. ── */
+      ['nrHiddenRow1', 'nrHiddenRow2', 'nrHiddenRow3'].forEach(rowId => {
+        const container = document.getElementById(rowId);
+        const leftBtn = document.getElementById(`${rowId}Left`);
+        const rightBtn = document.getElementById(`${rowId}Right`);
+        if (!container || !leftBtn || !rightBtn) return;
+        leftBtn.addEventListener('click', () => container.scrollBy({ left: -getRowScrollAmount(container), behavior: 'smooth' }));
+        rightBtn.addEventListener('click', () => container.scrollBy({ left: getRowScrollAmount(container), behavior: 'smooth' }));
+        enableArrowKeyScroll(container.closest('.nr-hidden-row'), container);
+      });
 
       let hiddenReleasesLoaded = false;
       let hiddenReleasesLoading = false;
@@ -5688,20 +5808,37 @@ titleEl.style.color = 'transparent';
       }
 
       async function loadUpcoming() {
-        
-        console.log('[Upcoming] Starting queue-managed fetch: movies + TV + anime, each sequential/rate-limited, stopping once 50 collected...');
-        const todayDebug = new Date();
-        console.log(`[Upcoming] Today's date: ${todayDebug.toISOString().split('T')[0]}`);
-        
-        const [moviesRaw, tvRaw, anilistUpcomingAnime] = await Promise.all([
-          // MOVIES: paginated sequentially, stops once 50 genuinely-upcoming results found
-          fetchUpcomingMoviesTMDB(50),
-          // TV: paginated sequentially via /discover/tv (first_air_date.gte=today), stops once 50 found
-          fetchUpcomingTVTMDB(50),
-          // AniList: Upcoming JAPANESE TV/TV_SHORT anime only — paginated, rate-limited,
-          // stops as soon as 50 valid results are collected (see fetchUpcomingAnimeAniList above)
-          fetchUpcomingAnimeAniList(50)
-        ]);
+
+        // DB (Neon upcoming_shows) first — falls back to the live queue-managed
+        // TMDB/AniList fetchers below only for whichever piece the DB doesn't
+        // have data for.
+        const dbUp = (await window.getHomeData())?.upcoming_shows;
+        const dbUpMovies = dbUp?.tmdbMovie;
+        const dbUpTv = dbUp?.tmdbTV;
+        const dbUpAnime = dbUp?.Anime;
+
+        let moviesRaw, tvRaw, anilistUpcomingAnime;
+
+        if (Array.isArray(dbUpMovies) && dbUpMovies.length && Array.isArray(dbUpTv) && dbUpTv.length && Array.isArray(dbUpAnime) && dbUpAnime.length) {
+          console.log(`[Upcoming] Using Neon DB (${dbUpAnime.length} anime, ${dbUpTv.length} TV, ${dbUpMovies.length} movies)...`);
+          moviesRaw = dbUpMovies;
+          tvRaw = dbUpTv;
+          anilistUpcomingAnime = dbUpAnime;
+        } else {
+          console.log('[Upcoming] DB incomplete, starting queue-managed fetch: movies + TV + anime, each sequential/rate-limited, stopping once 50 collected...');
+          const todayDebug = new Date();
+          console.log(`[Upcoming] Today's date: ${todayDebug.toISOString().split('T')[0]}`);
+
+          [moviesRaw, tvRaw, anilistUpcomingAnime] = await Promise.all([
+            // MOVIES: paginated sequentially, stops once 50 genuinely-upcoming results found
+            (Array.isArray(dbUpMovies) && dbUpMovies.length) ? Promise.resolve(dbUpMovies) : fetchUpcomingMoviesTMDB(50),
+            // TV: paginated sequentially via /discover/tv (first_air_date.gte=today), stops once 50 found
+            (Array.isArray(dbUpTv) && dbUpTv.length) ? Promise.resolve(dbUpTv) : fetchUpcomingTVTMDB(50),
+            // AniList: Upcoming JAPANESE TV/TV_SHORT anime only — paginated, rate-limited,
+            // stops as soon as 50 valid results are collected (see fetchUpcomingAnimeAniList above)
+            (Array.isArray(dbUpAnime) && dbUpAnime.length) ? Promise.resolve(dbUpAnime) : fetchUpcomingAnimeAniList(50)
+          ]);
+        }
         
         const allTmdbMovies = moviesRaw;
         const allTmdbTV = tvRaw;
@@ -5905,17 +6042,25 @@ titleEl.style.color = 'transparent';
         const movieFetches = Array.from({length: tmdbPagesNeeded}, (_, i) =>
           fetchTMDB('/discover/movie', `sort_by=release_date.desc&with_release_type=2|3&release_date.gte=${sixMonthsAgo}&release_date.lte=${today}&page=${page+i}`));
 
+        // DB (Neon recently_completed) only has enough data for page 1 —
+        // pages 2+ keep using the live AniList/TMDB calls below unchanged.
+        const _dbRC = page === 1 ? (await window.getHomeData())?.recently_completed : null;
+        const dbRCTv = _dbRC?.tmdbTV;
+        const dbRCMovies = _dbRC?.tmdbMovie;
+        const dbRCAnime = _dbRC?.Anime;
+        const rcHasDb = Array.isArray(dbRCAnime) && dbRCAnime.length > 0;
+
         // Use Promise.allSettled so Anilist failure doesn't kill TV/Movie data!
         const [tvResult, movieResult, anilistResult] = await Promise.allSettled([
-          Promise.all(tvFetches),
-          Promise.all(movieFetches),
+          rcHasDb ? Promise.resolve([{ results: dbRCTv || [] }]) : Promise.all(tvFetches),
+          rcHasDb ? Promise.resolve([{ results: dbRCMovies || [] }]) : Promise.all(movieFetches),
           // AniList: Pure recently completed TV ANIME only!
           // FIXED: Now fetches actual TV/TV_SHORT anime that recently finished,
           // not music videos, specials, or random ONAs.
           // DYNAMIC YEAR: Automatically uses current/recent season year
           // SORT: END_DATE_DESC = newest completions first (page 1 = most recent)
           // Uses QUEUED fetch with automatic retry on timeout!
-          (async () => {
+          rcHasDb ? Promise.resolve({ Page: { media: dbRCAnime } }) : (async () => {
             const now = new Date();
             const currentYear = now.getFullYear();
             const currentMonth = now.getMonth() + 1; // 1-12
@@ -6162,8 +6307,21 @@ titleEl.style.color = 'transparent';
         
         // Using TMDB + AniList (replacing Jikan)
         let tmdb, anilistTrend;
-        
-        if(period==='today') { 
+
+        // DB (Neon trending_now) only covers the default "today" period —
+        // week/month keep their existing live TMDB/AniList calls.
+        const dbTN = period === 'today' ? (await window.getHomeData())?.trending_now : null;
+        const dbTNHasData = Array.isArray(dbTN?.Anime) && dbTN.Anime.length > 0;
+
+        if (dbTNHasData) {
+          // Reconstruct the same shape /trending/all/day returns (mixed
+          // movie+TV list tagged with media_type) from the two DB arrays.
+          const dbMovies = (dbTN.tmdbMovie || []).map(m => ({ ...m, media_type: 'movie' }));
+          const dbTv = (dbTN.tmdbTV || []).map(t => ({ ...t, media_type: 'tv' }));
+          tmdb = { results: [...dbMovies, ...dbTv] };
+          anilistTrend = { Page: { media: dbTN.Anime } };
+        }
+        else if(period==='today') { 
           tmdb=await fetchTMDB('/trending/all/day'); 
           anilistTrend=await fetchAniList(`query { Page(page:1, perPage:10) { media(type:ANIME, status:RELEASING, isAdult:false, sort:TRENDING_DESC) { ${ANILIST_ANIME_FIELDS} } } }`); 
         }
@@ -6229,12 +6387,18 @@ titleEl.style.color = 'transparent';
       let popularData = [];
       async function loadPopular() {
         
-        // Fetch BOTH TMDB and AniList for mixed results
+        // DB (Neon most_favourite) first — falls back to live TMDB/AniList
+        // calls only if the DB doesn't have data for a given type yet.
+        const dbMF = (await window.getHomeData())?.most_favourite;
+        const dbMFHasAnime = Array.isArray(dbMF?.Anime) && dbMF.Anime.length > 0;
+        const dbMFHasMovies = Array.isArray(dbMF?.tmdbMovie) && dbMF.tmdbMovie.length > 0;
+        const dbMFHasTv = Array.isArray(dbMF?.tmdbTV) && dbMF.tmdbTV.length > 0;
+
         const [tmdbMovies, tmdbTV, anilistPop] = await Promise.all([
-          fetchTMDB('/discover/movie', 'sort_by=vote_count.desc&vote_count.gte=5000&language=en-US&page=1'),
-          fetchTMDB('/discover/tv',    'sort_by=vote_count.desc&vote_count.gte=2000&language=en-US&page=1'),
+          dbMFHasMovies ? Promise.resolve({ results: dbMF.tmdbMovie }) : fetchTMDB('/discover/movie', 'sort_by=vote_count.desc&vote_count.gte=5000&language=en-US&page=1'),
+          dbMFHasTv ? Promise.resolve({ results: dbMF.tmdbTV }) : fetchTMDB('/discover/tv',    'sort_by=vote_count.desc&vote_count.gte=2000&language=en-US&page=1'),
           // AniList: 8 most popular anime
-          fetchAniList(`
+          dbMFHasAnime ? Promise.resolve({ Page: { media: dbMF.Anime } }) : fetchAniList(`
             query ($perPage: Int) {
               Page(page: 1, perPage: $perPage) {
                 media(type: ANIME, isAdult: false, sort: [POPULARITY_DESC]) {
@@ -6687,51 +6851,62 @@ titleEl.style.color = 'transparent';
       /* ── POPULAR ANIME (Miruro-style list, sorted by score+popularity+rank) ── */
       async function loadPopularAnime() {
         try {
-          
-          // Fetch popular anime using AniList (replacing Jikan!)
-          const [anilistPop, anilistTop] = await Promise.all([
-            fetchAniList(`
-              query ($perPage: Int) {
-                Page(page: 1, perPage: $perPage) {
-                  media(type: ANIME, isAdult: false, sort: [POPULARITY_DESC]) {
-                    ${ANILIST_ANIME_FIELDS}
+
+          // DB (Neon popular_anime) is already the pre-scored/sorted top-28
+          // list — use it directly and skip the two live AniList calls +
+          // scoring pass entirely. Falls back to the original live fetch
+          // when the DB doesn't have it yet.
+          const dbPopular = (await window.getHomeData())?.popular_anime;
+          let top28;
+
+          if (Array.isArray(dbPopular) && dbPopular.length > 0) {
+            top28 = dbPopular.slice(0, 28);
+          } else {
+            // Fetch popular anime using AniList (replacing Jikan!)
+            const [anilistPop, anilistTop] = await Promise.all([
+              fetchAniList(`
+                query ($perPage: Int) {
+                  Page(page: 1, perPage: $perPage) {
+                    media(type: ANIME, isAdult: false, sort: [POPULARITY_DESC]) {
+                      ${ANILIST_ANIME_FIELDS}
+                    }
                   }
                 }
-              }
-            `, { perPage: 30 }),
-            fetchAniList(`
-              query ($perPage: Int) {
-                Page(page: 1, perPage: $perPage) {
-                  media(type: ANIME, isAdult: false, sort: [SCORE_DESC]) {
-                    ${ANILIST_ANIME_FIELDS}
+              `, { perPage: 30 }),
+              fetchAniList(`
+                query ($perPage: Int) {
+                  Page(page: 1, perPage: $perPage) {
+                    media(type: ANIME, isAdult: false, sort: [SCORE_DESC]) {
+                      ${ANILIST_ANIME_FIELDS}
+                    }
                   }
                 }
-              }
-            `, { perPage: 25 })
-          ]);
-          
-          // Merge and deduplicate
-          const allMedia = [
-            ...(anilistPop?.Page?.media || []),
-            ...(anilistTop?.Page?.media || [])
-          ];
-          
-          const seen = new Set();
-          const unique = allMedia.filter(m => {
-            if (seen.has(m.id)) return false;
-            seen.add(m.id);
-            return true;
-          });
-          
-          // Score each anime: weighted combo of AniList score + popularity + trending
-          const scored = unique.map(m => {
-            const avgScore    = m.averageScore || 0;
-            const popBonus    = m.popularity ? Math.min(100000 / m.popularity, 10) : 0;
-            const trendBonus  = m.trending ? m.trending * 0.5 : 0;
-            return { ...m, _w: avgScore * 0.7 + popBonus + trendBonus };
-          });
-          scored.sort((a, b) => b._w - a._w);
-          const top28 = scored.slice(0, 28);
+              `, { perPage: 25 })
+            ]);
+
+            // Merge and deduplicate
+            const allMedia = [
+              ...(anilistPop?.Page?.media || []),
+              ...(anilistTop?.Page?.media || [])
+            ];
+
+            const seen = new Set();
+            const unique = allMedia.filter(m => {
+              if (seen.has(m.id)) return false;
+              seen.add(m.id);
+              return true;
+            });
+
+            // Score each anime: weighted combo of AniList score + popularity + trending
+            const scored = unique.map(m => {
+              const avgScore    = m.averageScore || 0;
+              const popBonus    = m.popularity ? Math.min(100000 / m.popularity, 10) : 0;
+              const trendBonus  = m.trending ? m.trending * 0.5 : 0;
+              return { ...m, _w: avgScore * 0.7 + popBonus + trendBonus };
+            });
+            scored.sort((a, b) => b._w - a._w);
+            top28 = scored.slice(0, 28);
+          }
 
           const slugify = t => (t||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
 
@@ -6957,17 +7132,34 @@ titleEl.style.color = 'transparent';
 
       // ---------- Helper: Fetch ALL 7 days in parallel (rate-limit safe) ----------
       async function fetchAllDaysParallel() {
+        // DB (Neon ani_schedule.Anime) first — it's already day-matched
+        // (each anime keyed to the day it airs on), Jikan-shaped, so it
+        // drops straight into the existing renderer. Falls back to the
+        // live self-hosted Jikan schedule per-day for any day the DB
+        // doesn't have data for (e.g. still syncing).
+        const dbSchedule = (await window.getHomeData())?.ani_schedule?.Anime || {};
+
         console.log('[Schedule] 🚀 Starting parallel fetch of all 7 days...');
-        
-        // Fetch all 7 days simultaneously (self-hosted API should handle this)
-        const results = await Promise.allSettled(
-          DAYS.map(day => fetchDayFromJikan(day))
-        );
-        
+
+        const missingDays = DAYS.filter(day => {
+          const dbDay = dbSchedule[DAY_FULL_NAMES[DAYS.indexOf(day)]];
+          return !(Array.isArray(dbDay) && dbDay.length > 0);
+        });
+
+        const results = missingDays.length
+          ? await Promise.allSettled(missingDays.map(day => fetchDayFromJikan(day)))
+          : [];
+
         const data = {};
+        let missingIdx = 0;
         DAYS.forEach((day, idx) => {
-          const result = results[idx];
-          data[day] = result.status === 'fulfilled' ? result.value : [];
+          const dbDay = dbSchedule[DAY_FULL_NAMES[idx]];
+          if (Array.isArray(dbDay) && dbDay.length > 0) {
+            data[day] = dbDay;
+          } else {
+            const result = results[missingIdx++];
+            data[day] = result && result.status === 'fulfilled' ? result.value : [];
+          }
         });
         
         const totalAnime = Object.values(data).reduce((sum, arr) => sum + arr.length, 0);
