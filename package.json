@@ -4,6 +4,6 @@
   "private": true,
   "description": "AniWind static site + Vercel serverless API functions",
   "dependencies": {
-    "@neondatabase/serverless": "^1.10.0"
+    "@neondatabase/serverless": "^1.1.0"
   }
 }
