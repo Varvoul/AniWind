@@ -6384,6 +6384,114 @@ titleEl.style.color = 'transparent';
         resizeTimeout = setTimeout(initGliders, 100);
       });
 
+      // Inject skeleton placeholders for instant visual feedback
+      function injectSkeletons() {
+        // Helper to create card skeleton
+        const cardSk = () => `
+          <div class="skeleton-card">
+            <div class="sk-poster skeleton"></div>
+            <div class="sk-line w80 skeleton"></div>
+            <div class="sk-line w60 skeleton"></div>
+          </div>`;
+        
+        // Helper to create PA-style row skeleton
+        const paRowSk = () => `
+          <div class="sk-pa-row">
+            <div class="sk-pa-rank skeleton"></div>
+            <div class="sk-pa-img skeleton"></div>
+            <div class="sk-pa-body">
+              <div class="sk-pa-title skeleton"></div>
+              <div class="sk-pa-meta">
+                <div class="sk-pa-tag skeleton" style="width:40px"></div>
+                <div class="sk-pa-tag skeleton" style="width:50px"></div>
+              </div>
+            </div>
+          </div>`;
+
+        // Helper to create sidebar row skeleton  
+        const sideRowSk = () => `
+          <div class="sk-side-row">
+            <div class="sk-side-rank skeleton"></div>
+            <div class="sk-side-img skeleton"></div>
+            <div class="sk-side-body">
+              <div class="sk-side-t skeleton"></div>
+              <div class="sk-side-m skeleton"></div>
+            </div>
+          </div>`;
+
+        // Helper to create schedule row skeleton
+        const schedSk = () => `
+          <div class="sk-sched-row">
+            <div class="sk-sched-img skeleton"></div>
+            <div class="sk-sched-body">
+              <div class="sk-sched-t skeleton"></div>
+              <div class="sk-sched-m skeleton"></div>
+            </div>
+          </div>`;
+
+        // Hero slider skeleton
+        const heroContainer = document.getElementById('slidesContainer');
+        if (heroContainer && !heroContainer.innerHTML.trim()) {
+          heroContainer.innerHTML = `<div class="sk-hero skeleton"></div>`;
+        }
+
+        // Top Airing - horizontal scroll with cards
+        const taContainer = document.getElementById('topAiringScroll');
+        if (taContainer && !taContainer.innerHTML.trim()) {
+          taContainer.innerHTML = Array(8).fill(cardSk()).join('');
+        }
+
+        // New Releases - grid with cards
+        const nrContainer = document.getElementById('newReleasesGrid');
+        if (nrContainer && !nrContainer.innerHTML.trim()) {
+          nrContainer.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;">${Array(12).fill(cardSk()).join('')}</div>`;
+        }
+
+        // New on Rowana - horizontal scroll
+        const norContainer = document.getElementById('newAnioceanGrid');
+        if (norContainer && !norContainer.innerHTML.trim()) {
+          norContainer.innerHTML = Array(6).fill(cardSk()).join('');
+        }
+
+        // Upcoming - horizontal scroll
+        const upContainer = document.getElementById('upcomingScroll');
+        if (upContainer && !upContainer.innerHTML.trim()) {
+          upContainer.innerHTML = Array(6).fill(cardSk()).join('');
+        }
+
+        // Recently Completed - grid
+        const rcContainer = document.getElementById('completedGrid');
+        if (rcContainer && !rcContainer.innerHTML.trim()) {
+          rcContainer.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;">${Array(8).fill(cardSk()).join('')}</div>`;
+        }
+
+        // Trending Now - sidebar list
+        const trContainer = document.getElementById('trendingList');
+        if (trContainer && !trContainer.innerHTML.trim()) {
+          trContainer.innerHTML = Array(5).fill(sideRowSk()).join('');
+        }
+
+        // Most Popular - sidebar list
+        const mpContainer = document.getElementById('popularList');
+        if (mpContainer && !mpContainer.innerHTML.trim()) {
+          mpContainer.innerHTML = Array(5).fill(sideRowSk()).join('');
+        }
+
+        // Popular Anime - PA list
+        const paContainer = document.getElementById('popularAnimeList');
+        if (paContainer && !paContainer.innerHTML.trim()) {
+          paContainer.innerHTML = Array(7).fill(paRowSk()).join('');
+        }
+
+        // Schedule body
+        const schedContainer = document.getElementById('eswBody');
+        if (schedContainer && !schedContainer.innerHTML.trim()) {
+          schedContainer.innerHTML = Array(8).fill(schedSk()).join('');
+        }
+        
+        console.log('[Skeletons] ✅ Skeleton placeholders injected');
+      }
+
       function init() {
         console.log('═══════════════════════════════════════════════════════════');
         console.log('  🚀 Rowana Optimized Loading System v2.0');
