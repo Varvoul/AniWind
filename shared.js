@@ -8,6 +8,59 @@
   const SUPABASE_URL      = 'https://uhjucwqiadymmogmwkxc.supabase.co';
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVoanVjd3FpYWR5bW1vZ213a3hjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1MTY0NDcsImV4cCI6MjA5NzA5MjQ0N30.nJZQftmkbu0Ix-4lgtfzJcm_qIkI32e3SykF49XPrlg';
   const supabase          = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // ── Neon (AniUmi-Neon) homepage data ──────────────────────────────────
+  // Backs hero slider / top airing / new releases / new on Rowana /
+  // recently completed / trending / most favourite / popular anime /
+  // anime schedule on the homepage from the `public_frontend_data` view.
+  //
+  // Unlike SUPABASE_ANON_KEY above, there is intentionally NO Neon
+  // credential here. The Neon connection string is a full read/write DB
+  // credential (and the Neon API key is a full account-management
+  // credential) — either one shipped in this file would be readable by
+  // anyone who views source on the site, since this repo/file is public.
+  // Instead NEON_HOME_DATA_URL below just points at our own serverless
+  // function (api/home-data.js), which holds the real credential
+  // server-side as a Vercel env var and returns a CDN-cached JSON payload.
+  const NEON_HOME_DATA_URL = '/api/home-data';
+  const NEON_CACHE_MS      = 90 * 1000; // matches the server's s-maxage
+  let _homeDataPromise = null;
+  let _homeDataFetchedAt = 0;
+
+  /**
+   * Fetches (and caches in-memory) the homepage data payload from Neon.
+   * All homepage sections share ONE request — callers just read the
+   * section key they need off the resolved object. Returns null on any
+   * failure so callers can fall back to their existing live API calls.
+   */
+  async function getHomeData() {
+    const fresh = _homeDataPromise && (Date.now() - _homeDataFetchedAt) < NEON_CACHE_MS;
+    if (fresh) return _homeDataPromise;
+    _homeDataFetchedAt = Date.now();
+    _homeDataPromise = fetch(NEON_HOME_DATA_URL)
+      .then(r => (r.ok ? r.json() : null))
+      .catch(() => null);
+    return _homeDataPromise;
+  }
+
+  /** DB-backed anime list wrapped in the same shape fetchAniList() resolves to. */
+  async function dbAniListPage(section) {
+    const home = await getHomeData();
+    const arr = home?.[section]?.Anime;
+    return (Array.isArray(arr) && arr.length > 0) ? { Page: { media: arr } } : null;
+  }
+
+  /** DB-backed TMDB list wrapped in the same shape fetchTMDB() resolves to. */
+  async function dbTmdbResults(section, type) {
+    const home = await getHomeData();
+    const arr = home?.[section]?.[type];
+    return (Array.isArray(arr) && arr.length > 0) ? { results: arr, page: 1, total_pages: 1 } : null;
+  }
+
+  window.getHomeData     = getHomeData;
+  window.dbAniListPage   = dbAniListPage;
+  window.dbTmdbResults   = dbTmdbResults;
+
   const CF_WORKER_URL     = 'https://aniocen.bionmovies47.workers.dev';
   // Fallback TMDB proxy (mapplee) - used when t-umi fails or rate-limits
   const MAPLEE_API_URL    = 'https://mapplee.com/api/tmdb';

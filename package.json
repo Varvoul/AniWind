@@ -1,1 +1,9 @@
-{"name": "aniwind-api", "version": "1.0.0", "private": true, "scripts": {"start": "vercel dev"}, "dependencies": {"@neondatabase/serverless": "^1.10.0", "pg": "^8.13.0"}}
+{
+  "name": "aniwind-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AniWind static site + Vercel serverless API functions",
+  "dependencies": {
+    "@neondatabase/serverless": "^1.10.0"
+  }
+}
