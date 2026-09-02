@@ -11,53 +11,79 @@
 
   // ── Neon (AniUmi-Neon) homepage data ──────────────────────────────────
   // Backs hero slider / top airing / new releases / new on Rowana /
-  // recently completed / trending / most favourite / popular anime /
-  // anime schedule on the homepage from the `public_frontend_data` view.
+  // upcoming shows / recently completed / trending / most favourite /
+  // popular anime / hidden tab / anime schedule on the homepage.
+  //
+  // One endpoint PER column (not one combined endpoint) — each column has
+  // its own dedicated Vercel serverless function backed by a 6-hour
+  // server-side cache, so re-fetching the same column repeatedly across
+  // page loads costs Neon roughly one real query per 6 hours, not one per
+  // request. ani_schedule is further split per day of week.
   //
   // Unlike SUPABASE_ANON_KEY above, there is intentionally NO Neon
   // credential here. The Neon connection string is a full read/write DB
   // credential (and the Neon API key is a full account-management
   // credential) — either one shipped in this file would be readable by
   // anyone who views source on the site, since this repo/file is public.
-  // Instead NEON_HOME_DATA_URL below just points at our own serverless
-  // function (api/home-data.js), which holds the real credential
-  // server-side as a Vercel env var and returns a CDN-cached JSON payload.
-  const NEON_HOME_DATA_URL = '/api/home-data';
-  const NEON_CACHE_MS      = 90 * 1000; // matches the server's s-maxage
-  let _homeDataPromise = null;
-  let _homeDataFetchedAt = 0;
+  // Instead the endpoints below just point at our own serverless
+  // functions (api/<column>.js), which hold the real credential
+  // server-side as a Vercel env var.
+  const NEON_COLUMN_ENDPOINTS = {
+    hero_slider:         '/api/hero-slider',
+    top_airing:           '/api/top-airing',
+    new_releases:         '/api/new-releases',
+    new_on_ruri:          '/api/new-on-ruri',
+    upcoming_shows:       '/api/upcoming-shows',
+    recently_completed:   '/api/recently-completed',
+    trending_now:         '/api/trending-now',
+    most_favourite:       '/api/most-favourite',
+    popular_anime:        '/api/popular-anime',
+    hidden_tab:           '/api/hidden-tab',
+  };
+  // Per-page-load de-dupe only (so two callers asking for the same
+  // section in the same page load share one fetch) — the real 6h TTL
+  // cache lives server-side, not here.
+  const _sectionPromises = {};
 
   /**
-   * Fetches (and caches in-memory) the homepage data payload from Neon.
-   * All homepage sections share ONE request — callers just read the
-   * section key they need off the resolved object. Returns null on any
-   * failure so callers can fall back to their existing live API calls.
+   * Fetches (and de-dupes within this page load) one column's data from
+   * its own Neon-backed endpoint. Returns null on any failure so callers
+   * can fall back to their existing live API calls.
    */
-  async function getHomeData() {
-    const fresh = _homeDataPromise && (Date.now() - _homeDataFetchedAt) < NEON_CACHE_MS;
-    if (fresh) return _homeDataPromise;
-    _homeDataFetchedAt = Date.now();
-    _homeDataPromise = fetch(NEON_HOME_DATA_URL)
-      .then(r => (r.ok ? r.json() : null))
-      .catch(() => null);
-    return _homeDataPromise;
+  async function getHomeData(section) {
+    const url = NEON_COLUMN_ENDPOINTS[section];
+    if (!url) return null;
+    if (_sectionPromises[section]) return _sectionPromises[section];
+    const p = fetch(url).then(r => (r.ok ? r.json() : null)).catch(() => null);
+    _sectionPromises[section] = p;
+    return p;
+  }
+
+  /** Fetches one day of the anime schedule from /api/ani-schedule/{day}. */
+  async function getAniScheduleDay(day) {
+    const key = `ani_schedule:${day}`;
+    if (_sectionPromises[key]) return _sectionPromises[key];
+    const p = fetch(`/api/ani-schedule/${day}`).then(r => (r.ok ? r.json() : null)).catch(() => null);
+    _sectionPromises[key] = p;
+    return p;
   }
 
   /** DB-backed anime list wrapped in the same shape fetchAniList() resolves to. */
   async function dbAniListPage(section) {
-    const home = await getHomeData();
-    const arr = home?.[section]?.Anime;
+    const home = await getHomeData(section);
+    const arr = home?.Anime;
     return (Array.isArray(arr) && arr.length > 0) ? { Page: { media: arr } } : null;
   }
 
   /** DB-backed TMDB list wrapped in the same shape fetchTMDB() resolves to. */
   async function dbTmdbResults(section, type) {
-    const home = await getHomeData();
-    const arr = home?.[section]?.[type];
+    const home = await getHomeData(section);
+    const arr = home?.[type];
     return (Array.isArray(arr) && arr.length > 0) ? { results: arr, page: 1, total_pages: 1 } : null;
   }
 
-  window.getHomeData     = getHomeData;
+  window.getHomeData      = getHomeData;
+  window.getAniScheduleDay = getAniScheduleDay;
   window.dbAniListPage   = dbAniListPage;
   window.dbTmdbResults   = dbTmdbResults;
 

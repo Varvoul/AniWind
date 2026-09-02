@@ -3489,7 +3489,7 @@ async function loadNewAniocean() {
 
   // ----- PRIMARY: Neon DB (new_on_ruri) -----
   try {
-    const dbAnime = (await window.getHomeData())?.new_on_ruri?.Anime;
+    const dbAnime = (await window.getHomeData('new_on_ruri'))?.Anime;
     if (Array.isArray(dbAnime) && dbAnime.length > 0) {
       console.log(`[New on Rowana] Using Neon DB (${dbAnime.length} anime)...`);
       const unique = await formatAnikotoShapedItems(dbAnime);
@@ -4059,7 +4059,7 @@ async function loadNewAniocean() {
         // same downstream filter/sort/dedup logic below runs either way,
         // so behavior is identical whichever source fed it. Falls back to
         // the live calls per-source when the DB doesn't have that piece.
-        const dbHS = (await window.getHomeData())?.hero_slider;
+        const dbHS = await window.getHomeData('hero_slider');
         const dbHSTv = dbHS?.tmdbTV;
         const dbHSAnime = dbHS?.Anime;
 
@@ -4745,7 +4745,7 @@ titleEl.style.color = 'transparent';
         // DB (Neon top_airing.Anime) first for the anime portion; TV stays
         // on TVMaze (its existing primary source — richer / truly-airing
         // episode data than the DB's tmdbTV cache currently provides).
-        const dbTA = (await window.getHomeData())?.top_airing;
+        const dbTA = await window.getHomeData('top_airing');
         const dbTAAnime = dbTA?.Anime;
 
         // Fetch TV using TVMaze (PRIMARY - truly airing!) + AniList airing anime
@@ -5081,10 +5081,10 @@ titleEl.style.color = 'transparent';
           // switches tabs. Any piece the DB doesn't have yet (currently
           // empty for some sections) falls straight through to the
           // existing live-API calls below, untouched.
-          const _dbNR = await window.getHomeData();
-          const dbNRMovies = _dbNR?.new_releases?.tmdbMovie;
-          const dbNRAnime  = _dbNR?.new_releases?.Anime;
-          const dbNRTv     = _dbNR?.new_releases?.tmdbTV;
+          const _dbNR = await window.getHomeData('new_releases');
+          const dbNRMovies = _dbNR?.tmdbMovie;
+          const dbNRAnime  = _dbNR?.Anime;
+          const dbNRTv     = _dbNR?.tmdbTV;
 
           // Fetch all sources using QUEUED calls (throttled + retry)
           const [nowMovies, nowMovies2, tvmazeTvShows, anilistNow] = await Promise.allSettled([
@@ -5627,7 +5627,7 @@ titleEl.style.color = 'transparent';
        *  have data for yet. */
       async function nrFetchHiddenRow(countries, targetPerType = 20) {
         const items = [];
-        const dbHidden = (await window.getHomeData())?.hidden_tab;
+        const dbHidden = await window.getHomeData('hidden_tab');
         for (let i = 0; i < countries.length; i++) {
           const country = countries[i];
           const dbMovies = dbHidden?.TMDB_Movie?.[country];
@@ -5950,7 +5950,7 @@ titleEl.style.color = 'transparent';
         // DB (Neon upcoming_shows) first — falls back to the live queue-managed
         // TMDB/AniList fetchers below only for whichever piece the DB doesn't
         // have data for.
-        const dbUp = (await window.getHomeData())?.upcoming_shows;
+        const dbUp = await window.getHomeData('upcoming_shows');
         const dbUpMovies = dbUp?.tmdbMovie;
         const dbUpTv = dbUp?.tmdbTV;
         const dbUpAnime = dbUp?.Anime;
@@ -6185,7 +6185,7 @@ titleEl.style.color = 'transparent';
 
         // DB (Neon recently_completed) only has enough data for page 1 —
         // pages 2+ keep using the live AniList/TMDB calls below unchanged.
-        const _dbRC = page === 1 ? (await window.getHomeData())?.recently_completed : null;
+        const _dbRC = page === 1 ? await window.getHomeData('recently_completed') : null;
         const dbRCTv = _dbRC?.tmdbTV;
         const dbRCMovies = _dbRC?.tmdbMovie;
         const dbRCAnime = _dbRC?.Anime;
@@ -6447,7 +6447,7 @@ titleEl.style.color = 'transparent';
 
         // DB (Neon trending_now) only covers the default "today" period —
         // week/month keep their existing live TMDB/AniList calls.
-        const dbTN = period === 'today' ? (await window.getHomeData())?.trending_now : null;
+        const dbTN = period === 'today' ? await window.getHomeData('trending_now') : null;
         const dbTNHasData = Array.isArray(dbTN?.Anime) && dbTN.Anime.length > 0;
 
         if (dbTNHasData) {
@@ -6526,7 +6526,7 @@ titleEl.style.color = 'transparent';
         
         // DB (Neon most_favourite) first — falls back to live TMDB/AniList
         // calls only if the DB doesn't have data for a given type yet.
-        const dbMF = (await window.getHomeData())?.most_favourite;
+        const dbMF = await window.getHomeData('most_favourite');
         const dbMFHasAnime = Array.isArray(dbMF?.Anime) && dbMF.Anime.length > 0;
         const dbMFHasMovies = Array.isArray(dbMF?.tmdbMovie) && dbMF.tmdbMovie.length > 0;
         const dbMFHasTv = Array.isArray(dbMF?.tmdbTV) && dbMF.tmdbTV.length > 0;
@@ -6993,7 +6993,7 @@ titleEl.style.color = 'transparent';
           // list — use it directly and skip the two live AniList calls +
           // scoring pass entirely. Falls back to the original live fetch
           // when the DB doesn't have it yet.
-          const dbPopular = (await window.getHomeData())?.popular_anime;
+          const dbPopular = (await window.getHomeData('popular_anime'))?.data;
           let top28;
 
           if (Array.isArray(dbPopular) && dbPopular.length > 0) {
@@ -7269,32 +7269,36 @@ titleEl.style.color = 'transparent';
 
       // ---------- Helper: Fetch ALL 7 days in parallel (rate-limit safe) ----------
       async function fetchAllDaysParallel() {
-        // DB (Neon ani_schedule.Anime) first — it's already day-matched
-        // (each anime keyed to the day it airs on), Jikan-shaped, so it
-        // drops straight into the existing renderer. Falls back to the
-        // live self-hosted Jikan schedule per-day for any day the DB
-        // doesn't have data for (e.g. still syncing).
-        const dbSchedule = (await window.getHomeData())?.ani_schedule?.Anime || {};
-
+        // DB (Neon ani_schedule, one endpoint per day) first — each day is
+        // already Jikan-shaped, so it drops straight into the existing
+        // renderer. Falls back to the live self-hosted Jikan schedule for
+        // any day the DB doesn't have data for (e.g. still syncing).
+        // All 7 requests hit the SAME server-side cached column fetch
+        // (see api/ani-schedule/[day].js), so this is one real DB query
+        // shared across all 7 days, not 7 separate ones.
         console.log('[Schedule] 🚀 Starting parallel fetch of all 7 days...');
 
-        const missingDays = DAYS.filter(day => {
-          const dbDay = dbSchedule[DAY_FULL_NAMES[DAYS.indexOf(day)]];
-          return !(Array.isArray(dbDay) && dbDay.length > 0);
+        const dbResults = await Promise.allSettled(DAYS.map(day => window.getAniScheduleDay(day)));
+        const dbByDay = {};
+        DAYS.forEach((day, idx) => {
+          const r = dbResults[idx];
+          const arr = r.status === 'fulfilled' ? r.value?.data : null;
+          if (Array.isArray(arr) && arr.length > 0) dbByDay[day] = arr;
         });
 
-        const results = missingDays.length
+        const missingDays = DAYS.filter(day => !dbByDay[day]);
+
+        const jikanResults = missingDays.length
           ? await Promise.allSettled(missingDays.map(day => fetchDayFromJikan(day)))
           : [];
 
         const data = {};
         let missingIdx = 0;
-        DAYS.forEach((day, idx) => {
-          const dbDay = dbSchedule[DAY_FULL_NAMES[idx]];
-          if (Array.isArray(dbDay) && dbDay.length > 0) {
-            data[day] = dbDay;
+        DAYS.forEach((day) => {
+          if (dbByDay[day]) {
+            data[day] = dbByDay[day];
           } else {
-            const result = results[missingIdx++];
+            const result = jikanResults[missingIdx++];
             data[day] = result && result.status === 'fulfilled' ? result.value : [];
           }
         });
