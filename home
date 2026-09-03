@@ -2182,7 +2182,7 @@
         <div class="nr-hidden-rows" id="newReleasesHidden" style="display:none;">
           <div class="nr-hidden-row">
             <div class="nr-hidden-row-header">
-              <div class="nr-hidden-row-label">🇰🇷🇯🇵 South Korea &amp; Japan</div>
+              <div class="nr-hidden-row-label">🇰🇷🇮🇩🇹🇼 Korea · Indonesia · Taiwan</div>
               <div class="nr-scroll-controls">
                 <button class="scroll-arrow" id="nrHiddenRow1Left" title="Scroll left">‹</button>
                 <button class="scroll-arrow" id="nrHiddenRow1Right" title="Scroll right">›</button>
@@ -2192,7 +2192,7 @@
           </div>
           <div class="nr-hidden-row">
             <div class="nr-hidden-row-header">
-              <div class="nr-hidden-row-label">🇵🇰🇮🇳 Pakistan &amp; India</div>
+              <div class="nr-hidden-row-label">🇵🇰🇮🇳🇵🇭 Pakistan · India · Philippines</div>
               <div class="nr-scroll-controls">
                 <button class="scroll-arrow" id="nrHiddenRow2Left" title="Scroll left">‹</button>
                 <button class="scroll-arrow" id="nrHiddenRow2Right" title="Scroll right">›</button>
@@ -2202,7 +2202,7 @@
           </div>
           <div class="nr-hidden-row">
             <div class="nr-hidden-row-header">
-              <div class="nr-hidden-row-label">🇹🇷 Turkey</div>
+              <div class="nr-hidden-row-label">🇹🇷🇨🇱🇹🇼 Turkey · Chile · Taiwan</div>
               <div class="nr-scroll-controls">
                 <button class="scroll-arrow" id="nrHiddenRow3Left" title="Scroll left">‹</button>
                 <button class="scroll-arrow" id="nrHiddenRow3Right" title="Scroll right">›</button>
@@ -2213,10 +2213,10 @@
         </div>
       </section>
 
-      <!-- NEW ON ANIOCEAN SECTION -->
+      <!-- NEW ON RURI SECTION -->
       <section class="section" id="newOnRowanaSection">
         <div class="section-header">
-          <h2 class="section-title">New on Rowana</h2>
+          <h2 class="section-title">New on Ruri</h2>
           <div class="section-controls">
             <button class="scroll-arrow" id="newAnioceanLeft">‹</button>
             <button class="scroll-arrow" id="newAnioceanRight">›</button>
@@ -3491,20 +3491,28 @@ async function loadNewAniocean() {
   try {
     const dbAnime = (await window.getHomeData('new_on_ruri'))?.Anime;
     if (Array.isArray(dbAnime) && dbAnime.length > 0) {
-      console.log(`[New on Rowana] Using Neon DB (${dbAnime.length} anime)...`);
-      const unique = await formatAnikotoShapedItems(dbAnime);
+      console.log(`[New on Ruri] Using Neon DB (${dbAnime.length} anime)...`);
+      // Cross-source dedup by mal_id (then by title as a secondary check)
+      const _seen = new Set();
+      const _deduped = dbAnime.filter(a => {
+        const k = a.mal_id || a.ani_id || a.id;
+        if (!k || _seen.has(k)) return false;
+        _seen.add(k);
+        return true;
+      });
+      const unique = await formatAnikotoShapedItems(_deduped);
       if (unique.length > 0 && renderAnimeList(unique)) {
-        console.log(`✓ Loaded ${unique.length} anime from Neon DB for "New on Rowana"`);
+        console.log(`✓ Loaded ${unique.length} anime from Neon DB for "New on Ruri"`);
         return;
       }
     }
   } catch (e) {
-    console.warn('[New on Rowana] Neon DB source failed:', e);
+    console.warn('[New on Ruri] Neon DB source failed:', e);
   }
 
   // ----- SECONDARY: Anikoto proxy (100 items for 6 complete rows) -----
   try {
-    console.log('[New on Rowana] DB unavailable, trying Anikoto API...');
+    console.log('[New on Ruri] DB unavailable, trying Anikoto API...');
     const response = await fetchAnikoto('/recent-anime?page=1&per_page=100');
     if (response.ok && response.data && response.data.length > 0) {
       const unique = await formatAnikotoShapedItems(response.data);
@@ -3523,7 +3531,7 @@ async function loadNewAniocean() {
   // AniList has no sub/dub-availability data at all, so is_sub/is_dub are
   // left at 0 here (honest "unknown") rather than guessed — the language
   // badge simply won't render for these, same as any other 0-count item.
-  console.log('[New on Rowana] Falling back to live AniList API...');
+  console.log('[New on Ruri] Falling back to live AniList API...');
   try {
     const anilistData = await fetchAniList(`
       query ($perPage: Int) {
@@ -3581,7 +3589,7 @@ async function loadNewAniocean() {
   }
 
   // All sources failed - show error message using renderAnimeList with empty array
-  console.log('[New on Rowana] All APIs failed - showing empty state');
+  console.log('[New on Ruri] All APIs failed - showing empty state');
   renderAnimeList([]);
 }
 
@@ -4051,169 +4059,60 @@ async function loadNewAniocean() {
       };
 
       async function loadHero() {
-        // ── Fetch TMDB TV (current-year filter) + ALL airing Anilist anime ────
-        // TMDB /tv/on_the_air with first_air_date current-year filter = fresh TV content!
-        // NO TVMaze in hero slider - keeping it simple and reliable!
-
-        // DB (Neon hero_slider) first for each source independently — the
-        // same downstream filter/sort/dedup logic below runs either way,
-        // so behavior is identical whichever source fed it. Falls back to
-        // the live calls per-source when the DB doesn't have that piece.
+        // ── PRIMARY: /api/hero-slider endpoint (no live API fallback) ────────
+        // TMDB TV: filtered to DYNAMIC current-year (no hardcoded year).
+        // Anime: bannerImage → coverImage.extraLarge fallback when bannerImage
+        // is missing, so anime with only a poster still appear in the slider.
         const dbHS = await window.getHomeData('hero_slider');
-        const dbHSTv = dbHS?.tmdbTV;
-        const dbHSAnime = dbHS?.Anime;
-
-        const [tmdbTvResults, anilistResults] = await Promise.allSettled([
-          // PRIMARY: DB tmdbTV if present, else TMDB /tv/on_the_air (current-year filter) for TV shows
-          (Array.isArray(dbHSTv) && dbHSTv.length)
-            ? Promise.resolve([{ status: 'fulfilled', value: { results: dbHSTv } }])
-            : Promise.allSettled([
-                fetchTMDB('/tv/on_the_air', 'page=1'),
-                fetchTMDB('/tv/on_the_air', 'page=2'),
-                fetchTMDB('/tv/on_the_air', 'page=3'),
-                fetchTMDB('/tv/on_the_air', 'page=4'),
-                fetchTMDB('/tv/on_the_air', 'page=5'),
-                fetchTMDB('/tv/on_the_air', 'page=6'),
-              ]),
-
-          // Anilist: DB Anime if present AND it actually carries synopsis
-          // text (the sync job that fills hero_slider currently omits the
-          // `description` field entirely — using it anyway would just
-          // render an empty synopsis), else live currently-airing anime.
-          (Array.isArray(dbHSAnime) && dbHSAnime.length && dbHSAnime.some(a => a.description))
-            ? Promise.resolve([{ status: 'fulfilled', value: { Page: { media: dbHSAnime } } }])
-            : Promise.allSettled([
-            fetchAniList(`
-              query ($page: Int) {
-                Page(page: $page, perPage: ${HERO_CONFIG.anilistPerPage}) {
-                  media(type: ANIME, status: RELEASING, isAdult: false, sort: POPULARITY_DESC) {
-                    id
-                    idMal
-                    title { romaji english native }
-                    bannerImage
-                    coverImage { large medium }
-                    averageScore
-                    episodes
-                    format
-                    genres
-                    tags { name rank }
-                    startDate { year month day }
-                    studios(isMain: true) { nodes { name } }
-                    description
-                    nextAiringEpisode { episode airingAt timeUntilAiring }
-                  }
-                }
-              }
-            `, { page: 1 }),
-            fetchAniList(`
-              query ($page: Int) {
-                Page(page: $page, perPage: ${HERO_CONFIG.anilistPerPage}) {
-                  media(type: ANIME, status: RELEASING, isAdult: false, sort: POPULARITY_DESC) {
-                    id
-                    idMal
-                    title { romaji english native }
-                    bannerImage
-                    coverImage { large medium }
-                    averageScore
-                    episodes
-                    format
-                    genres
-                    tags { name rank }
-                    startDate { year month day }
-                    studios(isMain: true) { nodes { name } }
-                    description
-                    nextAiringEpisode { episode airingAt timeUntilAiring }
-                  }
-                }
-              }
-            `, { page: 2 })
-          ])
-        ]);
+        const dbHSTv = Array.isArray(dbHS?.tmdbTV) ? dbHS.tmdbTV : [];
+        const dbHSAnime = Array.isArray(dbHS?.Anime) ? dbHS.Anime : [];
 
         // ═══════════════════════════════════════════════════════════════════
-        // TMDB TV SOURCE: Extract and filter with current-year filter
+        // TMDB TV: dedup + DYNAMIC current-year filter (never hardcoded)
         // ═══════════════════════════════════════════════════════════════════
-        
-        let topTmdbShows = [];
-        
-        if (tmdbTvResults.status === 'fulfilled') {
-          // Collect all TMDB results from multiple pages
-          let rawTmdbShows = [];
-          for (const t of tmdbTvResults.value) {
-            if (t.status === 'fulfilled' && t.value?.results) {
-              rawTmdbShows.push(...t.value.results);
-            }
-          }
-          
-          // Deduplicate by ID
-          const seenTmdb = new Set();
-          const uniqueTmdb = [];
-          for (const t of rawTmdbShows) {
-            if (!t.id || seenTmdb.has(t.id)) continue;
-            seenTmdb.add(t.id);
-            uniqueTmdb.push(t);
-          }
-          
-          // Apply CURRENT-YEAR FILTER to ensure fresh content
-          const currentYear = new Date().getFullYear().toString();
-          const freshTmdbShows = uniqueTmdb.filter(show => {
-            if (!show.backdrop_path) return false;  // Must have backdrop for hero
-            if (!show.first_air_date || !show.first_air_date.startsWith(currentYear)) return false;
-            return true;
-          });
-          
-          // Sort by popularity
-          freshTmdbShows.sort((a, b) => (b.popularity||0) - (a.popularity||0));
-          topTmdbShows = freshTmdbShows.slice(0, HERO_CONFIG.tmdbTargetCount);
-          
-          console.log(`[Hero] 📺 TMDB TV with ${currentYear} filter: ${topTmdbShows.length} shows ready`);
-        } else {
-          console.warn('[Hero] ⚠️ TMDB TV fetch failed');
+        const seenTmdb = new Set();
+        const uniqueTmdb = [];
+        for (const t of dbHSTv) {
+          if (!t.id || seenTmdb.has(t.id)) continue;
+          seenTmdb.add(t.id);
+          uniqueTmdb.push(t);
         }
+        const currentYear = new Date().getFullYear().toString();
+        const freshTmdbShows = uniqueTmdb.filter(show => {
+          if (!show.backdrop_path) return false;  // Must have backdrop for hero
+          if (!show.first_air_date || !show.first_air_date.startsWith(currentYear)) return false;
+          return true;
+        });
+        freshTmdbShows.sort((a, b) => (b.popularity||0) - (a.popularity||0));
+        const topTmdbShows = freshTmdbShows.slice(0, HERO_CONFIG.tmdbTargetCount);
+        console.log(`[Hero] 📺 TMDB TV with dynamic ${currentYear} filter: ${topTmdbShows.length} shows ready`);
 
         // ═══════════════════════════════════════════════════════════════════
-        // ANILIST FETCHING: ALL currently airing anime (multiple pages)
+        // ANIME: dedup + bannerImage → coverImage.extraLarge fallback
         // ═══════════════════════════════════════════════════════════════════
-        
-        // ── 3b) Collect ALL Anilist airing anime from all fetched pages ──
-        let rawAnilistAnime = [];
-        if (anilistResults.status === 'fulfilled') {
-          for (const pageResult of anilistResults.value) {
-            if (pageResult.status === 'fulfilled' && pageResult.value?.Page?.media) {
-              rawAnilistAnime.push(...pageResult.value.Page.media);
-            }
-          }
+        const seenAnime = new Set();
+        const uniqueAnime = [];
+        for (const a of dbHSAnime) {
+          if (!a.id || seenAnime.has(a.id)) continue;
+          seenAnime.add(a.id);
+          uniqueAnime.push(a);
         }
-        
-        // Filter: Must have banner image for hero slider
-        const filteredAnilistAnime = rawAnilistAnime.filter(m => m.bannerImage);
-        
-        // Remove duplicates (safety check)
-        const seenAnilist = new Set();
-        const uniqueAnilistAnime = [];
-        for (const anime of filteredAnilistAnime) {
-          if (!seenAnilist.has(anime.id)) {
-            seenAnilist.add(anime.id);
-            uniqueAnilistAnime.push(anime);
-          }
-        }
-        
-        // Sort by: next airing episode soonest first, then popularity
-        uniqueAnilistAnime.sort((a, b) => {
-          // Prioritize anime with upcoming episodes (airing soon!)
+        // Keep anime that have either a banner OR a coverImage (we'll fall back
+        // to coverImage.extraLarge at slide-mapping time, below).
+        const animeWithImage = uniqueAnime.filter(a =>
+          a.bannerImage || a.coverImage?.extraLarge || a.coverImage?.large
+        );
+        animeWithImage.sort((a, b) => {
           const timeA = a.nextAiringEpisode?.timeUntilAiring || Infinity;
           const timeB = b.nextAiringEpisode?.timeUntilAiring || Infinity;
           if (timeA !== timeB) return timeA - timeB;
-          // Then by popularity as tiebreaker
           return (b.averageScore||0) * (b.popularity||0) - (a.averageScore||0) * (a.popularity||0);
         });
-        
-        // Take target count (increased to show more airing anime!)
-        const topAnilistAnime = uniqueAnilistAnime.slice(0, HERO_CONFIG.anilistTargetCount);
+        const topAnilistAnime = animeWithImage.slice(0, HERO_CONFIG.anilistTargetCount);
+        console.log(`[Hero] 🎌 Anime with banner→extraLarge fallback: ${topAnilistAnime.length} ready`);
 
-        const sourceType = 'TMDB Current-Year';
-        console.log(`[Hero] 🎬 Fetched ${topTmdbShows.length} TV (${sourceType}) + ${topAnilistAnime.length} Anilist airing anime`);
-        console.log(`[Hero] 📅 Source: ${sourceType} - current-year filter applied for fresh content`);
+        const sourceType = 'Endpoint + dynamic year filter';
+        console.log(`[Hero] 🎬 Fetched ${topTmdbShows.length} TV (${sourceType}) + ${topAnilistAnime.length} airing anime`);
 
         // ═══════════════════════════════════════════════════════════════════
         // HYBRID IMAGE RESOLUTION PIPELINE
@@ -4447,21 +4346,25 @@ async function loadNewAniocean() {
           infoHref:       `/info/tv/tmdb-tv-${t.id}/${(t.name||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')}-season-1`,
         }));
 
-        // ── 4b) Map Anilist slides (already have bannerImage!) ──────────
-        console.log(`[Hero Image] Mapping ${topAnilistAnime.length} Anilist anime with banner images...`);
-        
+        // ── 4b) Map Anilist slides — bannerImage → coverImage.extraLarge fallback ──
+        // Anime without bannerImage use coverImage.extraLarge as the hero
+        // backdrop instead of being dropped — keeps more anime in the slider.
+        console.log(`[Hero Image] Mapping ${topAnilistAnime.length} anime with banner→extraLarge fallback...`);
+
         const anilistSlides = topAnilistAnime.map(m => {
           const slugify = t => (t||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
           const genres = (m.genres || []).filter(Boolean);
-          const themes = (m.tags || []).filter(t => t.rank >= 60).map(t => t.name).slice(0, 2);  // Top 2 popular themes
+          const themes = (m.tags || []).filter(t => t.rank >= 60).map(t => t.name).slice(0, 2);
           const year = m.startDate?.year?.toString() || '';
           const studio = m.studios?.nodes?.[0]?.name || '';
           const formatMap = { TV: 'TV', TV_SHORT: 'TV Short', MOVIE: 'Movie', OVA: 'OVA', ONA: 'ONA', SPECIAL: 'Special' };
-          
+          // PRIMARY: bannerImage; FALLBACK: coverImage.extraLarge (then large)
+          const heroImg = m.bannerImage || m.coverImage?.extraLarge || m.coverImage?.large || '';
+          const imgSource = m.bannerImage ? 'anilist-banner' : 'anilist-cover-extralarge';
           return {
             id:             `anilist-${m.id}`,
             title:          m.title?.romaji || m.title?.english || 'Unknown Anime',
-            source:         'anilist',  // Primary source is Anilist!
+            source:         'anilist',
             type:           formatMap[m.format] || m.format || 'Anime',
             genres:         genres,
             themes:         themes,
@@ -4470,27 +4373,23 @@ async function loadNewAniocean() {
             duration:       '',
             episodes:       m.episodes ? String(m.episodes) : (m.nextAiringEpisode ? String(m.nextAiringEpisode.episode - 1) : '?'),
             synopsis:       (m.description || '').replace(/<[^>]*>/g, '').slice(0, 320),
-            // Anilist provides high-quality banner directly!
-            backdrop:       m.bannerImage,
-            backdrop_orig:  m.bannerImage,
-            backdrop_mobile:m.bannerImage,
+            backdrop:       heroImg,
+            backdrop_orig:  heroImg,
+            backdrop_mobile:heroImg,
             poster:         m.coverImage?.large || m.coverImage?.medium || '',
             certification:  'TV-14',
             studio:         studio,
             mal_id:         m.idMal,
             anilist_id:     m.id,
-            image_source:   'anilist-banner',  // Direct from Anilist!
+            image_source:   imgSource,
             image_confidence: 100,
-            status_color:   '#38bdf8',  /* Sky blue - matches site theme! */
+            status_color:   '#38bdf8',
             status_label:   '● Airing Now',
             infoHref:       `/info/anime/jikan-${m.idMal}/${slugify(m.title?.romaji || m.title?.english)}`,
           };
         });
-        
-        // All Anilist entries should have valid bannerImages (we filtered earlier)
+
         const jikanSlides = anilistSlides;
-        
-        // Log image source distribution
         const imageSources = {};
         jikanSlides.forEach(s => {
           imageSources[s.image_source] = (imageSources[s.image_source] || 0) + 1;
@@ -4521,7 +4420,8 @@ async function loadNewAniocean() {
           merged.push(jikanSlides[anilistIdx++]);
         }
         
-        heroData = merged.slice(0, HERO_CONFIG.maxTotalSlides); // Max slides from config
+        // Final cross-source dedup (anime + TMDB by slide id)
+        heroData = dedupById(merged, 'id').slice(0, HERO_CONFIG.maxTotalSlides);
 
         console.log(`[Hero] ${tmdbSlides.length} TMDB + ${jikanSlides.length} Jikan = ${heroData.length} total slides`);
         renderHero();
@@ -4741,103 +4641,83 @@ titleEl.style.color = 'transparent';
 
       /* ── TOP AIRING ── */
       async function loadTopAiring() {
-        
-        // DB (Neon top_airing.Anime) first for the anime portion; TV stays
-        // on TVMaze (its existing primary source — richer / truly-airing
-        // episode data than the DB's tmdbTV cache currently provides).
-        const dbTA = await window.getHomeData('top_airing');
-        const dbTAAnime = dbTA?.Anime;
-
-        // Fetch TV using TVMaze (PRIMARY - truly airing!) + AniList airing anime
-        const [tvmazeResult, anilistAir] = await Promise.all([
-          // PRIMARY: TVMaze Multi-Country for maximum scripted content!
-          getTVMazeShowsWithTMDBData(25, true),  // 25 shows, multi-country enabled
-          
-          // AniList: DB Anime if present, else currently airing anime sorted by popularity
-          (Array.isArray(dbTAAnime) && dbTAAnime.length)
-            ? Promise.resolve({ Page: { media: dbTAAnime } })
-            : fetchAniList(`
-            query ($perPage: Int) {
-              Page(page: 1, perPage: $perPage) {
-                media(type: ANIME, status: RELEASING, format_in: [TV, TV_SHORT, OVA], isAdult: false, sort: [POPULARITY_DESC]) {
-                  ${ANILIST_ANIME_FIELDS}
-                }
-              }
-            }
-          `, { perPage: 30 })
+        // PRIMARY: /api/top-airing for anime, /api/hidden-tab for TMDB TV
+        // TMDB TV is filtered to AU, CA, CN (user-specified countries).
+        // Display pattern: TV-Anime-TV (two TV shows sandwich one anime).
+        const [dbTA, dbHidden] = await Promise.all([
+          window.getHomeData('top_airing'),
+          window.getHomeData('hidden_tab')
         ]);
-        
-        // Process TVMaze results (handle both Promise.allSettled and direct array)
-        const tvmazeShows = tvmazeResult.status ? tvmazeResult.value : tvmazeResult;
-        
-        // Build TV list from bridged TVMaze+TMDB data
-        let tv = [];
-        
-        if (Array.isArray(tvmazeShows) && tvmazeShows.length > 0) {
-          console.log(`[Top Airing] 📺 Using TVMaze Multi-Country: ${tvmazeShows.length} shows`);
-          
-          tv = tvmazeShows
-            .filter(item => item.tmdb && item.tmdb.poster_path)  // Must have poster
-            .map(item => ({
-              id:`tmdb-tv-${item.tmdb.id}`, 
-              title:item.tmdb.name, 
-              poster:tmdbImg(item.tmdb.poster_path), 
-              type:'TV',
-              score:(item.tmdb.vote_average||0).toFixed(1),
-              status:'Airing',  // Truly airing from TVMaze!
-              country: item.tvmaze._sourceCountry || 'N/A',
-              episodeNumber: item.tvmaze._episode ? item.tvmaze._episode.number : null,
-              voteCount: item.tmdb.vote_count || 0,
-              _source: 'tvmaze',
-              episodeInfo: item.tvmaze._episode ? `E${item.tvmaze._episode.number}` : null
-            }))
-            .slice(0, 20);
-            
-          console.log(`[Top Airing] ✅ TVMaze TV ready: ${tv.length} shows`);
-        } else {
-          // FALLBACK to TMDB /tv/on_the_air if TVMaze fails
-          console.warn('[Top Airing] ⚠️ TVMaze failed, falling back to TMDB /tv/on_the_air...');
-          const tvOnAir = await fetchTMDB('/tv/on_the_air', 'page=1');
-          
-          tv = (tvOnAir.results||[]).slice(0,20).map(i => ({
-            id:`tmdb-tv-${i.id}`, title:i.name, poster:tmdbImg(i.poster_path), type:'TV',
-            score:(i.vote_average||0).toFixed(1),
-            status:'Airing',
-            country: (i.origin_country && i.origin_country.length) ? i.origin_country[0] : 'N/A',
-            episodeNumber: null,
-            voteCount: i.vote_count || 0,
-            _source: 'tmdb-fallback'
-          }));
-        }
-        
-        // Convert AniList data
+
+        // ── Anime from /api/top-airing ──
+        const dbTAAnime = Array.isArray(dbTA?.Anime) ? dbTA.Anime : [];
         const anime = [];
-        if (anilistAir?.Page?.media) {
-          for (const m of anilistAir.Page.media) {
-            if (!m.isAdult) {
-              const internal = anilistToInternal(m);
-              anime.push({
-                id:`anilist-air-${m.id}`,
-                mal_id: internal.mal_id,
-                title: internal.title,
-                poster: internal.poster,
-                type: 'Anime',
-                duration: internal.duration || '?',
-                score: internal.score,
-                status: internal.status,
-                episodes: String(internal.episodes),
-              });
-            }
+        for (const m of dbTAAnime) {
+          if (m.isAdult) continue;
+          const internal = anilistToInternal(m);
+          anime.push({
+            id: `anilist-air-${m.id}`,
+            mal_id: internal.mal_id,
+            title: internal.title,
+            poster: internal.poster,
+            type: 'Anime',
+            duration: internal.duration || '?',
+            score: internal.score,
+            status: internal.status,
+            episodes: String(internal.episodes),
+          });
+        }
+
+        // ── TMDB TV from /api/hidden-tab filtered to AU, CA, CN ──
+        const TOP_AIRING_TV_COUNTRIES = ['AU', 'CA', 'CN'];
+        const hiddenTvByCountry = dbHidden?.TMDB_TV || {};
+        const seenTvIds = new Set();
+        let tv = [];
+        for (const country of TOP_AIRING_TV_COUNTRIES) {
+          const arr = Array.isArray(hiddenTvByCountry[country]) ? hiddenTvByCountry[country] : [];
+          for (const i of arr) {
+            if (!i.poster_path || seenTvIds.has(i.id)) continue;
+            seenTvIds.add(i.id);
+            tv.push({
+              id: `tmdb-tv-${i.id}`,
+              title: i.name || i.original_name || 'Unknown',
+              poster: tmdbImg(i.poster_path),
+              type: 'TV',
+              score: (i.vote_average || 0).toFixed(1),
+              status: 'Airing',
+              country: country,
+              episodeNumber: null,
+              voteCount: i.vote_count || 0,
+              _source: 'hidden-tab',
+              episodeInfo: null
+            });
           }
         }
-        
-        // Deduplicate combined list by id
-        const combined = dedupById([...tv, ...anime], 'id').slice(0,60);
-        renderTopAiring(combined);
-        
-        // ✅ CACHE: Write to professional cache system
+        console.log(`[Top Airing] 📺 hidden-tab TV (AU/CA/CN): ${tv.length} shows`);
+        console.log(`[Top Airing] 🎌 top-airing anime: ${anime.length} shows`);
+
+        // ── Pattern: TV-Anime-TV (two TV shows with one anime in the middle) ──
+        // Repeat until we run out of one source, then append leftovers.
+        const combined = [];
+        const maxTriads = Math.min(Math.floor(tv.length / 2), anime.length);
+        for (let i = 0; i < maxTriads; i++) {
+          combined.push(tv[i * 2]);
+          combined.push(anime[i]);
+          combined.push(tv[i * 2 + 1]);
+        }
+        // Append any leftovers (TV or anime) so nothing gets dropped
+        const tvUsed = maxTriads * 2;
+        const animeUsed = maxTriads;
+        combined.push(...tv.slice(tvUsed));
+        combined.push(...anime.slice(animeUsed));
+
+        // Cross-source dedup (anime + TV by id)
+        const deduped = dedupById(combined, 'id').slice(0, 60);
+        console.log(`[Top Airing] ✅ Pattern TV-Anime-TV: ${deduped.length} items`);
+        renderTopAiring(deduped);
+
         if (window.CacheHelpers) {
-          CacheHelpers.cacheSection('topAiring', combined).catch(e => 
+          CacheHelpers.cacheSection('topAiring', deduped).catch(e =>
             console.warn('[Top Airing] ⚠️ Cache write failed:', e.message)
           );
         }
@@ -5050,11 +4930,13 @@ titleEl.style.color = 'transparent';
       let currentNewReleasesFilter = 'all'; // tracks active tab (all/anime/movie/tv)
 
       async function loadNewReleases() {
-        
-        console.log('[New Releases] 🚀 Starting optimized fetch with API queue...');
+        // PRIMARY: /api/new-releases (anime) + /api/hidden-tab (TV + movies by country)
+        // "All" tab pulls anime, TV (DE/CL/GB), movies (DE/CL/GB/TH) in one pass.
+        // Other tabs (anime/movie/tv) render from the cached "all" data — no
+        // additional fetch is made when switching tabs.
+        console.log('[New Releases] 🚀 Fetching from section endpoints...');
         const startTime = Date.now();
-        
-        // Calculate target shows for 6 complete rows
+
         function calcColsForGrid() {
           const w = window.innerWidth;
           if (w <= 520) return 2;
@@ -5066,201 +4948,115 @@ titleEl.style.color = 'transparent';
         }
         const TARGET_ROWS = 6;
         const cols = calcColsForGrid();
-        const TARGET_SHOWS = TARGET_ROWS * cols; // 42-48 shows
-        
-        // ─── OPTIMIZED: Use queued API calls with automatic retry ───
-        // Each call goes through the API Queue Manager which:
-        // - Limits concurrent requests to 3
-        // - Adds 800ms delay between batches
-        // - Retries failed requests up to 3 times with exponential backoff
-        
-        try {
-          // DB (Neon new_releases) first — one cached fetch covers anime,
-          // TV and movies for ALL FOUR tabs (all/anime/movie/tv), so the
-          // frontend never needs to hit the DB again when the user
-          // switches tabs. Any piece the DB doesn't have yet (currently
-          // empty for some sections) falls straight through to the
-          // existing live-API calls below, untouched.
-          const _dbNR = await window.getHomeData('new_releases');
-          const dbNRMovies = _dbNR?.tmdbMovie;
-          const dbNRAnime  = _dbNR?.Anime;
-          const dbNRTv     = _dbNR?.tmdbTV;
+        const TARGET_SHOWS = TARGET_ROWS * cols;
 
-          // Fetch all sources using QUEUED calls (throttled + retry)
-          const [nowMovies, nowMovies2, tvmazeTvShows, anilistNow] = await Promise.allSettled([
-            (Array.isArray(dbNRMovies) && dbNRMovies.length) ? Promise.resolve({ results: dbNRMovies }) : queuedFetchTMDB('/movie/now_playing', `page=1`),
-            (Array.isArray(dbNRMovies) && dbNRMovies.length) ? Promise.resolve({ results: [] }) : queuedFetchTMDB('/movie/now_playing', `page=2`),
-            // PRIMARY: DB tmdbTV if present, else TVMaze for truly airing TV shows!
-            (Array.isArray(dbNRTv) && dbNRTv.length) ? Promise.resolve(null) : queuedGetTVMazeShows(30),
-            // AniList: DB new_releases.Anime if present, else live current-season fetch
-            (Array.isArray(dbNRAnime) && dbNRAnime.length) ? Promise.resolve({ Page: { media: dbNRAnime } }) : queuedFetchAniList(`
-              query ($perPage: Int) {
-                Page(page: 1, perPage: $perPage) {
-                  media(type: ANIME, status: RELEASING, isAdult: false, sort: [TRENDING_DESC, POPULARITY_DESC]) {
-                    ${ANILIST_ANIME_FIELDS}
-                  }
-                }
-              }
-            `, { perPage: 50 })
+        try {
+          const [dbNR, dbHidden] = await Promise.all([
+            window.getHomeData('new_releases'),
+            window.getHomeData('hidden_tab')
           ]);
-          // Extract results safely (handle both settled and direct values)
-          const extractResult = (result) => result.status === 'fulfilled' ? result.value : null;
-          const movies1 = extractResult(nowMovies);
-          const movies2 = extractResult(nowMovies2);
-          const tvmazeRaw = extractResult(tvmazeTvShows);
-          const anilistRaw = extractResult(anilistNow);
-          
-          // Log any failures for debugging
-          if (nowMovies.status === 'rejected') console.warn('[New Releases] ⚠️ TMDB Movies Page 1 failed:', nowMovies.reason?.message);
-          if (nowMovies2.status === 'rejected') console.warn('[New Releases] ⚠️ TMDB Movies Page 2 failed:', nowMovies2.reason?.message);
-          if (tvmazeTvShows.status === 'rejected') console.warn('[New Releases] ⚠️ TVMaze failed:', tvmazeTvShows.reason?.message);
-          if (anilistNow.status === 'rejected') console.error('[New Releases] ❌ Anilist FAILED (this was causing empty anime!):', anilistNow.reason?.message);
-        
-        // Merge multiple pages for each source
-        // 🎯 MOVIE FILTER: Only keep movies released in CURRENT YEAR (fresh content!)
-        const currentYearForMovies = new Date().getFullYear().toString();
-        const allMovies = [...(movies1?.results||[]), ...(movies2?.results||[])]
-          .filter(i => {
-            // Must have poster image
-            if (!i.poster_path) return false;
-            // Must have release_date starting with current year (e.g., "2026-...")
-            if (!i.release_date || !i.release_date.startsWith(currentYearForMovies)) return false;
-            return true;
-          })
-          .map(i => ({
-            id:`tmdb-mv-${i.id}`, title:i.title, poster:tmdbImg(i.poster_path), type:'Movie',
-            score:(i.vote_average||0).toFixed(1), details:'1h 45m', cert:'PG-13', quality:'HD',
-            releaseDate: i.release_date
-          })).slice(0, TARGET_SHOWS);
-        
-        console.log(`[New Releases] 📅 Filtered movies: keeping only ${currentYearForMovies} releases (${allMovies.length} passed)`);
-        
-        // 🎯 TV SHOWS FROM TVMAZE (Primary source - truly airing!)
-        let allTv = [];
-        
-        // Handle both Promise.allSettled format AND direct array result
-        const tvmazeResult = tvmazeRaw?.status ? tvmazeRaw.value : tvmazeRaw;
-        
-        if (Array.isArray(tvmazeResult) && tvmazeResult.length > 0) {
-          console.log(`[New Releases] 📺 Using TVMaze for TV: ${tvmazeResult.length} shows`);
-          
-          allTv = tvmazeResult
-            .filter(item => item.tmdb && item.tmdb.poster_path)  // Must have poster
-            .map(item => ({
-              id:`tmdb-tv-${item.tmdb.id}`, 
-              title:item.tmdb.name, 
-              poster:tmdbImg(item.tmdb.poster_path), 
-              type:'TV',
-              score:(item.tmdb.vote_average||0).toFixed(1), 
-              details: item.tvmaze._episode ? `E${item.tvmaze._episode.number}` : 'E?', 
-              cert:'PG-13', 
-              quality:'HD',
-              _source: 'tvmaze'
-            }))
-            .slice(0, TARGET_SHOWS);
-            
-          console.log(`[New Releases] ✅ TVMaze TV ready: ${allTv.length} shows`);
-        } else {
-          // DB (Neon new_releases.tmdbTV) first, else TMDB /tv/on_the_air
-          console.warn('[New Releases] ⚠️ TVMaze skipped/failed, checking DB / TMDB /tv/on_the_air...');
-          const [onAirTv, onAirTv2] = (Array.isArray(dbNRTv) && dbNRTv.length)
-            ? [{ results: dbNRTv }, { results: [] }]
-            : await Promise.all([
-                fetchTMDB('/tv/on_the_air', `page=1`),
-                fetchTMDB('/tv/on_the_air', `page=2`)
-              ]);
-          
-          allTv = [...(onAirTv?.results||[]), ...(onAirTv2?.results||[])]
-            .filter(i => i.poster_path)
-            .map(i => ({
-              id:`tmdb-tv-${i.id}`, title:i.name, poster:tmdbImg(i.poster_path), type:'TV',
-              score:(i.vote_average||0).toFixed(1), details: 'S?', cert:'PG-13', quality:'HD',
-              _source: 'tmdb-fallback'
-            }))
-            .slice(0, TARGET_SHOWS);
-        }
-        
-        // Convert AniList data (replacing Jikan seasons/now)
-        const anime = [];
-        if (anilistRaw?.Page?.media) {
-          console.log(`[New Releases] 🎌 Anilist success! Got ${anilistRaw.Page.media.length} anime`);
-          for (const m of anilistRaw.Page.media.slice(0, TARGET_SHOWS)) {
-            if (!m.isAdult) {
-              const internal = anilistToInternal(m);
-              anime.push({
-                id:`anilist-${m.id}`,
-                mal_id: internal.mal_id,
-                title: internal.title,
-                poster: internal.poster,
-                type: 'Anime',
-                score: internal.score,
-                duration: internal.duration || '?',
-                status: internal.status,
-                rating: internal.rating,
-                quality: 'HD'
+
+          // ── Anime from /api/new-releases ──
+          const dbNRAnime = Array.isArray(dbNR?.Anime) ? dbNR.Anime : [];
+          const anime = [];
+          for (const m of dbNRAnime.slice(0, TARGET_SHOWS)) {
+            if (m.isAdult) continue;
+            const internal = anilistToInternal(m);
+            anime.push({
+              id: `anilist-${m.id}`,
+              mal_id: internal.mal_id,
+              title: internal.title,
+              poster: internal.poster,
+              type: 'Anime',
+              score: internal.score,
+              duration: internal.duration || '?',
+              status: internal.status,
+              rating: internal.rating,
+              quality: 'HD'
+            });
+          }
+          console.log(`[New Releases] 🎌 new-releases anime: ${anime.length}`);
+
+          // ── TV from /api/hidden-tab (DE, CL, GB) ──
+          const NR_TV_COUNTRIES = ['DE', 'CL', 'GB'];
+          const hiddenTv = dbHidden?.TMDB_TV || {};
+          const seenTv = new Set();
+          const allTv = [];
+          for (const c of NR_TV_COUNTRIES) {
+            const arr = Array.isArray(hiddenTv[c]) ? hiddenTv[c] : [];
+            for (const i of arr) {
+              if (!i.poster_path || seenTv.has(i.id)) continue;
+              seenTv.add(i.id);
+              allTv.push({
+                id: `tmdb-tv-${i.id}`,
+                title: i.name || i.original_name || 'Unknown',
+                poster: tmdbImg(i.poster_path),
+                type: 'TV',
+                score: (i.vote_average || 0).toFixed(1),
+                details: (i.first_air_date || '').slice(0, 4) || 'S?',
+                cert: 'PG-13',
+                quality: 'HD',
+                _source: 'hidden-tab'
               });
             }
           }
-        }
-        
-        // Trim each category to complete rows
-        const trimToCompleteRows = (arr) => {
-          const trimmed = Math.floor(arr.length / cols) * cols;
-          return arr.slice(0, trimmed || arr.length);
-        };
-        
-        // 🎯 RESTRUCTURED: User wants specific order - Animes FIRST, then TV, then Movies!
-        // Toggle "all" shows: Row 1=Anilist Anime, Row 2=TVMaze TV, Row 3=TMDB Movies
-        // Toggle "anime" shows: Only Anilist Anime (same as "all" tab 1st row)
-        
-        console.log(`[New Releases] 📊 Content breakdown:`);
-        console.log(`  • Anilist Airing Anime: ${anime.length} shows`);
-        console.log(`  • TVMaze TV Shows: ${allTv.length} shows`);
-        console.log(`  • TMDB Movies (${currentYearForMovies}): ${allMovies.length} shows`);
-        
-        allReleases = { 
-          // "All" tab: Anime first, then TV, then Movies (user's preferred order!)
-          all: trimToCompleteRows(dedupById([...anime, ...allTv, ...allMovies], 'id')), 
-          
-          // "Anime" tab: ONLY Anilist airing anime (same content as "all" tab's first section)
-          anime: trimToCompleteRows(anime), 
-          
-          // "Movies" tab: Only current-year TMDB movies
-          movie: trimToCompleteRows(allMovies), 
-          
-          // "TV" tab: TVMaze TV shows (truly airing!)
-          tv: trimToCompleteRows(allTv) 
-        };
-        _newReleasesCache = allReleases;
-        updateNewReleasesCounts();
-        renderNewReleases('all');
-        
-        // ✅ CACHE: Write to professional cache system (with all tabs)
-        if (window.CacheHelpers) {
-          CacheHelpers.cacheSection('newReleases', {
-            all: allReleases.all,
-            anime: allReleases.anime,
-            movie: allReleases.movie,
-            series: allReleases.tv,  // Map 'tv' to 'series' for cache
-            hidden: []  // Hidden tab data if available
-          }).catch(e => 
-            console.warn('[New Releases] ⚠️ Cache write failed:', e.message)
-          );
-        }
-        
-        const duration = Date.now() - startTime;
-        console.log(`[New Releases] ✅ Completed in ${duration}ms (with API queue optimization)`);
-        
-        // Note: If anilistRaw is null, anime array will be empty but TV/Movies will still show
-        if (!anilistRaw?.Page?.media) {
-          console.error('[New Releases] 💀 Anilist completely failed after all retries! Anime will be missing.');
-        }
-        
+          console.log(`[New Releases] 📺 hidden-tab TV (DE/CL/GB): ${allTv.length}`);
+
+          // ── Movies from /api/hidden-tab (DE, CL, GB, TH) ──
+          const NR_MOVIE_COUNTRIES = ['DE', 'CL', 'GB', 'TH'];
+          const hiddenMovies = dbHidden?.TMDB_Movie || {};
+          const seenMv = new Set();
+          const allMovies = [];
+          for (const c of NR_MOVIE_COUNTRIES) {
+            const arr = Array.isArray(hiddenMovies[c]) ? hiddenMovies[c] : [];
+            for (const i of arr) {
+              if (!i.poster_path || seenMv.has(i.id)) continue;
+              seenMv.add(i.id);
+              allMovies.push({
+                id: `tmdb-mv-${i.id}`,
+                title: i.title || i.original_title || 'Unknown',
+                poster: tmdbImg(i.poster_path),
+                type: 'Movie',
+                score: (i.vote_average || 0).toFixed(1),
+                details: '1h 45m',
+                cert: i.adult ? '18+' : 'PG-13',
+                quality: 'HD',
+                releaseDate: i.release_date || ''
+              });
+            }
+          }
+          console.log(`[New Releases] 🎬 hidden-tab Movies (DE/CL/GB/TH): ${allMovies.length}`);
+
+          const trimToCompleteRows = (arr) => {
+            const trimmed = Math.floor(arr.length / cols) * cols;
+            return arr.slice(0, trimmed || arr.length);
+          };
+
+          // "All" tab: anime first, then TV, then movies.
+          // Other tabs reuse the same cached arrays — no extra fetch needed.
+          allReleases = {
+            all:    trimToCompleteRows(dedupById([...anime, ...allTv, ...allMovies], 'id')),
+            anime:  trimToCompleteRows(dedupById(anime, 'id')),
+            movie:  trimToCompleteRows(dedupById(allMovies, 'id')),
+            tv:     trimToCompleteRows(dedupById(allTv, 'id'))
+          };
+          _newReleasesCache = allReleases;
+          updateNewReleasesCounts();
+          renderNewReleases('all');
+
+          if (window.CacheHelpers) {
+            CacheHelpers.cacheSection('newReleases', {
+              all: allReleases.all,
+              anime: allReleases.anime,
+              movie: allReleases.movie,
+              series: allReleases.tv,
+              hidden: []
+            }).catch(e => console.warn('[New Releases] ⚠️ Cache write failed:', e.message));
+          }
+
+          console.log(`[New Releases] ✅ Completed in ${Date.now() - startTime}ms`);
         } catch (error) {
-          const duration = Date.now() - startTime;
-          console.error(`[New Releases] ❌ Failed after ${duration}ms:`, error);
-          
-          // Show error state in the grid
+          console.error(`[New Releases] ❌ Failed after ${Date.now() - startTime}ms:`, error);
           const gridContainer = document.getElementById('newReleasesGrid');
           if (gridContainer) {
             gridContainer.innerHTML = `
@@ -5268,12 +5064,11 @@ titleEl.style.color = 'transparent';
                 <div style="font-size:2.5rem;margin-bottom:16px;">⚠️</div>
                 <div style="font-size:1.1rem;margin-bottom:8px;">Failed to load New Releases</div>
                 <div style="font-size:0.85rem;opacity:0.7;margin-bottom:20px;">${error.message}</div>
-                <button onclick="window.lazyLoader.reloadSection('newReleasesGrid')" 
+                <button onclick="window.lazyLoader.reloadSection('newReleasesGrid')"
                         style="padding:10px 24px;background:var(--btn-primary);color:#fff;border:none;border-radius:var(--radius-md);cursor:pointer;font-size:0.9rem;">
                   <i class="fas fa-redo" style="margin-right:8px;"></i>Try Again
                 </button>
-              </div>
-            `;
+              </div>`;
           }
         }
       }
@@ -5692,20 +5487,20 @@ titleEl.style.color = 'transparent';
         nrHiddenSkeletonRow('nrHiddenRow3');
 
         try {
-          console.log('[Hidden] Row 1/3: South Korea + Japan...');
-          const row1 = await nrFetchHiddenRow(['KR', 'JP'], 20);
+          console.log('[Hidden] Row 1/3: KR + ID + TW...');
+          const row1 = await nrFetchHiddenRow(['KR', 'ID', 'TW'], 20);
           nrRenderHiddenRow('nrHiddenRow1', row1);
 
           await nrHiddenSleep(400);
 
-          console.log('[Hidden] Row 2/3: Pakistan + India...');
-          const row2 = await nrFetchHiddenRow(['PK', 'IN'], 20);
+          console.log('[Hidden] Row 2/3: PK + IN + PH...');
+          const row2 = await nrFetchHiddenRow(['PK', 'IN', 'PH'], 20);
           nrRenderHiddenRow('nrHiddenRow2', row2);
 
           await nrHiddenSleep(400);
 
-          console.log('[Hidden] Row 3/3: Turkey...');
-          const row3 = await nrFetchHiddenRow(['TR'], 20);
+          console.log('[Hidden] Row 3/3: TR + CL + TW...');
+          const row3 = await nrFetchHiddenRow(['TR', 'CL', 'TW'], 20);
           nrRenderHiddenRow('nrHiddenRow3', row3);
 
           const totalCount = row1.length + row2.length + row3.length;
@@ -5946,42 +5741,33 @@ titleEl.style.color = 'transparent';
       }
 
       async function loadUpcoming() {
-
-        // DB (Neon upcoming_shows) first — falls back to the live queue-managed
-        // TMDB/AniList fetchers below only for whichever piece the DB doesn't
-        // have data for.
+        // PRIMARY: /api/upcoming-shows only.
+        // For TMDB movies + TV: apply DYNAMIC date filter so only items
+        // whose release/premiere date is in the current year AND in the
+        // current-or-future month are kept (pure upcoming TMDB content).
         const dbUp = await window.getHomeData('upcoming_shows');
-        const dbUpMovies = dbUp?.tmdbMovie;
-        const dbUpTv = dbUp?.tmdbTV;
-        const dbUpAnime = dbUp?.Anime;
+        const dbUpMovies = Array.isArray(dbUp?.tmdbMovie) ? dbUp.tmdbMovie : [];
+        const dbUpTv     = Array.isArray(dbUp?.tmdbTV)    ? dbUp.tmdbTV    : [];
+        const dbUpAnime  = Array.isArray(dbUp?.Anime)     ? dbUp.Anime     : [];
 
-        let moviesRaw, tvRaw, anilistUpcomingAnime;
+        // Dynamic date filter: current year + current/future month
+        const _now = new Date();
+        const _curYear = _now.getFullYear();
+        const _curMonth = _now.getMonth() + 1; // 1-12
+        const isUpcomingTmdb = (dateStr) => {
+          if (!dateStr || dateStr.length < 7) return false;
+          const y = parseInt(dateStr.slice(0, 4), 10);
+          const m = parseInt(dateStr.slice(5, 7), 10);
+          if (isNaN(y) || isNaN(m)) return false;
+          // Same year, current or future month; OR any future year
+          if (y === _curYear) return m >= _curMonth;
+          return y > _curYear;
+        };
 
-        if (Array.isArray(dbUpMovies) && dbUpMovies.length && Array.isArray(dbUpTv) && dbUpTv.length && Array.isArray(dbUpAnime) && dbUpAnime.length) {
-          console.log(`[Upcoming] Using Neon DB (${dbUpAnime.length} anime, ${dbUpTv.length} TV, ${dbUpMovies.length} movies)...`);
-          moviesRaw = dbUpMovies;
-          tvRaw = dbUpTv;
-          anilistUpcomingAnime = dbUpAnime;
-        } else {
-          console.log('[Upcoming] DB incomplete, starting queue-managed fetch: movies + TV + anime, each sequential/rate-limited, stopping once 50 collected...');
-          const todayDebug = new Date();
-          console.log(`[Upcoming] Today's date: ${todayDebug.toISOString().split('T')[0]}`);
-
-          [moviesRaw, tvRaw, anilistUpcomingAnime] = await Promise.all([
-            // MOVIES: paginated sequentially, stops once 50 genuinely-upcoming results found
-            (Array.isArray(dbUpMovies) && dbUpMovies.length) ? Promise.resolve(dbUpMovies) : fetchUpcomingMoviesTMDB(50),
-            // TV: paginated sequentially via /discover/tv (first_air_date.gte=today), stops once 50 found
-            (Array.isArray(dbUpTv) && dbUpTv.length) ? Promise.resolve(dbUpTv) : fetchUpcomingTVTMDB(50),
-            // AniList: Upcoming JAPANESE TV/TV_SHORT anime only — paginated, rate-limited,
-            // stops as soon as 50 valid results are collected (see fetchUpcomingAnimeAniList above)
-            (Array.isArray(dbUpAnime) && dbUpAnime.length) ? Promise.resolve(dbUpAnime) : fetchUpcomingAnimeAniList(50)
-          ]);
-        }
-        
-        const allTmdbMovies = moviesRaw;
-        const allTmdbTV = tvRaw;
-        
-        console.log(`[Upcoming] Raw fetch complete: ${allTmdbMovies.length} movies, ${allTmdbTV.length} TV shows`);
+        const allTmdbMovies = dbUpMovies.filter(i => isUpcomingTmdb(i.release_date));
+        const allTmdbTV     = dbUpTv.filter(i => isUpcomingTmdb(i.first_air_date));
+        const anilistUpcomingAnime = dbUpAnime;
+        console.log(`[Upcoming] Endpoint + dynamic year/month filter: ${allTmdbMovies.length} movies, ${allTmdbTV.length} TV, ${anilistUpcomingAnime.length} anime`);
         
         // Convert AniList upcoming anime (already filtered to JP TV/TV_SHORT, up to 50)
         const anilistUpAnime = [];
@@ -6058,11 +5844,18 @@ titleEl.style.color = 'transparent';
         
         console.log(`[Upcoming Filter] ✅ RESULTS: ${tmdbMovieShows.length} movies + ${tmdbTVShows.length} TV + ${anilistFiltered.length} anime`);
         
-        upcomingShows = dedupById([
-          ...anilistFiltered.slice(0, 50),  // Anime FIRST — JP TV/TV_SHORT, guaranteed up to 50, never truncated by the movie/TV slice below
+        // Cross-source dedup (anime + TV + movies by id, plus title-based safety net)
+        const _seenUpcoming = new Set();
+        const _dedupedUpcoming = [
+          ...anilistFiltered.slice(0, 50),
           ...tmdbMovieShows,
           ...tmdbTVShows
-        ], 'id').slice(0, 150);  // 50 anime + 50 movies + 50 TV = 150, so nothing gets cut off
+        ].filter(s => {
+          if (!s.id || _seenUpcoming.has(s.id)) return false;
+          _seenUpcoming.add(s.id);
+          return true;
+        });
+        upcomingShows = _dedupedUpcoming.slice(0, 150);
         renderUpcoming();
         
         // ✅ CACHE: Write to professional cache system
@@ -6183,43 +5976,59 @@ titleEl.style.color = 'transparent';
         const movieFetches = Array.from({length: tmdbPagesNeeded}, (_, i) =>
           fetchTMDB('/discover/movie', `sort_by=release_date.desc&with_release_type=2|3&release_date.gte=${sixMonthsAgo}&release_date.lte=${today}&page=${page+i}`));
 
-        // DB (Neon recently_completed) only has enough data for page 1 —
-        // pages 2+ keep using the live AniList/TMDB calls below unchanged.
-        const _dbRC = page === 1 ? await window.getHomeData('recently_completed') : null;
+        // DB (Neon recently_completed) covers BOTH page 1 and page 2 — the
+        // endpoint returns enough anime+TV+movies to distribute equally across
+        // two pages of the grid. Page 3+ uses a server-side cache endpoint
+        // (/api/recently-completed-cache/<page>) that fetches from live
+        // TMDB/AniList on cache miss and stores the result for 12h, shared
+        // globally across all users — no per-user localStorage.
+        const _dbRC = (page === 1 || page === 2) ? await window.getHomeData('recently_completed') : null;
         const dbRCTv = _dbRC?.tmdbTV;
         const dbRCMovies = _dbRC?.tmdbMovie;
         const dbRCAnime = _dbRC?.Anime;
-        const rcHasDb = Array.isArray(dbRCAnime) && dbRCAnime.length > 0;
+        const rcHasDb = Array.isArray(dbRCAnime) && dbRCAnime.length > 0
+          && Array.isArray(dbRCTv) && dbRCTv.length > 0
+          && Array.isArray(dbRCMovies) && dbRCMovies.length > 0;
+
+        // For pages 3+, try the server-side cache endpoint first. On success
+        // we get a pre-shaped { tv: [...], movie: [...], anime: [...] } JSON
+        // object that drops straight into the same downstream pipeline.
+        let rcServerCache = null;
+        if (!rcHasDb && page >= 3) {
+          try {
+            const res = await fetch(`/api/recently-completed-cache/${page}`, { cache: 'no-store' });
+            if (res.ok) {
+              const json = await res.json();
+              if (json && (json.tv?.length || json.movie?.length || json.anime?.length)) {
+                rcServerCache = json;
+                console.log(`[Completed] 📦 server-side cache hit for page ${page}: ${json.anime?.length||0} anime, ${json.tv?.length||0} TV, ${json.movie?.length||0} movies`);
+              }
+            }
+          } catch (e) {
+            console.warn(`[Completed] server cache fetch failed for page ${page}:`, e.message);
+          }
+        }
+        const rcUseServerCache = !!rcServerCache;
 
         // Use Promise.allSettled so Anilist failure doesn't kill TV/Movie data!
         const [tvResult, movieResult, anilistResult] = await Promise.allSettled([
-          rcHasDb ? Promise.resolve([{ results: dbRCTv || [] }]) : Promise.all(tvFetches),
-          rcHasDb ? Promise.resolve([{ results: dbRCMovies || [] }]) : Promise.all(movieFetches),
-          // AniList: Pure recently completed TV ANIME only!
-          // FIXED: Now fetches actual TV/TV_SHORT anime that recently finished,
-          // not music videos, specials, or random ONAs.
-          // DYNAMIC YEAR: Automatically uses current/recent season year
-          // SORT: END_DATE_DESC = newest completions first (page 1 = most recent)
-          // Uses QUEUED fetch with automatic retry on timeout!
-          rcHasDb ? Promise.resolve({ Page: { media: dbRCAnime } }) : (async () => {
-            // NOTE: intentionally no seasonYear filter here. sort:END_DATE_DESC
-            // + status:FINISHED already returns most-recently-finished-first in
-            // true chronological order across all years, so page 1 is always
-            // the newest completions regardless. Adding seasonYear used to
-            // additionally confine the WHOLE query to one calendar year — a
-            // year only has so many finished TV anime, so by page 2-3 that
-            // narrow pool was exhausted and later pages came back thin/empty
-            // even though plenty of older-but-still-recent anime existed.
-            
-            // Build query for recently completed TV anime
+          rcHasDb ? Promise.resolve([{ results: dbRCTv }])
+            : rcUseServerCache ? Promise.resolve([{ results: rcServerCache.tv }])
+            : Promise.all(tvFetches),
+          rcHasDb ? Promise.resolve([{ results: dbRCMovies }])
+            : rcUseServerCache ? Promise.resolve([{ results: rcServerCache.movie }])
+            : Promise.all(movieFetches),
+          rcHasDb ? Promise.resolve({ Page: { media: dbRCAnime } })
+            : rcUseServerCache ? Promise.resolve({ Page: { media: rcServerCache.anime } })
+            : (async () => {
             const completedQuery = `
               query ($page: Int, $perPage: Int) {
                 Page(page: $page, perPage: $perPage) {
                   media(
-                    type: ANIME, 
-                    status: FINISHED, 
+                    type: ANIME,
+                    status: FINISHED,
                     format_in: [TV, TV_SHORT],
-                    isAdult: false, 
+                    isAdult: false,
                     sort: [END_DATE_DESC]
                   ) {
                     ${ANILIST_ANIME_FIELDS}
@@ -6227,10 +6036,7 @@ titleEl.style.color = 'transparent';
                 }
               }
             `;
-            
             const completedVars = { page: page, perPage: 100 };
-            
-            // Use QUEUED fetch with retry logic (fixes CORS/timeout issues!)
             return await queuedFetchAniList(completedQuery, completedVars);
           })()
         ]);
@@ -6339,17 +6145,43 @@ titleEl.style.color = 'transparent';
           a.poster && a.poster !== '' && a.poster !== 'null' && a.poster !== 'undefined'
         );
 
+        // ── Equal distribution of anime / TV / movies across pages 1 and 2 ──
+        // When using the DB endpoint (rcHasDb), split the combined pool so
+        // page 1 gets the FIRST half and page 2 gets the SECOND half. This
+        // spreads anime+TV+movies evenly across both pages instead of page 1
+        // holding everything and page 2 being nearly empty. Page 3+ keeps
+        // using the live API calls (which paginate naturally).
+        let poolAnime = anilistItemsFiltered;
+        let poolTv = tmdbTvItems;
+        let poolMovie = tmdbMovieItems;
+        if (rcHasDb && (page === 1 || page === 2)) {
+          const half = (arr) => {
+            if (arr.length <= TARGET_SHOWS) return arr;
+            const mid = Math.floor(arr.length / 2);
+            return page === 1 ? arr.slice(0, mid) : arr.slice(mid);
+          };
+          poolAnime = half(poolAnime);
+          poolTv = half(poolTv);
+          poolMovie = half(poolMovie);
+        }
         // Interleave in [Anime][TV][Movie] ratio, repeating.
         const interleaved = [];
-        const maxLen = Math.max(anilistItemsFiltered.length, tmdbTvItems.length, tmdbMovieItems.length);
+        const maxLen = Math.max(poolAnime.length, poolTv.length, poolMovie.length);
         for (let i = 0; i < maxLen; i++) {
-          if (i < anilistItemsFiltered.length) interleaved.push(anilistItemsFiltered[i]);
-          if (i < tmdbTvItems.length)          interleaved.push(tmdbTvItems[i]);
-          if (i < tmdbMovieItems.length)        interleaved.push(tmdbMovieItems[i]);
+          if (i < poolAnime.length) interleaved.push(poolAnime[i]);
+          if (i < poolTv.length)    interleaved.push(poolTv[i]);
+          if (i < poolMovie.length) interleaved.push(poolMovie[i]);
         }
-        // Trim to exactly 6 complete rows (no incomplete last row!)
-        const trimTo = Math.min(Math.floor(interleaved.length/cols)*cols, TARGET_SHOWS);
-        const list = interleaved.slice(0, trimTo || TARGET_SHOWS);
+        // Cross-source dedup by id (anime + TV + movies)
+        const _seenRC = new Set();
+        const dedupedInterleaved = interleaved.filter(s => {
+          if (!s.id || _seenRC.has(s.id)) return false;
+          _seenRC.add(s.id);
+          return true;
+        });
+        // Trim to exactly TARGET_ROWS complete rows (no incomplete last row!)
+        const trimTo = Math.min(Math.floor(dedupedInterleaved.length/cols)*cols, TARGET_SHOWS);
+        const list = dedupedInterleaved.slice(0, trimTo || TARGET_SHOWS);
         document.getElementById('completedGrid').innerHTML = list.map(s => renderCompletedCard(s)).join('');
         renderPagination(page, false);
       }
@@ -6419,11 +6251,33 @@ titleEl.style.color = 'transparent';
         </div>`;
       }
       function renderShowCard(s) {
+        // Trending-only card with expanded inline metadata.
+        // Format: ★score · Type · format? · 🔥popularity  (single line, side-by-side)
+        // - Anime: format = TV/Movie/OVA/ONA/Special
+        // - TMDB TV: format = 'TV-Series'
+        // - TMDB Movie: NO format field (skipped entirely)
+        // - Popularity uses a fire icon instead of the abbreviated 'Pop' text.
+        // Falls back to the simple "★score · type" line when no extra fields.
+        const starHtml = '<i class="fas fa-star" style="color:var(--accent-gold)"></i>';
+        const fireHtml = '<i class="fas fa-fire" style="color:#f97316"></i>';
+        const scoreStr = (s.score !== undefined && s.score !== null && s.score !== '')
+          ? String(s.score) : 'N/A';
+        const parts = [`${starHtml} ${scoreStr}`, s.type || ''];
+        // format field: anime (TV/Movie/OVA/...) or TMDB TV ('TV-Series').
+        // TMDB movies intentionally have NO format field — skip it.
+        if (s.type === 'Anime' && s.format) parts.push(s.format);
+        else if (s.type === 'TV' && s.format) parts.push(s.format);
+        // Popularity (anime + TMDB) — show as fire icon + rounded number
+        if (s.popularity) {
+          const popNum = Math.round(Number(s.popularity) || 0);
+          if (popNum > 0) parts.push(`${fireHtml} ${popNum}`);
+        }
+        const metaLine = parts.filter(Boolean).join(' · ');
         return `<div class="sidebar-list-item" style="position:relative;">
           <a href="${infoUrl(s)}" class="sidebar-list-item" style="position:static;" onmouseenter="showPopup(event,'${s.id}')" onmouseleave="_onCardLeave()">
             <span class="sidebar-rank">${s.rank||''}</span>
             <img class="sidebar-poster" src="${s.poster}" onerror="this.style.display='none'">
-            <div class="sidebar-info"><h4>${s.title}</h4><div class="side-meta"><i class="fas fa-star"></i> ${s.score} · ${s.type}</div></div>
+            <div class="sidebar-info"><h4>${s.title}</h4><div class="side-meta">${metaLine}</div></div>
           </a>
           ${generateCardButtons(s, { compact: true, showBookmark: false, showDetails: false })}
         </div>`;
@@ -6441,72 +6295,158 @@ titleEl.style.color = 'transparent';
           if (el) el.innerHTML = trendingData.map(s => renderShowCard(s)).join('');
           return;
         }
-        
-        // Using TMDB + AniList (replacing Jikan)
-        let tmdb, anilistTrend;
 
-        // DB (Neon trending_now) only covers the default "today" period —
-        // week/month keep their existing live TMDB/AniList calls.
-        const dbTN = period === 'today' ? await window.getHomeData('trending_now') : null;
-        const dbTNHasData = Array.isArray(dbTN?.Anime) && dbTN.Anime.length > 0;
-
-        if (dbTNHasData) {
-          // Reconstruct the same shape /trending/all/day returns (mixed
-          // movie+TV list tagged with media_type) from the two DB arrays.
-          const dbMovies = (dbTN.tmdbMovie || []).map(m => ({ ...m, media_type: 'movie' }));
-          const dbTv = (dbTN.tmdbTV || []).map(t => ({ ...t, media_type: 'tv' }));
-          tmdb = { results: [...dbMovies, ...dbTv] };
-          anilistTrend = { Page: { media: dbTN.Anime } };
+        // DAILY: /api/trending-now endpoint (mixed anime+TV+movies pool)
+        // WEEK / MONTH: server-side cached live TMDB/AniList calls at
+        //   /api/trending-cache/<period> (12h TTL, shared across all users
+        //   globally — no per-user localStorage).
+        if (period === 'today') {
+          await _loadTrendingDaily();
+        } else {
+          await _loadTrendingFromServerCache(period);
         }
-        else if(period==='today') { 
-          tmdb=await fetchTMDB('/trending/all/day'); 
-          anilistTrend=await fetchAniList(`query { Page(page:1, perPage:10) { media(type:ANIME, status:RELEASING, isAdult:false, sort:TRENDING_DESC) { ${ANILIST_ANIME_FIELDS} } } }`); 
-        }
-        else if(period==='week') { 
-          tmdb=await fetchTMDB('/trending/all/week'); 
-          anilistTrend=await fetchAniList(`query { Page(page:1, perPage:10) { media(type:ANIME, isAdult:false, sort:TRENDING_DESC) { ${ANILIST_ANIME_FIELDS} } } }`); 
-        }
-        else { 
-          const d=new Date();d.setDate(d.getDate()-30); 
-          tmdb=await fetchTMDB('/discover/movie',`primary_release_date.gte=${d.toISOString().split('T')[0]}&sort_by=popularity.desc`); 
-          anilistTrend=await fetchAniList(`query { Page(page:1, perPage:10) { media(type:ANIME, isAdult:false, sort:POPULARITY_DESC) { ${ANILIST_ANIME_FIELDS} } } }`); 
-        }
-        
-        // Convert AniList data
-        const anilistItems = [];
-        if (anilistTrend?.Page?.media) {
-          for (const m of anilistTrend.Page.media) {
-            if (!m.isAdult) {
-              const internal = anilistToInternal(m);
-              anilistItems.push({
-                id:`anilist-tr-${m.id}`,
-                mal_id: internal.mal_id,
-                title: internal.title,
-                poster: internal.poster,
-                type:'Anime',
-                score: internal.score,
-                genres: internal.genres,
-                synopsis: internal.description || '',
-                release_date: `${internal.year}` || ''
-              });
-            }
-          }
-        }
-        
-        trendingData = [
-          ...(tmdb.results||[]).slice(0,10).map(i => ({
-            id:`tmdb-tr-${i.id}`, tmdb_id: i.id, title:i.title||i.name, poster:tmdbImg(i.poster_path,'w185'),
-            type:i.media_type==='movie'?'Movie':'TV', score:(i.vote_average||0).toFixed(1),
-            genres:(i.genre_ids||[]).map(id=>GENRE_MAP[id]||id),
-            overview:i.overview||'',
-            release_date:i.release_date||i.first_air_date||'',
-            media_type:i.media_type
-          })),
-          ...anilistItems
-        ].sort((a,b)=>b.score-a.score).slice(0,20);
-        trendingData.forEach((item,i)=>item.rank=i+1);
+        _trendingCache[periodKey] = trendingData;
+        trendingData.forEach((item, i) => item.rank = i + 1);
         document.getElementById('trendingList').innerHTML = trendingData.map(s => renderShowCard(s)).join('');
-        // Merge all periods and save — 5h TTL
+      }
+
+      // ── Daily: pull from /api/trending-now, distribute 7/7/7 ──
+      async function _loadTrendingDaily() {
+        const dbTN = await window.getHomeData('trending_now');
+        const TRENDING_PER_TYPE = 7; // 7 anime + 7 TV + 7 movies = 21
+
+        // ── Anime ── (filter: averageScore + popularity + favourites)
+        const tnAnimeRaw = Array.isArray(dbTN?.Anime) ? dbTN.Anime : [];
+        const tnAnime = tnAnimeRaw
+          .filter(m => !m.isAdult)
+          .map(m => {
+            const internal = anilistToInternal(m);
+            return {
+              id: `anilist-tr-${m.id}`,
+              mal_id: internal.mal_id,
+              anilist_id: m.id,
+              title: internal.title,
+              poster: internal.poster,
+              type: 'Anime',
+              score: Number(internal.score) || 0,
+              averageScore: m.averageScore || 0,
+              meanScore: m.meanScore || 0,
+              popularity: m.popularity || 0,
+              favourites: m.favourites || 0,
+              format: m.format || 'TV',          // anime: TV / Movie / OVA / ONA / Special
+              season: m.season || null,          // anime only (SPRING/SUMMER/FALL/WINTER)
+              genres: internal.genres || [],
+              synopsis: internal.description || '',
+              release_date: `${internal.year}` || ''
+            };
+          })
+          .sort((a, b) => {
+            const sa = (a.averageScore || 0) + (a.popularity / 1000) + (a.favourites / 100);
+            const sb = (b.averageScore || 0) + (b.popularity / 1000) + (b.favourites / 100);
+            return sb - sa;
+          })
+          .slice(0, TRENDING_PER_TYPE);
+
+        // ── TMDB TV ──
+        // The /api/trending-now endpoint's `tmdbTV` array contains a MIX of
+        // movies and TV shows (differentiated by `media_type`). Split it so
+        // TV items go into the TV pool and movie items go into the Movie pool.
+        const tnTvRaw = Array.isArray(dbTN?.tmdbTV) ? dbTN.tmdbTV : [];
+        const tnMvRaw = Array.isArray(dbTN?.tmdbMovie) ? dbTN.tmdbMovie : [];
+        const realTvItems = tnTvRaw.filter(i => i.poster_path && (
+          i.media_type === 'tv' || (!i.media_type && (i.name || i.first_air_date))
+        ));
+        const strayMoviesFromTv = tnTvRaw.filter(i => i.poster_path && i.media_type === 'movie');
+
+        const tnTv = realTvItems
+          .map(i => ({
+            id: `tmdb-tr-tv-${i.id}`,
+            tmdb_id: i.id,
+            title: i.name || i.original_name || i.title || 'Unknown',
+            poster: tmdbImg(i.poster_path, 'w185'),
+            type: 'TV',
+            score: Number(i.vote_average) || 0,
+            averageScore: (Number(i.vote_average) || 0) * 10,
+            meanScore: 0,
+            popularity: i.popularity || 0,
+            favourites: i.vote_count || 0,
+            format: 'TV-Series',                 // TMDB TV: always "TV-Series"
+            season: null,
+            genres: (i.genre_ids || []).map(id => GENRE_MAP[id] || id),
+            overview: i.overview || '',
+            release_date: i.first_air_date || i.release_date || ''
+          }))
+          .sort((a, b) => {
+            const sa = (a.score || 0) + (a.popularity / 100) + (a.favourites / 1000);
+            const sb = (b.score || 0) + (b.popularity / 100) + (b.favourites / 1000);
+            return sb - sa;
+          })
+          .slice(0, TRENDING_PER_TYPE);
+
+        // ── TMDB Movies ── (combine tmdbMovie + stray movies from tmdbTV, deduped)
+        const _seenMvIds = new Set();
+        const allMovieItems = [...tnMvRaw, ...strayMoviesFromTv].filter(i => {
+          if (!i.poster_path) return false;
+          if (_seenMvIds.has(i.id)) return false;
+          _seenMvIds.add(i.id);
+          return true;
+        });
+        const tnMv = allMovieItems
+          .map(i => ({
+            id: `tmdb-tr-mv-${i.id}`,
+            tmdb_id: i.id,
+            title: i.title || i.original_title || i.name || 'Unknown',
+            poster: tmdbImg(i.poster_path, 'w185'),
+            type: 'Movie',
+            score: Number(i.vote_average) || 0,
+            averageScore: (Number(i.vote_average) || 0) * 10,
+            meanScore: 0,
+            popularity: i.popularity || 0,
+            favourites: i.vote_count || 0,
+            format: null,                        // TMDB movies: NO format field
+            season: null,
+            genres: (i.genre_ids || []).map(id => GENRE_MAP[id] || id),
+            overview: i.overview || '',
+            release_date: i.release_date || ''
+          }))
+          .sort((a, b) => {
+            const sa = (a.score || 0) + (a.popularity / 100) + (a.favourites / 1000);
+            const sb = (b.score || 0) + (b.popularity / 100) + (b.favourites / 1000);
+            return sb - sa;
+          })
+          .slice(0, TRENDING_PER_TYPE);
+
+        // Cross-source dedup by id (anime + TV + movies)
+        const _seenTr = new Set();
+        trendingData = [...tnAnime, ...tnTv, ...tnMv].filter(s => {
+          if (!s.id || _seenTr.has(s.id)) return false;
+          _seenTr.add(s.id);
+          return true;
+        });
+      }
+
+      // ── Week / Month: pull from server-side cache endpoint ──
+      // The serverless function at /api/trending-cache/<period> fetches
+      // TMDB /trending/all/<day|week> + AniList trending, normalizes to the
+      // same shape _loadTrendingDaily produces, and caches the JSON for
+      // 12 hours server-side. All users globally see the same cached data
+      // until the TTL expires — no per-user localStorage involved.
+      async function _loadTrendingFromServerCache(period) {
+        try {
+          const res = await fetch(`/api/trending-cache/${period}`, { cache: 'no-store' });
+          if (!res.ok) {
+            console.warn(`[Trending] /api/trending-cache/${period} returned ${res.status}`);
+            trendingData = [];
+            return;
+          }
+          const json = await res.json();
+          // The server returns a flat array of items already in the
+          // internal card shape (id/title/poster/type/score/format/...).
+          trendingData = Array.isArray(json?.items) ? json.items : [];
+        } catch (e) {
+          console.warn(`[Trending] server cache fetch failed for ${period}:`, e.message);
+          trendingData = [];
+        }
       }
       document.getElementById('trendingTabs').addEventListener('click', e => {
         if(e.target.classList.contains('toggle-tab')) {
@@ -6523,106 +6463,106 @@ titleEl.style.color = 'transparent';
       /* ── POPULAR (sidebar) — Mix of TMDB + AniList popular ── */
       let popularData = [];
       async function loadPopular() {
-        
-        // DB (Neon most_favourite) first — falls back to live TMDB/AniList
-        // calls only if the DB doesn't have data for a given type yet.
+        // PRIMARY: /api/most-favourite — combined filter ranks by
+        // (score + meanScore + popularity + favourites) for anime and
+        // (vote_average + vote_count + popularity) for TMDB. Pick top 13
+        // mixed (anime + TV + movies) from the ranked pool.
         const dbMF = await window.getHomeData('most_favourite');
-        const dbMFHasAnime = Array.isArray(dbMF?.Anime) && dbMF.Anime.length > 0;
-        const dbMFHasMovies = Array.isArray(dbMF?.tmdbMovie) && dbMF.tmdbMovie.length > 0;
-        const dbMFHasTv = Array.isArray(dbMF?.tmdbTV) && dbMF.tmdbTV.length > 0;
 
-        const [tmdbMovies, tmdbTV, anilistPop] = await Promise.all([
-          dbMFHasMovies ? Promise.resolve({ results: dbMF.tmdbMovie }) : fetchTMDB('/discover/movie', 'sort_by=vote_count.desc&vote_count.gte=5000&language=en-US&page=1'),
-          dbMFHasTv ? Promise.resolve({ results: dbMF.tmdbTV }) : fetchTMDB('/discover/tv',    'sort_by=vote_count.desc&vote_count.gte=2000&language=en-US&page=1'),
-          // AniList: 8 most popular anime
-          dbMFHasAnime ? Promise.resolve({ Page: { media: dbMF.Anime } }) : fetchAniList(`
-            query ($perPage: Int) {
-              Page(page: 1, perPage: $perPage) {
-                media(type: ANIME, isAdult: false, sort: [POPULARITY_DESC]) {
-                  ${ANILIST_ANIME_FIELDS}
-                }
-              }
-            }
-          `, { perPage: 10 })
-        ]);
-        
-        const allMovies = tmdbMovies.results || [];
-        const allTV     = tmdbTV.results || [];
+        // ── Anime ── (filter: averageScore + meanScore + popularity + favourites)
+        const mfAnimeRaw = Array.isArray(dbMF?.Anime) ? dbMF.Anime : [];
+        const mfAnime = mfAnimeRaw
+          .filter(m => !m.isAdult)
+          .map(m => {
+            const internal = anilistToInternal(m);
+            const rankScore =
+              (m.averageScore || 0) +
+              (m.meanScore || 0) +
+              (m.popularity || 0) / 100 +
+              (m.favourites || 0) / 10;
+            return {
+              id: `anilist-pop-${m.id}`,
+              title: internal.title,
+              poster: internal.poster,
+              type: 'Anime',
+              score: internal.score,
+              year: String(internal.year),
+              certification: internal.rating,
+              duration: internal.duration,
+              genres: internal.genres,
+              synopsis: internal.description || 'No description available.',
+              studio: internal.studio,
+              mal_id: internal.mal_id,
+              anilist_id: m.id,
+              _rank: rankScore
+            };
+          })
+          .sort((a, b) => b._rank - a._rank);
 
-        // TMDB items (movies + TV)
-        const tmdbItems = [
-          ...allMovies.slice(0, 5).map(i => ({
-            id:`tmdb-pop-${i.id}`,
-            tmdb_id: i.id,
-            title: i.title||'Unknown',
-            poster: tmdbImg(i.poster_path, 'w185'),
-            type: 'Movie',
-            score: i.vote_average ? Number(i.vote_average).toFixed(1) : 'N/A',
-            year: (i.release_date||'').slice(0,4) || '—',
-            certification: 'PG-13',
-            duration: i.runtime ? `${i.runtime} min` : '—',
-            genres: (i.genre_ids||[]).map(id => GENRE_MAP[id]).filter(Boolean),
-            synopsis: i.overview || 'No description available.',
-            studio: '—',
-          })),
-          ...allTV.slice(0, 5).map(i => ({
-            id:`tmdb-tvpop-${i.id}`,
-            tmdb_id: i.id,
-            title: i.name||'Unknown',
-            poster: tmdbImg(i.poster_path, 'w185'),
-            type: 'TV',
-            score: i.vote_average ? Number(i.vote_average).toFixed(1) : 'N/A',
-            year: (i.first_air_date||'').slice(0,4) || '—',
-            certification: 'TV-14',
-            duration: '—',
-            genres: (i.genre_ids||[]).map(id => GENRE_MAP[id]).filter(Boolean),
-            synopsis: i.overview || 'No description available.',
-            studio: (i.networks||[])[0]?.name || '—',
-          }))
-        ];
-        
-        // AniList items (8 popular anime)
-        const anilistItems = [];
-        if (anilistPop?.Page?.media) {
-          for (const m of anilistPop.Page.media.slice(0, 8)) {
-            if (!m.isAdult) {
-              const internal = anilistToInternal(m);
-              anilistItems.push({
-                id: `anilist-pop-${m.id}`,
-                title: internal.title,
-                poster: internal.poster,
-                type: 'Anime',
-                score: internal.score,
-                year: String(internal.year),
-                certification: internal.rating,
-                duration: internal.duration,
-                genres: internal.genres,
-                synopsis: internal.description || 'No description available.',
-                studio: internal.studio,
-                mal_id: internal.mal_id,
-                anilist_id: m.id,
-              });
-            }
-          }
-        }
+        // ── TMDB TV ── (filter: vote_average + vote_count + popularity)
+        const mfTvRaw = Array.isArray(dbMF?.tmdbTV) ? dbMF.tmdbTV : [];
+        const mfTv = mfTvRaw
+          .filter(i => i.poster_path)
+          .map(i => {
+            const rankScore =
+              (Number(i.vote_average) || 0) * 10 +
+              (Number(i.vote_count) || 0) / 100 +
+              (Number(i.popularity) || 0) / 10;
+            return {
+              id: `tmdb-tvpop-${i.id}`,
+              tmdb_id: i.id,
+              title: i.name || 'Unknown',
+              poster: tmdbImg(i.poster_path, 'w185'),
+              type: 'TV',
+              score: i.vote_average ? Number(i.vote_average).toFixed(1) : 'N/A',
+              year: (i.first_air_date || '').slice(0, 4) || '—',
+              certification: 'TV-14',
+              duration: '—',
+              genres: (i.genre_ids || []).map(id => GENRE_MAP[id]).filter(Boolean),
+              synopsis: i.overview || 'No description available.',
+              studio: (i.networks || [])?.[0]?.name || '—',
+              _rank: rankScore
+            };
+          })
+          .sort((a, b) => b._rank - a._rank);
 
-        // Interleave: Anime first, then TMDB, alternating
-        // Pattern: Anime, TMDB Movie, Anime, TMDB TV, repeat...
+        // ── TMDB Movies ── (filter: vote_average + vote_count + popularity)
+        const mfMvRaw = Array.isArray(dbMF?.tmdbMovie) ? dbMF.tmdbMovie : [];
+        const mfMv = mfMvRaw
+          .filter(i => i.poster_path)
+          .map(i => {
+            const rankScore =
+              (Number(i.vote_average) || 0) * 10 +
+              (Number(i.vote_count) || 0) / 100 +
+              (Number(i.popularity) || 0) / 10;
+            return {
+              id: `tmdb-pop-${i.id}`,
+              tmdb_id: i.id,
+              title: i.title || 'Unknown',
+              poster: tmdbImg(i.poster_path, 'w185'),
+              type: 'Movie',
+              score: i.vote_average ? Number(i.vote_average).toFixed(1) : 'N/A',
+              year: (i.release_date || '').slice(0, 4) || '—',
+              certification: i.adult ? '18+' : 'PG-13',
+              duration: i.runtime ? `${i.runtime} min` : '—',
+              genres: (i.genre_ids || []).map(id => GENRE_MAP[id]).filter(Boolean),
+              synopsis: i.overview || 'No description available.',
+              studio: '—',
+              _rank: rankScore
+            };
+          })
+          .sort((a, b) => b._rank - a._rank);
+
+        // ── Interleave: Anime, TV, Movie, Anime, TV, Movie… until 13 ──
         const merged = [];
-        let tmdbIdx = 0, anilistIdx = 0;
-        
-        while ((tmdbIdx < tmdbItems.length || anilistIdx < anilistItems.length) && merged.length < 13) {
-          // Start with Anime on odd positions
-          if (anilistIdx < anilistItems.length && (merged.length % 2 === 0)) {
-            merged.push(anilistItems[anilistIdx++]);
-          } else if (tmdbIdx < tmdbItems.length) {
-            merged.push(tmdbItems[tmdbIdx++]);
-          } else if (anilistIdx < anilistItems.length) {
-            // If TMDB exhausted, add remaining anime
-            merged.push(anilistItems[anilistIdx++]);
-          }
+        const maxLen = Math.max(mfAnime.length, mfTv.length, mfMv.length);
+        for (let i = 0; i < maxLen && merged.length < 13; i++) {
+          if (i < mfAnime.length && merged.length < 13) merged.push(mfAnime[i]);
+          if (i < mfTv.length && merged.length < 13)    merged.push(mfTv[i]);
+          if (i < mfMv.length && merged.length < 13)    merged.push(mfMv[i]);
         }
-        
+
+        // Cross-source dedup by id (anime + TV + movies)
         const data = dedupById(merged, 'id').slice(0, 13);
         data.forEach((item, i) => item.rank = i + 1);
         popularData = data;
@@ -6922,7 +6862,7 @@ titleEl.style.color = 'transparent';
        `;
      };
 
-     // Anikoto-style popup handler (for New on Rowana section)
+     // Anikoto-style popup handler (for New on Ruri section)
      window.showAnikotoPopupById = function(mal_id, e) {
        const anime = window.anioceanData[mal_id];
        if (!anime) return;
@@ -6988,18 +6928,23 @@ titleEl.style.color = 'transparent';
       /* ── POPULAR ANIME (Miruro-style list, sorted by score+popularity+rank) ── */
       async function loadPopularAnime() {
         try {
-
-          // DB (Neon popular_anime) is already the pre-scored/sorted top-28
-          // list — use it directly and skip the two live AniList calls +
-          // scoring pass entirely. Falls back to the original live fetch
-          // when the DB doesn't have it yet.
+          // PRIMARY: /api/popular-anime — pre-scored/sorted top-28 list.
+          // No filtering or cut-out: show ALL anime returned by the endpoint.
           const dbPopular = (await window.getHomeData('popular_anime'))?.data;
           let top28;
 
           if (Array.isArray(dbPopular) && dbPopular.length > 0) {
-            top28 = dbPopular.slice(0, 28);
+            // Cross-source dedup by AniList id (safety net — endpoint data
+            // is already unique, but this guards against any sync duplicates).
+            const _seen = new Set();
+            top28 = dbPopular.filter(m => {
+              const k = m.id || m.idMal;
+              if (!k || _seen.has(k)) return false;
+              _seen.add(k);
+              return true;
+            }).slice(0, 28);
           } else {
-            // Fetch popular anime using AniList (replacing Jikan!)
+            // FALLBACK: live AniList (only when endpoint is completely unavailable)
             const [anilistPop, anilistTop] = await Promise.all([
               fetchAniList(`
                 query ($perPage: Int) {
@@ -7021,7 +6966,6 @@ titleEl.style.color = 'transparent';
               `, { perPage: 25 })
             ]);
 
-            // Merge and deduplicate
             const allMedia = [
               ...(anilistPop?.Page?.media || []),
               ...(anilistTop?.Page?.media || [])
@@ -7034,7 +6978,6 @@ titleEl.style.color = 'transparent';
               return true;
             });
 
-            // Score each anime: weighted combo of AniList score + popularity + trending
             const scored = unique.map(m => {
               const avgScore    = m.averageScore || 0;
               const popBonus    = m.popularity ? Math.min(100000 / m.popularity, 10) : 0;
@@ -7167,7 +7110,7 @@ titleEl.style.color = 'transparent';
           </div>`).join('');
       }
 
-      // Skeleton for "New on Rowana" section — matches aniocean-card style EXACTLY
+      // Skeleton for "New on Ruri" section — matches aniocean-card style EXACTLY
       // Uses SAME grid layout (40 columns × 165px, gap:12px) as real data
       function generateAnioceanSkeleton(count=24) {
         const container = document.getElementById('newAnioceanGrid');
@@ -7215,7 +7158,7 @@ titleEl.style.color = 'transparent';
           </a>
         `).join('');
         
-        console.log(`[New on Rowana] 💀 Showing ${count} skeleton cards in grid layout while loading...`);
+        console.log(`[New on Ruri] 💀 Showing ${count} skeleton cards in grid layout while loading...`);
       }
 
       /* ════════════════════════════════════════════════════════════
@@ -7283,7 +7226,16 @@ titleEl.style.color = 'transparent';
         DAYS.forEach((day, idx) => {
           const r = dbResults[idx];
           const arr = r.status === 'fulfilled' ? r.value?.data : null;
-          if (Array.isArray(arr) && arr.length > 0) dbByDay[day] = arr;
+          if (Array.isArray(arr) && arr.length > 0) {
+            // Cross-source dedup by mal_id (safety net for sync duplicates)
+            const _seen = new Set();
+            dbByDay[day] = arr.filter(a => {
+              const k = a.mal_id || a.id;
+              if (!k || _seen.has(k)) return false;
+              _seen.add(k);
+              return true;
+            });
+          }
         });
 
         const missingDays = DAYS.filter(day => !dbByDay[day]);
@@ -7299,7 +7251,15 @@ titleEl.style.color = 'transparent';
             data[day] = dbByDay[day];
           } else {
             const result = jikanResults[missingIdx++];
-            data[day] = result && result.status === 'fulfilled' ? result.value : [];
+            // Also dedup Jikan fallback results
+            const raw = result && result.status === 'fulfilled' ? result.value : [];
+            const _seen = new Set();
+            data[day] = raw.filter(a => {
+              const k = a.mal_id || a.id;
+              if (!k || _seen.has(k)) return false;
+              _seen.add(k);
+              return true;
+            });
           }
         });
         
