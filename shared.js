@@ -10,7 +10,7 @@
   const supabase          = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   // ── Neon (AniUmi-Neon) homepage data ──────────────────────────────────
-  // Backs hero slider / top airing / new releases / new on Rowana /
+  // Backs hero slider / top airing / new releases / new on Ruri /
   // upcoming shows / recently completed / trending / most favourite /
   // popular anime / hidden tab / anime schedule on the homepage.
   //
