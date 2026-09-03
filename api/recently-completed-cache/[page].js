@@ -56,7 +56,14 @@ async function fetchTMDBDiscover(endpoint, params) {
   }
 }
 
-async function fetchAnilistCompleted(page) {
+async function fetchAnilistCompleted(gridPage) {
+  // AniList caps this query at 50 results per request (perPage=100 still
+  // returns only 50), and 50 anime + 20 TV + 20 movies is not enough to fill
+  // 10 complete grid rows (~70 items) after poster/MAL filtering. So each
+  // grid page fetches TWO AniList pages with a unique mapping so adjacent
+  // grid pages never duplicate shows:
+  //   grid page N → AniList pages (2N-3, 2N-2)
+  //     grid 3 → 3,4   grid 4 → 5,6  ...  grid 10 → 17,18
   const query = `
     query ($page: Int, $perPage: Int) {
       Page(page: $page, perPage: $perPage) {
@@ -72,17 +79,24 @@ async function fetchAnilistCompleted(page) {
       }
     }
   `;
-  try {
-    const res = await fetch('https://graphql.anilist.co', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ query, variables: { page, perPage: 100 } })
-    });
-    if (!res.ok) return { Page: { media: [] } };
-    return await res.json();
-  } catch (e) {
-    return { Page: { media: [] } };
-  }
+  const anilistPages = [gridPage * 2 - 3, gridPage * 2 - 2];
+  const settled = await Promise.all(anilistPages.map(async (p) => {
+    try {
+      const res = await fetch('https://graphql.anilist.co', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ query, variables: { page: p, perPage: 50 } }),
+        signal: AbortSignal.timeout(10000)
+      });
+      if (!res.ok) return [];
+      const json = await res.json();
+      return json?.data?.Page?.media || [];
+    } catch (e) {
+      return [];
+    }
+  }));
+  // Flatten in page order (newest first) — unique per grid page, no overlap.
+  return settled.flat();
 }
 
 async function buildPayload(pageStr) {
@@ -96,7 +110,7 @@ async function buildPayload(pageStr) {
   const sixMonthsAgo = new Date(Date.now() - 6 * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
   // Fetch TV + Movies + Anime in parallel
-  const [tvData, movieData, anilistData] = await Promise.all([
+  const [tvData, movieData, anilistAnime] = await Promise.all([
     fetchTMDBDiscover('/discover/tv',
       `sort_by=first_air_date.desc&with_status=ended&first_air_date.gte=${sixMonthsAgo}&first_air_date.lte=${today}&page=${page}&language=en-US`),
     fetchTMDBDiscover('/discover/movie',
@@ -107,7 +121,7 @@ async function buildPayload(pageStr) {
   return {
     tv: tvData?.results || [],
     movie: movieData?.results || [],
-    anime: anilistData?.data?.Page?.media || anilistData?.Page?.media || [],
+    anime: anilistAnime,
     cachedAt: new Date().toISOString(),
     expiresAt: new Date(Date.now() + TTL_MS).toISOString(),
     source: 'live-tmdb-anilist',
