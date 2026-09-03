@@ -56,6 +56,22 @@ async function fetchTMDBDiscover(endpoint, params) {
   }
 }
 
+async function fetchAnilistPage(query, page) {
+  try {
+    const res = await fetch('https://graphql.anilist.co', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ query, variables: { page, perPage: 50 } }),
+      signal: AbortSignal.timeout(10000)
+    });
+    if (!res.ok) return [];
+    const json = await res.json();
+    return json?.data?.Page?.media || [];
+  } catch (e) {
+    return [];
+  }
+}
+
 async function fetchAnilistCompleted(gridPage) {
   // AniList caps this query at 50 results per request (perPage=100 still
   // returns only 50), and 50 anime + 20 TV + 20 movies is not enough to fill
@@ -81,19 +97,14 @@ async function fetchAnilistCompleted(gridPage) {
   `;
   const anilistPages = [gridPage * 2 - 3, gridPage * 2 - 2];
   const settled = await Promise.all(anilistPages.map(async (p) => {
-    try {
-      const res = await fetch('https://graphql.anilist.co', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ query, variables: { page: p, perPage: 50 } }),
-        signal: AbortSignal.timeout(10000)
-      });
-      if (!res.ok) return [];
-      const json = await res.json();
-      return json?.data?.Page?.media || [];
-    } catch (e) {
-      return [];
+    // One retry on fast failures (HTTP errors / refused connections) — a
+    // single AniList hiccup must not shrink this page's pool for 12 hours.
+    let media = await fetchAnilistPage(query, p);
+    if (!media.length) {
+      await new Promise(r => setTimeout(r, 600));
+      media = await fetchAnilistPage(query, p);
     }
+    return media;
   }));
   // Flatten in page order (newest first) — unique per grid page, no overlap.
   return settled.flat();
@@ -140,15 +151,18 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: `Invalid page '${page}'. Must be between 3 and 10.` });
   }
 
-  // Set 12h CDN cache + 12h stale-while-revalidate so the edge also serves
-  // cached responses globally without hitting the function.
-  res.setHeader('Cache-Control', `public, s-maxage=${TTL_SECONDS}, stale-while-revalidate=${TTL_SECONDS}`);
-  res.setHeader('Vercel-CDN-Cache-Control', `public, s-maxage=${TTL_SECONDS}`);
+  const setLongCacheHeaders = () => {
+    // 12h CDN cache + 12h stale-while-revalidate so the edge also serves
+    // cached responses globally without hitting the function.
+    res.setHeader('Cache-Control', `public, s-maxage=${TTL_SECONDS}, stale-while-revalidate=${TTL_SECONDS}`);
+    res.setHeader('Vercel-CDN-Cache-Control', `public, s-maxage=${TTL_SECONDS}`);
+  };
 
   // In-memory cache (per warm function instance)
   const now = Date.now();
   const hit = store.get(pageNum);
   if (hit && hit.expiresAt > now) {
+    setLongCacheHeaders();
     return res.status(200).json(hit.data);
   }
 
@@ -157,7 +171,19 @@ export default async function handler(req, res) {
     if (data.error) {
       return res.status(data.status).json({ error: data.error });
     }
-    store.set(pageNum, { data, expiresAt: now + TTL_MS });
+    // A full pool is 140 items (100 anime + 20 TV + 20 movies). A degraded
+    // pool (an upstream fetch failed even after retry) must NOT be pinned
+    // for 12h by the edge or the in-memory store — mark it no-store so the
+    // next request retries upstream. Below ~120 items the frontend can no
+    // longer guarantee 10 complete rows after its poster/MAL filtering.
+    const pool = (data.tv?.length || 0) + (data.movie?.length || 0) + (data.anime?.length || 0);
+    if (pool >= 120) {
+      setLongCacheHeaders();
+      store.set(pageNum, { data, expiresAt: now + TTL_MS });
+    } else {
+      res.setHeader('Cache-Control', 'no-store');
+      res.setHeader('Vercel-CDN-Cache-Control', 'no-store');
+    }
     return res.status(200).json(data);
   } catch (err) {
     return res.status(500).json({ error: 'Recently completed cache fetch failed', message: err.message });
