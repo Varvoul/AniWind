@@ -6289,13 +6289,27 @@ titleEl.style.color = 'transparent';
           .slice(0, TRENDING_PER_TYPE);
 
         // ── TMDB TV ──
+        // Note: the /api/trending-now endpoint's `tmdbTV` array actually contains
+        // a MIX of movies and TV shows (differentiated by `media_type`). We split
+        // it here so TV items go into the TV pool and movie items go into the
+        // Movie pool (combined with the dedicated tmdbMovie array).
         const tnTvRaw = Array.isArray(dbTN?.tmdbTV) ? dbTN.tmdbTV : [];
-        const tnTv = tnTvRaw
-          .filter(i => i.poster_path)
+        const tnMvRaw = Array.isArray(dbTN?.tmdbMovie) ? dbTN.tmdbMovie : [];
+
+        // Items from tmdbTV that are genuinely TV (media_type === 'tv' OR have
+        // a `name`/`first_air_date` field — anything without media_type is
+        // treated as TV since that's what the field name promises).
+        const realTvItems = tnTvRaw.filter(i => i.poster_path && (
+          i.media_type === 'tv' || (!i.media_type && (i.name || i.first_air_date))
+        ));
+        // Items from tmdbTV that are actually movies (media_type === 'movie')
+        const strayMoviesFromTv = tnTvRaw.filter(i => i.poster_path && i.media_type === 'movie');
+
+        const tnTv = realTvItems
           .map(i => ({
             id: `tmdb-tr-tv-${i.id}`,
             tmdb_id: i.id,
-            title: i.name || i.original_name || 'Unknown',
+            title: i.name || i.original_name || i.title || 'Unknown',
             poster: tmdbImg(i.poster_path, 'w185'),
             type: 'TV',
             score: Number(i.vote_average) || 0,
@@ -6308,7 +6322,7 @@ titleEl.style.color = 'transparent';
             season: null,                      // anime-only field
             genres: (i.genre_ids || []).map(id => GENRE_MAP[id] || id),
             overview: i.overview || '',
-            release_date: i.first_air_date || ''
+            release_date: i.first_air_date || i.release_date || ''
           }))
           .sort((a, b) => {
             const sa = (a.score || 0) + (a.popularity / 100) + (a.favourites / 1000);
@@ -6317,14 +6331,20 @@ titleEl.style.color = 'transparent';
           })
           .slice(0, TRENDING_PER_TYPE);
 
-        // ── TMDB Movies ──
-        const tnMvRaw = Array.isArray(dbTN?.tmdbMovie) ? dbTN.tmdbMovie : [];
-        const tnMv = tnMvRaw
-          .filter(i => i.poster_path)
+        // ── TMDB Movies ── (combine dedicated tmdbMovie array + movie items
+        // found inside tmdbTV into one pool, deduped by tmdb id)
+        const _seenMvIds = new Set();
+        const allMovieItems = [...tnMvRaw, ...strayMoviesFromTv].filter(i => {
+          if (!i.poster_path) return false;
+          if (_seenMvIds.has(i.id)) return false;
+          _seenMvIds.add(i.id);
+          return true;
+        });
+        const tnMv = allMovieItems
           .map(i => ({
             id: `tmdb-tr-mv-${i.id}`,
             tmdb_id: i.id,
-            title: i.title || i.original_title || 'Unknown',
+            title: i.title || i.original_title || i.name || 'Unknown',
             poster: tmdbImg(i.poster_path, 'w185'),
             type: 'Movie',
             score: Number(i.vote_average) || 0,
