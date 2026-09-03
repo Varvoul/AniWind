@@ -200,11 +200,12 @@
       color: rgba(255,255,255,0.78);
       margin-bottom: 14px;
       line-height: 1.45;
-      max-height: 60px;
+      max-height: 80px;
       overflow: hidden;
       display: -webkit-box;
-      -webkit-line-clamp: 3;
+      -webkit-line-clamp: 4;
       -webkit-box-orient: vertical;
+      text-overflow: ellipsis;
     }
     .slide-actions {
       display: flex;
@@ -1076,6 +1077,33 @@
       color: var(--link-accent);
     }
     #upcomingScroll .action-btns-row { align-items: center; }
+
+    /* ── Top Airing: match New Releases / Recently Completed / Upcoming
+       Shows' play/heart button styling (this section was still on the old
+       generic green/pink base style — bringing it in line) ── */
+    #topAiringScroll .action-btn.action-watch {
+      background: var(--btn-primary);
+      border-color: var(--btn-primary);
+      width: 38px; height: 38px; font-size: 0.92rem;
+      box-shadow: 0 4px 14px rgba(43,108,176,0.5);
+    }
+    #topAiringScroll .action-btn.action-watch:hover {
+      background: var(--btn-primary-hover);
+      border-color: var(--btn-primary-hover);
+      transform: scale(1.08);
+    }
+    #topAiringScroll .action-btn.action-heart {
+      background: rgba(255,255,255,0.06);
+      border: 1.5px solid rgba(255,255,255,0.35);
+      width: 32px; height: 32px; font-size: 0.75rem;
+      align-self: center;
+    }
+    #topAiringScroll .action-btn.action-heart:hover {
+      background: rgba(237,100,166,0.16);
+      border-color: var(--link-accent);
+      color: var(--link-accent);
+    }
+    #topAiringScroll .action-btns-row { align-items: center; }
 
     /* Empty state per tab */
     .nr-empty-state {
@@ -2049,9 +2077,13 @@
     font-size: 0.52rem !important;
     padding: 1px 5px !important;
   }
-  /* Hide synopsis on mobile */
+  /* Show synopsis on mobile too, capped to 2 lines */
   .slide-synopsis {
-    display: none !important;
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2 !important;
+    max-height: 40px !important;
+    font-size: 0.68rem !important;
+    margin-bottom: 6px !important;
   }
   /* Hide genre/theme badges on mobile - keep only essential info */
   .slide-meta .meta-badge:nth-child(n+5) {
@@ -2080,6 +2112,14 @@
     font-size: 0.58rem !important;
   }
 }
+    /* Tablet range: 4-line desktop clamp is too tall for the shorter hero
+       height here — cap synopsis to 2 lines, same as mobile */
+    @media (min-width: 769px) and (max-width: 1024px) {
+      .slide-synopsis {
+        -webkit-line-clamp: 2 !important;
+        max-height: 40px !important;
+      }
+    }
     /* Popup Watch Now button – match hero slider style */
 .popup-card .watch-btn {
   background: var(--btn-primary);
@@ -3449,7 +3489,7 @@ async function loadNewAniocean() {
 
   // ----- PRIMARY: Neon DB (new_on_ruri) -----
   try {
-    const dbAnime = (await window.getHomeData())?.new_on_ruri?.Anime;
+    const dbAnime = (await window.getHomeData('new_on_ruri'))?.Anime;
     if (Array.isArray(dbAnime) && dbAnime.length > 0) {
       console.log(`[New on Rowana] Using Neon DB (${dbAnime.length} anime)...`);
       const unique = await formatAnikotoShapedItems(dbAnime);
@@ -4019,7 +4059,7 @@ async function loadNewAniocean() {
         // same downstream filter/sort/dedup logic below runs either way,
         // so behavior is identical whichever source fed it. Falls back to
         // the live calls per-source when the DB doesn't have that piece.
-        const dbHS = (await window.getHomeData())?.hero_slider;
+        const dbHS = await window.getHomeData('hero_slider');
         const dbHSTv = dbHS?.tmdbTV;
         const dbHSAnime = dbHS?.Anime;
 
@@ -4036,8 +4076,11 @@ async function loadNewAniocean() {
                 fetchTMDB('/tv/on_the_air', 'page=6'),
               ]),
 
-          // Anilist: DB Anime if present, else all currently airing anime (multiple live pages)
-          (Array.isArray(dbHSAnime) && dbHSAnime.length)
+          // Anilist: DB Anime if present AND it actually carries synopsis
+          // text (the sync job that fills hero_slider currently omits the
+          // `description` field entirely — using it anyway would just
+          // render an empty synopsis), else live currently-airing anime.
+          (Array.isArray(dbHSAnime) && dbHSAnime.length && dbHSAnime.some(a => a.description))
             ? Promise.resolve([{ status: 'fulfilled', value: { Page: { media: dbHSAnime } } }])
             : Promise.allSettled([
             fetchAniList(`
@@ -4702,7 +4745,7 @@ titleEl.style.color = 'transparent';
         // DB (Neon top_airing.Anime) first for the anime portion; TV stays
         // on TVMaze (its existing primary source — richer / truly-airing
         // episode data than the DB's tmdbTV cache currently provides).
-        const dbTA = (await window.getHomeData())?.top_airing;
+        const dbTA = await window.getHomeData('top_airing');
         const dbTAAnime = dbTA?.Anime;
 
         // Fetch TV using TVMaze (PRIMARY - truly airing!) + AniList airing anime
@@ -4889,9 +4932,46 @@ titleEl.style.color = 'transparent';
       }
       initPopularAnimeScroll();
 
-      document.getElementById('topAiringLeft').addEventListener('click',()=> document.getElementById('topAiringScroll').scrollBy({left:-getRowScrollAmount(document.getElementById('topAiringScroll')),behavior:'smooth'}));
-      document.getElementById('topAiringRight').addEventListener('click',()=> document.getElementById('topAiringScroll').scrollBy({left:getRowScrollAmount(document.getElementById('topAiringScroll')),behavior:'smooth'}));
-      enableArrowKeyScroll(document.getElementById('topAiringSection'), document.getElementById('topAiringScroll'));
+      /* ── Shared helper: edge-aware chevron scrolling for a single row —
+         disables the left/right buttons once the row can't scroll further
+         in that direction. Used by Top Airing and Upcoming Shows. ── */
+      function wireEdgeAwareRowScroll(sectionEl, container, leftBtn, rightBtn) {
+        if (!container || !leftBtn || !rightBtn) return;
+        function isAtStart() { return container.scrollLeft <= 1; }
+        function isAtEnd() { return container.scrollLeft + container.clientWidth >= container.scrollWidth - 2; }
+        function updateEdgeState() {
+          const atStart = isAtStart(), atEnd = isAtEnd();
+          leftBtn.disabled = atStart;
+          leftBtn.classList.toggle('scroll-arrow-disabled', atStart);
+          rightBtn.disabled = atEnd;
+          rightBtn.classList.toggle('scroll-arrow-disabled', atEnd);
+        }
+        updateEdgeState();
+        container.addEventListener('scroll', updateEdgeState);
+        window.addEventListener('resize', updateEdgeState);
+        new MutationObserver(updateEdgeState).observe(container, { childList: true });
+        leftBtn.addEventListener('click', () => { if (!isAtStart()) container.scrollBy({ left: -getRowScrollAmount(container), behavior: 'smooth' }); });
+        rightBtn.addEventListener('click', () => { if (!isAtEnd()) container.scrollBy({ left: getRowScrollAmount(container), behavior: 'smooth' }); });
+        if (sectionEl) {
+          document.addEventListener('keydown', (e) => {
+            if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') &&
+                (sectionEl.matches(':hover') || container.matches(':hover'))) {
+              if (e.key === 'ArrowLeft' && isAtStart()) return;
+              if (e.key === 'ArrowRight' && isAtEnd()) return;
+              e.preventDefault();
+              const amount = getRowScrollAmount(container);
+              container.scrollBy({ left: e.key === 'ArrowLeft' ? -amount : amount, behavior: 'smooth' });
+            }
+          });
+        }
+      }
+
+      wireEdgeAwareRowScroll(
+        document.getElementById('topAiringSection'),
+        document.getElementById('topAiringScroll'),
+        document.getElementById('topAiringLeft'),
+        document.getElementById('topAiringRight')
+      );
 
       /* ── NEW ON ANIUMI - 2-Row Horizontal Scroll ── */
       (function initNewAnioceanScroll() {
@@ -4914,12 +4994,19 @@ titleEl.style.color = 'transparent';
         // Once the last column is fully, clearly visible there's nothing
         // left to scroll to — disable the right chevron and the right
         // arrow key so the user isn't invited to keep scrolling nowhere.
+        // Same treatment on the left chevron at the very start.
         // A small buffer accounts for sub-pixel rounding on some browsers.
+        function isAtStart() {
+          return container.scrollLeft <= 1;
+        }
         function isAtEnd() {
           return container.scrollLeft + container.clientWidth >= container.scrollWidth - 2;
         }
         function updateEndState() {
+          const atStart = isAtStart();
           const atEnd = isAtEnd();
+          leftBtn.disabled = atStart;
+          leftBtn.classList.toggle('scroll-arrow-disabled', atStart);
           rightBtn.disabled = atEnd;
           rightBtn.classList.toggle('scroll-arrow-disabled', atEnd);
         }
@@ -4930,6 +5017,7 @@ titleEl.style.color = 'transparent';
         new MutationObserver(updateEndState).observe(container, { childList: true });
         
         leftBtn.addEventListener('click', () => {
+          if (isAtStart()) return;
           container.scrollBy({ left: -getScrollAmount(), behavior: 'smooth' });
         });
         rightBtn.addEventListener('click', () => {
@@ -4943,6 +5031,7 @@ titleEl.style.color = 'transparent';
           document.addEventListener('keydown', (e) => {
             if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && 
                 (section.matches(':hover') || container.matches(':hover'))) {
+              if (e.key === 'ArrowLeft' && isAtStart()) return; // already at the start
               if (e.key === 'ArrowRight' && isAtEnd()) return; // no more to scroll — let the key do nothing
               e.preventDefault();
               if (e.key === 'ArrowLeft') {
@@ -4992,10 +5081,10 @@ titleEl.style.color = 'transparent';
           // switches tabs. Any piece the DB doesn't have yet (currently
           // empty for some sections) falls straight through to the
           // existing live-API calls below, untouched.
-          const _dbNR = await window.getHomeData();
-          const dbNRMovies = _dbNR?.new_releases?.tmdbMovie;
-          const dbNRAnime  = _dbNR?.new_releases?.Anime;
-          const dbNRTv     = _dbNR?.new_releases?.tmdbTV;
+          const _dbNR = await window.getHomeData('new_releases');
+          const dbNRMovies = _dbNR?.tmdbMovie;
+          const dbNRAnime  = _dbNR?.Anime;
+          const dbNRTv     = _dbNR?.tmdbTV;
 
           // Fetch all sources using QUEUED calls (throttled + retry)
           const [nowMovies, nowMovies2, tvmazeTvShows, anilistNow] = await Promise.allSettled([
@@ -5316,6 +5405,20 @@ titleEl.style.color = 'transparent';
         }, 200);
       });
       let _nrScrollWired = false;
+      function nrActiveContainers() {
+        if (currentNewReleasesFilter === 'hidden') {
+          return ['nrHiddenRow1', 'nrHiddenRow2', 'nrHiddenRow3'].map(id => document.getElementById(id)).filter(Boolean);
+        }
+        const grid = document.getElementById('newReleasesGrid');
+        return grid ? [grid] : [];
+      }
+      function nrActiveScrollAmount() {
+        if (currentNewReleasesFilter === 'hidden') {
+          const row = document.getElementById('nrHiddenRow1');
+          return row ? getRowScrollAmount(row) : 0;
+        }
+        return nrGetScrollAmount();
+      }
       function nrWireScrollControls() {
         if (_nrScrollWired) return;
         _nrScrollWired = true;
@@ -5323,15 +5426,55 @@ titleEl.style.color = 'transparent';
         const rightBtn = document.getElementById('nrScrollRight');
         const grid = document.getElementById('newReleasesGrid');
         const section = grid ? grid.closest('.section') : null;
-        if (leftBtn) leftBtn.addEventListener('click', () => grid.scrollBy({ left: -nrGetScrollAmount(), behavior: 'smooth' }));
-        if (rightBtn) rightBtn.addEventListener('click', () => grid.scrollBy({ left: nrGetScrollAmount(), behavior: 'smooth' }));
-        if (section && grid) {
+        if (!leftBtn || !rightBtn) return;
+
+        // These header chevrons drive whichever row set is currently on
+        // screen — the "All" tab's single horizontal grid, or (when the
+        // Hidden tab is active) all 3 country rows scrolling together.
+        function refContainer() { return nrActiveContainers()[0] || null; }
+        function isAtStart() { const c = refContainer(); return !c || c.scrollLeft <= 1; }
+        function isAtEnd() { const c = refContainer(); return !c || (c.scrollLeft + c.clientWidth >= c.scrollWidth - 2); }
+        function updateEdgeState() {
+          const atStart = isAtStart(), atEnd = isAtEnd();
+          leftBtn.disabled = atStart;
+          leftBtn.classList.toggle('scroll-arrow-disabled', atStart);
+          rightBtn.disabled = atEnd;
+          rightBtn.classList.toggle('scroll-arrow-disabled', atEnd);
+        }
+        updateEdgeState();
+
+        function scrollActive(dir) {
+          const amount = nrActiveScrollAmount();
+          nrActiveContainers().forEach(c => c.scrollBy({ left: dir * amount, behavior: 'smooth' }));
+          setTimeout(updateEdgeState, 350); // let the smooth-scroll settle before re-checking
+        }
+        leftBtn.addEventListener('click', () => { if (!isAtStart()) scrollActive(-1); });
+        rightBtn.addEventListener('click', () => { if (!isAtEnd()) scrollActive(1); });
+
+        // Track scroll on every possible target (all-grid + 3 hidden rows) so
+        // whichever one is actually visible keeps the buttons in sync.
+        ['newReleasesGrid', 'nrHiddenRow1', 'nrHiddenRow2', 'nrHiddenRow3'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) {
+            el.addEventListener('scroll', updateEdgeState);
+            new MutationObserver(updateEdgeState).observe(el, { childList: true });
+          }
+        });
+        window.addEventListener('resize', updateEdgeState);
+        // Tab switch swaps which container is the active reference — re-check shortly after.
+        document.getElementById('releaseTabs')?.addEventListener('click', () => setTimeout(updateEdgeState, 60));
+
+        if (section) {
           document.addEventListener('keydown', (e) => {
-            if (!grid.classList.contains('nr-horizontal')) return;
-            if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') &&
-                (section.matches(':hover') || grid.matches(':hover'))) {
+            const active = nrActiveContainers();
+            if (!active.length) return;
+            if (!grid.classList.contains('nr-horizontal') && currentNewReleasesFilter !== 'hidden') return;
+            const hovering = section.matches(':hover') || active.some(c => c.matches(':hover'));
+            if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && hovering) {
+              if (e.key === 'ArrowLeft' && isAtStart()) return;
+              if (e.key === 'ArrowRight' && isAtEnd()) return;
               e.preventDefault();
-              grid.scrollBy({ left: e.key === 'ArrowLeft' ? -nrGetScrollAmount() : nrGetScrollAmount(), behavior: 'smooth' });
+              scrollActive(e.key === 'ArrowLeft' ? -1 : 1);
             }
           });
         }
@@ -5340,6 +5483,7 @@ titleEl.style.color = 'transparent';
         if (grid && 'ResizeObserver' in window) {
           const ro = new ResizeObserver(() => {
             if (grid.classList.contains('nr-horizontal')) nrLayoutColumns();
+            updateEdgeState();
           });
           ro.observe(grid);
         }
@@ -5483,7 +5627,7 @@ titleEl.style.color = 'transparent';
        *  have data for yet. */
       async function nrFetchHiddenRow(countries, targetPerType = 20) {
         const items = [];
-        const dbHidden = (await window.getHomeData())?.hidden_tab;
+        const dbHidden = await window.getHomeData('hidden_tab');
         for (let i = 0; i < countries.length; i++) {
           const country = countries[i];
           const dbMovies = dbHidden?.TMDB_Movie?.[country];
@@ -5598,6 +5742,12 @@ titleEl.style.color = 'transparent';
             // time this tab is opened (loadHiddenReleases guards against repeats).
             grid.style.display = 'none';
             hiddenContainer.style.display = '';
+            // Header chevrons are gated behind .nr-horiz-active — this branch
+            // returns early before renderNewReleases() would normally set that,
+            // so set it explicitly here (the class is also what makes the
+            // chevrons scroll all 3 hidden rows together, see nrActiveContainers).
+            const hiddenControls = document.getElementById('nrScrollControls')?.closest('.nr-header-controls');
+            if (hiddenControls) hiddenControls.classList.add('nr-horiz-active');
             document.getElementById('newReleasesTitle').textContent = 'Latest Hidden';
             const viewAll = document.getElementById('nrViewAll');
             if (viewAll) viewAll.href = '/new-releases?type=hidden';
@@ -5800,7 +5950,7 @@ titleEl.style.color = 'transparent';
         // DB (Neon upcoming_shows) first — falls back to the live queue-managed
         // TMDB/AniList fetchers below only for whichever piece the DB doesn't
         // have data for.
-        const dbUp = (await window.getHomeData())?.upcoming_shows;
+        const dbUp = await window.getHomeData('upcoming_shows');
         const dbUpMovies = dbUp?.tmdbMovie;
         const dbUpTv = dbUp?.tmdbTV;
         const dbUpAnime = dbUp?.Anime;
@@ -5972,9 +6122,12 @@ titleEl.style.color = 'transparent';
         const isDesktop = window.innerWidth > 1100;
         if (isDesktop !== _upcomingWasDesktop && upcomingShows.length) renderUpcoming();
       });
-      document.getElementById('upcomingLeft').addEventListener('click', ()=> document.getElementById('upcomingScroll').scrollBy({left:-getRowScrollAmount(document.getElementById('upcomingScroll')),behavior:'smooth'}));
-      document.getElementById('upcomingRight').addEventListener('click', ()=> document.getElementById('upcomingScroll').scrollBy({left:getRowScrollAmount(document.getElementById('upcomingScroll')),behavior:'smooth'}));
-      enableArrowKeyScroll(document.getElementById('upcomingSection'), document.getElementById('upcomingScroll'));
+      wireEdgeAwareRowScroll(
+        document.getElementById('upcomingSection'),
+        document.getElementById('upcomingScroll'),
+        document.getElementById('upcomingLeft'),
+        document.getElementById('upcomingRight')
+      );
 
       /* ── COMPLETED (paginated) ── */
       let completedCurrentPage = 1;
@@ -6032,7 +6185,7 @@ titleEl.style.color = 'transparent';
 
         // DB (Neon recently_completed) only has enough data for page 1 —
         // pages 2+ keep using the live AniList/TMDB calls below unchanged.
-        const _dbRC = page === 1 ? (await window.getHomeData())?.recently_completed : null;
+        const _dbRC = page === 1 ? await window.getHomeData('recently_completed') : null;
         const dbRCTv = _dbRC?.tmdbTV;
         const dbRCMovies = _dbRC?.tmdbMovie;
         const dbRCAnime = _dbRC?.Anime;
@@ -6049,27 +6202,23 @@ titleEl.style.color = 'transparent';
           // SORT: END_DATE_DESC = newest completions first (page 1 = most recent)
           // Uses QUEUED fetch with automatic retry on timeout!
           rcHasDb ? Promise.resolve({ Page: { media: dbRCAnime } }) : (async () => {
-            const now = new Date();
-            const currentYear = now.getFullYear();
-            const currentMonth = now.getMonth() + 1; // 1-12
-            
-            // Determine which season years to include (current + previous for overlap)
-            // Anime seasons: Winter (Jan-Mar), Spring (Apr-Jun), Jul-Sep, Oct-Dec
-            let targetYear = currentYear;
-            if (currentMonth === 1) {
-              // In January, mostly still showing previous year's anime ending
-              targetYear = currentYear - 1;
-            }
+            // NOTE: intentionally no seasonYear filter here. sort:END_DATE_DESC
+            // + status:FINISHED already returns most-recently-finished-first in
+            // true chronological order across all years, so page 1 is always
+            // the newest completions regardless. Adding seasonYear used to
+            // additionally confine the WHOLE query to one calendar year — a
+            // year only has so many finished TV anime, so by page 2-3 that
+            // narrow pool was exhausted and later pages came back thin/empty
+            // even though plenty of older-but-still-recent anime existed.
             
             // Build query for recently completed TV anime
             const completedQuery = `
-              query ($year: Int, $page: Int, $perPage: Int) {
+              query ($page: Int, $perPage: Int) {
                 Page(page: $page, perPage: $perPage) {
                   media(
                     type: ANIME, 
                     status: FINISHED, 
                     format_in: [TV, TV_SHORT],
-                    seasonYear: $year,
                     isAdult: false, 
                     sort: [END_DATE_DESC]
                   ) {
@@ -6079,7 +6228,7 @@ titleEl.style.color = 'transparent';
               }
             `;
             
-            const completedVars = { year: targetYear, page: page, perPage: 100 };
+            const completedVars = { page: page, perPage: 100 };
             
             // Use QUEUED fetch with retry logic (fixes CORS/timeout issues!)
             return await queuedFetchAniList(completedQuery, completedVars);
@@ -6205,7 +6354,7 @@ titleEl.style.color = 'transparent';
         renderPagination(page, false);
       }
       function renderPagination(page, isLoading=false) {
-        const total = 30; // Max 30 pages of recently completed anime
+        const total = 10; // Max 10 pages of recently completed anime
         const nav = document.getElementById('completedPagination');
         
         // Responsive: Desktop shows 6 pages, Mobile shows 4 pages
@@ -6298,7 +6447,7 @@ titleEl.style.color = 'transparent';
 
         // DB (Neon trending_now) only covers the default "today" period —
         // week/month keep their existing live TMDB/AniList calls.
-        const dbTN = period === 'today' ? (await window.getHomeData())?.trending_now : null;
+        const dbTN = period === 'today' ? await window.getHomeData('trending_now') : null;
         const dbTNHasData = Array.isArray(dbTN?.Anime) && dbTN.Anime.length > 0;
 
         if (dbTNHasData) {
@@ -6377,7 +6526,7 @@ titleEl.style.color = 'transparent';
         
         // DB (Neon most_favourite) first — falls back to live TMDB/AniList
         // calls only if the DB doesn't have data for a given type yet.
-        const dbMF = (await window.getHomeData())?.most_favourite;
+        const dbMF = await window.getHomeData('most_favourite');
         const dbMFHasAnime = Array.isArray(dbMF?.Anime) && dbMF.Anime.length > 0;
         const dbMFHasMovies = Array.isArray(dbMF?.tmdbMovie) && dbMF.tmdbMovie.length > 0;
         const dbMFHasTv = Array.isArray(dbMF?.tmdbTV) && dbMF.tmdbTV.length > 0;
@@ -6844,7 +6993,7 @@ titleEl.style.color = 'transparent';
           // list — use it directly and skip the two live AniList calls +
           // scoring pass entirely. Falls back to the original live fetch
           // when the DB doesn't have it yet.
-          const dbPopular = (await window.getHomeData())?.popular_anime;
+          const dbPopular = (await window.getHomeData('popular_anime'))?.data;
           let top28;
 
           if (Array.isArray(dbPopular) && dbPopular.length > 0) {
@@ -7120,32 +7269,36 @@ titleEl.style.color = 'transparent';
 
       // ---------- Helper: Fetch ALL 7 days in parallel (rate-limit safe) ----------
       async function fetchAllDaysParallel() {
-        // DB (Neon ani_schedule.Anime) first — it's already day-matched
-        // (each anime keyed to the day it airs on), Jikan-shaped, so it
-        // drops straight into the existing renderer. Falls back to the
-        // live self-hosted Jikan schedule per-day for any day the DB
-        // doesn't have data for (e.g. still syncing).
-        const dbSchedule = (await window.getHomeData())?.ani_schedule?.Anime || {};
-
+        // DB (Neon ani_schedule, one endpoint per day) first — each day is
+        // already Jikan-shaped, so it drops straight into the existing
+        // renderer. Falls back to the live self-hosted Jikan schedule for
+        // any day the DB doesn't have data for (e.g. still syncing).
+        // All 7 requests hit the SAME server-side cached column fetch
+        // (see api/ani-schedule/[day].js), so this is one real DB query
+        // shared across all 7 days, not 7 separate ones.
         console.log('[Schedule] 🚀 Starting parallel fetch of all 7 days...');
 
-        const missingDays = DAYS.filter(day => {
-          const dbDay = dbSchedule[DAY_FULL_NAMES[DAYS.indexOf(day)]];
-          return !(Array.isArray(dbDay) && dbDay.length > 0);
+        const dbResults = await Promise.allSettled(DAYS.map(day => window.getAniScheduleDay(day)));
+        const dbByDay = {};
+        DAYS.forEach((day, idx) => {
+          const r = dbResults[idx];
+          const arr = r.status === 'fulfilled' ? r.value?.data : null;
+          if (Array.isArray(arr) && arr.length > 0) dbByDay[day] = arr;
         });
 
-        const results = missingDays.length
+        const missingDays = DAYS.filter(day => !dbByDay[day]);
+
+        const jikanResults = missingDays.length
           ? await Promise.allSettled(missingDays.map(day => fetchDayFromJikan(day)))
           : [];
 
         const data = {};
         let missingIdx = 0;
-        DAYS.forEach((day, idx) => {
-          const dbDay = dbSchedule[DAY_FULL_NAMES[idx]];
-          if (Array.isArray(dbDay) && dbDay.length > 0) {
-            data[day] = dbDay;
+        DAYS.forEach((day) => {
+          if (dbByDay[day]) {
+            data[day] = dbByDay[day];
           } else {
-            const result = results[missingIdx++];
+            const result = jikanResults[missingIdx++];
             data[day] = result && result.status === 'fulfilled' ? result.value : [];
           }
         });
