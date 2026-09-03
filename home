@@ -40,6 +40,8 @@
       --genre-tag-bg: #4c51bf;
       --link-accent: #ed64a6;
       --accent-gold: #ecc94b;
+      --star-icon-color: #f5b942;
+      --fire-icon-color: #e0622e;
       --accent-blue: #4299e1;
       --border-subtle: rgba(255, 255, 255, 0.08);
       --border-medium: rgba(255, 255, 255, 0.16);
@@ -405,7 +407,7 @@
     .card-genres { display:flex; flex-wrap:wrap; gap:3px; margin-top:4px; }
     .genre-tag { font-size:0.55rem; padding:1px 5px; border-radius:3px; background:rgba(99,102,241,0.18); color:#a5b4fc; border:1px solid rgba(99,102,241,0.25); white-space:nowrap; font-weight:500; }
     .genre-tag:nth-child(n+5) { display:none; } /* Max 4 genres visible */
-    .poster-rating-badge { position:absolute; top:6px; right:6px; background:rgba(0,0,0,0.7); color:var(--accent-gold); font-size:0.6rem; padding:2px 5px; border-radius:3px; z-index:2; display:flex; align-items:center; gap:3px; }
+    .poster-rating-badge { position:absolute; top:6px; right:6px; background:rgba(0,0,0,0.7); color:var(--star-icon-color); font-size:0.6rem; padding:2px 5px; border-radius:3px; z-index:2; display:flex; align-items:center; gap:3px; }
 
     /* ── LAYOUT (scrolls together) ── */
     .main-layout { display:flex; gap:20px; max-width:1920px; margin:0 auto; align-items:flex-start; }
@@ -436,7 +438,7 @@
     .show-card-horiz:hover .play-overlay, .show-card-grid:hover .play-overlay { opacity:1; }
     .ranking-badge { position:absolute; top:6px; right:6px; background:rgba(0,0,0,0.6); backdrop-filter:blur(10px); color:#fff; font-weight:700; font-size:0.7rem; padding:2px 7px; border-radius:4px; z-index:2; }
     .quality-badge { position:absolute; top:6px; left:6px; background:rgba(0,0,0,0.7); color:#fff; font-size:0.62rem; padding:2px 5px; border-radius:3px; z-index:2; font-weight:600; }
-    .score-badge { position:absolute; top:6px; right:6px; background:rgba(0,0,0,0.7); color:var(--accent-gold); font-size:0.65rem; padding:2px 5px; border-radius:3px; z-index:2; font-weight:600; display:flex; align-items:center; gap:3px; }
+    .score-badge { position:absolute; top:6px; right:6px; background:rgba(0,0,0,0.7); color:var(--star-icon-color); font-size:0.65rem; padding:2px 5px; border-radius:3px; z-index:2; font-weight:600; display:flex; align-items:center; gap:3px; }
     
     /* No Image placeholder - vertically stacked text */
     .card-poster.no-image::before { content:'No'; position:absolute; top:40%; left:50%; transform:translate(-50%,-50%); color:#94a3b8; font-size:0.75rem; font-weight:600; letter-spacing:2px; text-transform:uppercase; z-index:1; user-select:none; }
@@ -533,7 +535,7 @@
       right: 6px;
       background: rgba(0,0,0,0.85);
       backdrop-filter: blur(8px);
-      color: var(--accent-gold, #fbbf24);
+      color: var(--star-icon-color, #f5b942);
       padding: 3px 7px;
       border-radius: 4px;
       font-size: 0.72rem;
@@ -1310,7 +1312,7 @@
       border-radius:20px; padding:2px 8px; color:#cbd5e1; white-space:nowrap;
     }
     .pa-score {
-      font-size:0.64rem; font-weight:700; color:#fbbf24;
+      font-size:0.64rem; font-weight:700; color:var(--star-icon-color);
       display:inline-flex; align-items:center; gap:3px;
     }
     .pa-score i { font-size:0.54rem; }
@@ -4572,7 +4574,7 @@ titleEl.style.color = 'transparent';
                 ${s.episodes && s.episodes !== '?' ? `<span class="meta-badge"><i class="fas fa-play"></i> ${s.episodes} eps</span>` : ''}
                 ${s.studio ? `<span class="meta-badge">${s.studio}</span>` : ''}
                 ${allTags.map(g => `<span class="meta-badge">${g}</span>`).join('')}
-                <span class="meta-badge"><i class="fas fa-star" style="color:var(--accent-gold)"></i> ${s.score}</span>
+                <span class="meta-badge"><i class="fas fa-star" style="color:var(--star-icon-color)"></i> ${s.score}</span>
               </div>
               <p class="slide-synopsis">${(s.synopsis||'').slice(0,280)}</p>
               <div class="slide-actions">
@@ -5924,24 +5926,41 @@ titleEl.style.color = 'transparent';
 
       /* ── COMPLETED (paginated) ── */
       let completedCurrentPage = 1;
-      // Grid col count - must match CSS grid-template-columns!
+      // Grid col count — MUST mirror the CSS .grid-container breakpoints
+      // exactly, as measured empirically (the late @media (max-width:768px)
+      // override in the stylesheet wins over the earlier 3-col rule, so the
+      // real column count is 2 at ≤768, never 3):
+      //   ≥1601 → 7 | 1201–1600 → 6 | 993–1200 → 5 | 769–992 → 4 | ≤768 → 2
+      // If these ever drift apart again, the JS trims to the wrong multiple
+      // and the grid shows a partial last row.
       function calcCompletedCols() {
         const w = window.innerWidth;
-        if (w <= 520) return 2;
-        if (w <= 600 && window.matchMedia('(orientation: landscape)').matches) return 3;
-        if (w <= 768) return 4;
-        if (w <= 992) return 5;
-        if (w <= 1400) return 6;
-        if (w <= 1800) return 7;
-        return 8;
+        if (w <= 768) return 2;
+        if (w <= 992) return 4;
+        if (w <= 1200) return 5;
+        if (w <= 1600) return 6;
+        return 7;
       }
 
       let _completedRequestId = 0; // guards against out-of-order responses when clicking pages fast
+      let _completedPool = [];     // full deduped item pool for the current page — lets resize re-trim without refetching
 
-      // Desktop gets more rows (computer-only, per request); mobile/tablet
-      // keeps the original 6 rows so cards don't shrink on small screens.
+      // Exactly 10 rows on every paginated page, every viewport — trimmed to
+      // full rows so the last row is never partial.
       function completedRowsForViewport() {
-        return window.innerWidth > 1100 ? 9 : 6;
+        return 10;
+      }
+
+      // Slice the current pool to an exact multiple of the live column count
+      // (capped at 10 rows) so the grid NEVER ends on a partial last row.
+      function completedFullRows() {
+        const cols = calcCompletedCols();
+        const target = completedRowsForViewport() * cols;
+        const fullRows = Math.floor(_completedPool.length / cols) * cols;
+        const trimTo = Math.min(fullRows, target);
+        // Data too sparse to fill a single row (rare API failures): show what
+        // exists rather than nothing.
+        return _completedPool.slice(0, trimTo > 0 ? trimTo : Math.min(_completedPool.length, target));
       }
 
       async function loadCompleted(page=1) {
@@ -5958,7 +5977,7 @@ titleEl.style.color = 'transparent';
 
         // Fetch enough TMDB pages (20 results/page) to cover TARGET_SHOWS
         // for both TV and movies — scales up automatically as rows/cols grow.
-        const TARGET_SHOWS = TARGET_ROWS * cols;  // e.g., 9×8=72 on wide desktop
+        const TARGET_SHOWS = TARGET_ROWS * cols;  // e.g., 10×7=70 on wide desktop
         const tmdbPagesNeeded = Math.max(2, Math.ceil(TARGET_SHOWS / 20));
         
         // Date range: Last 6 months for "recently completed" content
@@ -6156,7 +6175,6 @@ titleEl.style.color = 'transparent';
         let poolMovie = tmdbMovieItems;
         if (rcHasDb && (page === 1 || page === 2)) {
           const half = (arr) => {
-            if (arr.length <= TARGET_SHOWS) return arr;
             const mid = Math.floor(arr.length / 2);
             return page === 1 ? arr.slice(0, mid) : arr.slice(mid);
           };
@@ -6179,9 +6197,10 @@ titleEl.style.color = 'transparent';
           _seenRC.add(s.id);
           return true;
         });
-        // Trim to exactly TARGET_ROWS complete rows (no incomplete last row!)
-        const trimTo = Math.min(Math.floor(dedupedInterleaved.length/cols)*cols, TARGET_SHOWS);
-        const list = dedupedInterleaved.slice(0, trimTo || TARGET_SHOWS);
+        // Cache the full pool so a resize can re-trim instantly without refetching.
+        _completedPool = dedupedInterleaved;
+        // Render exactly 10 complete rows (no incomplete last row, ever).
+        const list = completedFullRows();
         document.getElementById('completedGrid').innerHTML = list.map(s => renderCompletedCard(s)).join('');
         renderPagination(page, false);
       }
@@ -6219,14 +6238,19 @@ titleEl.style.color = 'transparent';
         });
       }
 
-      // Re-fetch when crossing the desktop breakpoint so the row count
-      // (6 vs 9) and grid density stay correct after a resize.
-      let _completedWasDesktop = window.innerWidth > 1100;
+      // Re-trim + re-render instantly (no refetch) whenever a column
+      // breakpoint changes, so the grid always ends on a complete row —
+      // even mid-session window resizes.
+      let _completedCols = calcCompletedCols();
       window.addEventListener('resize', () => {
-        const isDesktop = window.innerWidth > 1100;
-        if (isDesktop !== _completedWasDesktop) {
-          _completedWasDesktop = isDesktop;
-          loadCompleted(completedCurrentPage);
+        const cols = calcCompletedCols();
+        if (cols === _completedCols) return;
+        _completedCols = cols;
+        if (_completedPool.length > 0) {
+          document.getElementById('completedGrid').innerHTML =
+            completedFullRows().map(s => renderCompletedCard(s)).join('');
+        } else {
+          renderCompletedSkeleton(cols * completedRowsForViewport());
         }
       });
 
@@ -6258,8 +6282,8 @@ titleEl.style.color = 'transparent';
         // - TMDB Movie: NO format field (skipped entirely)
         // - Popularity uses a fire icon instead of the abbreviated 'Pop' text.
         // Falls back to the simple "★score · type" line when no extra fields.
-        const starHtml = '<i class="fas fa-star" style="color:var(--accent-gold)"></i>';
-        const fireHtml = '<i class="fas fa-fire" style="color:#f97316"></i>';
+        const starHtml = '<i class="fas fa-star" style="color:var(--star-icon-color)"></i>';
+        const fireHtml = '<i class="fas fa-fire" style="color:var(--fire-icon-color)"></i>';
         const scoreStr = (s.score !== undefined && s.score !== null && s.score !== '')
           ? String(s.score) : 'N/A';
         const parts = [`${starHtml} ${scoreStr}`, s.type || ''];
@@ -6574,7 +6598,7 @@ titleEl.style.color = 'transparent';
             <div class="sidebar-info">
               <h4>${s.title}</h4>
               <div class="side-meta">
-                <i class="fas fa-star" style="color:var(--accent-gold)"></i> ${s.score}
+                <i class="fas fa-star" style="color:var(--star-icon-color)"></i> ${s.score}
                 &nbsp;·&nbsp;${s.type}
                 &nbsp;·&nbsp;${s.year}
               </div>
@@ -6821,7 +6845,7 @@ titleEl.style.color = 'transparent';
        }
 
        const scoreLabel = show.type === 'Anime' ? 'MAL' : 'TMDB';
-       const starIcon = '<i class="fas fa-star" style="color:var(--accent-gold)"></i>';
+       const starIcon = '<i class="fas fa-star" style="color:var(--star-icon-color)"></i>';
 
        const rawDuration = (show.duration && show.duration !== '?' && show.duration !== 'undefined') 
          ? show.duration 
@@ -6871,7 +6895,7 @@ titleEl.style.color = 'transparent';
        const anchorEl = e?.currentTarget || null;
        window._popupManager.requestShow(`anilist-${mal_id}`, anchorEl);
 
-       const starIcon = '<i class="fas fa-star" style="color:var(--accent-gold)"></i>';
+       const starIcon = '<i class="fas fa-star" style="color:var(--star-icon-color)"></i>';
        const genreSlug = g => g.trim().toLowerCase().replace(/\s+/g, '+');
        const genresHtml = (anime.genres || [])
          .flatMap(g => g.split('&').map(part => part.trim()).filter(Boolean))
