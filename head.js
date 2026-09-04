@@ -8,6 +8,85 @@
   const SUPABASE_URL      = 'https://uhjucwqiadymmogmwkxc.supabase.co';
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVoanVjd3FpYWR5bW1vZ213a3hjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1MTY0NDcsImV4cCI6MjA5NzA5MjQ0N30.nJZQftmkbu0Ix-4lgtfzJcm_qIkI32e3SykF49XPrlg';
   const supabase          = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // ── Neon (AniUmi-Neon) homepage data ──────────────────────────────────
+  // Backs hero slider / top airing / new releases / new on Ruri /
+  // upcoming shows / recently completed / trending / most favourite /
+  // popular anime / hidden tab / anime schedule on the homepage.
+  //
+  // One endpoint PER column (not one combined endpoint) — each column has
+  // its own dedicated Vercel serverless function backed by a 6-hour
+  // server-side cache, so re-fetching the same column repeatedly across
+  // page loads costs Neon roughly one real query per 6 hours, not one per
+  // request. ani_schedule is further split per day of week.
+  //
+  // Unlike SUPABASE_ANON_KEY above, there is intentionally NO Neon
+  // credential here. The Neon connection string is a full read/write DB
+  // credential (and the Neon API key is a full account-management
+  // credential) — either one shipped in this file would be readable by
+  // anyone who views source on the site, since this repo/file is public.
+  // Instead the endpoints below just point at our own serverless
+  // functions (api/<column>.js), which hold the real credential
+  // server-side as a Vercel env var.
+  const NEON_COLUMN_ENDPOINTS = {
+    hero_slider:         '/api/hero-slider',
+    top_airing:           '/api/top-airing',
+    new_releases:         '/api/new-releases',
+    new_on_ruri:          '/api/new-on-ruri',
+    upcoming_shows:       '/api/upcoming-shows',
+    recently_completed:   '/api/recently-completed',
+    trending_now:         '/api/trending-now',
+    most_favourite:       '/api/most-favourite',
+    popular_anime:        '/api/popular-anime',
+    hidden_tab:           '/api/hidden-tab',
+  };
+  // Per-page-load de-dupe only (so two callers asking for the same
+  // section in the same page load share one fetch) — the real 6h TTL
+  // cache lives server-side, not here.
+  const _sectionPromises = {};
+
+  /**
+   * Fetches (and de-dupes within this page load) one column's data from
+   * its own Neon-backed endpoint. Returns null on any failure so callers
+   * can fall back to their existing live API calls.
+   */
+  async function getHomeData(section) {
+    const url = NEON_COLUMN_ENDPOINTS[section];
+    if (!url) return null;
+    if (_sectionPromises[section]) return _sectionPromises[section];
+    const p = fetch(url).then(r => (r.ok ? r.json() : null)).catch(() => null);
+    _sectionPromises[section] = p;
+    return p;
+  }
+
+  /** Fetches one day of the anime schedule from /api/ani-schedule/{day}. */
+  async function getAniScheduleDay(day) {
+    const key = `ani_schedule:${day}`;
+    if (_sectionPromises[key]) return _sectionPromises[key];
+    const p = fetch(`/api/ani-schedule/${day}`).then(r => (r.ok ? r.json() : null)).catch(() => null);
+    _sectionPromises[key] = p;
+    return p;
+  }
+
+  /** DB-backed anime list wrapped in the same shape fetchAniList() resolves to. */
+  async function dbAniListPage(section) {
+    const home = await getHomeData(section);
+    const arr = home?.Anime;
+    return (Array.isArray(arr) && arr.length > 0) ? { Page: { media: arr } } : null;
+  }
+
+  /** DB-backed TMDB list wrapped in the same shape fetchTMDB() resolves to. */
+  async function dbTmdbResults(section, type) {
+    const home = await getHomeData(section);
+    const arr = home?.[type];
+    return (Array.isArray(arr) && arr.length > 0) ? { results: arr, page: 1, total_pages: 1 } : null;
+  }
+
+  window.getHomeData      = getHomeData;
+  window.getAniScheduleDay = getAniScheduleDay;
+  window.dbAniListPage   = dbAniListPage;
+  window.dbTmdbResults   = dbTmdbResults;
+
   const CF_WORKER_URL     = 'https://aniocen.bionmovies47.workers.dev';
   // Fallback TMDB proxy (mapplee) - used when t-umi fails or rate-limits
   const MAPLEE_API_URL    = 'https://mapplee.com/api/tmdb';
