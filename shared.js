@@ -1855,8 +1855,13 @@
     if (!baseName || baseName.length < 2) return results;
     
     try {
-      // Search for additional seasons using variations of the base name
-      const seasonResults = await fetchRelatedSeasons(baseName, results);
+      // Prefer real AniList relation data when available - it's exact, unlike title guessing.
+      // Falls back to the base-title prefix heuristic for rows the pipeline hasn't
+      // backfilled `relations` for yet.
+      const topWithRelations = results.find(r => Array.isArray(r.relations) && r.relations.length > 0);
+      const seasonResults = topWithRelations
+        ? await fetchSeasonsByRelations(topWithRelations.relations)
+        : await fetchRelatedSeasons(baseName, results);
       
       if (seasonResults.length > 0) {
         // Merge and deduplicate
@@ -1893,8 +1898,45 @@
   }
   
   /**
-   * Fetch related seasons for a base anime name
-   * Searches DB and Jikan for season variations
+   * Fetch related entries using real AniList relation edges stored on the row
+   * (relations: [{mal_id, relation_type, title}, ...], populated by the pipeline).
+   * Exact by construction - no title guessing, no false negatives from wording differences.
+   */
+  async function fetchSeasonsByRelations(relations) {
+    const RELEVANT_TYPES = new Set(['SEQUEL', 'PREQUEL', 'PARENT', 'SIDE_STORY', 'ALTERNATIVE']);
+    const relatedIds = [...new Set(
+      relations
+        .filter(r => r && r.mal_id && RELEVANT_TYPES.has((r.relation_type || '').toUpperCase()))
+        .map(r => r.mal_id)
+    )];
+    if (relatedIds.length === 0) return [];
+    try {
+      const { data, error } = await supabase
+        .from('anime_data')
+        .select('default_title,english_title,romanji_title,japanese_title,type,studios,year,score,mal_id,large_image_url_jpg,image_url_jpg,episodes,status')
+        .in('mal_id', relatedIds);
+      if (error || !data) return [];
+      return data.map(item => ({
+        poster: item.large_image_url_jpg || item.image_url_jpg || '',
+        title: item.english_title || item.default_title || 'Unknown Title',
+        original: [item.japanese_title, item.romanji_title].filter(Boolean).join(' / ') || '',
+        meta: [item.type, item.year, item.episodes ? `${item.episodes} eps` : null].filter(Boolean).join(' · '),
+        score: item.score ? `★ ${item.score}` : null,
+        mal_id: item.mal_id,
+        source: 'db',
+        year: item.year,
+        episodes: item.episodes,
+        status: item.status
+      }));
+    } catch (e) {
+      console.warn('[Season] relations lookup failed:', e.message);
+      return [];
+    }
+  }
+
+  /**
+   * Fetch related seasons for a base anime name (fallback heuristic when a row
+   * has no `relations` data yet - searches DB by base-title prefix)
    */
   async function fetchRelatedSeasons(baseName, existingResults) {
     // Previously this guessed up to 8 literal suffixes ("X Season 2", "X 2nd Season", "X S2"...)
@@ -2190,7 +2232,7 @@
       // Phase 1: Fast prefix match on english_title and default_title (index-friendly)
       let { data, error } = await supabase
         .from('anime_data')
-        .select('default_title,english_title,romanji_title,japanese_title,type,studios,year,score,mal_id,large_image_url_jpg,image_url_jpg,episodes,status')
+        .select('default_title,english_title,romanji_title,japanese_title,type,studios,year,score,mal_id,large_image_url_jpg,image_url_jpg,episodes,status,relations')
         .or(`default_title.ilike.${safeQ}%,english_title.ilike.${safeQ}%,japanese_title.ilike.${safeQ}%,romanji_title.ilike.${safeQ}%`)
         .order('score', { ascending: false, nullsFirst: false })
         .limit(6);
@@ -2199,7 +2241,7 @@
       if ((!error && (!data || data.length < 3)) || error) {
         const { data: data2, error: error2 } = await supabase
           .from('anime_data')
-          .select('default_title,english_title,romanji_title,japanese_title,type,studios,year,score,mal_id,large_image_url_jpg,image_url_jpg,episodes,status')
+          .select('default_title,english_title,romanji_title,japanese_title,type,studios,year,score,mal_id,large_image_url_jpg,image_url_jpg,episodes,status,relations')
           .or(`default_title.ilike.%${safeQ}%,english_title.ilike.%${safeQ}%,japanese_title.ilike.%${safeQ}%,romanji_title.ilike.%${safeQ}%`)
           .order('score', { ascending: false, nullsFirst: false })
           .limit(8);
@@ -2302,7 +2344,8 @@
         source: 'db',
         year: item.year,
         episodes: item.episodes,
-        status: item.status
+        status: item.status,
+        relations: item.relations || null
       }));
       
       // Cache the results
