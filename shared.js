@@ -113,6 +113,7 @@
   ];
 
   let searchDebounceTimer = null;
+  let searchRequestSeq    = 0;   // incremented per dispatched search; used to discard stale/out-of-order responses
   let currentSearchMode   = 'non-anime';
   let currentUser         = null;
   let hcaptchaToken       = '';
@@ -1724,12 +1725,20 @@
   }
 
   async function fetchSuggestions(q, container) {
+    // Guard against out-of-order responses: if the user types "na", pauses (fires a
+    // request), then keeps typing to "naruto" (fires another), the two requests race
+    // slower/faster through DB/Jikan/AniList fallback tiers with no guarantee of finishing
+    // in the order they started. Without this check, an older "na" response landing after
+    // the newer "naruto" one silently overwrote the correct results in the UI.
+    const mySeq = ++searchRequestSeq;
     try {
       const results = currentSearchMode === 'anime'
         ? await fetchAnimeWithSeasonGrouping(q)
         : await fetchTMDB(q);
+      if (mySeq !== searchRequestSeq) return; // a newer search has since started - discard this stale result
       renderSuggestions(results.slice(0, 10), q, container); // Show up to 10 for seasons
     } catch (err) {
+      if (mySeq !== searchRequestSeq) return;
       container.innerHTML = `<div style="padding:14px 12px;font-size:0.76rem;color:var(--text-muted,#888);">Failed to fetch. Try again.</div>`;
       console.error('Search error:', err);
     }
