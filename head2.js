@@ -8,6 +8,85 @@
   const SUPABASE_URL      = 'https://uhjucwqiadymmogmwkxc.supabase.co';
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVoanVjd3FpYWR5bW1vZ213a3hjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1MTY0NDcsImV4cCI6MjA5NzA5MjQ0N30.nJZQftmkbu0Ix-4lgtfzJcm_qIkI32e3SykF49XPrlg';
   const supabase          = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // ── Neon (AniUmi-Neon) homepage data ──────────────────────────────────
+  // Backs hero slider / top airing / new releases / new on Ruri /
+  // upcoming shows / recently completed / trending / most favourite /
+  // popular anime / hidden tab / anime schedule on the homepage.
+  //
+  // One endpoint PER column (not one combined endpoint) — each column has
+  // its own dedicated Vercel serverless function backed by a 6-hour
+  // server-side cache, so re-fetching the same column repeatedly across
+  // page loads costs Neon roughly one real query per 6 hours, not one per
+  // request. ani_schedule is further split per day of week.
+  //
+  // Unlike SUPABASE_ANON_KEY above, there is intentionally NO Neon
+  // credential here. The Neon connection string is a full read/write DB
+  // credential (and the Neon API key is a full account-management
+  // credential) — either one shipped in this file would be readable by
+  // anyone who views source on the site, since this repo/file is public.
+  // Instead the endpoints below just point at our own serverless
+  // functions (api/<column>.js), which hold the real credential
+  // server-side as a Vercel env var.
+  const NEON_COLUMN_ENDPOINTS = {
+    hero_slider:         '/api/hero-slider',
+    top_airing:           '/api/top-airing',
+    new_releases:         '/api/new-releases',
+    new_on_ruri:          '/api/new-on-ruri',
+    upcoming_shows:       '/api/upcoming-shows',
+    recently_completed:   '/api/recently-completed',
+    trending_now:         '/api/trending-now',
+    most_favourite:       '/api/most-favourite',
+    popular_anime:        '/api/popular-anime',
+    hidden_tab:           '/api/hidden-tab',
+  };
+  // Per-page-load de-dupe only (so two callers asking for the same
+  // section in the same page load share one fetch) — the real 6h TTL
+  // cache lives server-side, not here.
+  const _sectionPromises = {};
+
+  /**
+   * Fetches (and de-dupes within this page load) one column's data from
+   * its own Neon-backed endpoint. Returns null on any failure so callers
+   * can fall back to their existing live API calls.
+   */
+  async function getHomeData(section) {
+    const url = NEON_COLUMN_ENDPOINTS[section];
+    if (!url) return null;
+    if (_sectionPromises[section]) return _sectionPromises[section];
+    const p = fetch(url).then(r => (r.ok ? r.json() : null)).catch(() => null);
+    _sectionPromises[section] = p;
+    return p;
+  }
+
+  /** Fetches one day of the anime schedule from /api/ani-schedule/{day}. */
+  async function getAniScheduleDay(day) {
+    const key = `ani_schedule:${day}`;
+    if (_sectionPromises[key]) return _sectionPromises[key];
+    const p = fetch(`/api/ani-schedule/${day}`).then(r => (r.ok ? r.json() : null)).catch(() => null);
+    _sectionPromises[key] = p;
+    return p;
+  }
+
+  /** DB-backed anime list wrapped in the same shape fetchAniList() resolves to. */
+  async function dbAniListPage(section) {
+    const home = await getHomeData(section);
+    const arr = home?.Anime;
+    return (Array.isArray(arr) && arr.length > 0) ? { Page: { media: arr } } : null;
+  }
+
+  /** DB-backed TMDB list wrapped in the same shape fetchTMDB() resolves to. */
+  async function dbTmdbResults(section, type) {
+    const home = await getHomeData(section);
+    const arr = home?.[type];
+    return (Array.isArray(arr) && arr.length > 0) ? { results: arr, page: 1, total_pages: 1 } : null;
+  }
+
+  window.getHomeData      = getHomeData;
+  window.getAniScheduleDay = getAniScheduleDay;
+  window.dbAniListPage   = dbAniListPage;
+  window.dbTmdbResults   = dbTmdbResults;
+
   const CF_WORKER_URL     = 'https://aniocen.bionmovies47.workers.dev';
   // Fallback TMDB proxy (mapplee) - used when t-umi fails or rate-limits
   const MAPLEE_API_URL    = 'https://mapplee.com/api/tmdb';
@@ -272,6 +351,7 @@
     .tag-mal{background:rgba(99,179,237,0.15);color:#63b3ed;border:1px solid rgba(99,179,237,0.25);}
     .tag-al{background:rgba(168,85,247,0.15);color:#c084fc;border:1px solid rgba(168,85,247,0.25);}
     .tag-tmdb{background:rgba(245,158,11,0.15);color:#fbbf24;border:1px solid rgba(245,158,11,0.25);}
+    .tag-anikoto{background:rgba(236,72,153,0.15);color:#f472b6;border:1px solid rgba(236,72,153,0.25);}
     .view-all-btn{
       display:flex!important;align-items:center;justify-content:center;gap:6px;
       padding:10px 0;margin:0;border-top:1px solid var(--border-medium,rgba(255,255,255,0.08));
@@ -1817,39 +1897,73 @@
    * Searches DB and Jikan for season variations
    */
   async function fetchRelatedSeasons(baseName, existingResults) {
-    // Previously this guessed up to 8 literal suffixes ("X Season 2", "X 2nd Season", "X S2"...)
-    // and ran a SEPARATE Supabase query for each guess (up to 16 DB round trips per search,
-    // the main source of DB load) - and still missed any season titled differently than the
-    // guess (e.g. "Shippuuden" vs "Shippuden", "Final Season Part 2"). Instead, run ONE query
-    // that finds every row whose title starts with the base franchise name - Postgres does the
-    // matching via the existing btree text_pattern_ops indexes, so this is both cheaper and
-    // catches every season/movie/OVA regardless of exact suffix wording.
+    const seasonVariations = generateSeasonVariations(baseName);
+    const allSeasonResults = [];
+    const searchedQueries = new Set([baseName.toLowerCase()]);
+    
+    // Add existing result titles to avoid re-searching
+    existingResults.forEach(r => {
+      if (r.title) searchedQueries.add(r.title.toLowerCase());
+    });
+    
+    // Search each variation (with concurrency limit)
+    const searchPromises = seasonVariations
+      .filter(v => !searchedQueries.has(v.toLowerCase()))
+      .slice(0, 8) // Limit to avoid too many API calls
+      .map(variation => searchSingleVariation(variation));
+    
+    const results = await Promise.allSettled(searchPromises);
+    
+    results.forEach(result => {
+      if (result.status === 'fulfilled' && result.value) {
+        allSeasonResults.push(...result.value);
+      }
+    });
+    
+    return allSeasonResults;
+  }
+  
+  /**
+   * Generate common season name variations for searching
+   */
+  function generateSeasonVariations(baseName) {
+    const variations = [];
+    
+    // Common season suffixes to try
+    const seasonSuffixes = [
+      ' Season 2', ' 2nd Season', ' S2',
+      ' Season 3', ' 3rd Season', ' S3',
+      ' Season 4', ' 4th Season', ' S4',
+      ' Season 5', ' 5th Season',
+      ' Part 2',
+      ' Part 3',
+      ' The Movie', ' Movie',
+      ' OVA',
+      ' Final Season',
+    ];
+    
+    // Add some variations based on the base name
+    seasonSuffixes.forEach(suffix => {
+      variations.push(baseName + suffix);
+    });
+    
+    return variations;
+  }
+  
+  /**
+   * Search a single variation and return results
+   */
+  async function searchSingleVariation(query) {
     try {
-      const safeBase = sanitizeSearchQuery(baseName);
-      if (!safeBase) return [];
-      const { data, error } = await supabase
-        .from('anime_data')
-        .select('default_title,english_title,romanji_title,japanese_title,type,studios,year,score,mal_id,large_image_url_jpg,image_url_jpg,episodes,status')
-        .or(`default_title.ilike.${safeBase}%,english_title.ilike.${safeBase}%,romanji_title.ilike.${safeBase}%`)
-        .order('year', { ascending: true, nullsFirst: false })
-        .limit(20);
-      if (error || !data) return [];
-      return data.map(item => ({
-        poster: item.large_image_url_jpg || item.image_url_jpg || '',
-        title: item.english_title || item.default_title || 'Unknown Title',
-        original: [item.japanese_title, item.romanji_title].filter(Boolean).join(' / ') || '',
-        meta: [item.type, item.year, item.episodes ? `${item.episodes} eps` : null].filter(Boolean).join(' · '),
-        score: item.score ? `★ ${item.score}` : null,
-        mal_id: item.mal_id,
-        source: 'db',
-        year: item.year,
-        episodes: item.episodes,
-        status: item.status
-      }));
+      // Quick DB search first
+      const dbResults = await searchAnimeFromDB(query);
+      if (dbResults && dbResults.length > 0) {
+        return dbResults.slice(0, 2); // Take top 2 per variation
+      }
     } catch (e) {
-      console.warn('[Season] related-seasons query failed:', e.message);
-      return [];
+      // Silently fail individual variation searches
     }
+    return [];
   }
 
   /* ═══════════════════════════════════════════════════════════
@@ -1872,9 +1986,10 @@
   const CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache
   
   // ⏱️ TIMING FALLBACK CONSTANTS (in milliseconds) - REALISTIC VALUES
-  const DB_TIMEOUT_MS = 1200;     // Max wait for DB before triggering Jikan (DB usually 100-500ms)
-  const JIKAN_TIMEOUT_MS = 2500;  // Max wait for Jikan before triggering AniList (Jikan is slow: 300-2000ms)
-  const ANILIST_TIMEOUT_MS = 2000;// Max wait for AniList (final fallback, usually 200-800ms)
+  const DB_TIMEOUT_MS = 1200;      // Max wait for anime_data before trying anikoto_data
+  const ANIKOTO_TIMEOUT_MS = 1200; // Max wait for anikoto_data before trying AniList
+  const ANILIST_TIMEOUT_MS = 2000; // Max wait for AniList before trying Jikan
+  const JIKAN_TIMEOUT_MS = 2500;   // Max wait for Jikan (last resort, public API)
   
   // API endpoints
   const JIKAN_API_BASE = 'https://jikan-api-bohb.onrender.com/v4/search/anime';
@@ -1895,6 +2010,16 @@
     ]);
   }
   
+  /**
+   * Anime search fallback chain (in priority order):
+   *   1. Supabase anime_data   — primary DB, fastest & most complete
+   *   2. Supabase anikoto_data — secondary DB, fills gaps anime_data is missing
+   *   3. AniList GraphQL       — external, broad coverage
+   *   4. Jikan API             — external, last resort (slowest / most rate-limit sensitive)
+   * Each tier only runs if the previous tier didn't already return >= 3 results,
+   * so a healthy DB responds fast and the external APIs rarely get hit at all —
+   * important for staying fast and not overloading anything at high traffic.
+   */
   async function fetchAnimeWithFallbacks(q) {
     const cacheKey = `anime:${q}`;
     const overallStart = performance.now();
@@ -1909,96 +2034,82 @@
       animeSearchCache.delete(cacheKey);
     }
     
-    // NOTE: the shared MIN_API_DELAY throttle used to run here, before even hitting our own
-    // Supabase DB. That's needless latency on every keystroke - Supabase reads aren't
-    // externally rate-limited like Jikan/AniList are, so the DB tier now runs immediately.
-    // The delay is applied later, only in front of the Jikan/AniList tiers that need it.
-    let results = [];
-    let dbCompleted = false;
-    let jikanStarted = false;
+    // Rate limiting: ensure minimum delay between calls
+    const now = Date.now();
+    const timeSinceLastCall = now - lastApiCallTime;
+    if (timeSinceLastCall < MIN_API_DELAY) {
+      await new Promise(resolve => setTimeout(resolve, MIN_API_DELAY - timeSinceLastCall));
+    }
+    lastApiCallTime = Date.now();
     
-    // ── SOURCE 1: SUPABASE DB (Primary) - 20ms timeout ──
-    console.log(`[Search] Starting DB search for "${q}" (timeout: ${DB_TIMEOUT_MS}ms)`);
+    let results = [];
+    
+    // ── SOURCE 1: SUPABASE anime_data (Primary) ──
+    console.log(`[Search] Starting anime_data search for "${q}" (timeout: ${DB_TIMEOUT_MS}ms)`);
     const dbStart = performance.now();
     
     const dbResult = await withTimeout(
       searchAnimeFromDB(q).catch(err => {
-        console.warn(`[Search] DB error: ${err.message}`);
+        console.warn(`[Search] anime_data error: ${err.message}`);
         return [];
       }),
       DB_TIMEOUT_MS,
-      'DB'
+      'anime_data'
     );
     
     const dbElapsed = (performance.now() - dbStart).toFixed(0);
     
     if (!dbResult.timedOut && dbResult.result && dbResult.result.length > 0) {
-      // DB responded within timeout
       results = dbResult.result;
-      dbCompleted = true;
-      console.log(`[Search] ✅ DB returned ${results.length} results in ${dbElapsed}ms`);
+      console.log(`[Search] ✅ anime_data returned ${results.length} results in ${dbElapsed}ms`);
       
-      // If we have enough results, cache and return early
       if (results.length >= 3) {
         animeSearchCache.set(cacheKey, { results, timestamp: Date.now() });
-        console.log(`[Search] ✅ Sufficient results from DB (${results.length}), returning early [${(performance.now() - overallStart).toFixed(0)}ms total]`);
+        console.log(`[Search] ✅ Sufficient results from anime_data (${results.length}), returning early [${(performance.now() - overallStart).toFixed(0)}ms total]`);
         return results;
       }
     } else if (dbResult.timedOut) {
-      // DB took too long - will continue to fallbacks
-      console.log(`[Search] ⏰ DB timed out after ${DB_TIMEOUT_MS}ms, triggering Jikan fallback...`);
-      dbCompleted = false;
+      console.log(`[Search] ⏰ anime_data timed out after ${DB_TIMEOUT_MS}ms, trying anikoto_data...`);
     } else {
-      // DB returned but no results or error
-      dbCompleted = true;
-      console.log(`[Search] ⚠️ DB returned 0 results in ${dbElapsed}ms, trying fallbacks...`);
+      console.log(`[Search] ⚠️ anime_data returned 0 results in ${dbElapsed}ms, trying anikoto_data...`);
     }
     
-    // ── SOURCE 2: JIKAN API (Fallback #1) - 15ms timeout ──
-    // Rate limit applies from here on - first tier hitting an external API.
-    const nowBeforeExternal = Date.now();
-    const timeSinceLastCall = nowBeforeExternal - lastApiCallTime;
-    if (timeSinceLastCall < MIN_API_DELAY) {
-      await new Promise(resolve => setTimeout(resolve, MIN_API_DELAY - timeSinceLastCall));
-    }
-    lastApiCallTime = Date.now();
-
-    console.log(`[Search] Starting Jikan search for "${q}" (timeout: ${JIKAN_TIMEOUT_MS}ms)`);
-    jikanStarted = true;
-    const jikanStart = performance.now();
+    // ── SOURCE 2: SUPABASE anikoto_data (Fallback #1) ──
+    console.log(`[Search] Starting anikoto_data search for "${q}" (timeout: ${ANIKOTO_TIMEOUT_MS}ms)`);
+    const anikotoStart = performance.now();
     
-    const jikanResult = await withTimeout(
-      searchAnimeFromJikan(q).catch(err => {
-        console.warn(`[Search] Jikan error: ${err.message}`);
+    const anikotoResult = await withTimeout(
+      searchAnimeFromAnikoto(q).catch(err => {
+        console.warn(`[Search] anikoto_data error: ${err.message}`);
         return [];
       }),
-      JIKAN_TIMEOUT_MS,
-      'Jikan'
+      ANIKOTO_TIMEOUT_MS,
+      'anikoto_data'
     );
     
-    const jikanElapsed = (performance.now() - jikanStart).toFixed(0);
+    const anikotoElapsed = (performance.now() - anikotoStart).toFixed(0);
     
-    if (!jikanResult.timedOut && jikanResult.result && jikanResult.result.length > 0) {
-      // Jikan responded within timeout
+    if (!anikotoResult.timedOut && anikotoResult.result && anikotoResult.result.length > 0) {
+      // Dedupe against anime_data results by mal_id where both have one;
+      // anikoto rows without a mal_id (mal_id null/empty) are always kept
+      // since they can't collide with anything already in `results`.
       const existingIds = new Set(results.map(r => r.mal_id).filter(Boolean));
-      const newResults = jikanResult.result.filter(r => !existingIds.has(r.mal_id));
+      const newResults = anikotoResult.result.filter(r => !r.mal_id || !existingIds.has(r.mal_id));
       results = [...results, ...newResults];
-      console.log(`[Search] ✅ Jikan returned ${jikanResult.result.length} results (${newResults.length} new) in ${jikanElapsed}ms`);
+      console.log(`[Search] ✅ anikoto_data returned ${anikotoResult.result.length} results (${newResults.length} new) in ${anikotoElapsed}ms`);
       
-      // If we have enough results, cache and return
       if (results.length >= 3) {
         animeSearchCache.set(cacheKey, { results, timestamp: Date.now() });
-        console.log(`[Search] ✅ Sufficient results from DB+Jikan (${results.length}), returning [${(performance.now() - overallStart).toFixed(0)}ms total]`);
+        console.log(`[Search] ✅ Sufficient results from anime_data+anikoto_data (${results.length}), returning [${(performance.now() - overallStart).toFixed(0)}ms total]`);
         return results;
       }
-    } else if (jikanResult.timedOut) {
-      // Jikan took too long
-      console.log(`[Search] ⏰ Jikan timed out after ${JIKAN_TIMEOUT_MS}ms, triggering AniList fallback...`);
+    } else if (anikotoResult.timedOut) {
+      console.log(`[Search] ⏰ anikoto_data timed out after ${ANIKOTO_TIMEOUT_MS}ms, trying AniList...`);
     } else {
-      console.log(`[Search] ⚠️ Jikan returned 0 results in ${jikanElapsed}ms, trying AniList...`);
+      console.log(`[Search] ⚠️ anikoto_data returned 0 results in ${anikotoElapsed}ms, trying AniList...`);
     }
     
-    // ── SOURCE 3: ANILIST GRAPHQL (Fallback #2) - Final safety net ──
+    // ── SOURCE 3: ANILIST GRAPHQL (Fallback #2) ──
     console.log(`[Search] Starting AniList search for "${q}" (timeout: ${ANILIST_TIMEOUT_MS}ms)`);
     const anilistStart = performance.now();
     
@@ -2014,15 +2125,46 @@
     const anilistElapsed = (performance.now() - anilistStart).toFixed(0);
     
     if (!anilistResult.timedOut && anilistResult.result && anilistResult.result.length > 0) {
-      // AniList responded
       const existingIds = new Set(results.map(r => r.mal_id || r.anilistId).filter(Boolean));
-      const newResults = anilistResult.result.filter(r => !existingIds.has(r.anilistId));
+      const newResults = anilistResult.result.filter(r => !existingIds.has(r.anilistId) && !existingIds.has(r.mal_id));
       results = [...results, ...newResults];
       console.log(`[Search] ✅ AniList returned ${anilistResult.result.length} results (${newResults.length} new) in ${anilistElapsed}ms`);
+      
+      if (results.length >= 3) {
+        animeSearchCache.set(cacheKey, { results, timestamp: Date.now() });
+        console.log(`[Search] ✅ Sufficient results (${results.length}), returning [${(performance.now() - overallStart).toFixed(0)}ms total]`);
+        return results;
+      }
     } else if (anilistResult.timedOut) {
-      console.log(`[Search] ⏰ AniList timed out after ${ANILIST_TIMEOUT_MS}ms`);
+      console.log(`[Search] ⏰ AniList timed out after ${ANILIST_TIMEOUT_MS}ms, trying Jikan...`);
     } else {
-      console.log(`[Search] ⚠️ AniList returned 0 results in ${anilistElapsed}ms`);
+      console.log(`[Search] ⚠️ AniList returned 0 results in ${anilistElapsed}ms, trying Jikan...`);
+    }
+    
+    // ── SOURCE 4: JIKAN API (Final fallback — public API, slowest) ──
+    console.log(`[Search] Starting Jikan search for "${q}" (timeout: ${JIKAN_TIMEOUT_MS}ms)`);
+    const jikanStart = performance.now();
+    
+    const jikanResult = await withTimeout(
+      searchAnimeFromJikan(q).catch(err => {
+        console.warn(`[Search] Jikan error: ${err.message}`);
+        return [];
+      }),
+      JIKAN_TIMEOUT_MS,
+      'Jikan'
+    );
+    
+    const jikanElapsed = (performance.now() - jikanStart).toFixed(0);
+    
+    if (!jikanResult.timedOut && jikanResult.result && jikanResult.result.length > 0) {
+      const existingIds = new Set(results.map(r => r.mal_id).filter(Boolean));
+      const newResults = jikanResult.result.filter(r => !existingIds.has(r.mal_id));
+      results = [...results, ...newResults];
+      console.log(`[Search] ✅ Jikan returned ${jikanResult.result.length} results (${newResults.length} new) in ${jikanElapsed}ms`);
+    } else if (jikanResult.timedOut) {
+      console.log(`[Search] ⏰ Jikan timed out after ${JIKAN_TIMEOUT_MS}ms`);
+    } else {
+      console.log(`[Search] ⚠️ Jikan returned 0 results in ${jikanElapsed}ms`);
     }
     
     // Cache final results (even if empty - avoids repeated slow queries)
@@ -2044,18 +2186,6 @@
   const dbSearchCache = new Map();
   const DB_CACHE_TTL = 3 * 60 * 1000; // 3 min DB cache
 
-  // PostgREST's .or() filter syntax reserves `,` `(` `)` as structural characters, and
-  // ILIKE reserves `%` `_` as wildcards. Left un-escaped, a query containing any of these
-  // (e.g. a title with a comma) breaks the filter server-side -> PostgREST error -> caught
-  // -> empty array returned -> shows as "not found" even though the row exists.
-  function sanitizeSearchQuery(q) {
-    return q
-      .replace(/[%_]/g, '\\$&')   // escape ILIKE wildcards so literal % / _ match literally
-      .replace(/[,()]/g, ' ')     // these break the or() filter grammar itself - drop them
-      .replace(/\s{2,}/g, ' ')
-      .trim();
-  }
-
   async function searchAnimeFromDB(q) {
     const dbCacheKey = `db:${q}`;
     
@@ -2070,15 +2200,13 @@
     }
     
     const startTime = performance.now();
-    const safeQ = sanitizeSearchQuery(q);
-    if (!safeQ) return [];
     
     try {
       // Phase 1: Fast prefix match on english_title and default_title (index-friendly)
       let { data, error } = await supabase
         .from('anime_data')
         .select('default_title,english_title,romanji_title,japanese_title,type,studios,year,score,mal_id,large_image_url_jpg,image_url_jpg,episodes,status')
-        .or(`default_title.ilike.${safeQ}%,english_title.ilike.${safeQ}%,japanese_title.ilike.${safeQ}%,romanji_title.ilike.${safeQ}%`)
+        .or(`default_title.ilike.${q}%,english_title.ilike.${q}%,japanese_title.ilike.${q}%`) 
         .order('score', { ascending: false, nullsFirst: false })
         .limit(6);
       
@@ -2087,7 +2215,7 @@
         const { data: data2, error: error2 } = await supabase
           .from('anime_data')
           .select('default_title,english_title,romanji_title,japanese_title,type,studios,year,score,mal_id,large_image_url_jpg,image_url_jpg,episodes,status')
-          .or(`default_title.ilike.%${safeQ}%,english_title.ilike.%${safeQ}%,japanese_title.ilike.%${safeQ}%,romanji_title.ilike.%${safeQ}%`)
+          .or(`default_title.ilike.%${q}%,english_title.ilike.%${q}%,japanese_title.ilike.%${q}%,romanji_title.ilike.%${q}%`) 
           .order('score', { ascending: false, nullsFirst: false })
           .limit(8);
         
@@ -2202,7 +2330,82 @@
     }
   }
 
-  /* ── SOURCE 2: JIKAN API SEARCH ── */
+  /* ── SOURCE 2: SUPABASE anikoto_data (fallback when anime_data has nothing) ──
+     Uses the search_anikoto_fuzzy RPC (SQL function, trigram-indexed) instead
+     of building .or()/ilike filters client-side — one indexed round trip,
+     safe under very high request volume since Postgres does all the matching
+     work via the trgm GIN indexes rather than the client shaping the query. */
+  const anikotoSearchCache = new Map();
+  const ANIKOTO_CACHE_TTL = 3 * 60 * 1000;
+
+  async function searchAnimeFromAnikoto(q) {
+    const cacheKey = `anikoto:${q}`;
+    if (anikotoSearchCache.has(cacheKey)) {
+      const cached = anikotoSearchCache.get(cacheKey);
+      if (Date.now() - cached.timestamp < ANIKOTO_CACHE_TTL) {
+        console.log(`[Anikoto Search] Cache hit for:`, q);
+        return cached.results;
+      }
+      anikotoSearchCache.delete(cacheKey);
+    }
+
+    const startTime = performance.now();
+    try {
+      const { data, error } = await supabase.rpc('search_anikoto_fuzzy', {
+        p_query: q,
+        p_limit: 8
+      });
+
+      if (error) {
+        console.warn('[Anikoto Search] RPC error:', error.message);
+        return [];
+      }
+      if (!data || !data.length) {
+        console.log(`[Anikoto Search] No results for:`, q, `(${(performance.now() - startTime).toFixed(0)}ms)`);
+        return [];
+      }
+
+      console.log(`[Anikoto Search] Found ${data.length} results for:`, q, `(${(performance.now() - startTime).toFixed(0)}ms)`);
+
+      const results = data.map(item => {
+        // mal_id is stored as text in anikoto_data and can be null/empty for
+        // some rows — only use it if it's genuinely a valid number, otherwise
+        // leave it unset so the UI falls back to an anikoto-{id} link instead.
+        const parsedMalId = item.mal_id && /^\d+$/.test(String(item.mal_id).trim())
+          ? parseInt(item.mal_id, 10)
+          : null;
+
+        return {
+          poster: item.poster || '',
+          title: item.title || 'Unknown Title',
+          original: item.alternative && item.alternative !== item.title ? item.alternative : '',
+          meta: [
+            item.anime_type ? item.anime_type.toUpperCase() : null,
+            item.year,
+            item.episodes ? `${item.episodes} eps` : null,
+            item.status
+          ].filter(Boolean).join(' · '),
+          score: item.score ? `★ ${item.score}` : null,
+          mal_id: parsedMalId,
+          anikoto_id: item.anikoto_id,
+          slug: item.slug || null,
+          source: 'anikoto',
+          year: item.year,
+          episodes: item.episodes,
+          status: item.status
+        };
+      });
+
+      anikotoSearchCache.set(cacheKey, { results, timestamp: Date.now() });
+      return results;
+    } catch (err) {
+      console.error('[Anikoto Search] Failed:', err.message);
+      return [];
+    }
+  }
+
+  /* ── SOURCE 4: JIKAN API SEARCH (last resort — public API, slowest & most
+     rate-limit-sensitive of the four sources) ── */
   async function searchAnimeFromJikan(q) {
     const response = await fetch(`${JIKAN_API_BASE}?q=${encodeURIComponent(q)}&page=1&limit=8&sfw=true`, {
       headers: { 'Accept': 'application/json' },
@@ -2456,10 +2659,19 @@
       const slug = slugify(r.title);
 
       // ── ANIME: /info/anime/jikan-{mal_id}/slug ──
-      // All anime sources (db/jikan/anilist) MUST have mal_id
+      // db/jikan/anilist sources always have mal_id.
       if (r.mal_id) {
         detailsUrl = `/info/anime/jikan-${r.mal_id}`;
         if (slug) detailsUrl += `/${slug}`;
+      }
+
+      // ── ANIME (anikoto_data, no mal_id on this row): fallback to anikoto-{id} ──
+      // Some anikoto_data rows are missing a mal_id — link by anikoto_id instead
+      // so the suggestion is still clickable and lands on a valid info page.
+      else if (r.source === 'anikoto' && r.anikoto_id) {
+        detailsUrl = `/info/anime/anikoto-${r.anikoto_id}`;
+        const anikotoSlug = r.slug || slug;
+        if (anikotoSlug) detailsUrl += `/${anikotoSlug}`;
       }
       
       // ── TMDB MOVIE/TV: Link to TMDB info pages ──
@@ -2496,6 +2708,8 @@
         metaTag = '<span class="meta-tag tag-mal">Mal</span>';
       } else if (r.source === 'anilist') {
         metaTag = '<span class="meta-tag tag-al">AL</span>';
+      } else if (r.source === 'anikoto') {
+        metaTag = '<span class="meta-tag tag-anikoto">Anikoto</span>';
       } else if (r.source === 'tmdb' || r.source === 'tmdb-fallback') {
         // TMDB tag - show media type (same display for both t-umi and mapplee)
         const tmdbType = r.mediaType === 'movie' ? 'Movie' : 'TV';
@@ -3228,6 +3442,40 @@
     twitterHandle: '@rowana_official',
     
     // ═══════════════════════════════════════════════════════
+    // OG FLYER CARD IMAGES (Dynamic per page type)
+    // Your Canva-designed flyer with "Rowana" + cyan gradient + pink buttons
+    // Size: 1200x630px (Facebook/Twitter standard OG image size)
+    // ═══════════════════════════════════════════════════════
+    flyerImages: {
+      // MAIN FLYER - Your Canva design (used for most pages)
+      // Design: Dark navy bg + anime posters left + "Rowana" cyan gradient + URL + pink buttons
+      home: 'https://i.postimg.cc/Fs8y8Wqh/Follow-Ani-Wind-Zone-x-profile-banner.jpg',
+      
+      // ANIME SECTION PAGES - Uses main brand flyer
+      animeSection: 'https://i.postimg.cc/Fs8y8Wqh/Follow-Ani-Wind-Zone-x-profile-banner.jpg',
+      
+      // MOVIES SECTION PAGES - Uses main brand flyer
+      moviesSection: 'https://i.postimg.cc/Fs8y8Wqh/Follow-Ani-Wind-Zone-x-profile-banner.jpg',
+      
+      // TV SHOWS SECTION PAGES - Uses main brand flyer
+      tvSection: 'https://i.postimg.cc/Fs8y8Wqh/Follow-Ani-Wind-Zone-x-profile-banner.jpg',
+      
+      // INFO/WATCH PAGES - NOT using flyer (will use dynamic poster detection or default)
+      // TODO: User will design specific content page flyer later
+      info: '',  // Empty = triggers detectPosterImage() or falls back to defaultImage
+      
+      // SEARCH RESULTS PAGE - Uses main brand flyer
+      search: 'https://i.postimg.cc/Fs8y8Wqh/Follow-Ani-Wind-Zone-x-profile-banner.jpg',
+      
+      // FALLBACK FLYER - For any unmatched/unknown pages
+      fallback: 'https://i.postimg.cc/Fs8y8Wqh/Follow-Ani-Wind-Zone-x-profile-banner.jpg'
+    },
+    
+    // Enable/disable dynamic poster detection for content pages
+    // When true, tries to use actual anime/movie poster as OG image on info pages
+    dynamicPosterDetection: true,
+    
+    // ═══════════════════════════════════════════════════════
     // CONTENT TYPE CONFIGURATIONS (Separate for each niche)
     // ═══════════════════════════════════════════════════════
     
@@ -3450,6 +3698,106 @@
       };
     },
     
+    // ═══════════════════════════════════════════════════════
+    // DYNAMIC OG IMAGE SELECTION (Flyer Card System)
+    // Automatically selects the best OG image for each page type
+    // Priority: Page-specific flyer > Dynamic poster > Default
+    // ═══════════════════════════════════════════════════════
+    getOgImage: function() {
+      const pageType = this.detectPageType();
+      
+      // 1. Try to get page-specific flyer image first
+      const flyerUrl = this.flyerImages[pageType] || this.flyerImages.fallback;
+      
+      // 2. For info/content pages, try to detect actual poster image
+      if (pageType === 'info' && this.dynamicPosterDetection) {
+        const posterImage = this.detectPosterImage();
+        if (posterImage) {
+          console.log('[MetadataManager] 🖼️ Using dynamic poster for OG:', posterImage);
+          return posterImage;
+        }
+      }
+      
+      // 3. If flyer URL is placeholder (not uploaded yet), fall back to default
+      if (flyerUrl && !flyerUrl.includes('YOUR_')) {
+        console.log('[MetadataManager] 📄 Using flyer image for', pageType, ':', flyerUrl);
+        return flyerUrl;
+      }
+      
+      // 4. Final fallback to default image
+      console.log('[MetadataManager] 🖼️ Using default OG image');
+      return this.defaultImage;
+    },
+    
+    // Detect poster/image from current page for content pages
+    // Looks for: og:image already set, poster img, hero background, etc.
+    detectPosterImage: function() {
+      // Method 1: Check for existing og:image (set by server or earlier script)
+      const existingOg = document.querySelector('meta[property="og:image"]');
+      if (existingOg && existingOg.content && !existingOg.content.includes('postimg.cc/BvwTjXgv')) {
+        return existingOg.content;
+      }
+      
+      // Method 2: Look for poster image element (common patterns)
+      const posterSelectors = [
+        'img.poster-img',
+        'img.content-poster',
+        'img.show-poster',
+        '.poster-image img',
+        '.show-poster img',
+        '[data-poster]',
+        '.hero-slider .slide[style*="background"]',
+        '#bannerImg',
+        '.info-banner img',
+        '.content-banner img'
+      ];
+      
+      for (const selector of posterSelectors) {
+        const el = document.querySelector(selector);
+        if (el) {
+          // Handle background images
+          if (el.style && el.style.backgroundImage) {
+            const match = el.style.backgroundImage.match(/url\(["']?(.*?)["']?\)/);
+            if (match && match[1]) return match[1];
+          }
+          // Handle img src
+          if (el.src && el.src.startsWith('http') && !el.src.includes('avatar') && !el.src.includes('icon')) {
+            return el.src;
+          }
+          // Handle data attribute
+          if (el.dataset && el.dataset.poster) {
+            return el.dataset.poster;
+          }
+        }
+      }
+      
+      // Method 3: Try to get from Open Graph data in page (if any)
+      const jsonLd = document.querySelector('script[type="application/ld+json"]');
+      if (jsonLd) {
+        try {
+          const data = JSON.parse(jsonLd.textContent);
+          if (data.thumbnailUrl) return data.thumbnailUrl;
+          if (data.image) return data.image;
+          if (Array.isArray(data)) {
+            for (const item of data) {
+              if (item.thumbnailUrl) return item.thumbnailUrl;
+              if (item.image) return item.image;
+            }
+          }
+        } catch (e) { /* ignore parse errors */ }
+      }
+      
+      // Method 4: Get largest image on page (heuristic)
+      const images = Array.from(document.querySelectorAll('img[src*="tmdb"], img[src*="anilist"], img[src*="fanart"], img[src*="poster"]'));
+      if (images.length > 0) {
+        // Return the largest image by area (best candidate for poster)
+        images.sort((a, b) => (b.naturalWidth * b.naturalHeight) - (a.naturalWidth * a.naturalHeight));
+        return images[0].src;
+      }
+      
+      return null; // No poster detected
+    },
+    
     // Template helper - replace {var} with actual values
     applyTemplate: function(template, data) {
       if (!template) return '';
@@ -3475,7 +3823,7 @@
           twitterTitle: this.applyTemplate(config.twitterTitleTemplate, showInfo),
           twitterDescription: this.applyTemplate(config.twitterDescriptionTemplate, showInfo),
           type: config.type,
-          image: this.defaultImage,
+          image: this.getOgImage(),  // Dynamic: poster or flyer
           url: window.location.href
         };
       }
@@ -3495,7 +3843,7 @@
           twitterTitle: this.applyTemplate(config.twitterTitleTemplate, searchData),
           twitterDescription: this.applyTemplate(config.twitterDescriptionTemplate, searchData),
           type: config.type,
-          image: this.defaultImage,
+          image: this.getOgImage(),  // Dynamic: search flyer or default
           url: window.location.href
         };
       }
@@ -3510,7 +3858,7 @@
         twitterTitle: config.twitterTitle,
         twitterDescription: config.twitterDescription,
         type: config.type,
-        image: this.defaultImage,
+        image: this.getOgImage(),  // Dynamic: page-specific flyer or default
         url: this.siteUrl
       };
     },
@@ -3562,7 +3910,7 @@
           '@context': 'https://schema.org',
           '@type': 'WebSite',
           name: this.siteName,
-          alternateName: ['Rowana', 'Rowana', 'AniOcean', 'Rowana TV', 'Rowana Streaming'],
+          alternateName: ['Rowana', 'AniOcean', 'Rowana TV', 'Rowana Streaming'],
           url: this.siteUrl,
           description: meta.description,
           inLanguage: ['en-US', 'ja', 'ko'],  // Multi-language support like Cineby
