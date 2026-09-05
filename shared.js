@@ -353,6 +353,20 @@
     .tag-al{background:rgba(168,85,247,0.15);color:#c084fc;border:1px solid rgba(168,85,247,0.25);}
     .tag-tmdb{background:rgba(245,158,11,0.15);color:#fbbf24;border:1px solid rgba(245,158,11,0.25);}
     .tag-anikoto{background:rgba(236,72,153,0.15);color:#f472b6;border:1px solid rgba(236,72,153,0.25);}
+    .sug-genres{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;}
+    .sug-genre{
+      --gr:148,163,184;
+      font-size:8.5px;font-weight:600;line-height:1.6;
+      padding:1px 8px;border-radius:999px;white-space:nowrap;
+      color:rgb(var(--gr));
+      border:1px solid transparent;
+      background:
+        linear-gradient(#151b26,#151b26) padding-box,
+        linear-gradient(135deg, rgba(var(--gr),0.9), rgba(var(--gr),0.25)) border-box;
+    }
+    /* Mobile: only first 2 genre pills. Tablet: first 3. Desktop: all 4 rendered. */
+    @media (max-width:480px){ .sug-genre:nth-child(n+3){display:none;} }
+    @media (min-width:481px) and (max-width:900px){ .sug-genre:nth-child(n+4){display:none;} }
     .view-all-btn{
       display:flex!important;align-items:center;justify-content:center;gap:6px;
       padding:10px 0;margin:0;border-top:1px solid var(--border-medium,rgba(255,255,255,0.08));
@@ -1932,7 +1946,7 @@
     try {
       const { data, error } = await supabase
         .from('anime_data')
-        .select('default_title,english_title,romanji_title,japanese_title,type,studios,year,score,mal_id,large_image_url_jpg,image_url_jpg,episodes,status')
+        .select('default_title,english_title,romanji_title,japanese_title,type,studios,genres,year,score,mal_id,large_image_url_jpg,image_url_jpg,episodes,status')
         .in('mal_id', relatedIds);
       if (error || !data) return [];
       return data.map(item => ({
@@ -1941,6 +1955,7 @@
         original: [item.japanese_title, item.romanji_title].filter(Boolean).join(' / ') || '',
         meta: [item.type, item.year, item.episodes ? `${item.episodes} eps` : null].filter(Boolean).join(' · '),
         score: item.score ? `★ ${item.score}` : null,
+        genres: parseGenres(item.genres),
         mal_id: item.mal_id,
         source: 'db',
         year: item.year,
@@ -1970,7 +1985,7 @@
       if (!safeBase) return [];
       const { data, error } = await supabase
         .from('anime_data')
-        .select('default_title,english_title,romanji_title,japanese_title,type,studios,year,score,mal_id,large_image_url_jpg,image_url_jpg,episodes,status')
+        .select('default_title,english_title,romanji_title,japanese_title,type,studios,genres,year,score,mal_id,large_image_url_jpg,image_url_jpg,episodes,status')
         .or(`default_title.ilike.${safeBase}%,english_title.ilike.${safeBase}%,romanji_title.ilike.${safeBase}%`)
         .order('year', { ascending: true, nullsFirst: false })
         .limit(20);
@@ -1981,6 +1996,7 @@
         original: [item.japanese_title, item.romanji_title].filter(Boolean).join(' / ') || '',
         meta: [item.type, item.year, item.episodes ? `${item.episodes} eps` : null].filter(Boolean).join(' · '),
         score: item.score ? `★ ${item.score}` : null,
+        genres: parseGenres(item.genres),
         mal_id: item.mal_id,
         source: 'db',
         year: item.year,
@@ -2230,6 +2246,12 @@
       .trim();
   }
 
+  // genres is stored as a plain comma-separated string (e.g. "Action, Adventure, Fantasy")
+  function parseGenres(genres) {
+    if (!genres || typeof genres !== 'string') return [];
+    return genres.split(',').map(g => g.trim()).filter(Boolean);
+  }
+
   async function searchAnimeFromDB(q) {
     const dbCacheKey = `db:${q}`;
     
@@ -2251,7 +2273,7 @@
       // Phase 1: Fast prefix match on english_title and default_title (index-friendly)
       let { data, error } = await supabase
         .from('anime_data')
-        .select('default_title,english_title,romanji_title,japanese_title,type,studios,year,score,mal_id,large_image_url_jpg,image_url_jpg,episodes,status,relations')
+        .select('default_title,english_title,romanji_title,japanese_title,type,studios,genres,year,score,mal_id,large_image_url_jpg,image_url_jpg,episodes,status,relations')
         .or(`default_title.ilike.${safeQ}%,english_title.ilike.${safeQ}%,japanese_title.ilike.${safeQ}%,romanji_title.ilike.${safeQ}%`)
         .order('score', { ascending: false, nullsFirst: false })
         .limit(6);
@@ -2260,7 +2282,7 @@
       if ((!error && (!data || data.length < 3)) || error) {
         const { data: data2, error: error2 } = await supabase
           .from('anime_data')
-          .select('default_title,english_title,romanji_title,japanese_title,type,studios,year,score,mal_id,large_image_url_jpg,image_url_jpg,episodes,status,relations')
+          .select('default_title,english_title,romanji_title,japanese_title,type,studios,genres,year,score,mal_id,large_image_url_jpg,image_url_jpg,episodes,status,relations')
           .or(`default_title.ilike.%${safeQ}%,english_title.ilike.%${safeQ}%,japanese_title.ilike.%${safeQ}%,romanji_title.ilike.%${safeQ}%`)
           .order('score', { ascending: false, nullsFirst: false })
           .limit(8);
@@ -2364,6 +2386,7 @@
         year: item.year,
         episodes: item.episodes,
         status: item.status,
+        genres: parseGenres(item.genres),
         relations: item.relations || null
       }));
       
@@ -2475,6 +2498,7 @@
         item.status?.replace('_', ' ')
       ].filter(Boolean).join(' · '),
       score: item.score ? `★ ${item.score}` : null,
+      genres: (item.genres || []).map(g => g.name).filter(Boolean),
       mal_id: item.mal_id,
       source: 'jikan',
       year: item.year || item.season?.year,
@@ -2545,10 +2569,10 @@
       meta: [
         item.format?.replace(/_/g, ' '),
         item.seasonYear,
-        item.episodes ? `${item.episodes} eps` : null,
-        item.genres?.slice(0, 2).join(', ')
+        item.episodes ? `${item.episodes} eps` : null
       ].filter(Boolean).join(' · '),
       score: item.averageScore ? `★ ${item.averageScore}%` : null,
+      genres: item.genres || [],
       mal_id: item.idMal, // Use idMal as mal_id for consistent link format
       anilistId: item.id,
       source: 'anilist',
@@ -2679,6 +2703,22 @@
     });
   }
 
+  // Genre pill colors: one hue per starting letter (a-z), gradient border + matching text
+  // color. Kept independent of info.html's GENRE_COLOR_MAP (which only covers 9 letters via
+  // data-start attributes) so every genre gets a distinct color here, not just the common ones.
+  const GENRE_HUES = {
+    a: '49,132,192',  b: '16,185,129',  c: '236,201,75',  d: '239,68,68',   e: '20,184,166',
+    f: '139,92,246',  g: '168,85,247',  h: '249,115,22',  i: '234,179,8',   j: '244,63,94',
+    k: '6,182,212',   l: '132,204,22',  m: '59,130,246',  n: '99,102,241',  o: '251,146,60',
+    p: '217,70,239',  q: '45,212,191',  r: '236,72,153',  s: '34,197,94',   t: '56,189,248',
+    u: '163,163,163', v: '190,24,93',   w: '202,138,4',   x: '107,114,128', y: '202,86,86',
+    z: '94,234,212'
+  };
+  function genreHue(name) {
+    const ch = (name || '?').trim().charAt(0).toLowerCase();
+    return GENRE_HUES[ch] || '148,163,184';
+  }
+
   function renderSuggestions(results, q, container) {
     const slugify = (title) => {
       if (!title) return '';
@@ -2746,6 +2786,15 @@
         ? `<span class="sug-score">${esc(r.score)}</span>` : '';
       
       const meta = [r.meta].filter(Boolean).join('');
+
+      // Up to 4 genre pills, gradient-bordered per starting letter. CSS below trims the
+      // visible count further on smaller screens (2 on mobile, 3 on tablet) without a
+      // separate render path.
+      const genreHtml = (r.genres && r.genres.length)
+        ? `<div class="sug-genres">${r.genres.slice(0, 4).map(g =>
+            `<span class="sug-genre" style="--gr:${genreHue(g)}">${esc(g)}</span>`
+          ).join('')}</div>`
+        : '';
       
       // Metadata tag: S-Mal (DB), Mal (Jikan), AL (AniList), TMDB (Movie/TV) - same for both APIs
       let metaTag = '';
@@ -2769,6 +2818,7 @@
           <div class="sug-title">${esc(r.title)}</div>
           ${orig}
           <div class="sug-meta">${meta} ${score} ${metaTag}</div>
+          ${genreHtml}
         </div>
       </a>`;
     }).join('');
