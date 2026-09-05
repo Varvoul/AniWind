@@ -113,7 +113,6 @@
   ];
 
   let searchDebounceTimer = null;
-  let searchRequestSeq    = 0;   // incremented per dispatched search; used to discard stale/out-of-order responses
   let currentSearchMode   = 'non-anime';
   let currentUser         = null;
   let hcaptchaToken       = '';
@@ -344,7 +343,6 @@
     .sug-meta{font-size:10px;color:var(--text-muted,#888);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:6px;}
     .sug-meta::before{content:'';width:3px;height:3px;background:#63b3ed;border-radius:50%;flex-shrink:0;}
     .sug-score{display:inline-flex;align-items:center;gap:2px;color:#f59e0b;font-weight:600;font-size:8.5px;padding:1px 6px;background:rgba(245,158,11,0.12);border-radius:10px;}
-    .sug-cert{display:inline-flex;align-items:center;font-weight:700;font-size:8.5px;padding:1px 6px;color:#f87171;background:rgba(248,113,113,0.12);border:1px solid rgba(248,113,113,0.3);border-radius:5px;letter-spacing:.02em;}
     .meta-tag{
       font-size:9px;padding:1px 7px;border-radius:6px;font-weight:700;
       letter-spacing:.03em;flex-shrink:0;font-family:'Courier New',monospace;
@@ -354,20 +352,6 @@
     .tag-al{background:rgba(168,85,247,0.15);color:#c084fc;border:1px solid rgba(168,85,247,0.25);}
     .tag-tmdb{background:rgba(245,158,11,0.15);color:#fbbf24;border:1px solid rgba(245,158,11,0.25);}
     .tag-anikoto{background:rgba(236,72,153,0.15);color:#f472b6;border:1px solid rgba(236,72,153,0.25);}
-    .sug-genres{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;}
-    .sug-genre{
-      --gr:148,163,184;
-      font-size:8.5px;font-weight:600;line-height:1.6;
-      padding:1px 8px;border-radius:999px;white-space:nowrap;
-      color:rgb(var(--gr));
-      border:1px solid transparent;
-      background:
-        linear-gradient(#151b26,#151b26) padding-box,
-        linear-gradient(135deg, rgba(var(--gr),0.9), rgba(var(--gr),0.25)) border-box;
-    }
-    /* Mobile: only first 2 genre pills. Tablet: first 3. Desktop: all 4 rendered. */
-    @media (max-width:480px){ .sug-genre:nth-child(n+3){display:none;} }
-    @media (min-width:481px) and (max-width:900px){ .sug-genre:nth-child(n+4){display:none;} }
     .view-all-btn{
       display:flex!important;align-items:center;justify-content:center;gap:6px;
       padding:10px 0;margin:0;border-top:1px solid var(--border-medium,rgba(255,255,255,0.08));
@@ -1740,20 +1724,12 @@
   }
 
   async function fetchSuggestions(q, container) {
-    // Guard against out-of-order responses: if the user types "na", pauses (fires a
-    // request), then keeps typing to "naruto" (fires another), the two requests race
-    // slower/faster through DB/Jikan/AniList fallback tiers with no guarantee of finishing
-    // in the order they started. Without this check, an older "na" response landing after
-    // the newer "naruto" one silently overwrote the correct results in the UI.
-    const mySeq = ++searchRequestSeq;
     try {
       const results = currentSearchMode === 'anime'
         ? await fetchAnimeWithSeasonGrouping(q)
         : await fetchTMDB(q);
-      if (mySeq !== searchRequestSeq) return; // a newer search has since started - discard this stale result
       renderSuggestions(results.slice(0, 10), q, container); // Show up to 10 for seasons
     } catch (err) {
-      if (mySeq !== searchRequestSeq) return;
       container.innerHTML = `<div style="padding:14px 12px;font-size:0.76rem;color:var(--text-muted,#888);">Failed to fetch. Try again.</div>`;
       console.error('Search error:', err);
     }
@@ -1879,13 +1855,8 @@
     if (!baseName || baseName.length < 2) return results;
     
     try {
-      // Prefer real AniList relation data when available - it's exact, unlike title guessing.
-      // Falls back to the base-title prefix heuristic for rows the pipeline hasn't
-      // backfilled `relations` for yet.
-      const topWithRelations = results.find(r => Array.isArray(r.relations) && r.relations.length > 0);
-      const seasonResults = topWithRelations
-        ? await fetchSeasonsByRelations(topWithRelations.relations)
-        : await fetchRelatedSeasons(baseName, results);
+      // Search for additional seasons using variations of the base name
+      const seasonResults = await fetchRelatedSeasons(baseName, results);
       
       if (seasonResults.length > 0) {
         // Merge and deduplicate
@@ -1898,25 +1869,15 @@
           // Combine all results
           const allResults = [...results, ...newSeasons];
           
-          // Sort by year (oldest first, unknown/0 years pushed LAST instead of first -
-          // most Specials/OVAs have year:0 from incomplete scrapes, and sorting them as
-          // if year 0 were "oldest" was shoving junk-year entries ahead of the real main
-          // series/seasons, which then got cut off by the top-10 slice in fetchSuggestions).
-          // Ties (same year, or both unknown) break by type so the main TV series bubbles
-          // above OVAs/Specials/Movies sharing that year.
-          const TYPE_RANK = { TV: 0, ONA: 1, Movie: 2, OVA: 3, Special: 4, Music: 5 };
+          // Sort by year (oldest first), then by season order
           allResults.sort((a, b) => {
-            const yearA = a.year > 0 ? a.year : Infinity;
-            const yearB = b.year > 0 ? b.year : Infinity;
+            const yearA = a.year || 0;
+            const yearB = b.year || 0;
             if (yearA !== yearB) return yearA - yearB;
-
-            const typeRankA = TYPE_RANK[a.meta?.split(' · ')[0]] ?? TYPE_RANK[a.type] ?? 9;
-            const typeRankB = TYPE_RANK[b.meta?.split(' · ')[0]] ?? TYPE_RANK[b.type] ?? 9;
-            if (typeRankA !== typeRankB) return typeRankA - typeRankB;
-
-            // Same year and type? Use title-based season ordering
-            const orderA = getSeasonOrder(a.title || '', a.year || 0);
-            const orderB = getSeasonOrder(b.title || '', b.year || 0);
+            
+            // Same year? Use title-based season ordering
+            const orderA = getSeasonOrder(a.title || '', yearA);
+            const orderB = getSeasonOrder(b.title || '', yearB);
             return orderA - orderB;
           });
           
@@ -1932,84 +1893,77 @@
   }
   
   /**
-   * Fetch related entries using real AniList relation edges stored on the row
-   * (relations: [{mal_id, relation_type, title}, ...], populated by the pipeline).
-   * Exact by construction - no title guessing, no false negatives from wording differences.
-   */
-  async function fetchSeasonsByRelations(relations) {
-    const RELEVANT_TYPES = new Set(['SEQUEL', 'PREQUEL', 'PARENT', 'SIDE_STORY', 'ALTERNATIVE']);
-    const relatedIds = [...new Set(
-      relations
-        .filter(r => r && r.mal_id && RELEVANT_TYPES.has((r.relation_type || '').toUpperCase()))
-        .map(r => r.mal_id)
-    )];
-    if (relatedIds.length === 0) return [];
-    try {
-      const { data, error } = await supabase
-        .from('anime_data')
-        .select('default_title,english_title,romanji_title,japanese_title,type,studios,genres,rating,year,score,mal_id,large_image_url_jpg,image_url_jpg,episodes,status')
-        .in('mal_id', relatedIds);
-      if (error || !data) return [];
-      return data.map(item => ({
-        poster: item.large_image_url_jpg || item.image_url_jpg || '',
-        title: item.english_title || item.default_title || 'Unknown Title',
-        original: [item.japanese_title, item.romanji_title].filter(Boolean).join(' / ') || '',
-        meta: [item.type, item.year, item.episodes ? `${item.episodes} eps` : null].filter(Boolean).join(' · '),
-        score: item.score ? `★ ${item.score}` : null,
-        genres: parseGenres(item.genres),
-        certification: shortCertification(item.rating),
-        mal_id: item.mal_id,
-        source: 'db',
-        year: item.year,
-        episodes: item.episodes,
-        status: item.status
-      }));
-    } catch (e) {
-      console.warn('[Season] relations lookup failed:', e.message);
-      return [];
-    }
-  }
-
-  /**
-   * Fetch related seasons for a base anime name (fallback heuristic when a row
-   * has no `relations` data yet - searches DB by base-title prefix)
+   * Fetch related seasons for a base anime name
+   * Searches DB and Jikan for season variations
    */
   async function fetchRelatedSeasons(baseName, existingResults) {
-    // Previously this guessed up to 8 literal suffixes ("X Season 2", "X 2nd Season", "X S2"...)
-    // and ran a SEPARATE Supabase query for each guess (up to 16 DB round trips per search,
-    // the main source of DB load) - and still missed any season titled differently than the
-    // guess (e.g. "Shippuuden" vs "Shippuden", "Final Season Part 2"). Instead, run ONE query
-    // that finds every row whose title starts with the base franchise name - Postgres does the
-    // matching via the existing btree text_pattern_ops indexes, so this is both cheaper and
-    // catches every season/movie/OVA regardless of exact suffix wording.
+    const seasonVariations = generateSeasonVariations(baseName);
+    const allSeasonResults = [];
+    const searchedQueries = new Set([baseName.toLowerCase()]);
+    
+    // Add existing result titles to avoid re-searching
+    existingResults.forEach(r => {
+      if (r.title) searchedQueries.add(r.title.toLowerCase());
+    });
+    
+    // Search each variation (with concurrency limit)
+    const searchPromises = seasonVariations
+      .filter(v => !searchedQueries.has(v.toLowerCase()))
+      .slice(0, 8) // Limit to avoid too many API calls
+      .map(variation => searchSingleVariation(variation));
+    
+    const results = await Promise.allSettled(searchPromises);
+    
+    results.forEach(result => {
+      if (result.status === 'fulfilled' && result.value) {
+        allSeasonResults.push(...result.value);
+      }
+    });
+    
+    return allSeasonResults;
+  }
+  
+  /**
+   * Generate common season name variations for searching
+   */
+  function generateSeasonVariations(baseName) {
+    const variations = [];
+    
+    // Common season suffixes to try
+    const seasonSuffixes = [
+      ' Season 2', ' 2nd Season', ' S2',
+      ' Season 3', ' 3rd Season', ' S3',
+      ' Season 4', ' 4th Season', ' S4',
+      ' Season 5', ' 5th Season',
+      ' Part 2',
+      ' Part 3',
+      ' The Movie', ' Movie',
+      ' OVA',
+      ' Final Season',
+    ];
+    
+    // Add some variations based on the base name
+    seasonSuffixes.forEach(suffix => {
+      variations.push(baseName + suffix);
+    });
+    
+    return variations;
+  }
+  
+  /**
+   * Search a single variation and return results
+   */
+  async function searchSingleVariation(query) {
     try {
-      const safeBase = sanitizeSearchQuery(baseName);
-      if (!safeBase) return [];
-      const { data, error } = await supabase
-        .from('anime_data')
-        .select('default_title,english_title,romanji_title,japanese_title,type,studios,genres,rating,year,score,mal_id,large_image_url_jpg,image_url_jpg,episodes,status')
-        .or(`default_title.ilike.${safeBase}%,english_title.ilike.${safeBase}%,romanji_title.ilike.${safeBase}%`)
-        .order('year', { ascending: true, nullsFirst: false })
-        .limit(20);
-      if (error || !data) return [];
-      return data.map(item => ({
-        poster: item.large_image_url_jpg || item.image_url_jpg || '',
-        title: item.english_title || item.default_title || 'Unknown Title',
-        original: [item.japanese_title, item.romanji_title].filter(Boolean).join(' / ') || '',
-        meta: [item.type, item.year, item.episodes ? `${item.episodes} eps` : null].filter(Boolean).join(' · '),
-        score: item.score ? `★ ${item.score}` : null,
-        genres: parseGenres(item.genres),
-        certification: shortCertification(item.rating),
-        mal_id: item.mal_id,
-        source: 'db',
-        year: item.year,
-        episodes: item.episodes,
-        status: item.status
-      }));
+      // Quick DB search first
+      const dbResults = await searchAnimeFromDB(query);
+      if (dbResults && dbResults.length > 0) {
+        return dbResults.slice(0, 2); // Take top 2 per variation
+      }
     } catch (e) {
-      console.warn('[Season] related-seasons query failed:', e.message);
-      return [];
+      // Silently fail individual variation searches
     }
+    return [];
   }
 
   /* ═══════════════════════════════════════════════════════════
@@ -2080,11 +2034,14 @@
       animeSearchCache.delete(cacheKey);
     }
     
-    // NOTE: the shared MIN_API_DELAY throttle used to run here, before even hitting our
-    // own Supabase DB. That's needless latency on every keystroke - Supabase reads aren't
-    // externally rate-limited like Jikan/AniList are, so the DB and anikoto tiers now run
-    // immediately. The delay is applied later, only in front of the AniList/Jikan tiers
-    // that actually need it.
+    // Rate limiting: ensure minimum delay between calls
+    const now = Date.now();
+    const timeSinceLastCall = now - lastApiCallTime;
+    if (timeSinceLastCall < MIN_API_DELAY) {
+      await new Promise(resolve => setTimeout(resolve, MIN_API_DELAY - timeSinceLastCall));
+    }
+    lastApiCallTime = Date.now();
+    
     let results = [];
     
     // ── SOURCE 1: SUPABASE anime_data (Primary) ──
@@ -2153,14 +2110,6 @@
     }
     
     // ── SOURCE 3: ANILIST GRAPHQL (Fallback #2) ──
-    // Rate limit only applies from here on - this is the first tier hitting an external API.
-    const nowBeforeExternal = Date.now();
-    const timeSinceLastCall = nowBeforeExternal - lastApiCallTime;
-    if (timeSinceLastCall < MIN_API_DELAY) {
-      await new Promise(resolve => setTimeout(resolve, MIN_API_DELAY - timeSinceLastCall));
-    }
-    lastApiCallTime = Date.now();
-
     console.log(`[Search] Starting AniList search for "${q}" (timeout: ${ANILIST_TIMEOUT_MS}ms)`);
     const anilistStart = performance.now();
     
@@ -2237,60 +2186,6 @@
   const dbSearchCache = new Map();
   const DB_CACHE_TTL = 3 * 60 * 1000; // 3 min DB cache
 
-  // PostgREST's .or() filter syntax reserves `,` `(` `)` as structural characters, and
-  // ILIKE reserves `%` `_` as wildcards. Left un-escaped, a query containing any of these
-  // (e.g. a title with a comma) breaks the filter server-side -> PostgREST error -> caught
-  // -> empty array returned -> shows as "not found" even though the row exists.
-  function sanitizeSearchQuery(q) {
-    return q
-      .replace(/[%_]/g, '\\$&')   // escape ILIKE wildcards so literal % / _ match literally
-      .replace(/[,()]/g, ' ')     // these break the or() filter grammar itself - drop them
-      .replace(/\s{2,}/g, ' ')
-      .trim();
-  }
-
-  // genres is stored as a plain comma-separated string (e.g. "Action, Adventure, Fantasy")
-  // genres is inconsistent across rows: some store a plain comma-separated string
-  // ("Action, Adventure, Fantasy"), others store a JSON array double-encoded as a string
-  // ('"[\"Action\",\"Martial Arts\"]"') - the same messy pattern parseStudio() already
-  // handles for the studios column. Unwrap/parse JSON when present, else split on commas.
-  function parseGenres(genres) {
-    if (!genres || typeof genres !== 'string') return [];
-    let trimmed = genres.trim();
-    // Strip one layer of wrapping quotes some rows have around the whole JSON string
-    if (trimmed.startsWith('"') && trimmed.endsWith('"') && trimmed.length > 1) {
-      trimmed = trimmed.slice(1, -1);
-    }
-    if (trimmed.startsWith('[')) {
-      try {
-        const parsed = JSON.parse(trimmed);
-        if (Array.isArray(parsed)) {
-          return parsed.map(g => (typeof g === 'string' ? g.trim() : String(g))).filter(Boolean);
-        }
-      } catch (e) {
-        // Double-escaped JSON (backslashes survived a layer of unescaping) - unescape and retry once
-        try {
-          const parsed = JSON.parse(trimmed.replace(/\\"/g, '"'));
-          if (Array.isArray(parsed)) {
-            return parsed.map(g => (typeof g === 'string' ? g.trim() : String(g))).filter(Boolean);
-          }
-        } catch (e2) {
-          // Fall through to plain-string handling below
-        }
-      }
-    }
-    return trimmed.split(',').map(g => g.trim().replace(/^["\[]+|["\]]+$/g, '')).filter(Boolean);
-  }
-
-  // rating column stores full MAL certification text ("PG-13 - Teens 13 or older",
-  // "R - 17+ (violence & profanity)"). Show just the short code.
-  function shortCertification(rating) {
-    if (!rating || typeof rating !== 'string') return '';
-    const trimmed = rating.trim();
-    if (!trimmed || trimmed === 'None' || trimmed === 'N/A') return '';
-    return trimmed.split(' - ')[0].trim();
-  }
-
   async function searchAnimeFromDB(q) {
     const dbCacheKey = `db:${q}`;
     
@@ -2305,15 +2200,13 @@
     }
     
     const startTime = performance.now();
-    const safeQ = sanitizeSearchQuery(q);
-    if (!safeQ) return [];
     
     try {
       // Phase 1: Fast prefix match on english_title and default_title (index-friendly)
       let { data, error } = await supabase
         .from('anime_data')
-        .select('default_title,english_title,romanji_title,japanese_title,type,studios,genres,rating,year,score,mal_id,large_image_url_jpg,image_url_jpg,episodes,status,relations')
-        .or(`default_title.ilike.${safeQ}%,english_title.ilike.${safeQ}%,japanese_title.ilike.${safeQ}%,romanji_title.ilike.${safeQ}%`)
+        .select('default_title,english_title,romanji_title,japanese_title,type,studios,year,score,mal_id,large_image_url_jpg,image_url_jpg,episodes,status')
+        .or(`default_title.ilike.${q}%,english_title.ilike.${q}%,japanese_title.ilike.${q}%`) 
         .order('score', { ascending: false, nullsFirst: false })
         .limit(6);
       
@@ -2321,8 +2214,8 @@
       if ((!error && (!data || data.length < 3)) || error) {
         const { data: data2, error: error2 } = await supabase
           .from('anime_data')
-          .select('default_title,english_title,romanji_title,japanese_title,type,studios,genres,rating,year,score,mal_id,large_image_url_jpg,image_url_jpg,episodes,status,relations')
-          .or(`default_title.ilike.%${safeQ}%,english_title.ilike.%${safeQ}%,japanese_title.ilike.%${safeQ}%,romanji_title.ilike.%${safeQ}%`)
+          .select('default_title,english_title,romanji_title,japanese_title,type,studios,year,score,mal_id,large_image_url_jpg,image_url_jpg,episodes,status')
+          .or(`default_title.ilike.%${q}%,english_title.ilike.%${q}%,japanese_title.ilike.%${q}%,romanji_title.ilike.%${q}%`) 
           .order('score', { ascending: false, nullsFirst: false })
           .limit(8);
         
@@ -2424,10 +2317,7 @@
         source: 'db',
         year: item.year,
         episodes: item.episodes,
-        status: item.status,
-        genres: parseGenres(item.genres),
-        certification: shortCertification(item.rating),
-        relations: item.relations || null
+        status: item.status
       }));
       
       // Cache the results
@@ -2538,8 +2428,6 @@
         item.status?.replace('_', ' ')
       ].filter(Boolean).join(' · '),
       score: item.score ? `★ ${item.score}` : null,
-      genres: (item.genres || []).map(g => g.name).filter(Boolean),
-      certification: shortCertification(item.rating),
       mal_id: item.mal_id,
       source: 'jikan',
       year: item.year || item.season?.year,
@@ -2610,10 +2498,10 @@
       meta: [
         item.format?.replace(/_/g, ' '),
         item.seasonYear,
-        item.episodes ? `${item.episodes} eps` : null
+        item.episodes ? `${item.episodes} eps` : null,
+        item.genres?.slice(0, 2).join(', ')
       ].filter(Boolean).join(' · '),
       score: item.averageScore ? `★ ${item.averageScore}%` : null,
-      genres: item.genres || [],
       mal_id: item.idMal, // Use idMal as mal_id for consistent link format
       anilistId: item.id,
       source: 'anilist',
@@ -2744,22 +2632,6 @@
     });
   }
 
-  // Genre pill colors: one hue per starting letter (a-z), gradient border + matching text
-  // color. Kept independent of info.html's GENRE_COLOR_MAP (which only covers 9 letters via
-  // data-start attributes) so every genre gets a distinct color here, not just the common ones.
-  const GENRE_HUES = {
-    a: '49,132,192',  b: '16,185,129',  c: '236,201,75',  d: '239,68,68',   e: '20,184,166',
-    f: '139,92,246',  g: '168,85,247',  h: '249,115,22',  i: '234,179,8',   j: '244,63,94',
-    k: '6,182,212',   l: '132,204,22',  m: '59,130,246',  n: '99,102,241',  o: '251,146,60',
-    p: '217,70,239',  q: '45,212,191',  r: '236,72,153',  s: '34,197,94',   t: '56,189,248',
-    u: '163,163,163', v: '190,24,93',   w: '202,138,4',   x: '107,114,128', y: '202,86,86',
-    z: '94,234,212'
-  };
-  function genreHue(name) {
-    const ch = (name || '?').trim().charAt(0).toLowerCase();
-    return GENRE_HUES[ch] || '148,163,184';
-  }
-
   function renderSuggestions(results, q, container) {
     const slugify = (title) => {
       if (!title) return '';
@@ -2825,20 +2697,8 @@
       
       const score = r.score
         ? `<span class="sug-score">${esc(r.score)}</span>` : '';
-
-      const cert = r.certification
-        ? `<span class="sug-cert">${esc(r.certification)}</span>` : '';
-
+      
       const meta = [r.meta].filter(Boolean).join('');
-
-      // Up to 4 genre pills, gradient-bordered per starting letter. CSS below trims the
-      // visible count further on smaller screens (2 on mobile, 3 on tablet) without a
-      // separate render path.
-      const genreHtml = (r.genres && r.genres.length)
-        ? `<div class="sug-genres">${r.genres.slice(0, 4).map(g =>
-            `<span class="sug-genre" style="--gr:${genreHue(g)}">${esc(g)}</span>`
-          ).join('')}</div>`
-        : '';
       
       // Metadata tag: S-Mal (DB), Mal (Jikan), AL (AniList), TMDB (Movie/TV) - same for both APIs
       let metaTag = '';
@@ -2861,8 +2721,7 @@
         <div class="suggestion-info">
           <div class="sug-title">${esc(r.title)}</div>
           ${orig}
-          <div class="sug-meta">${meta} ${score} ${cert} ${metaTag}</div>
-          ${genreHtml}
+          <div class="sug-meta">${meta} ${score} ${metaTag}</div>
         </div>
       </a>`;
     }).join('');
