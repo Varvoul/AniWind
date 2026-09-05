@@ -344,6 +344,7 @@
     .sug-meta{font-size:10px;color:var(--text-muted,#888);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:6px;}
     .sug-meta::before{content:'';width:3px;height:3px;background:#63b3ed;border-radius:50%;flex-shrink:0;}
     .sug-score{display:inline-flex;align-items:center;gap:2px;color:#f59e0b;font-weight:600;font-size:8.5px;padding:1px 6px;background:rgba(245,158,11,0.12);border-radius:10px;}
+    .sug-cert{display:inline-flex;align-items:center;font-weight:700;font-size:8.5px;padding:1px 6px;color:#f87171;background:rgba(248,113,113,0.12);border:1px solid rgba(248,113,113,0.3);border-radius:5px;letter-spacing:.02em;}
     .meta-tag{
       font-size:9px;padding:1px 7px;border-radius:6px;font-weight:700;
       letter-spacing:.03em;flex-shrink:0;font-family:'Courier New',monospace;
@@ -1946,7 +1947,7 @@
     try {
       const { data, error } = await supabase
         .from('anime_data')
-        .select('default_title,english_title,romanji_title,japanese_title,type,studios,genres,year,score,mal_id,large_image_url_jpg,image_url_jpg,episodes,status')
+        .select('default_title,english_title,romanji_title,japanese_title,type,studios,genres,rating,year,score,mal_id,large_image_url_jpg,image_url_jpg,episodes,status')
         .in('mal_id', relatedIds);
       if (error || !data) return [];
       return data.map(item => ({
@@ -1956,6 +1957,7 @@
         meta: [item.type, item.year, item.episodes ? `${item.episodes} eps` : null].filter(Boolean).join(' · '),
         score: item.score ? `★ ${item.score}` : null,
         genres: parseGenres(item.genres),
+        certification: shortCertification(item.rating),
         mal_id: item.mal_id,
         source: 'db',
         year: item.year,
@@ -1985,7 +1987,7 @@
       if (!safeBase) return [];
       const { data, error } = await supabase
         .from('anime_data')
-        .select('default_title,english_title,romanji_title,japanese_title,type,studios,genres,year,score,mal_id,large_image_url_jpg,image_url_jpg,episodes,status')
+        .select('default_title,english_title,romanji_title,japanese_title,type,studios,genres,rating,year,score,mal_id,large_image_url_jpg,image_url_jpg,episodes,status')
         .or(`default_title.ilike.${safeBase}%,english_title.ilike.${safeBase}%,romanji_title.ilike.${safeBase}%`)
         .order('year', { ascending: true, nullsFirst: false })
         .limit(20);
@@ -1997,6 +1999,7 @@
         meta: [item.type, item.year, item.episodes ? `${item.episodes} eps` : null].filter(Boolean).join(' · '),
         score: item.score ? `★ ${item.score}` : null,
         genres: parseGenres(item.genres),
+        certification: shortCertification(item.rating),
         mal_id: item.mal_id,
         source: 'db',
         year: item.year,
@@ -2247,9 +2250,45 @@
   }
 
   // genres is stored as a plain comma-separated string (e.g. "Action, Adventure, Fantasy")
+  // genres is inconsistent across rows: some store a plain comma-separated string
+  // ("Action, Adventure, Fantasy"), others store a JSON array double-encoded as a string
+  // ('"[\"Action\",\"Martial Arts\"]"') - the same messy pattern parseStudio() already
+  // handles for the studios column. Unwrap/parse JSON when present, else split on commas.
   function parseGenres(genres) {
     if (!genres || typeof genres !== 'string') return [];
-    return genres.split(',').map(g => g.trim()).filter(Boolean);
+    let trimmed = genres.trim();
+    // Strip one layer of wrapping quotes some rows have around the whole JSON string
+    if (trimmed.startsWith('"') && trimmed.endsWith('"') && trimmed.length > 1) {
+      trimmed = trimmed.slice(1, -1);
+    }
+    if (trimmed.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          return parsed.map(g => (typeof g === 'string' ? g.trim() : String(g))).filter(Boolean);
+        }
+      } catch (e) {
+        // Double-escaped JSON (backslashes survived a layer of unescaping) - unescape and retry once
+        try {
+          const parsed = JSON.parse(trimmed.replace(/\\"/g, '"'));
+          if (Array.isArray(parsed)) {
+            return parsed.map(g => (typeof g === 'string' ? g.trim() : String(g))).filter(Boolean);
+          }
+        } catch (e2) {
+          // Fall through to plain-string handling below
+        }
+      }
+    }
+    return trimmed.split(',').map(g => g.trim().replace(/^["\[]+|["\]]+$/g, '')).filter(Boolean);
+  }
+
+  // rating column stores full MAL certification text ("PG-13 - Teens 13 or older",
+  // "R - 17+ (violence & profanity)"). Show just the short code.
+  function shortCertification(rating) {
+    if (!rating || typeof rating !== 'string') return '';
+    const trimmed = rating.trim();
+    if (!trimmed || trimmed === 'None' || trimmed === 'N/A') return '';
+    return trimmed.split(' - ')[0].trim();
   }
 
   async function searchAnimeFromDB(q) {
@@ -2273,7 +2312,7 @@
       // Phase 1: Fast prefix match on english_title and default_title (index-friendly)
       let { data, error } = await supabase
         .from('anime_data')
-        .select('default_title,english_title,romanji_title,japanese_title,type,studios,genres,year,score,mal_id,large_image_url_jpg,image_url_jpg,episodes,status,relations')
+        .select('default_title,english_title,romanji_title,japanese_title,type,studios,genres,rating,year,score,mal_id,large_image_url_jpg,image_url_jpg,episodes,status,relations')
         .or(`default_title.ilike.${safeQ}%,english_title.ilike.${safeQ}%,japanese_title.ilike.${safeQ}%,romanji_title.ilike.${safeQ}%`)
         .order('score', { ascending: false, nullsFirst: false })
         .limit(6);
@@ -2282,7 +2321,7 @@
       if ((!error && (!data || data.length < 3)) || error) {
         const { data: data2, error: error2 } = await supabase
           .from('anime_data')
-          .select('default_title,english_title,romanji_title,japanese_title,type,studios,genres,year,score,mal_id,large_image_url_jpg,image_url_jpg,episodes,status,relations')
+          .select('default_title,english_title,romanji_title,japanese_title,type,studios,genres,rating,year,score,mal_id,large_image_url_jpg,image_url_jpg,episodes,status,relations')
           .or(`default_title.ilike.%${safeQ}%,english_title.ilike.%${safeQ}%,japanese_title.ilike.%${safeQ}%,romanji_title.ilike.%${safeQ}%`)
           .order('score', { ascending: false, nullsFirst: false })
           .limit(8);
@@ -2387,6 +2426,7 @@
         episodes: item.episodes,
         status: item.status,
         genres: parseGenres(item.genres),
+        certification: shortCertification(item.rating),
         relations: item.relations || null
       }));
       
@@ -2499,6 +2539,7 @@
       ].filter(Boolean).join(' · '),
       score: item.score ? `★ ${item.score}` : null,
       genres: (item.genres || []).map(g => g.name).filter(Boolean),
+      certification: shortCertification(item.rating),
       mal_id: item.mal_id,
       source: 'jikan',
       year: item.year || item.season?.year,
@@ -2784,7 +2825,10 @@
       
       const score = r.score
         ? `<span class="sug-score">${esc(r.score)}</span>` : '';
-      
+
+      const cert = r.certification
+        ? `<span class="sug-cert">${esc(r.certification)}</span>` : '';
+
       const meta = [r.meta].filter(Boolean).join('');
 
       // Up to 4 genre pills, gradient-bordered per starting letter. CSS below trims the
@@ -2817,7 +2861,7 @@
         <div class="suggestion-info">
           <div class="sug-title">${esc(r.title)}</div>
           ${orig}
-          <div class="sug-meta">${meta} ${score} ${metaTag}</div>
+          <div class="sug-meta">${meta} ${score} ${cert} ${metaTag}</div>
           ${genreHtml}
         </div>
       </a>`;
