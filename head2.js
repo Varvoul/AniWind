@@ -1817,73 +1817,39 @@
    * Searches DB and Jikan for season variations
    */
   async function fetchRelatedSeasons(baseName, existingResults) {
-    const seasonVariations = generateSeasonVariations(baseName);
-    const allSeasonResults = [];
-    const searchedQueries = new Set([baseName.toLowerCase()]);
-    
-    // Add existing result titles to avoid re-searching
-    existingResults.forEach(r => {
-      if (r.title) searchedQueries.add(r.title.toLowerCase());
-    });
-    
-    // Search each variation (with concurrency limit)
-    const searchPromises = seasonVariations
-      .filter(v => !searchedQueries.has(v.toLowerCase()))
-      .slice(0, 8) // Limit to avoid too many API calls
-      .map(variation => searchSingleVariation(variation));
-    
-    const results = await Promise.allSettled(searchPromises);
-    
-    results.forEach(result => {
-      if (result.status === 'fulfilled' && result.value) {
-        allSeasonResults.push(...result.value);
-      }
-    });
-    
-    return allSeasonResults;
-  }
-  
-  /**
-   * Generate common season name variations for searching
-   */
-  function generateSeasonVariations(baseName) {
-    const variations = [];
-    
-    // Common season suffixes to try
-    const seasonSuffixes = [
-      ' Season 2', ' 2nd Season', ' S2',
-      ' Season 3', ' 3rd Season', ' S3',
-      ' Season 4', ' 4th Season', ' S4',
-      ' Season 5', ' 5th Season',
-      ' Part 2',
-      ' Part 3',
-      ' The Movie', ' Movie',
-      ' OVA',
-      ' Final Season',
-    ];
-    
-    // Add some variations based on the base name
-    seasonSuffixes.forEach(suffix => {
-      variations.push(baseName + suffix);
-    });
-    
-    return variations;
-  }
-  
-  /**
-   * Search a single variation and return results
-   */
-  async function searchSingleVariation(query) {
+    // Previously this guessed up to 8 literal suffixes ("X Season 2", "X 2nd Season", "X S2"...)
+    // and ran a SEPARATE Supabase query for each guess (up to 16 DB round trips per search,
+    // the main source of DB load) - and still missed any season titled differently than the
+    // guess (e.g. "Shippuuden" vs "Shippuden", "Final Season Part 2"). Instead, run ONE query
+    // that finds every row whose title starts with the base franchise name - Postgres does the
+    // matching via the existing btree text_pattern_ops indexes, so this is both cheaper and
+    // catches every season/movie/OVA regardless of exact suffix wording.
     try {
-      // Quick DB search first
-      const dbResults = await searchAnimeFromDB(query);
-      if (dbResults && dbResults.length > 0) {
-        return dbResults.slice(0, 2); // Take top 2 per variation
-      }
+      const safeBase = sanitizeSearchQuery(baseName);
+      if (!safeBase) return [];
+      const { data, error } = await supabase
+        .from('anime_data')
+        .select('default_title,english_title,romanji_title,japanese_title,type,studios,year,score,mal_id,large_image_url_jpg,image_url_jpg,episodes,status')
+        .or(`default_title.ilike.${safeBase}%,english_title.ilike.${safeBase}%,romanji_title.ilike.${safeBase}%`)
+        .order('year', { ascending: true, nullsFirst: false })
+        .limit(20);
+      if (error || !data) return [];
+      return data.map(item => ({
+        poster: item.large_image_url_jpg || item.image_url_jpg || '',
+        title: item.english_title || item.default_title || 'Unknown Title',
+        original: [item.japanese_title, item.romanji_title].filter(Boolean).join(' / ') || '',
+        meta: [item.type, item.year, item.episodes ? `${item.episodes} eps` : null].filter(Boolean).join(' · '),
+        score: item.score ? `★ ${item.score}` : null,
+        mal_id: item.mal_id,
+        source: 'db',
+        year: item.year,
+        episodes: item.episodes,
+        status: item.status
+      }));
     } catch (e) {
-      // Silently fail individual variation searches
+      console.warn('[Season] related-seasons query failed:', e.message);
+      return [];
     }
-    return [];
   }
 
   /* ═══════════════════════════════════════════════════════════
@@ -1943,14 +1909,10 @@
       animeSearchCache.delete(cacheKey);
     }
     
-    // Rate limiting: ensure minimum delay between calls
-    const now = Date.now();
-    const timeSinceLastCall = now - lastApiCallTime;
-    if (timeSinceLastCall < MIN_API_DELAY) {
-      await new Promise(resolve => setTimeout(resolve, MIN_API_DELAY - timeSinceLastCall));
-    }
-    lastApiCallTime = Date.now();
-    
+    // NOTE: the shared MIN_API_DELAY throttle used to run here, before even hitting our own
+    // Supabase DB. That's needless latency on every keystroke - Supabase reads aren't
+    // externally rate-limited like Jikan/AniList are, so the DB tier now runs immediately.
+    // The delay is applied later, only in front of the Jikan/AniList tiers that need it.
     let results = [];
     let dbCompleted = false;
     let jikanStarted = false;
@@ -1993,6 +1955,14 @@
     }
     
     // ── SOURCE 2: JIKAN API (Fallback #1) - 15ms timeout ──
+    // Rate limit applies from here on - first tier hitting an external API.
+    const nowBeforeExternal = Date.now();
+    const timeSinceLastCall = nowBeforeExternal - lastApiCallTime;
+    if (timeSinceLastCall < MIN_API_DELAY) {
+      await new Promise(resolve => setTimeout(resolve, MIN_API_DELAY - timeSinceLastCall));
+    }
+    lastApiCallTime = Date.now();
+
     console.log(`[Search] Starting Jikan search for "${q}" (timeout: ${JIKAN_TIMEOUT_MS}ms)`);
     jikanStarted = true;
     const jikanStart = performance.now();
@@ -2074,6 +2044,18 @@
   const dbSearchCache = new Map();
   const DB_CACHE_TTL = 3 * 60 * 1000; // 3 min DB cache
 
+  // PostgREST's .or() filter syntax reserves `,` `(` `)` as structural characters, and
+  // ILIKE reserves `%` `_` as wildcards. Left un-escaped, a query containing any of these
+  // (e.g. a title with a comma) breaks the filter server-side -> PostgREST error -> caught
+  // -> empty array returned -> shows as "not found" even though the row exists.
+  function sanitizeSearchQuery(q) {
+    return q
+      .replace(/[%_]/g, '\\$&')   // escape ILIKE wildcards so literal % / _ match literally
+      .replace(/[,()]/g, ' ')     // these break the or() filter grammar itself - drop them
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+  }
+
   async function searchAnimeFromDB(q) {
     const dbCacheKey = `db:${q}`;
     
@@ -2088,13 +2070,15 @@
     }
     
     const startTime = performance.now();
+    const safeQ = sanitizeSearchQuery(q);
+    if (!safeQ) return [];
     
     try {
       // Phase 1: Fast prefix match on english_title and default_title (index-friendly)
       let { data, error } = await supabase
         .from('anime_data')
         .select('default_title,english_title,romanji_title,japanese_title,type,studios,year,score,mal_id,large_image_url_jpg,image_url_jpg,episodes,status')
-        .or(`default_title.ilike.${q}%,english_title.ilike.${q}%,japanese_title.ilike.${q}%`) 
+        .or(`default_title.ilike.${safeQ}%,english_title.ilike.${safeQ}%,japanese_title.ilike.${safeQ}%,romanji_title.ilike.${safeQ}%`)
         .order('score', { ascending: false, nullsFirst: false })
         .limit(6);
       
@@ -2103,7 +2087,7 @@
         const { data: data2, error: error2 } = await supabase
           .from('anime_data')
           .select('default_title,english_title,romanji_title,japanese_title,type,studios,year,score,mal_id,large_image_url_jpg,image_url_jpg,episodes,status')
-          .or(`default_title.ilike.%${q}%,english_title.ilike.%${q}%,japanese_title.ilike.%${q}%,romanji_title.ilike.%${q}%`) 
+          .or(`default_title.ilike.%${safeQ}%,english_title.ilike.%${safeQ}%,japanese_title.ilike.%${safeQ}%,romanji_title.ilike.%${safeQ}%`)
           .order('score', { ascending: false, nullsFirst: false })
           .limit(8);
         
