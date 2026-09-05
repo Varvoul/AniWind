@@ -87,9 +87,8 @@
   window.dbAniListPage   = dbAniListPage;
   window.dbTmdbResults   = dbTmdbResults;
 
-  const CF_WORKER_URL     = 'https://t-umi.bionmovies47.workers.dev';
-  // Fallback TMDB proxy (mapplee) - used when t-umi fails or rate-limits
-  const MAPLEE_API_URL    = 'https://mapplee.com/api/tmdb';
+  const CF_WORKER_URL     = 'https://t-umi.bionmovies47.workers.dev'; // Fallback TMDB proxy (used when mapplee fails/rate-limits)
+  const MAPLEE_API_URL    = 'https://mapplee.com/api/tmdb'; // Primary TMDB proxy
   const PROFILE_BUCKET_URL= `${SUPABASE_URL}/storage/v1/object/public/Aniumi/`;
   // NOTE: Frieren.jpeg lives inside the `profile_ava/` folder of the Aniumi bucket,
   // not at the bucket root.  Verified publicly accessible (HTTP 200, 80KB JPEG).
@@ -341,22 +340,22 @@
     .suggestion-info{flex:1;min-width:0;}
     .sug-title{font-size:10.5px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3;}
     .sug-orig{font-size:9px;color:#63b3ed;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;font-weight:500;}
-    .sug-meta{font-size:10px;color:var(--text-muted,#888);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:6px;}
+    .sug-meta{font-size:10px;color:#405d6e;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:6px;}
     .sug-meta::before{content:'';width:3px;height:3px;background:#63b3ed;border-radius:50%;flex-shrink:0;}
-    .sug-score{display:inline-flex;align-items:center;gap:2px;color:#f59e0b;font-weight:600;font-size:8.5px;padding:1px 6px;background:rgba(245,158,11,0.12);border-radius:10px;}
-    .sug-cert{display:inline-flex;align-items:center;font-weight:700;font-size:8.5px;padding:1px 6px;color:#f87171;background:rgba(248,113,113,0.12);border:1px solid rgba(248,113,113,0.3);border-radius:5px;letter-spacing:.02em;}
+    .sug-score{display:inline-flex;align-items:center;gap:2px;color:#405d6e;font-weight:600;font-size:8.5px;padding:1px 6px;background:rgba(64,93,110,0.12);border-radius:10px;}
+    .sug-cert{display:inline-flex;align-items:center;font-weight:700;font-size:8.5px;padding:1px 6px;color:#405d6e;background:rgba(64,93,110,0.12);border:1px solid rgba(64,93,110,0.3);border-radius:5px;letter-spacing:.02em;}
     .meta-tag{
       font-size:9px;padding:1px 7px;border-radius:6px;font-weight:700;
       letter-spacing:.03em;flex-shrink:0;font-family:'Courier New',monospace;
     }
-    .tag-smal{background:rgba(16,185,129,0.15);color:#34d399;border:1px solid rgba(16,185,129,0.25);}
+    .tag-smal{background:rgba(64,93,110,0.15);color:#405d6e;border:1px solid rgba(64,93,110,0.25);}
     .tag-mal{background:rgba(99,179,237,0.15);color:#63b3ed;border:1px solid rgba(99,179,237,0.25);}
     .tag-al{background:rgba(168,85,247,0.15);color:#c084fc;border:1px solid rgba(168,85,247,0.25);}
     .tag-tmdb{background:rgba(245,158,11,0.15);color:#fbbf24;border:1px solid rgba(245,158,11,0.25);}
     .tag-anikoto{background:rgba(236,72,153,0.15);color:#f472b6;border:1px solid rgba(236,72,153,0.25);}
     .sug-genres{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;}
     .sug-genre{
-      --gr:148,163,184;
+      --gr:79,122,145;
       font-size:8.5px;font-weight:600;line-height:1.6;
       padding:1px 8px;border-radius:999px;white-space:nowrap;
       color:rgb(var(--gr));
@@ -2623,17 +2622,19 @@
     }));
   }
 
-  /* ── TMDB via Cloudflare Worker (Primary: t-umi) ── */
+  /* ── TMDB Search (Primary: mapplee, Fallback: t-umi CF Worker) ──
+     Swapped 2026-09 per site owner's preference: mapplee tried first,
+     t-umi only used if mapplee is down, rate-limited, or CF-challenged. ── */
   async function fetchTMDB(q, page = 1) {
     try {
       const results = await fetchTMDBPrimary(q, page);
-      console.log(`[Search] ✅ t-umi (primary) returned ${results.length} results`);
+      console.log(`[Search] ✅ mapplee (primary) returned ${results.length} results`);
       return results;
     } catch (primaryError) {
-      console.warn(`[Search] ⚠️ t-umi primary failed: ${primaryError.message}, trying mapplee fallback...`);
+      console.warn(`[Search] ⚠️ mapplee primary failed: ${primaryError.message}, trying t-umi fallback...`);
       try {
         const fallbackResults = await fetchTMDBFallback(q, page);
-        console.log(`[Search] ✅ mapplee (fallback) returned ${fallbackResults.length} results`);
+        console.log(`[Search] ✅ t-umi (fallback) returned ${fallbackResults.length} results`);
         return fallbackResults;
       } catch (fallbackError) {
         console.error(`[Search] ❌ Both APIs failed:`, fallbackError);
@@ -2642,31 +2643,8 @@
     }
   }
 
-  /* ── Primary TMDB API (t-umi / CF Worker) ── */
+  /* ── Primary TMDB API (mapplee) ── */
   async function fetchTMDBPrimary(q, page = 1) {
-    const [movieRes, tvRes] = await Promise.all([
-      fetch(`${CF_WORKER_URL}/3/search/movie?query=${encodeURIComponent(q)}&language=en-US&page=${page}`),
-      fetch(`${CF_WORKER_URL}/3/search/tv?query=${encodeURIComponent(q)}&language=en-US&page=${page}`)
-    ]);
-
-    // Check for HTTP errors or rate limiting
-    if (!movieRes.ok || !tvRes.ok) {
-      throw new Error(`t-umi HTTP error: movie=${movieRes.status}, tv=${tvRes.status}`);
-    }
-
-    const movieData = await movieRes.json();
-    const tvData    = await tvRes.json();
-
-    // Validate response structure
-    if (!movieData.results && !tvData.results) {
-      throw new Error('t-umi invalid response structure');
-    }
-
-    return normalizeTMDBResults(movieData, tvData);
-  }
-
-  /* ── Fallback TMDB API (mapplee) ── */
-  async function fetchTMDBFallback(q, page = 1) {
     // mapplee requires browser-like User-Agent (Cloudflare protection)
     const headers = {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -2677,8 +2655,8 @@
     const encodedQuery = q.replace(/\s+/g, '+');
 
     const [movieRes, tvRes] = await Promise.all([
-      fetch(`${MAPLEE_API_URL}/search/movie?query=${encodedQuery}&language=en-US&page=${page}`, { headers }),
-      fetch(`${MAPLEE_API_URL}/search/tv?query=${encodedQuery}&language=en-US&page=${page}`, { headers })
+      fetch(`${MAPLEE_API_URL}/search/movie?query=${encodedQuery}&language=en-US&page=${page}`, { headers, signal: AbortSignal.timeout(7000) }),
+      fetch(`${MAPLEE_API_URL}/search/tv?query=${encodedQuery}&language=en-US&page=${page}`, { headers, signal: AbortSignal.timeout(7000) })
     ]);
 
     // Check for errors
@@ -2694,11 +2672,40 @@
       throw new Error('mapplee Cloudflare challenge detected');
     }
 
-    return normalizeTMDBResults(movieData, tvData, true); // isMapplee=true
+    return normalizeTMDBResults(movieData, tvData, 'mapplee');
   }
 
-  /* ── Normalize TMDB Results (handles both t-umi and mapplee formats) ── */
-  function normalizeTMDBResults(movieData, tvData, isMapplee = false) {
+  /* ── Fallback TMDB API (t-umi / CF Worker) ──
+     IMPORTANT: t-umi's worker.js prepends "/3" itself before forwarding to
+     TMDB (`https://api.themoviedb.org/3${tmdbPath}`). Never include a
+     leading "/3" here — doing so previously caused every t-umi call to
+     404 against TMDB (double "/3/3/..." path), which was the actual root
+     cause of the Non-Anime search tab showing "No results". ── */
+  async function fetchTMDBFallback(q, page = 1) {
+    const [movieRes, tvRes] = await Promise.all([
+      fetch(`${CF_WORKER_URL}/search/movie?query=${encodeURIComponent(q)}&language=en-US&page=${page}`, { signal: AbortSignal.timeout(7000) }),
+      fetch(`${CF_WORKER_URL}/search/tv?query=${encodeURIComponent(q)}&language=en-US&page=${page}`, { signal: AbortSignal.timeout(7000) })
+    ]);
+
+    // Check for HTTP errors or rate limiting
+    if (!movieRes.ok || !tvRes.ok) {
+      throw new Error(`t-umi HTTP error: movie=${movieRes.status}, tv=${tvRes.status}`);
+    }
+
+    const movieData = await movieRes.json();
+    const tvData    = await tvRes.json();
+
+    // Validate response structure
+    if (!movieData.results && !tvData.results) {
+      throw new Error('t-umi invalid response structure');
+    }
+
+    return normalizeTMDBResults(movieData, tvData, 't-umi');
+  }
+
+  /* ── Normalize TMDB Results (handles both mapplee and t-umi formats) ── */
+  function normalizeTMDBResults(movieData, tvData, sourceApi = 't-umi') {
+    const isMapplee = sourceApi === 'mapplee';
     const movieResults = (movieData.results || []).map(r => {
       // Normalize genre_ids: mapplee returns [{id,name}], t-umi returns [number]
       const normalizedItem = { ...r, media_type: 'movie' };
@@ -2735,29 +2742,22 @@
         meta:     `${monthYear} · ${typeLabel}`,
         score,
         id:       item.id,
-        source:   isMapplee ? 'tmdb-fallback' : 'tmdb', // Differentiate source for logging
+        source:   sourceApi === 'mapplee' ? 'tmdb' : 'tmdb-fallback', // Differentiate source for logging
         mediaType: item.media_type,
         // Store pagination info for "View All" functionality
         _totalPages: Math.max(movieData.total_pages || 1, tvData.total_pages || 1),
-        _sourceApi: isMapplee ? 'mapplee' : 't-umi'
+        _sourceApi: sourceApi
       };
     });
   }
 
-  // Genre pill colors: one hue per starting letter (a-z), gradient border + matching text
-  // color. Kept independent of info.html's GENRE_COLOR_MAP (which only covers 9 letters via
-  // data-start attributes) so every genre gets a distinct color here, not just the common ones.
-  const GENRE_HUES = {
-    a: '49,132,192',  b: '16,185,129',  c: '236,201,75',  d: '239,68,68',   e: '20,184,166',
-    f: '139,92,246',  g: '168,85,247',  h: '249,115,22',  i: '234,179,8',   j: '244,63,94',
-    k: '6,182,212',   l: '132,204,22',  m: '59,130,246',  n: '99,102,241',  o: '251,146,60',
-    p: '217,70,239',  q: '45,212,191',  r: '236,72,153',  s: '34,197,94',   t: '56,189,248',
-    u: '163,163,163', v: '190,24,93',   w: '202,138,4',   x: '107,114,128', y: '202,86,86',
-    z: '94,234,212'
-  };
+  // Genre pills now use one fixed, cohesive color instead of a per-letter rainbow —
+  // chosen from the same cool/desaturated family as the .sug-meta metadata color
+  // (#405d6e) so genre tags read as part of the same design language rather than
+  // an unrelated accent. Signature kept as genreHue(name) so the call site is unchanged.
+  const GENRE_FIXED_RGB = '79,122,145'; // #4f7a91
   function genreHue(name) {
-    const ch = (name || '?').trim().charAt(0).toLowerCase();
-    return GENRE_HUES[ch] || '148,163,184';
+    return GENRE_FIXED_RGB;
   }
 
   function renderSuggestions(results, q, container) {
