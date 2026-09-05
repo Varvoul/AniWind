@@ -1874,15 +1874,25 @@
           // Combine all results
           const allResults = [...results, ...newSeasons];
           
-          // Sort by year (oldest first), then by season order
+          // Sort by year (oldest first, unknown/0 years pushed LAST instead of first -
+          // most Specials/OVAs have year:0 from incomplete scrapes, and sorting them as
+          // if year 0 were "oldest" was shoving junk-year entries ahead of the real main
+          // series/seasons, which then got cut off by the top-10 slice in fetchSuggestions).
+          // Ties (same year, or both unknown) break by type so the main TV series bubbles
+          // above OVAs/Specials/Movies sharing that year.
+          const TYPE_RANK = { TV: 0, ONA: 1, Movie: 2, OVA: 3, Special: 4, Music: 5 };
           allResults.sort((a, b) => {
-            const yearA = a.year || 0;
-            const yearB = b.year || 0;
+            const yearA = a.year > 0 ? a.year : Infinity;
+            const yearB = b.year > 0 ? b.year : Infinity;
             if (yearA !== yearB) return yearA - yearB;
-            
-            // Same year? Use title-based season ordering
-            const orderA = getSeasonOrder(a.title || '', yearA);
-            const orderB = getSeasonOrder(b.title || '', yearB);
+
+            const typeRankA = TYPE_RANK[a.meta?.split(' · ')[0]] ?? TYPE_RANK[a.type] ?? 9;
+            const typeRankB = TYPE_RANK[b.meta?.split(' · ')[0]] ?? TYPE_RANK[b.type] ?? 9;
+            if (typeRankA !== typeRankB) return typeRankA - typeRankB;
+
+            // Same year and type? Use title-based season ordering
+            const orderA = getSeasonOrder(a.title || '', a.year || 0);
+            const orderB = getSeasonOrder(b.title || '', b.year || 0);
             return orderA - orderB;
           });
           
