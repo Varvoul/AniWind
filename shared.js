@@ -87,7 +87,7 @@
   window.dbAniListPage   = dbAniListPage;
   window.dbTmdbResults   = dbTmdbResults;
 
-  const CF_WORKER_URL     = 'https://aniocen.bionmovies47.workers.dev';
+  const CF_WORKER_URL     = 'https://t-umi.bionmovies47.workers.dev';
   // Fallback TMDB proxy (mapplee) - used when t-umi fails or rate-limits
   const MAPLEE_API_URL    = 'https://mapplee.com/api/tmdb';
   const PROFILE_BUCKET_URL= `${SUPABASE_URL}/storage/v1/object/public/Aniumi/`;
