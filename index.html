@@ -177,6 +177,15 @@
       -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
       overflow: hidden;
+      /* Fixed site-themed gradient (blue → pink accent). Applied via CSS so
+         the title is consistently colored even before JS runs, and the
+         applyHeroAccentColors() JS function reinforces this same gradient
+         on every slide. No longer derived from the backdrop image. */
+      background: linear-gradient(135deg, #63b3ed 0%, #4299e1 45%, #ed64a6 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      color: transparent;
     }
     .slide-meta {
       display: flex;
@@ -2117,8 +2126,13 @@
   .slide-content {
     margin-bottom: 3%;
     padding: 10px 14px !important;
-    background: rgba(15, 36, 64, 0.82) !important;
+    /* Semi-transparent (was 0.82 = nearly solid). Lowered to 0.55 so the
+       backdrop image is visibly see-through, matching the desktop card's
+       glassmorphism style (desktop uses 0.38). 0.55 keeps text readable
+       on small screens while restoring the intended translucent look. */
+    background: rgba(15, 36, 64, 0.55) !important;
     backdrop-filter: blur(14px) saturate(130%) !important;
+    -webkit-backdrop-filter: blur(14px) saturate(130%) !important;
     border-radius: var(--radius-md) !important;
     max-width: 94% !important;
   }
@@ -4587,32 +4601,27 @@ body: JSON.stringify({ key: key, imageUrl: imgUrl, hex: hex }),
 return hex;
 }
 function applyHeroAccentColors() {
-document.querySelectorAll('#slidesContainer .slide').forEach(async function(el) {
+/* FIXED SITE-THEMED GRADIENT — no longer extracts color per image.
+   Previously this function fetched an accent color from a worker (or
+   extracted one locally) for each slide's backdrop image, then applied
+   a per-image gradient to the title. That caused the title color to
+   change on every slide (gold for one, white for another, etc).
+   Now we apply ONE consistent gradient built from the site's main accent
+   colors so the title looks identical on every slide:
+     --accent-blue  (#4299e1) → primary brand blue
+     --link-accent  (#ed64a6) → pink/magenta link accent
+   The 3-stop variant (light blue → blue → pink) gives a subtle sweep
+   while staying readable against the dark hero overlay. */
+const FIXED_GRADIENT = 'linear-gradient(135deg, #63b3ed 0%, #4299e1 45%, #ed64a6 100%)';
+document.querySelectorAll('#slidesContainer .slide').forEach(function(el) {
 const titleEl = el.querySelector('.slide-title');
 if (!titleEl) return;
-// Try multiple sources: data attributes, then inline background-image style
-let imgUrl = el.dataset.bgOrig || el.dataset.bgDesktop || el.dataset.bgMobile;
-// Fallback: extract URL from inline style.backgroundImage (for anime slides)
-if (!imgUrl || imgUrl === 'undefined' || imgUrl === 'null') {
-const bgStyle = el.style.backgroundImage || '';
-const match = bgStyle.match(/url\(["']?([^"')]+)["']?\)/);
-if (match) imgUrl = match[1];
-}
-const hex = await getAccentColor(imgUrl);
-if (hex) {
-// Create gradient effect like Miruro (not flat solid color)
-const r = parseInt(hex.slice(1,3),16);
-const g = parseInt(hex.slice(3,5),16);
-const b = parseInt(hex.slice(5,7),16);
-// Lighter variant for gradient end
-const lightHex = '#' + [r,g].map(c => Math.min(255, c + 60).toString(16).padStart(2,'0')).join('') + b.toString(16).padStart(2,'0');
 titleEl.style.transition = 'all 0.4s ease';
-titleEl.style.background = `linear-gradient(135deg, ${hex} 0%, ${lightHex} 50%, ${hex} 100%)`;
+titleEl.style.background = FIXED_GRADIENT;
 titleEl.style.webkitBackgroundClip = 'text';
 titleEl.style.backgroundClip = 'text';
 titleEl.style.webkitTextFillColor = 'transparent';
 titleEl.style.color = 'transparent';
-}
 });
 }
       function renderHero() {
