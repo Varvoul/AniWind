@@ -89,6 +89,38 @@
 
   const CF_WORKER_URL     = 'https://t-umi.bionmovies47.workers.dev'; // Fallback TMDB proxy (used when mapplee fails/rate-limits)
   const MAPLEE_API_URL    = 'https://mapplee.com/api/tmdb'; // Primary TMDB proxy
+
+  // ── Edge-rate-limited proxy for anime_data/anikoto_data search RPCs ──
+  // TODO: replace with the real deployed Worker URL after `wrangler deploy`
+  // (see supabase-search-proxy/DEPLOY.md) — this placeholder will 404 as-is.
+  const SEARCH_PROXY_URL  = 'https://supabase-search-proxy.REPLACE-WITH-YOUR-SUBDOMAIN.workers.dev';
+
+  // Calls one of the three whitelisted RPCs through the edge proxy instead of
+  // hitting Supabase directly, so the Worker's per-IP rate limit actually
+  // applies. Mirrors supabase-js's {data, error} return shape so every
+  // existing call site below needs no further changes beyond the call itself.
+  async function callSearchRPC(fnName, params) {
+    try {
+      const res = await fetch(`${SEARCH_PROXY_URL}/${fnName}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params),
+        signal: AbortSignal.timeout(6000)
+      });
+      if (res.status === 429) {
+        console.warn(`[SearchRPC] Rate limited on ${fnName}`);
+        return { data: null, error: { message: 'rate_limited' } };
+      }
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        return { data: null, error: { message: `HTTP ${res.status}: ${text}` } };
+      }
+      const data = await res.json();
+      return { data, error: null };
+    } catch (e) {
+      return { data: null, error: { message: e.message } };
+    }
+  }
   const PROFILE_BUCKET_URL= `${SUPABASE_URL}/storage/v1/object/public/Aniumi/`;
   // NOTE: Frieren.jpeg lives inside the `profile_ava/` folder of the Aniumi bucket,
   // not at the bucket root.  Verified publicly accessible (HTTP 200, 80KB JPEG).
@@ -1944,8 +1976,7 @@
     )];
     if (relatedIds.length === 0) return [];
     try {
-      const { data, error } = await supabase
-        .rpc('get_anime_data_by_mal_ids', { p_mal_ids: relatedIds });
+      const { data, error } = await callSearchRPC('get_anime_data_by_mal_ids', { p_mal_ids: relatedIds });
       if (error || !data) return [];
       return data.map(item => ({
         poster: item.large_image_url_jpg || item.image_url_jpg || '',
@@ -1982,13 +2013,12 @@
     try {
       const safeBase = sanitizeSearchQuery(baseName);
       if (!safeBase) return [];
-      const { data, error } = await supabase
-        .rpc('search_anime_data', {
-          p_query: safeBase,
-          p_match_mode: 'prefix',
-          p_order_by: 'year_asc',
-          p_limit: 20
-        });
+      const { data, error } = await callSearchRPC('search_anime_data', {
+        p_query: safeBase,
+        p_match_mode: 'prefix',
+        p_order_by: 'year_asc',
+        p_limit: 20
+      });
       if (error || !data) return [];
       return data.map(item => ({
         poster: item.large_image_url_jpg || item.image_url_jpg || '',
@@ -2307,24 +2337,22 @@
     if (!safeQ) return [];
     
     try {
-      // Phase 1: Fast prefix match (index-friendly) via RPC — server enforces its own hard cap
-      let { data, error } = await supabase
-        .rpc('search_anime_data', {
-          p_query: safeQ,
-          p_match_mode: 'prefix',
-          p_order_by: 'score_desc',
-          p_limit: 6
-        });
+      // Phase 1: Fast prefix match (index-friendly) via the rate-limited edge proxy
+      let { data, error } = await callSearchRPC('search_anime_data', {
+        p_query: safeQ,
+        p_match_mode: 'prefix',
+        p_order_by: 'score_desc',
+        p_limit: 6
+      });
       
-      // Phase 2: If not enough results, do contains search (broader but slower) via RPC
+      // Phase 2: If not enough results, do contains search (broader but slower) via proxy
       if ((!error && (!data || data.length < 3)) || error) {
-        const { data: data2, error: error2 } = await supabase
-          .rpc('search_anime_data', {
-            p_query: safeQ,
-            p_match_mode: 'contains',
-            p_order_by: 'score_desc',
-            p_limit: 8
-          });
+        const { data: data2, error: error2 } = await callSearchRPC('search_anime_data', {
+          p_query: safeQ,
+          p_match_mode: 'contains',
+          p_order_by: 'score_desc',
+          p_limit: 8
+        });
         
         // Merge results avoiding duplicates
         if (!error2 && data2) {
@@ -2461,7 +2489,7 @@
 
     const startTime = performance.now();
     try {
-      const { data, error } = await supabase.rpc('search_anikoto_fuzzy', {
+      const { data, error } = await callSearchRPC('search_anikoto_fuzzy', {
         p_query: q,
         p_limit: 8
       });
