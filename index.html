@@ -177,11 +177,12 @@
       -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
       overflow: hidden;
-      /* Fixed site-themed gradient (blue → pink accent). Applied via CSS so
-         the title is consistently colored even before JS runs, and the
+      /* Fixed aurora gradient (indigo → magenta → gold → cyan → indigo).
+         Sampled from the user's reference image. Applied via CSS so the
+         title is consistently colored even before JS runs, and the
          applyHeroAccentColors() JS function reinforces this same gradient
          on every slide. No longer derived from the backdrop image. */
-      background: linear-gradient(135deg, #63b3ed 0%, #4299e1 45%, #ed64a6 100%);
+      background: linear-gradient(135deg, #3e42ae 0%, #8c424c 25%, #cfab4c 50%, #3eabd3 75%, #3e42ae 100%);
       -webkit-background-clip: text;
       background-clip: text;
       -webkit-text-fill-color: transparent;
@@ -4601,18 +4602,14 @@ body: JSON.stringify({ key: key, imageUrl: imgUrl, hex: hex }),
 return hex;
 }
 function applyHeroAccentColors() {
-/* FIXED SITE-THEMED GRADIENT — no longer extracts color per image.
+/* FIXED AURORA GRADIENT — no longer extracts color per image.
    Previously this function fetched an accent color from a worker (or
    extracted one locally) for each slide's backdrop image, then applied
    a per-image gradient to the title. That caused the title color to
-   change on every slide (gold for one, white for another, etc).
-   Now we apply ONE consistent gradient built from the site's main accent
-   colors so the title looks identical on every slide:
-     --accent-blue  (#4299e1) → primary brand blue
-     --link-accent  (#ed64a6) → pink/magenta link accent
-   The 3-stop variant (light blue → blue → pink) gives a subtle sweep
-   while staying readable against the dark hero overlay. */
-const FIXED_GRADIENT = 'linear-gradient(135deg, #63b3ed 0%, #4299e1 45%, #ed64a6 100%)';
+   change on every slide.
+   Now we apply ONE consistent gradient sampled from the user's reference
+   image — an aurora sweep: indigo → magenta → gold → cyan → indigo. */
+const FIXED_GRADIENT = 'linear-gradient(135deg, #3e42ae 0%, #8c424c 25%, #cfab4c 50%, #3eabd3 75%, #3e42ae 100%)';
 document.querySelectorAll('#slidesContainer .slide').forEach(function(el) {
 const titleEl = el.querySelector('.slide-title');
 if (!titleEl) return;
