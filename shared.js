@@ -1945,9 +1945,7 @@
     if (relatedIds.length === 0) return [];
     try {
       const { data, error } = await supabase
-        .from('anime_data')
-        .select('default_title,english_title,romanji_title,japanese_title,type,studios,genres,rating,year,score,mal_id,large_image_url_jpg,image_url_jpg,episodes,status')
-        .in('mal_id', relatedIds);
+        .rpc('get_anime_data_by_mal_ids', { p_mal_ids: relatedIds });
       if (error || !data) return [];
       return data.map(item => ({
         poster: item.large_image_url_jpg || item.image_url_jpg || '',
@@ -1985,11 +1983,12 @@
       const safeBase = sanitizeSearchQuery(baseName);
       if (!safeBase) return [];
       const { data, error } = await supabase
-        .from('anime_data')
-        .select('default_title,english_title,romanji_title,japanese_title,type,studios,genres,rating,year,score,mal_id,large_image_url_jpg,image_url_jpg,episodes,status')
-        .or(`default_title.ilike.${safeBase}%,english_title.ilike.${safeBase}%,romanji_title.ilike.${safeBase}%`)
-        .order('year', { ascending: true, nullsFirst: false })
-        .limit(20);
+        .rpc('search_anime_data', {
+          p_query: safeBase,
+          p_match_mode: 'prefix',
+          p_order_by: 'year_asc',
+          p_limit: 20
+        });
       if (error || !data) return [];
       return data.map(item => ({
         poster: item.large_image_url_jpg || item.image_url_jpg || '',
@@ -2308,22 +2307,24 @@
     if (!safeQ) return [];
     
     try {
-      // Phase 1: Fast prefix match on english_title and default_title (index-friendly)
+      // Phase 1: Fast prefix match (index-friendly) via RPC — server enforces its own hard cap
       let { data, error } = await supabase
-        .from('anime_data')
-        .select('default_title,english_title,romanji_title,japanese_title,type,studios,genres,rating,year,score,mal_id,large_image_url_jpg,image_url_jpg,episodes,status,relations')
-        .or(`default_title.ilike.${safeQ}%,english_title.ilike.${safeQ}%,japanese_title.ilike.${safeQ}%,romanji_title.ilike.${safeQ}%`)
-        .order('score', { ascending: false, nullsFirst: false })
-        .limit(6);
+        .rpc('search_anime_data', {
+          p_query: safeQ,
+          p_match_mode: 'prefix',
+          p_order_by: 'score_desc',
+          p_limit: 6
+        });
       
-      // Phase 2: If not enough results, do contains search (broader but slower)
+      // Phase 2: If not enough results, do contains search (broader but slower) via RPC
       if ((!error && (!data || data.length < 3)) || error) {
         const { data: data2, error: error2 } = await supabase
-          .from('anime_data')
-          .select('default_title,english_title,romanji_title,japanese_title,type,studios,genres,rating,year,score,mal_id,large_image_url_jpg,image_url_jpg,episodes,status,relations')
-          .or(`default_title.ilike.%${safeQ}%,english_title.ilike.%${safeQ}%,japanese_title.ilike.%${safeQ}%,romanji_title.ilike.%${safeQ}%`)
-          .order('score', { ascending: false, nullsFirst: false })
-          .limit(8);
+          .rpc('search_anime_data', {
+            p_query: safeQ,
+            p_match_mode: 'contains',
+            p_order_by: 'score_desc',
+            p_limit: 8
+          });
         
         // Merge results avoiding duplicates
         if (!error2 && data2) {
