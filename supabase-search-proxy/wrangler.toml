@@ -1,0 +1,19 @@
+name = "supabase-search-proxy"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+
+# Edge rate limit: 30 requests per 60 seconds, shared per client IP across
+# all three proxied RPCs. Period must be 10 or 60 (Cloudflare requirement).
+[[ratelimits]]
+name = "SEARCH_RATE_LIMITER"
+namespace_id = "1101"
+[ratelimits.simple]
+limit = 30
+period = 60
+
+[vars]
+SUPABASE_URL = "https://uhjucwqiadymmogmwkxc.supabase.co"
+
+# SUPABASE_ANON_KEY is NOT set here — it's a secret, added via:
+#   npx wrangler secret put SUPABASE_ANON_KEY
+# (paste the same anon key already in shared.js when prompted)
