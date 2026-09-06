@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
   
   <!-- Minimal fallback title (enhanced by shared.js MetadataManager for hybrid site) -->
-  <title>Rowana · Watch Anime, Movies & TV Shows Online Free in HD</title>
+  <title>Ruristream · Watch Anime, Movies & TV Shows Online Free in HD</title>
   
   <!-- Scripts (shared.js auto-injects full SEO metadata) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -2184,7 +2184,7 @@
         <div class="nr-hidden-rows" id="newReleasesHidden" style="display:none;">
           <div class="nr-hidden-row">
             <div class="nr-hidden-row-header">
-              <div class="nr-hidden-row-label">🇰🇷🇮🇩🇹🇼 Korea · Indonesia · Taiwan</div>
+              <div class="nr-hidden-row-label">Korea · Indonesia · Taiwan</div>
               <div class="nr-scroll-controls">
                 <button class="scroll-arrow" id="nrHiddenRow1Left" title="Scroll left">‹</button>
                 <button class="scroll-arrow" id="nrHiddenRow1Right" title="Scroll right">›</button>
@@ -2194,7 +2194,7 @@
           </div>
           <div class="nr-hidden-row">
             <div class="nr-hidden-row-header">
-              <div class="nr-hidden-row-label">🇵🇰🇮🇳🇵🇭 Pakistan · India · Philippines</div>
+              <div class="nr-hidden-row-label">Pakistan · India · Philippines</div>
               <div class="nr-scroll-controls">
                 <button class="scroll-arrow" id="nrHiddenRow2Left" title="Scroll left">‹</button>
                 <button class="scroll-arrow" id="nrHiddenRow2Right" title="Scroll right">›</button>
@@ -2204,7 +2204,7 @@
           </div>
           <div class="nr-hidden-row">
             <div class="nr-hidden-row-header">
-              <div class="nr-hidden-row-label">🇹🇷🇨🇱🇹🇼 Turkey · Chile · Taiwan</div>
+              <div class="nr-hidden-row-label">Turkey · Chile · Taiwan</div>
               <div class="nr-scroll-controls">
                 <button class="scroll-arrow" id="nrHiddenRow3Left" title="Scroll left">‹</button>
                 <button class="scroll-arrow" id="nrHiddenRow3Right" title="Scroll right">›</button>
