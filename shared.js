@@ -372,10 +372,13 @@
     .suggestion-info{flex:1;min-width:0;}
     .sug-title{font-size:10.5px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3;}
     .sug-orig{font-size:9px;color:#63b3ed;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;font-weight:500;}
-    .sug-meta{font-size:10px;color:#405d6e;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:6px;}
+    /* Metadata color: var(--text-muted) = #94a3b8 — lighter, readable, consistent across both tabs.
+       Distinguishable from genre color (--text-secondary) below. */
+    .sug-meta{font-size:10px;color:var(--text-muted,#94a3b8);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:6px;}
     .sug-meta::before{content:'';width:3px;height:3px;background:#63b3ed;border-radius:50%;flex-shrink:0;}
-    .sug-score{display:inline-flex;align-items:center;gap:2px;color:#405d6e;font-weight:600;font-size:8.5px;padding:1px 6px;background:rgba(64,93,110,0.12);border-radius:10px;}
-    .sug-cert{display:inline-flex;align-items:center;font-weight:700;font-size:8.5px;padding:1px 6px;color:#405d6e;background:rgba(64,93,110,0.12);border:1px solid rgba(64,93,110,0.3);border-radius:5px;letter-spacing:.02em;}
+    /* Score + cert chips: match metadata color family for visual cohesion */
+    .sug-score{display:inline-flex;align-items:center;gap:2px;color:var(--text-muted,#94a3b8);font-weight:600;font-size:8.5px;padding:1px 6px;background:rgba(148,163,184,0.12);border-radius:10px;}
+    .sug-cert{display:inline-flex;align-items:center;font-weight:700;font-size:8.5px;padding:1px 6px;color:var(--text-muted,#94a3b8);background:rgba(148,163,184,0.12);border:1px solid rgba(148,163,184,0.3);border-radius:5px;letter-spacing:.02em;}
     .meta-tag{
       font-size:9px;padding:1px 7px;border-radius:6px;font-weight:700;
       letter-spacing:.03em;flex-shrink:0;font-family:'Courier New',monospace;
@@ -386,8 +389,10 @@
     .tag-tmdb{background:rgba(245,158,11,0.15);color:#fbbf24;border:1px solid rgba(245,158,11,0.25);}
     .tag-anikoto{background:rgba(236,72,153,0.15);color:#f472b6;border:1px solid rgba(236,72,153,0.25);}
     .sug-genres{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;}
+    /* Genre color: var(--text-secondary) = #b0c7e3 — lighter than metadata, distinguishable.
+       Both colors come from the site's existing palette, so they fit the visual identity. */
     .sug-genre{
-      --gr:79,122,145;
+      --gr:176,199,227;
       font-size:8.5px;font-weight:600;line-height:1.6;
       padding:1px 8px;border-radius:999px;white-space:nowrap;
       color:rgb(var(--gr));
@@ -399,6 +404,26 @@
     /* Mobile: only first 2 genre pills. Tablet: first 3. Desktop: all 4 rendered. */
     @media (max-width:480px){ .sug-genre:nth-child(n+3){display:none;} }
     @media (min-width:481px) and (max-width:900px){ .sug-genre:nth-child(n+4){display:none;} }
+
+    /* ── DESKTOP SEARCH SUGGESTIONS: bigger fonts + posters for computer view ── */
+    /* Mobile keeps the compact sizes above. Desktop (≥901px, where hamburger is hidden)
+       gets a more readable layout: ~40% larger fonts, larger posters, more breathing room. */
+    @media (min-width:901px){
+      .search-suggestions{max-height:440px;}
+      .suggestions-scroll{max-height:400px;}
+      .suggestion-item{padding:12px 14px;gap:12px;}
+      .suggestion-poster{width:52px;height:74px;border-radius:7px;}
+      .sug-title{font-size:14px;line-height:1.35;}
+      .sug-orig{font-size:11.5px;margin-top:3px;}
+      .sug-meta{font-size:12.5px;margin-top:5px;gap:8px;}
+      .sug-meta::before{width:4px;height:4px;}
+      .sug-score{font-size:11px;padding:2px 8px;}
+      .sug-cert{font-size:11px;padding:2px 8px;}
+      .meta-tag{font-size:11px;padding:2px 8px;}
+      .sug-genres{gap:5px;margin-top:6px;}
+      .sug-genre{font-size:11px;padding:2px 10px;}
+      .view-all-btn{font-size:0.85rem;padding:12px 0;}
+    }
     .view-all-btn{
       display:flex!important;align-items:center;justify-content:center;gap:6px;
       padding:10px 0;margin:0;border-top:1px solid var(--border-medium,rgba(255,255,255,0.08));
@@ -2782,9 +2807,10 @@
 
   // Genre pills now use one fixed, cohesive color instead of a per-letter rainbow —
   // chosen from the same cool/desaturated family as the .sug-meta metadata color
-  // (#405d6e) so genre tags read as part of the same design language rather than
-  // an unrelated accent. Signature kept as genreHue(name) so the call site is unchanged.
-  const GENRE_FIXED_RGB = '79,122,145'; // #4f7a91
+  // (#94a3b8 = var(--text-muted)) so genre tags read as part of the same design language
+  // rather than an unrelated accent. Slightly lighter than metadata so the two are
+  // distinguishable at a glance. Signature kept as genreHue(name) so the call site is unchanged.
+  const GENRE_FIXED_RGB = '176,199,227'; // #b0c7e3 = var(--text-secondary) — lighter, readable against bg, distinct from metadata color
   function genreHue(name) {
     return GENRE_FIXED_RGB;
   }
@@ -2869,7 +2895,10 @@
           ).join('')}</div>`
         : '';
       
-      // Metadata tag: S-Mal (DB), Mal (Jikan), AL (AniList), TMDB (Movie/TV) - same for both APIs
+      // Metadata tag: S-Mal (DB), Mal (Jikan), AL (AniList) - same for both APIs.
+      // NOTE: TMDB (Movie/TV) tag intentionally omitted — the r.meta string for TMDB
+      // already includes the type label (e.g. "April 2026 · TV" or "April 2026 · Movie"),
+      // so showing a duplicate yellow chip was redundant. Removing it keeps the row clean.
       let metaTag = '';
       if (r.source === 'db') {
         metaTag = '<span class="meta-tag tag-smal">S-Mal</span>';
@@ -2879,11 +2908,8 @@
         metaTag = '<span class="meta-tag tag-al">AL</span>';
       } else if (r.source === 'anikoto') {
         metaTag = '<span class="meta-tag tag-anikoto">Anikoto</span>';
-      } else if (r.source === 'tmdb' || r.source === 'tmdb-fallback') {
-        // TMDB tag - show media type (same display for both t-umi and mapplee)
-        const tmdbType = r.mediaType === 'movie' ? 'Movie' : 'TV';
-        metaTag = `<span class="meta-tag tag-tmdb">${tmdbType}</span>`;
       }
+      // (tmdb / tmdb-fallback: no metaTag — r.meta already contains the type)
 
       return `<a href="${detailsUrl}" class="suggestion-item">
         ${img}
