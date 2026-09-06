@@ -4733,6 +4733,15 @@ titleEl.style.color = '#ffffff';
         // PRIMARY: /api/top-airing for anime, /api/hidden-tab for TMDB TV
         // TMDB TV is filtered to AU, CA, CN (user-specified countries).
         // Display pattern: TV-Anime-TV (two TV shows sandwich one anime).
+
+        // ── INSTANT UI: Show skeleton immediately before any API calls ──
+        // Matches the real .show-card-horiz layout (165px wide, poster 3/4.5,
+        // title + meta line below) so the swap to real data is seamless.
+        const taContainer = document.getElementById('topAiringScroll');
+        if (taContainer && !taContainer.children.length) {
+          taContainer.innerHTML = `<div style="display:flex;gap:14px;overflow:hidden;">${skHorizCards(8)}</div>`;
+        }
+
         const [dbTA, dbHidden] = await Promise.all([
           window.getHomeData('top_airing'),
           window.getHomeData('hidden_tab')
@@ -5105,6 +5114,11 @@ titleEl.style.color = '#ffffff';
       let allReleases = {all:[], anime:[], movie:[], tv:[]};
       let _newReleasesCache = null; // in-memory for filter toggles
       let currentNewReleasesFilter = 'all'; // tracks active tab (all/anime/movie/tv)
+      /* Track whether loadNewReleases() has finished (success or fail).
+         Until it has, renderNewReleases() shows a skeleton for any tab whose
+         data array is empty — that way clicking Anime/Movies/Series during
+         the initial load shows skeletons instead of "No releases available". */
+      let _newReleasesLoaded = false;
 
       async function loadNewReleases() {
         // PRIMARY: /api/new-releases (anime) + /api/hidden-tab (TV + movies by country)
@@ -5113,6 +5127,23 @@ titleEl.style.color = '#ffffff';
         // additional fetch is made when switching tabs.
         console.log('[New Releases] 🚀 Fetching from section endpoints...');
         const startTime = Date.now();
+
+        // ── INSTANT UI: Show skeleton immediately before any API calls ──
+        // Matches the real .show-card-grid layout (poster fills card, info text
+        // overlays at bottom via card-info-grid) so the swap to real data is
+        // seamless. Reset any prior layout classes so the skeleton renders in
+        // the standard mobile-friendly grid (the vertical-3row layout gets
+        // re-applied by renderNewReleases() once data arrives).
+        const nrGrid = document.getElementById('newReleasesGrid');
+        if (nrGrid && !nrGrid.children.length) {
+          nrGrid.classList.remove('nr-vertical-3row', 'nr-horizontal');
+          nrGrid.style.removeProperty('--nr-col-width');
+          nrGrid.style.removeProperty('--nr-row-height');
+          const cols = (window.innerWidth <= 520) ? 4 :
+                       (window.innerWidth <= 992) ? 6 :
+                       (window.innerWidth <= 1400) ? 8 : 10;
+          nrGrid.innerHTML = skGridCards(cols * 2); // 2 rows of skeletons
+        }
 
         function calcColsForGrid() {
           const w = window.innerWidth;
@@ -5247,6 +5278,10 @@ titleEl.style.color = '#ffffff';
                 </button>
               </div>`;
           }
+        } finally {
+          // Mark load complete (success or fail) so renderNewReleases stops
+          // showing skeletons for empty tabs and shows the real empty-state instead.
+          _newReleasesLoaded = true;
         }
       }
       function updateNewReleasesCounts() {
@@ -5553,6 +5588,26 @@ titleEl.style.color = '#ffffff';
           : (allReleases[filter] || []);
 
         if (!data.length) {
+          /* Distinguish "still loading" from "genuinely empty":
+             - If loadNewReleases hasn't finished yet (_newReleasesLoaded === false),
+               show a skeleton grid (matches the real .show-card-grid layout) so the
+               user sees a loading state instead of "No releases available".
+             - Once loadNewReleases has finished and a tab is still empty, show the
+               real empty-state message. */
+          if (!_newReleasesLoaded) {
+            grid.classList.remove('nr-vertical-3row', 'nr-horizontal');
+            grid.style.removeProperty('--nr-col-width');
+            grid.style.removeProperty('--nr-row-height');
+            if (controls) {
+              controls.classList.remove('nr-horiz-active', 'nr-vert-active');
+            }
+            const skCols = (window.innerWidth <= 520) ? 4 :
+                           (window.innerWidth <= 992) ? 6 :
+                           (window.innerWidth <= 1400) ? 8 : 10;
+            grid.innerHTML = skGridCards(skCols * 2); // 2 rows of skeletons
+            return;
+          }
+          // Load is done but this tab is empty — show the empty-state.
           grid.classList.remove('nr-horizontal', 'nr-vertical-3row');
           grid.style.removeProperty('--nr-col-width');
           grid.style.removeProperty('--nr-row-height');
@@ -5725,8 +5780,22 @@ titleEl.style.color = '#ffffff';
       }
 
       function nrHiddenSkeletonRow(containerId) {
+        /* Use skHorizCards (matches .show-card-horiz exactly) instead of the
+           generic skCards — the real hidden rows render show-card-grid cards
+           via buildReleaseCardHTML, which have poster + info overlay. The
+           horizontal scroll container is 200px wide per card, so use that
+           width here to match the real layout. */
         const el = document.getElementById(containerId);
-        if (el) el.innerHTML = skCards(8, '200px');
+        if (el) {
+          el.innerHTML = Array.from({length: 8}, () => `
+            <div class="show-card-grid skeleton-card" style="position:relative;flex:0 0 auto;width:200px;">
+              <div class="skeleton card-poster" style="aspect-ratio:3/4.5;border-radius:var(--radius-md);"></div>
+              <div class="card-info-grid" style="background:linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%);">
+                <div class="skeleton" style="height:9px;width:60%;margin-bottom:4px;border-radius:4px;"></div>
+                <div class="skeleton" style="height:11px;width:85%;border-radius:4px;"></div>
+              </div>
+            </div>`).join('');
+        }
       }
 
       function nrRenderHiddenRow(containerId, items) {
@@ -6026,6 +6095,14 @@ titleEl.style.color = '#ffffff';
         // For TMDB movies + TV: apply DYNAMIC date filter so only items
         // whose release/premiere date is in the current year AND in the
         // current-or-future month are kept (pure upcoming TMDB content).
+
+        // ── INSTANT UI: Show skeleton immediately before any API calls ──
+        // Matches .show-card-horiz layout (165px wide, poster 3/4.5, title+meta).
+        const upContainer = document.getElementById('upcomingScroll');
+        if (upContainer && !upContainer.children.length) {
+          upContainer.innerHTML = `<div style="display:flex;gap:14px;overflow:hidden;">${skHorizCards(8)}</div>`;
+        }
+
         const dbUp = await window.getHomeData('upcoming_shows');
         const dbUpMovies = Array.isArray(dbUp?.tmdbMovie) ? dbUp.tmdbMovie : [];
         const dbUpTv     = Array.isArray(dbUp?.tmdbTV)    ? dbUp.tmdbTV    : [];
@@ -7344,6 +7421,30 @@ titleEl.style.color = '#ffffff';
             <div class="skeleton sk-line w60"></div>
           </div>`).join('');
       }
+      /* Horizontal-scroll skeleton card — matches .show-card-horiz exactly
+         (165px wide, poster aspect 3/4.5, title + meta line below poster).
+         Used by Top Airing, New Releases "Hidden" rows, etc. */
+      function skHorizCards(n) {
+        return Array.from({length:n}, () => `
+          <div class="show-card-horiz skeleton-card" style="position:relative;">
+            <div class="skeleton card-poster" style="aspect-ratio:3/4.5;border-radius:var(--radius-md);margin-bottom:6px;"></div>
+            <div class="skeleton" style="height:11px;width:80%;margin:4px 0;border-radius:4px;"></div>
+            <div class="skeleton" style="height:9px;width:60%;border-radius:4px;"></div>
+          </div>`).join('');
+      }
+      /* Grid-card skeleton — matches .show-card-grid exactly (poster fills card,
+         info text overlays at bottom via card-info-grid). Used by New Releases
+         All/Anime/Movie/Series tabs and Recently Completed. */
+      function skGridCards(n) {
+        return Array.from({length:n}, () => `
+          <div class="show-card-grid skeleton-card" style="position:relative;">
+            <div class="skeleton card-poster" style="aspect-ratio:3/4.5;border-radius:var(--radius-md);"></div>
+            <div class="card-info-grid" style="background:linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%);">
+              <div class="skeleton" style="height:9px;width:60%;margin-bottom:4px;border-radius:4px;"></div>
+              <div class="skeleton" style="height:11px;width:85%;border-radius:4px;"></div>
+            </div>
+          </div>`).join('');
+      }
       function skPaRows(n=8) {
         return Array.from({length:n}, (_,i) => `
           <div class="sk-pa-row">
@@ -7383,10 +7484,43 @@ titleEl.style.color = '#ffffff';
         // Hero — only replace the slides container, keep nav/dots/buttons intact
         const slides = $('slidesContainer');
         if (slides) slides.innerHTML = `<div class="skeleton sk-hero" style="border-radius:0;"></div>`;
-        // Horizontal scroll sections (cards)
-        [['topAiringList',8],['newReleasesList',8],['upcomingList',8],
-         ['trendingList',8],['newAnioceanGrid',14],['completedGrid',10]
-        ].forEach(([id,n]) => { const el=$(id); if(el) el.innerHTML=`<div style="display:flex;gap:10px;overflow:hidden;">${skCards(n)}</div>`; });
+        /* Horizontal scroll sections — use skHorizCards so the skeleton card
+           matches .show-card-horiz exactly (165px wide, poster 3/4.5, title+meta).
+           IMPORTANT: target the actual DOM IDs (topAiringScroll, upcomingScroll),
+           not the section IDs (topAiringSection, upcomingSection) — the old code
+           used 'topAiringList' / 'newReleasesList' / 'upcomingList' which don't
+           exist in the HTML, so skeletons were never injected. */
+        const horizSections = [
+          ['topAiringScroll', 8],
+          ['upcomingScroll', 8],
+          ['trendingList', 8],
+        ];
+        horizSections.forEach(([id, n]) => {
+          const el = $(id);
+          if (el) el.innerHTML = `<div style="display:flex;gap:14px;overflow:hidden;">${skHorizCards(n)}</div>`;
+        });
+        /* New Releases — uses .show-card-grid (poster + info overlay at bottom).
+           Inject grid-card skeletons that match the real layout exactly.
+           The grid container keeps its normal .grid-container class so the
+           skeleton cards land in the same columns/rows real data would. */
+        const nrGrid = $('newReleasesGrid');
+        if (nrGrid) {
+          nrGrid.classList.remove('nr-vertical-3row', 'nr-horizontal');
+          nrGrid.style.removeProperty('--nr-col-width');
+          nrGrid.style.removeProperty('--nr-row-height');
+          // Reset to the mobile grid-container layout for skeleton — the
+          // vertical-3row layout is only applied when real data renders.
+          const cols = (window.innerWidth <= 520) ? 4 :
+                       (window.innerWidth <= 992) ? 6 :
+                       (window.innerWidth <= 1400) ? 8 : 10;
+          nrGrid.innerHTML = skGridCards(cols * 2); // 2 rows of skeletons
+        }
+        // New on Ruri
+        const nao = $('newAnioceanGrid');
+        if (nao) generateAnioceanSkeleton(24);
+        // Recently Completed — also grid-card style
+        const cg = $('completedGrid');
+        if (cg) cg.innerHTML = skGridCards(10);
         // Popular Anime list
         const pa = $('popularAnimeList'); if(pa) pa.innerHTML = skPaRows(12);
         // Sidebar (Most Popular)
