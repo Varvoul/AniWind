@@ -93,7 +93,7 @@
   // ── Edge-rate-limited proxy for anime_data/anikoto_data search RPCs ──
   // TODO: replace with the real deployed Worker URL after `wrangler deploy`
   // (see supabase-search-proxy/DEPLOY.md) — this placeholder will 404 as-is.
-  const SEARCH_PROXY_URL  = 'https://supabase-search-proxy.REPLACE-WITH-YOUR-SUBDOMAIN.workers.dev';
+  const SEARCH_PROXY_URL  = 'https://supabase-search-proxy.bionmovies47.workers.dev';
 
   // Calls one of the three whitelisted RPCs through the edge proxy instead of
   // hitting Supabase directly, so the Worker's per-IP rate limit actually
