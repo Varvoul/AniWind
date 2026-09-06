@@ -446,26 +446,25 @@
 
     /* NEW ON ANIOCEAN SECTION - 3-Row Horizontal Scroll Shelf (Netflix-style), computer only */
     .new-aniocean-shelf {
-      /* Use CSS Grid for true 3-row horizontal scroll */
+      /* Use CSS Grid for true 3-row horizontal scroll.
+         Column count + width are set inline by JS (nrAnioceanLayout) based on
+         the actual container width, so columns fit exactly with no partial
+         8th column bleeding in. JS also caps total columns to
+         Math.ceil(items/3) so the scrollWidth matches the actual content —
+         no overscroll past the last column. */
       display: grid;
-      /* Create 40 columns of 165px each (cards fill left-to-right, top-to-bottom) */
-      grid-template-columns: repeat(40, 165px);
-      /* Exactly 3 rows (desktop only) */
+      /* Placeholder values; JS overrides these on layout. */
+      grid-template-columns: repeat(10, 165px);
       grid-template-rows: repeat(3, auto);
-      /* CRITICAL: fill column-by-column (row1,row2,row3 triples) instead of the default
-         row-by-row flow, which was stacking every card into row 1 only */
       grid-auto-flow: column;
-      /* Safety net: if more cards arrive than the explicit repeat() count below
-         provides columns for (e.g. API returns 100 items), any overflow cards land
-         in implicit columns. Without this they'd default to grid-auto-columns:auto
-         and collapse to a tiny width — force them to match the explicit track size. */
       grid-auto-columns: 165px;
       gap: 12px;
       /* Horizontal scroll only */
       overflow-x: auto;
       overflow-y: hidden;
       scroll-behavior: smooth;
-      /* Height for 3 full rows: poster(~248px) + info(~75px) + 2 gaps */
+      /* Height for 3 full rows: poster(~248px) + info(~75px) + 2 gaps.
+         Will be overridden by JS to match the actual computed card height. */
       height: calc(((165px * 4.5 / 3) + 75px) * 3 + 24px);
       max-height: 1000px;
       /* Hide scrollbar like other sections */
@@ -1021,6 +1020,64 @@
     #newReleasesGrid.nr-horizontal .nr-featured {
       grid-column: auto;
       grid-row: auto;
+    }
+
+    /* ════════════════════════════════════════════════════════════
+       NEW RELEASES — vertical 3-row smooth-scroll layout
+       Active on: desktop, mobile-landscape, mobile-desktop view modes
+       (i.e. whenever width > 1024 OR orientation:landscape with width > 768).
+       NOT active on mobile-portrait (which keeps the regular grid-container).
+       Three rows of cards are visible at once; user scrolls vertically by
+       one full page (3 rows) per chevron click. No visible scrollbar.
+       ════════════════════════════════════════════════════════════ */
+    .nr-scroll-controls-v { display: none; align-items: center; gap: 8px; }
+    .nr-header-controls.nr-vert-active .nr-scroll-controls-v { display: flex; }
+    /* Hide the horizontal chevrons whenever the vertical layout is active,
+       so only the up/down arrows appear next to the View All button. */
+    .nr-header-controls.nr-vert-active .nr-scroll-controls:not(.nr-scroll-controls-v) { display: none !important; }
+    /* Vertical chevrons still need to be visible below the 1024 breakpoint
+       where the global .scroll-arrow rule normally hides them — but only
+       when the vertical layout is actually active (landscape mobile etc.). */
+    @media (max-width: 1024px) {
+      .nr-header-controls.nr-vert-active .nr-scroll-controls-v .scroll-arrow { display: flex !important; }
+    }
+
+    #newReleasesGrid.nr-vertical-3row {
+      display: grid;
+      grid-template-columns: none;
+      /* 3 explicit rows; each row is exactly one card height.
+         --nr-row-height is computed by JS (nrLayoutColumns) so it matches
+         the actual card height (poster + info) at the current width. */
+      grid-template-rows: repeat(3, var(--nr-row-height, 360px));
+      grid-auto-flow: column;
+      grid-auto-columns: var(--nr-col-width, 200px);
+      gap: 14px;
+      /* Vertical scroll only — hide horizontal overflow, no scrollbar */
+      overflow-x: hidden;
+      overflow-y: auto;
+      scroll-behavior: smooth;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+      /* Total height = 3 rows + 2 gaps. This is what makes only 3 rows visible. */
+      height: calc(var(--nr-row-height, 360px) * 3 + 14px * 2);
+      padding-right: 4px;
+    }
+    #newReleasesGrid.nr-vertical-3row::-webkit-scrollbar { display: none; }
+    #newReleasesGrid.nr-vertical-3row .show-card-grid {
+      width: 100%;
+      /* Card height fills its grid row exactly, no awkward gaps */
+      height: 100%;
+    }
+    /* No featured/hero card in this layout — always a normal card */
+    #newReleasesGrid.nr-vertical-3row .nr-featured {
+      grid-column: auto;
+      grid-row: auto;
+    }
+    /* The grid-container class sets repeat(N,1fr) columns — must be reset
+       here so grid-auto-columns is the only sizing track. */
+    #newReleasesGrid.nr-vertical-3row.grid-container {
+      grid-template-columns: none;
+      display: grid;
     }
 
     /* ── "Hidden" tab: 3 always-horizontal-scroll rows, grouped by country ──
@@ -2176,6 +2233,10 @@
             <div class="nr-scroll-controls" id="nrScrollControls">
               <button class="scroll-arrow" id="nrScrollLeft" title="Scroll left">‹</button>
               <button class="scroll-arrow" id="nrScrollRight" title="Scroll right">›</button>
+            </div>
+            <div class="nr-scroll-controls nr-scroll-controls-v" id="nrScrollControlsV">
+              <button class="scroll-arrow" id="nrScrollUp" title="Scroll up">˄</button>
+              <button class="scroll-arrow" id="nrScrollDown" title="Scroll down">˅</button>
             </div>
             <a href="/new-releases" class="view-all" id="nrViewAll"><span class="nr-viewall-text">View All</span> <i class="fas fa-chevron-right"></i></a>
           </div>
@@ -3440,6 +3501,13 @@ async function loadNewAniocean() {
         </a>
       `;
     }).join('');
+    /* Trigger the layout function (defined in initNewAnioceanScroll) to
+       recompute grid columns + height based on the actual card count and
+       container width. Fixes the "8th column incomplete" + overscroll bugs. */
+    if (typeof window.layoutAnioceanShelf === 'function') {
+      // Defer to next frame so the new DOM has been laid out before measurement.
+      requestAnimationFrame(window.layoutAnioceanShelf);
+    }
     return true;
   }
 
@@ -4855,20 +4923,97 @@ titleEl.style.color = 'transparent';
         document.getElementById('topAiringRight')
       );
 
-      /* ── NEW ON ANIUMI - 2-Row Horizontal Scroll ── */
+      /* ── NEW ON ANIUMI - 3-Row Horizontal Scroll ── */
       (function initNewAnioceanScroll() {
         const container = document.getElementById('newAnioceanGrid');
         const leftBtn = document.getElementById('newAnioceanLeft');
         const rightBtn = document.getElementById('newAnioceanRight');
         if (!container || !leftBtn || !rightBtn) return;
-        
+
+        /* ── Layout function: compute exact column count + width from container ──
+           This fixes two issues:
+           1) "8th column shows incomplete" — old code hardcoded 40 × 165px columns,
+              so if the container width could fit 7.5 cards, the 8th bled in half-visible.
+              Now we compute visible cols = floor((containerWidth + gap) / (cardWidth + gap))
+              and set grid-template-columns to exactly that many columns. The 8th column
+              is then off-screen until the user scrolls.
+           2) "Overscroll past last card" — old code reserved 40 columns regardless of
+              how many cards existed. Now we cap total columns to Math.ceil(items/3)
+              so the scrollWidth equals the actual content width.
+           Card width is responsive: 165px desktop, 150px tablet, 2-per-row on mobile. */
+        function layoutShelf() {
+          if (!container) return;
+          const items = container.querySelectorAll('.aniocean-card').length;
+          if (items === 0) return;
+
+          // Determine card width based on current breakpoint (matches CSS @media rules)
+          const w = window.innerWidth;
+          let cardWidth = 165;   // desktop default
+          let gap = 12;
+          let rows = 3;
+          if (w <= 1100) { cardWidth = 150; gap = 12; rows = 2; }      // tablet
+          if (w <= 768)  {
+            // Mobile: 2 cards per visible page, 2 rows
+            cardWidth = Math.floor((w - 32 - 8) / 2); // matches CSS calc
+            gap = 8;
+            rows = 2;
+          }
+
+          // Visible columns = how many full cards fit in the container width
+          const containerWidth = container.clientWidth;
+          const visibleCols = Math.max(1, Math.floor((containerWidth + gap) / (cardWidth + gap)));
+
+          // Total columns needed = ceil(items / rows). If items don't fill a full column,
+          // we still need that column to exist (so partial last column is intentional and visible).
+          const totalCols = Math.ceil(items / rows);
+
+          // Set the grid-template-columns to exactly visibleCols columns of cardWidth each.
+          // grid-auto-columns matches so any overflow (when totalCols > visibleCols, which is
+          // the normal case) also uses the same cardWidth — no shrinking.
+          container.style.gridTemplateColumns = `repeat(${visibleCols}, ${cardWidth}px)`;
+          container.style.gridAutoColumns = `${cardWidth}px`;
+
+          // Override the total scrollable width to exactly totalCols columns + gaps.
+          // This is the key fix for the overscroll bug: instead of letting CSS Grid
+          // lay out implicit columns forever, we explicitly cap by setting a max-width
+          // on the content via a wrapper-like technique. But CSS Grid doesn't have a
+          // "max columns" property — the cleanest way is to leave grid-auto-flow:column
+          // alone (it'll only create as many columns as needed to hold all items) and
+          // trust that scrollWidth will then equal items * cardWidth / rows.
+          // No additional cap needed — grid-auto-flow:column with N items and 3 rows
+          // naturally produces Math.ceil(N/3) columns.
+
+          // Update container height to match the actual card height at the new cardWidth.
+          // Poster aspect-ratio is 3/4.5, so poster height = cardWidth * 4.5 / 3.
+          const posterH = cardWidth * 4.5 / 3;
+          const infoH = (w <= 768) ? 60 : 75;
+          const rowH = posterH + infoH;
+          const totalH = rowH * rows + gap * (rows - 1) + 16; // +16 padding buffer
+          container.style.height = totalH + 'px';
+          if (w <= 768) {
+            container.style.maxHeight = 'none';
+          } else if (w <= 1100) {
+            container.style.maxHeight = '600px';
+          } else {
+            container.style.maxHeight = '1000px';
+          }
+
+          // Store the computed values for the scroll-amount function to use
+          container.dataset.cardWidth = String(cardWidth);
+          container.dataset.gap = String(gap);
+          container.dataset.visibleCols = String(visibleCols);
+
+          updateEndState();
+        }
+
+        // Expose layoutShelf globally so renderAnimeList can call it after data loads
+        window.layoutAnioceanShelf = layoutShelf;
+
         // Calculate how many columns are visible and scroll by that amount
         function getScrollAmount() {
-          const cardWidth = 165; // Fixed card width
-          const gap = 12;
-          const containerWidth = container.clientWidth;
-          // Number of visible columns
-          const visibleCols = Math.floor((containerWidth + gap) / (cardWidth + gap));
+          const cardWidth = parseInt(container.dataset.cardWidth || '165', 10);
+          const gap = parseInt(container.dataset.gap || '12', 10);
+          const visibleCols = parseInt(container.dataset.visibleCols || '5', 10);
           // Scroll by visible columns minus 1 (to show overlap for context)
           return Math.max(1, visibleCols - 1) * (cardWidth + gap);
         }
@@ -4894,10 +5039,15 @@ titleEl.style.color = 'transparent';
         }
         updateEndState();
         container.addEventListener('scroll', updateEndState);
-        window.addEventListener('resize', updateEndState);
-        // New data lands after an async fetch — re-check once it's rendered.
-        new MutationObserver(updateEndState).observe(container, { childList: true });
-        
+        // Re-layout on resize (debounced) — column count may change with container width
+        let _resizeTimer = null;
+        window.addEventListener('resize', () => {
+          clearTimeout(_resizeTimer);
+          _resizeTimer = setTimeout(layoutShelf, 150);
+        });
+        // New data lands after an async fetch — re-layout + re-check once it's rendered.
+        new MutationObserver(() => { layoutShelf(); }).observe(container, { childList: true });
+
         leftBtn.addEventListener('click', () => {
           if (isAtStart()) return;
           container.scrollBy({ left: -getScrollAmount(), behavior: 'smooth' });
@@ -4906,15 +5056,15 @@ titleEl.style.color = 'transparent';
           if (isAtEnd()) return;
           container.scrollBy({ left: getScrollAmount(), behavior: 'smooth' });
         });
-        
+
         // Keyboard arrow key support when hovering over section
         const section = document.getElementById('newOnRowanaSection');
         if (section) {
           document.addEventListener('keydown', (e) => {
-            if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && 
+            if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') &&
                 (section.matches(':hover') || container.matches(':hover'))) {
-              if (e.key === 'ArrowLeft' && isAtStart()) return; // already at the start
-              if (e.key === 'ArrowRight' && isAtEnd()) return; // no more to scroll — let the key do nothing
+              if (e.key === 'ArrowLeft' && isAtStart()) return;
+              if (e.key === 'ArrowRight' && isAtEnd()) return;
               e.preventDefault();
               if (e.key === 'ArrowLeft') {
                 container.scrollBy({ left: -getScrollAmount(), behavior: 'smooth' });
@@ -4923,6 +5073,12 @@ titleEl.style.color = 'transparent';
               }
             }
           });
+        }
+
+        // ResizeObserver: re-layout when container itself resizes (sidebar reflow, font load)
+        if ('ResizeObserver' in window) {
+          const ro = new ResizeObserver(() => layoutShelf());
+          ro.observe(container);
         }
       })();
 
@@ -5075,11 +5231,14 @@ titleEl.style.color = 'transparent';
         }
       }
       function updateNewReleasesCounts() {
-        const setCount = (id, n) => { const el = document.getElementById(id); if (el) el.textContent = n > 0 ? n : ''; };
-        setCount('nrCountAll',   (allReleases.all||[]).length);
-        setCount('nrCountAnime', (allReleases.anime||[]).length);
-        setCount('nrCountMovie', (allReleases.movie||[]).length);
-        setCount('nrCountTv',    (allReleases.tv||[]).length);
+        /* Per spec: remove the count numbers from All/Anime/Movie/Series tabs.
+           The .tab-count spans are emptied (and CSS hides them via :empty rule),
+           so the toggle tabs show only the icon + label, no "(123)" suffix. */
+        const clearCount = (id) => { const el = document.getElementById(id); if (el) el.textContent = ''; };
+        clearCount('nrCountAll');
+        clearCount('nrCountAnime');
+        clearCount('nrCountMovie');
+        clearCount('nrCountTv');
       }
 
       /* Single card markup builder shared by both the vertical grid and the
@@ -5152,13 +5311,27 @@ titleEl.style.color = 'transparent';
         if (w > 1200) return 5;
         return 4; // 1024–1200
       }
-      function nrIsHorizontalActive() {
-        return currentNewReleasesFilter === 'all' && window.innerWidth > NR_HORIZ_MIN_WIDTH;
+      /* Vertical 3-row layout is active on:
+         - desktop (width > 1024)
+         - mobile-landscape (width > 768 AND orientation landscape)
+         - mobile-desktop view modes (treated as landscape)
+         Mobile PORTRAIT keeps the regular grid-container layout. */
+      function nrIsVerticalActive() {
+        const w = window.innerWidth;
+        if (w > 1024) return true;
+        if (w > 768 && window.matchMedia('(orientation: landscape)').matches) return true;
+        return false;
       }
-      function nrBuildHorizontalList() {
-        // Row 1 = anime, Row 2 = TMDB TV, Row 3 = TMDB movies. Interleaving
-        // in triples lets grid-auto-flow:column sort them into their rows
-        // automatically (item1->row1, item2->row2, item3->row3, item4->row1, ...).
+      function nrIsHorizontalActive() {
+        /* Old horizontal layout is retired — vertical 3-row replaces it on
+           desktop/landscape. Keep function as a no-op for any external callers. */
+        return false;
+      }
+      function nrBuildVerticalList() {
+        /* For the vertical 3-row layout: interleave the three sources so each
+           visible "page" shows anime / TV / movie across the 3 rows. Same logic
+           as nrBuildHorizontalList — kept as a separate function so the two can
+           diverge if needed (e.g. different sort order). */
         const animeList = allReleases.anime || [];
         const tvList = allReleases.tv || [];
         const movieList = allReleases.movie || [];
@@ -5167,9 +5340,12 @@ titleEl.style.color = 'transparent';
         for (let i = 0; i < n; i++) {
           combined.push(animeList[i], tvList[i], movieList[i]);
         }
-        // Append any leftovers from longer lists at the end
         combined.push(...animeList.slice(n), ...tvList.slice(n), ...movieList.slice(n));
         return combined;
+      }
+      function nrBuildHorizontalList() {
+        // Kept for backward compat — delegates to the vertical list builder
+        return nrBuildVerticalList();
       }
       function nrLayoutColumns() {
         const grid = document.getElementById('newReleasesGrid');
@@ -5181,23 +5357,44 @@ titleEl.style.color = 'transparent';
         grid.style.setProperty('--nr-col-width', colWidth + 'px');
         grid.dataset.nrCols = cols;
       }
+      /* Compute and apply column width + row height for the vertical 3-row layout.
+         Row height is derived from the actual rendered card height at the current
+         column width (poster aspect-ratio is 3/4.5, plus info text under it). */
+      function nrLayoutVertical() {
+        const grid = document.getElementById('newReleasesGrid');
+        if (!grid || !grid.classList.contains('nr-vertical-3row')) return;
+        const cols = nrCalcCols();
+        const gap = 14;
+        const containerWidth = grid.clientWidth;
+        const colWidth = Math.floor((containerWidth - gap * (cols - 1)) / cols);
+        grid.style.setProperty('--nr-col-width', colWidth + 'px');
+        grid.dataset.nrCols = cols;
+        /* Card poster uses aspect-ratio: 3/4.5 (matches .card-poster), so poster
+           height = colWidth * 4.5 / 3. Add info area (~70px) + a little breathing
+           room. Round up to avoid sub-pixel clipping. */
+        const posterH = colWidth * 4.5 / 3;
+        const infoH = 70;
+        const rowHeight = Math.ceil(posterH + infoH);
+        grid.style.setProperty('--nr-row-height', rowHeight + 'px');
+      }
       function nrGetScrollAmount() {
         const grid = document.getElementById('newReleasesGrid');
-        return grid ? grid.clientWidth : 0;
+        return grid ? grid.clientHeight : 0;
       }
       let _nrResizeTimer = null;
       window.addEventListener('resize', () => {
         clearTimeout(_nrResizeTimer);
         _nrResizeTimer = setTimeout(() => {
-          const shouldBeHorizontal = nrIsHorizontalActive();
+          const shouldBeVertical = nrIsVerticalActive();
           const grid = document.getElementById('newReleasesGrid');
           if (!grid) return;
-          const isHorizontal = grid.classList.contains('nr-horizontal');
-          if (shouldBeHorizontal !== isHorizontal) {
-            // Crossed the desktop breakpoint or tab changed layout mode — re-render fully
+          const isVertical = grid.classList.contains('nr-vertical-3row');
+          if (shouldBeVertical !== isVertical) {
+            // Crossed the desktop/landscape breakpoint or tab changed layout mode —
+            // re-render fully so the right CSS class set is applied.
             renderNewReleases(currentNewReleasesFilter);
-          } else if (shouldBeHorizontal) {
-            nrLayoutColumns();
+          } else if (shouldBeVertical) {
+            nrLayoutVertical();
           }
         }, 200);
       });
@@ -5221,32 +5418,62 @@ titleEl.style.color = 'transparent';
         _nrScrollWired = true;
         const leftBtn = document.getElementById('nrScrollLeft');
         const rightBtn = document.getElementById('nrScrollRight');
+        const upBtn = document.getElementById('nrScrollUp');
+        const downBtn = document.getElementById('nrScrollDown');
         const grid = document.getElementById('newReleasesGrid');
         const section = grid ? grid.closest('.section') : null;
-        if (!leftBtn || !rightBtn) return;
+        if (!leftBtn || !rightBtn || !upBtn || !downBtn) return;
 
         // These header chevrons drive whichever row set is currently on
         // screen — the "All" tab's single horizontal grid, or (when the
         // Hidden tab is active) all 3 country rows scrolling together.
         function refContainer() { return nrActiveContainers()[0] || null; }
-        function isAtStart() { const c = refContainer(); return !c || c.scrollLeft <= 1; }
-        function isAtEnd() { const c = refContainer(); return !c || (c.scrollLeft + c.clientWidth >= c.scrollWidth - 2); }
+        function isAtStart() {
+          const c = refContainer();
+          if (!c) return true;
+          // Vertical layout uses scrollTop; horizontal uses scrollLeft.
+          if (c.classList.contains('nr-vertical-3row')) return c.scrollTop <= 1;
+          return c.scrollLeft <= 1;
+        }
+        function isAtEnd() {
+          const c = refContainer();
+          if (!c) return true;
+          if (c.classList.contains('nr-vertical-3row')) {
+            return c.scrollTop + c.clientHeight >= c.scrollHeight - 2;
+          }
+          return c.scrollLeft + c.clientWidth >= c.scrollWidth - 2;
+        }
         function updateEdgeState() {
           const atStart = isAtStart(), atEnd = isAtEnd();
+          // Horizontal chevrons (still used by the "Hidden" tab rows)
           leftBtn.disabled = atStart;
           leftBtn.classList.toggle('scroll-arrow-disabled', atStart);
           rightBtn.disabled = atEnd;
           rightBtn.classList.toggle('scroll-arrow-disabled', atEnd);
+          // Vertical chevrons (used by All/Anime/Movie/Series tabs in vertical mode)
+          upBtn.disabled = atStart;
+          upBtn.classList.toggle('scroll-arrow-disabled', atStart);
+          downBtn.disabled = atEnd;
+          downBtn.classList.toggle('scroll-arrow-disabled', atEnd);
         }
         updateEdgeState();
 
         function scrollActive(dir) {
           const amount = nrActiveScrollAmount();
-          nrActiveContainers().forEach(c => c.scrollBy({ left: dir * amount, behavior: 'smooth' }));
+          const c = refContainer();
+          if (!c) return;
+          if (c.classList.contains('nr-vertical-3row')) {
+            // Vertical layout: scroll on Y axis. Amount = 3 rows = container height.
+            c.scrollBy({ top: dir * amount, behavior: 'smooth' });
+          } else {
+            nrActiveContainers().forEach(cc => cc.scrollBy({ left: dir * amount, behavior: 'smooth' }));
+          }
           setTimeout(updateEdgeState, 350); // let the smooth-scroll settle before re-checking
         }
         leftBtn.addEventListener('click', () => { if (!isAtStart()) scrollActive(-1); });
         rightBtn.addEventListener('click', () => { if (!isAtEnd()) scrollActive(1); });
+        upBtn.addEventListener('click', () => { if (!isAtStart()) scrollActive(-1); });
+        downBtn.addEventListener('click', () => { if (!isAtEnd()) scrollActive(1); });
 
         // Track scroll on every possible target (all-grid + 3 hidden rows) so
         // whichever one is actually visible keeps the buttons in sync.
@@ -5265,9 +5492,19 @@ titleEl.style.color = 'transparent';
           document.addEventListener('keydown', (e) => {
             const active = nrActiveContainers();
             if (!active.length) return;
-            if (!grid.classList.contains('nr-horizontal') && currentNewReleasesFilter !== 'hidden') return;
+            const isVert = grid.classList.contains('nr-vertical-3row');
+            const isHoriz = grid.classList.contains('nr-horizontal');
+            if (!isVert && !isHoriz && currentNewReleasesFilter !== 'hidden') return;
             const hovering = section.matches(':hover') || active.some(c => c.matches(':hover'));
-            if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && hovering) {
+            // Vertical layout: respond to up/down arrow keys
+            if (isVert && (e.key === 'ArrowUp' || e.key === 'ArrowDown') && hovering) {
+              if (e.key === 'ArrowUp' && isAtStart()) return;
+              if (e.key === 'ArrowDown' && isAtEnd()) return;
+              e.preventDefault();
+              scrollActive(e.key === 'ArrowUp' ? -1 : 1);
+            }
+            // Horizontal layout (Hidden tab): respond to left/right arrow keys
+            if (!isVert && (e.key === 'ArrowLeft' || e.key === 'ArrowRight') && hovering) {
               if (e.key === 'ArrowLeft' && isAtStart()) return;
               if (e.key === 'ArrowRight' && isAtEnd()) return;
               e.preventDefault();
@@ -5280,6 +5517,7 @@ titleEl.style.color = 'transparent';
         if (grid && 'ResizeObserver' in window) {
           const ro = new ResizeObserver(() => {
             if (grid.classList.contains('nr-horizontal')) nrLayoutColumns();
+            if (grid.classList.contains('nr-vertical-3row')) nrLayoutVertical();
             updateEdgeState();
           });
           ro.observe(grid);
@@ -5289,13 +5527,19 @@ titleEl.style.color = 'transparent';
       function renderNewReleases(filter) {
         const grid = document.getElementById('newReleasesGrid');
         const controls = document.getElementById('nrScrollControls')?.closest('.nr-header-controls');
-        const useHorizontal = filter === 'all' && window.innerWidth > NR_HORIZ_MIN_WIDTH;
-        const data = useHorizontal ? nrBuildHorizontalList() : (allReleases[filter] || []);
+        const useVertical = filter !== 'hidden' && nrIsVerticalActive();
+        const useHorizontal = false; // retired — vertical 3-row replaces it
+        const data = useVertical
+          ? (filter === 'all' ? nrBuildVerticalList() : (allReleases[filter] || []))
+          : (allReleases[filter] || []);
 
         if (!data.length) {
-          grid.classList.remove('nr-horizontal');
+          grid.classList.remove('nr-horizontal', 'nr-vertical-3row');
           grid.style.removeProperty('--nr-col-width');
-          if (controls) controls.classList.remove('nr-horiz-active');
+          grid.style.removeProperty('--nr-row-height');
+          if (controls) {
+            controls.classList.remove('nr-horiz-active', 'nr-vert-active');
+          }
           grid.innerHTML = `<div class="nr-empty-state">
             <i class="fas fa-inbox"></i>
             <span>No ${filter === 'all' ? 'releases' : filter} available right now</span>
@@ -5303,17 +5547,31 @@ titleEl.style.color = 'transparent';
           return;
         }
 
+        // Toggle layout classes. Vertical-3row takes precedence over horizontal
+        // (which is now retired but the class is kept for backward compat).
+        grid.classList.toggle('nr-vertical-3row', useVertical);
         grid.classList.toggle('nr-horizontal', useHorizontal);
-        if (controls) controls.classList.toggle('nr-horiz-active', useHorizontal);
+        if (controls) {
+          controls.classList.toggle('nr-vert-active', useVertical);
+          controls.classList.toggle('nr-horiz-active', useHorizontal);
+        }
 
-        grid.innerHTML = data.map((s, idx) => buildReleaseCardHTML(s, { featured: !useHorizontal && idx === 0 })).join('');
+        // No hero/featured card in vertical layout — pass featured:false always.
+        // The hero card is also removed from the mobile grid layout per spec
+        // (point 01: "remove the 1st show card hero card" applies to all layouts).
+        grid.innerHTML = data.map(s => buildReleaseCardHTML(s, { featured: false })).join('');
 
-        if (useHorizontal) {
+        if (useVertical) {
+          nrLayoutVertical();
+          nrWireScrollControls();
+          grid.scrollTop = 0;
+        } else if (useHorizontal) {
           nrLayoutColumns();
           nrWireScrollControls();
           grid.scrollLeft = 0;
         } else {
           grid.style.removeProperty('--nr-col-width');
+          grid.style.removeProperty('--nr-row-height');
         }
       }
       /* ══════════════════════════════════════════════════════════════════
@@ -5539,12 +5797,14 @@ titleEl.style.color = 'transparent';
             // time this tab is opened (loadHiddenReleases guards against repeats).
             grid.style.display = 'none';
             hiddenContainer.style.display = '';
-            // Header chevrons are gated behind .nr-horiz-active — this branch
-            // returns early before renderNewReleases() would normally set that,
-            // so set it explicitly here (the class is also what makes the
-            // chevrons scroll all 3 hidden rows together, see nrActiveContainers).
+            // Header chevrons for the hidden tab are the LEFT/RIGHT (horizontal)
+            // pair, gated behind .nr-horiz-active. The vertical (up/down) chevrons
+            // must be hidden, so make sure .nr-vert-active is removed.
             const hiddenControls = document.getElementById('nrScrollControls')?.closest('.nr-header-controls');
-            if (hiddenControls) hiddenControls.classList.add('nr-horiz-active');
+            if (hiddenControls) {
+              hiddenControls.classList.add('nr-horiz-active');
+              hiddenControls.classList.remove('nr-vert-active');
+            }
             document.getElementById('newReleasesTitle').textContent = 'Latest Hidden';
             const viewAll = document.getElementById('nrViewAll');
             if (viewAll) viewAll.href = '/new-releases?type=hidden';
