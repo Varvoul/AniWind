@@ -177,19 +177,12 @@
       -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
       overflow: hidden;
-      /* ── Fixed on-brand gradient: blue → pink accent (135deg) ──
-         #63b3ed (light blue, lighter shade of --accent-blue)
-         → #4299e1 (--accent-blue, primary brand color)
-         → #ed64a6 (--link-accent, pink/magenta secondary accent)
-         Both endpoints are saturated → multi-line titles stay readable
-         on both bright and dark backdrops. Colors match the rest of the
-         site (login button, View All button, genre tags) so it feels
-         native rather than a standalone "pretty gradient". */
-      color: #4299e1; /* fallback solid color */
-      background: linear-gradient(135deg, #63b3ed 0%, #4299e1 45%, #ed64a6 100%);
-      -webkit-background-clip: text;
-      background-clip: text;
-      -webkit-text-fill-color: transparent;
+      /* ── Plain white title (no gradient) ──
+         White reads on every backdrop — bright, dark, saturated, or muted.
+         Same choice Netflix / Hulu / Crunchyroll make for their hero titles.
+         text-shadow gives contrast over bright anime key art without
+         needing per-image color logic. */
+      color: #ffffff;
       text-shadow: 0 2px 6px rgba(0,0,0,0.5);
     }
     .slide-meta {
@@ -4606,21 +4599,15 @@ body: JSON.stringify({ key: key, imageUrl: imgUrl, hex: hex }),
 return hex;
 }
 function applyHeroAccentColors() {
-/* FIXED ON-BRAND GRADIENT — no longer extracts color per image.
-   Previously this function fetched an accent color from a worker (or
-   extracted one locally) for each slide's backdrop image, then applied
-   a per-image gradient to the title. That caused the title color to
-   change on every slide.
-   Now we apply ONE consistent gradient (135deg):
-     #63b3ed (light blue, lighter shade of --accent-blue)
-     → #4299e1 (--accent-blue, primary brand color)
-     → #ed64a6 (--link-accent, pink/magenta secondary accent)
-   Both endpoints saturated → multi-line titles stay readable on bright
-   and dark backdrops. Matches site accent colors (login button, View All
-   button, genre tags). Plus text-shadow for extra readability.
-   Mobile shadow is slightly stronger per Claude's responsive scaling
-   suggestion (smaller screens amplify brightness differences). */
-const FIXED_GRADIENT = 'linear-gradient(135deg, #63b3ed 0%, #4299e1 45%, #ed64a6 100%)';
+/* PLAIN WHITE TITLE — no gradient.
+   Previously this function applied a per-image gradient (then a fixed
+   gradient) to each slide title. The user has decided to go with plain
+   white — the simplest and most readable choice for a streaming site
+   (matches Netflix / Hulu / Crunchyroll hero titles).
+   All we do here is clear any previously-applied inline gradient styles
+   so the .slide-title CSS rule (color: #ffffff + text-shadow) takes over.
+   Kept as a no-op-style function so the existing call site in renderHero()
+   still works without modification. */
 const isMobile = window.innerWidth <= 768;
 const shadow = isMobile
   ? '0 2px 8px rgba(0,0,0,0.65)'   // mobile: slightly stronger shadow
@@ -4628,13 +4615,16 @@ const shadow = isMobile
 document.querySelectorAll('#slidesContainer .slide').forEach(function(el) {
 const titleEl = el.querySelector('.slide-title');
 if (!titleEl) return;
-titleEl.style.transition = 'all 0.4s ease';
-titleEl.style.color = '#4299e1'; /* fallback solid */
-titleEl.style.background = FIXED_GRADIENT;
-titleEl.style.webkitBackgroundClip = 'text';
-titleEl.style.backgroundClip = 'text';
-titleEl.style.webkitTextFillColor = 'transparent';
+/* Clear any previously-applied gradient inline styles so the CSS
+   color: #ffffff takes effect cleanly. */
+titleEl.style.background = '';
+titleEl.style.webkitBackgroundClip = '';
+titleEl.style.backgroundClip = '';
+titleEl.style.webkitTextFillColor = '';
+/* Apply the responsive text-shadow directly (CSS already has the desktop
+   value, but we set it inline too so the mobile variant wins on small screens). */
 titleEl.style.textShadow = shadow;
+titleEl.style.color = '#ffffff';
 });
 }
       function renderHero() {
