@@ -3069,8 +3069,16 @@
       try {
         let email = username;
         if (!username.includes('@')) {
-          const { data: p } = await supabase.from('profiles').select('email').eq('username', username).maybeSingle();
-          if (p?.email) email = p.email;
+          // Server-side lookup: username → email (needed because Supabase Auth
+          // only supports email login, not username). Goes through /api/profile-lookup
+          // which uses the service_role key server-side — no client-side DB access.
+          const lookupResp = await fetch('/api/profile-lookup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'get_email', username })
+          });
+          const lookup = await lookupResp.json();
+          if (lookup.email) email = lookup.email;
           else { errEl.textContent = 'Username not found.'; return; }
         }
         const { data, error } = await supabase.auth.signInWithPassword({
@@ -3142,13 +3150,23 @@
       const btn = document.getElementById('btnSignUp');
       btn.disabled = true; btn.textContent = 'Creating…';
       try {
-        // Check username uniqueness
-        const { data: exUser } = await supabase.from('profiles').select('user_id').eq('username', username).maybeSingle();
-        if (exUser) { errEl.textContent = 'Username already taken.'; return; }
+        // Check username uniqueness — server-side to avoid client DB access
+        const checkUserResp = await fetch('/api/profile-lookup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'check_exists', field: 'username', value: username })
+        });
+        const checkUser = await checkUserResp.json();
+        if (checkUser.exists) { errEl.textContent = 'Username already taken.'; return; }
 
-        // Check email uniqueness
-        const { data: exEmail } = await supabase.from('profiles').select('user_id').eq('email', email).maybeSingle();
-        if (exEmail) { errEl.textContent = 'This email address is already registered. Please sign in instead.'; return; }
+        // Check email uniqueness — server-side
+        const checkEmailResp = await fetch('/api/profile-lookup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'check_exists', field: 'email', value: email })
+        });
+        const checkEmail = await checkEmailResp.json();
+        if (checkEmail.exists) { errEl.textContent = 'This email address is already registered. Please sign in instead.'; return; }
 
         // Use the avatar selected by the user from the picker.
         // selectedAvatarUrl is updated by initAvatarPicker() when user
