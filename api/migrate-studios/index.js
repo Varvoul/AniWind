@@ -1,6 +1,11 @@
 // Vercel Serverless Function: Migrate Studio Data
 // Call this endpoint to convert JSON studio data to plain text in Supabase
 // GET /api/migrate-studios
+//
+// SECURITY: The service_role key is read from env vars ONLY — never hardcoded.
+// If SUPABASE_SERVICE_ROLE_KEY is not set, this endpoint returns an error
+// instead of falling back to a hardcoded key. This prevents the key from
+// leaking via the git repo (which happened before this fix).
 
 export default async function handler(req, res) {
   // Only allow POST or admin requests
@@ -8,8 +13,22 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://uhujuwqiadymmogwkxc.supabase.co';
-  const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVoanVjd3FpYWR5bW1vZ213a3hjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTUxNjQ0NywiZXhwIjoyMDk3MDkyNDQ3fQ.C6aZ0KJBUn6J9SnX2o4XrITCp1WdoqxACKoV_YjkKBk';
+  // Supabase project URL — safe to have a fallback since it's public info
+  // (the URL alone grants no access; all access is gated by RLS + keys).
+  // Corrected typo in the fallback URL (was 'uhujuwqiadymmogwkxc').
+  const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://uhjucwqiadymmogmwkxc.supabase.co';
+
+  // Service role key — env var ONLY. No hardcoded fallback.
+  // This key bypasses RLS; exposing it in the repo would let anyone
+  // read/write/delete any row in any table.
+  const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!SERVICE_ROLE_KEY) {
+    console.error('[migrate-studios] SUPABASE_SERVICE_ROLE_KEY env var is not set');
+    return res.status(500).json({
+      error: 'Server not configured',
+      message: 'SUPABASE_SERVICE_ROLE_KEY environment variable is not set. Add it in Vercel Project Settings → Environment Variables.'
+    });
+  }
 
   // Helper: Parse and clean studio JSON to plain text
   function parseStudio(studio) {
