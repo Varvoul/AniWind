@@ -6,7 +6,7 @@
      CONSTANTS
   ═══════════════════════════════════════════════════════════ */
   const SUPABASE_URL      = 'https://uhjucwqiadymmogmwkxc.supabase.co';
-  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVoanVjd3FpYWR5bW1vZ213a3hjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1MTY0NDcsImV4cCI6MjA5NzA5MjQ0N30.nJZQftmkbu0Ix-4lgtfzJcm_qIkI32e3SykF49XPrlg';
+  const SUPABASE_ANON_KEY = 'sb_publishable_gfCCFMcqyR3fWo0cbUfVqg_OrzqCeBu';
   const supabase          = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   // ── Neon (AniUmi-Neon) homepage data ──────────────────────────────────
