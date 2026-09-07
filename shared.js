@@ -95,11 +95,14 @@
   // (see supabase-search-proxy/DEPLOY.md) — this placeholder will 404 as-is.
   const SEARCH_PROXY_URL  = 'https://supabase-search-proxy.bionmovies47.workers.dev';
 
-  // Calls one of the three whitelisted RPCs through the edge proxy instead of
-  // hitting Supabase directly, so the Worker's per-IP rate limit actually
-  // applies. Mirrors supabase-js's {data, error} return shape so every
-  // existing call site below needs no further changes beyond the call itself.
+  // Calls one of the three whitelisted RPCs. Tries the edge proxy first
+  // (for rate-limiting), falls back to direct Supabase RPC call with the
+  // publishable key if the Worker is unavailable or returns 401 (e.g. when
+  // the Worker's secret key hasn't been rotated yet). Mirrors supabase-js's
+  // {data, error} return shape so every existing call site below needs no
+  // further changes beyond the call itself.
   async function callSearchRPC(fnName, params) {
+    // ── Try 1: Cloudflare Worker (edge rate limit) ──
     try {
       const res = await fetch(`${SEARCH_PROXY_URL}/${fnName}`, {
         method: 'POST',
@@ -111,6 +114,31 @@
         console.warn(`[SearchRPC] Rate limited on ${fnName}`);
         return { data: null, error: { message: 'rate_limited' } };
       }
+      if (res.ok) {
+        const data = await res.json();
+        return { data, error: null };
+      }
+      // 401 / 5xx → fall through to direct call
+      console.warn(`[SearchRPC] Worker returned ${res.status}, falling back to direct Supabase RPC`);
+    } catch (e) {
+      console.warn(`[SearchRPC] Worker unreachable (${e.message}), falling back to direct Supabase RPC`);
+    }
+
+    // ── Try 2: Direct Supabase RPC call with publishable key ──
+    // RPCs are SECURITY DEFINER so the publishable key can call them even
+    // though direct table SELECT is blocked by RLS. No edge rate-limit, but
+    // Supabase's own rate limits still apply.
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fnName}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+        },
+        body: JSON.stringify(params),
+        signal: AbortSignal.timeout(6000)
+      });
       if (!res.ok) {
         const text = await res.text().catch(() => '');
         return { data: null, error: { message: `HTTP ${res.status}: ${text}` } };
