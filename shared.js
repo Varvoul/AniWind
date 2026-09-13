@@ -91,8 +91,9 @@
   const MAPLEE_API_URL    = 'https://mapplee.com/api/tmdb'; // Primary TMDB proxy
 
   // ── Edge-rate-limited proxy for anime_data/anikoto_data search RPCs ──
-  // TODO: replace with the real deployed Worker URL after `wrangler deploy`
-  // (see supabase-search-proxy/DEPLOY.md) — this placeholder will 404 as-is.
+  // Deployed Cloudflare Worker (supabase-search-proxy) - whitelists only
+  // search_anime_data / get_anime_data_by_mal_ids / search_anikoto_fuzzy
+  // and rate-limits per IP before anything reaches Supabase.
   const SEARCH_PROXY_URL  = 'https://supabase-search-proxy.bionmovies47.workers.dev';
 
   // Calls one of the three whitelisted RPCs. Tries the edge proxy first
@@ -2390,33 +2391,20 @@
     if (!safeQ) return [];
     
     try {
-      // Phase 1: Fast prefix match (index-friendly) via the rate-limited edge proxy
+      // Single round trip via the rate-limited edge proxy. `contains` mode
+      // (ILIKE '%query%') already matches everything `prefix` mode
+      // (ILIKE 'query%') would, so running both sequentially was just paying
+      // for a second full browser -> Worker -> Supabase -> Worker -> browser
+      // trip on every query that didn't get >=3 prefix hits (the common
+      // case for mid-word/partial searches) - eating into DB_TIMEOUT_MS for
+      // no correctness benefit. One contains call gives the same result set
+      // in half the requests and half the latency.
       let { data, error } = await callSearchRPC('search_anime_data', {
         p_query: safeQ,
-        p_match_mode: 'prefix',
+        p_match_mode: 'contains',
         p_order_by: 'score_desc',
-        p_limit: 6
+        p_limit: 8
       });
-      
-      // Phase 2: If not enough results, do contains search (broader but slower) via proxy
-      if ((!error && (!data || data.length < 3)) || error) {
-        const { data: data2, error: error2 } = await callSearchRPC('search_anime_data', {
-          p_query: safeQ,
-          p_match_mode: 'contains',
-          p_order_by: 'score_desc',
-          p_limit: 8
-        });
-        
-        // Merge results avoiding duplicates
-        if (!error2 && data2) {
-          const existingIds = new Set((data || []).map(item => item.mal_id).filter(Boolean));
-          const newItems = data2.filter(item => !existingIds.has(item.mal_id));
-          data = [...(data || []), ...newItems];
-          error = null;
-        } else if (error && error2) {
-          error = error2;
-        }
-      }
       
       if (error) {
         console.warn('[DB Search] Query error:', error.message);
