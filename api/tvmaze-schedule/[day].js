@@ -12,12 +12,14 @@ import { memoize, setCacheHeaders, getCacheInfo } from '../_lib/cache.js';
 //
 // Countries supported: US, GB, JP, AU, DE, FR, CA (major markets)
 // Rate limiting: 200ms delay between country requests to respect TVMaze API
+//
+// V4.7.2 FIXED: Uses correct TVMaze API date format (YYYY-MM-DD)
 // ─────────────────────────────────────────────────────────────────────────
 
 const VALID_DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
-// TVMaze uses numeric day indices: 0=Sunday, 1=Monday, ..., 6=Saturday
-const DAY_TO_TVMAZE_INDEX = {
+// Day name to TVMaze day index (0=Sunday, 1=Monday, etc.)
+const DAY_TO_INDEX = {
   sunday: 0,
   monday: 1,
   tuesday: 2,
@@ -49,10 +51,44 @@ const TVMAZE_CACHE_SECONDS = TVMAZE_CACHE_MS / 1000;
 const tvmazeStore = new Map();
 
 /**
- * Fetch TV schedule for a specific country and day from TVMaze API
+ * Get today's date or a nearby date for the given day of week
+ * Returns a Date object set to the specified day of the current week
  */
-async function fetchTVMazeSchedule(countryCode, dayIndex) {
-  const url = `${TVMAZE_BASE}/schedule?country=${countryCode}&date=${dayIndex}`;
+function getDateForDay(dayName) {
+  const now = new Date();
+  const currentDay = now.getDay(); // 0=Sunday, 1=Monday, ..., 6=Saturday
+  const targetDay = DAY_TO_INDEX[dayName];
+  
+  if (targetDay === undefined) return now;
+  
+  // Calculate difference in days
+  let diff = targetDay - currentDay;
+  
+  // If diff is negative, we want next week's day; if positive, this week or last week
+  // We want the closest future occurrence (or today if it matches)
+  if (diff < 0) diff += 7;
+  
+  const result = new Date(now);
+  result.setDate(now.getDate() + diff);
+  return result;
+}
+
+/**
+ * Format date as YYYY-MM-DD for TVMaze API
+ */
+function formatDateForTVMaze(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * Fetch TV schedule for a specific country and date from TVMaze API
+ * TVMaze API: /schedule?country={code}&date={YYYY-MM-DD}
+ */
+async function fetchTVMazeSchedule(countryCode, dateString) {
+  const url = `${TVMAZE_BASE}/schedule?country=${countryCode}&date=${encodeURIComponent(dateString)}`;
   
   const response = await fetch(url, {
     headers: {
@@ -85,10 +121,9 @@ async function loadTVMazeScheduleForDay(day) {
     return cached.data;
   }
   
-  const dayIndex = DAY_TO_TVMAZE_INDEX[dayLower];
-  if (dayIndex === undefined) {
-    throw new Error(`Invalid day: ${day}`);
-  }
+  // Get the date for this day of week
+  const targetDate = getDateForDay(dayLower);
+  const dateString = formatDateForTVMaze(targetDate);
   
   const scheduleByCountry = {};
   const errors = [];
@@ -98,22 +133,22 @@ async function loadTVMazeScheduleForDay(day) {
     const country = SCHEDULE_COUNTRIES[i];
     
     try {
-      const shows = await fetchTVMazeSchedule(country.code, dayIndex);
+      const shows = await fetchTVMazeSchedule(country.code, dateString);
       
       // Transform TVMaze data to our format
       scheduleByCountry[country.code] = (shows || []).map(show => ({
         id: show.id,
-        name: show.name || 'Unknown Show',
-        original_name: show.name,
+        name: show.show?.name || 'Unknown Show',
+        original_name: show.show?.name,
         poster: show.show?.image?.medium || show.show?.image?.original || null,
         backdrop: show.show?.image?.original || null,
         type: 'TV',
         sub_type: 'tvmaze',
         episode_number: show.number || null,
         season_number: show.season || null,
-        episode_name: show.name,
+        episode_name: show.name || null,
         airtime: show.airtime || '',
-        airtime_stamp: show.airstamp || null,
+        airstamp: show.airstamp || null,
         runtime: show.show?.runtime || null,
         genres: show.show?.genres || [],
         rating: show.show?.rating?.average || null,
@@ -122,16 +157,17 @@ async function loadTVMazeScheduleForDay(day) {
         country_name: country.name,
         show_id: show.show?.id,
         status: show.show?.status || 'Running',
-        summary: show.show?.summary?.replace(/<[^>]*>/g, '') || '', // Strip HTML
+        summary: show.show?.summary?.replace(/<[^>]*>/g, '') || '',
+        url: show.show?.url || `https://www.tvmaze.com/shows/${show.show?.id}`,
         _source: 'tvmaze',
         _fetchedAt: new Date().toISOString()
       }));
       
-      console.log(`[TVMaze] Fetched ${scheduleByCountry[country.code].length} shows for ${country.code} ${day}`);
+      console.log(`[TVMaze] Fetched ${scheduleByCountry[country.code].length} shows for ${country.code} ${dayLower} (${dateString})`);
       
     } catch (error) {
       errors.push({ country: country.code, error: error.message });
-      console.error(`[TVMaze] Error fetching ${country.code} ${day}:`, error.message);
+      console.error(`[TVMaze] Error fetching ${country.code} ${dayLower}:`, error.message);
     }
     
     // Rate limiting: wait 200ms between requests (except after last one)
@@ -142,7 +178,7 @@ async function loadTVMazeScheduleForDay(day) {
   
   const result = {
     day: dayLower,
-    day_index: dayIndex,
+    date: dateString,
     countries: scheduleByCountry,
     total_shows: Object.values(scheduleByCountry).reduce((sum, shows) => sum + shows.length, 0),
     countries_with_data: Object.keys(scheduleByCountry).length,
