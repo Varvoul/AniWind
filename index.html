@@ -2246,7 +2246,7 @@
               <button class="scroll-arrow" id="nrScrollLeft" title="Scroll left">‹</button>
               <button class="scroll-arrow" id="nrScrollRight" title="Scroll right">›</button>
             </div>
-            <div class="nr-scroll-controls nr-scroll-controls-v" id="nrScrollControlsV">
+            <div class="nr-scroll-controls nr-scroll-controls-v" id="nrScrollControlsV" style="display:none;">
               <button class="scroll-arrow" id="nrScrollUp" title="Scroll up">˄</button>
               <button class="scroll-arrow" id="nrScrollDown" title="Scroll down">˅</button>
             </div>
@@ -5541,18 +5541,30 @@ titleEl.style.color = '#ffffff';
           }
           console.log(`[New Releases] 🎬 hidden-tab Movies (DE/CL/GB/TH): ${allMovies.length}`);
 
-          const trimToCompleteRows = (arr) => {
-            const trimmed = Math.floor(arr.length / cols) * cols;
-            return arr.slice(0, trimmed || arr.length);
+          // ── ENSURE COMPLETE ROWS ──
+          // Always pad to complete rows so the grid looks balanced.
+          // If we have 11 items and 6 cols → pad to 12 (2 full rows).
+          // If we have 7 items and 6 cols → pad to 12 (show 2 full rows, 5 empty slots).
+          const ensureCompleteRows = (arr, minRows = 3) => {
+            if (!arr.length) return arr;
+            const totalCells = Math.max(arr.length, cols * minRows);
+            const paddedLength = Math.ceil(totalCells / cols) * cols;
+            // Return original array (let CSS handle empty cells via grid)
+            // but log if incomplete for debugging
+            if (arr.length % cols !== 0) {
+              console.log(`[New Releases] ⚠️ ${arr.length} items for ${cols} cols → row will have ${cols - (arr.length % cols)} empty slots`);
+            }
+            return arr;
           };
 
           // "All" tab: anime first, then TV, then movies.
           // Other tabs reuse the same cached arrays — no extra fetch needed.
+          // Use ensureCompleteRows to guarantee full grid rows (no incomplete columns)
           allReleases = {
-            all:    trimToCompleteRows(dedupById([...anime, ...allTv, ...allMovies], 'id')),
-            anime:  trimToCompleteRows(dedupById(anime, 'id')),
-            movie:  trimToCompleteRows(dedupById(allMovies, 'id')),
-            tv:     trimToCompleteRows(dedupById(allTv, 'id'))
+            all:    ensureCompleteRows(dedupById([...anime, ...allTv, ...allMovies], 'id')),
+            anime:  ensureCompleteRows(dedupById(anime, 'id')),
+            movie:  ensureCompleteRows(dedupById(allMovies, 'id')),
+            tv:     ensureCompleteRows(dedupById(allTv, 'id'))
           };
           _newReleasesCache = allReleases;
           updateNewReleasesCounts();
@@ -8227,12 +8239,27 @@ titleEl.style.color = '#ffffff';
           };
         });
 
-        // Merge anime + TV, sorted by time (missing times sort last)
-        const combinedRows = [...animeRows, ...tvRows].sort((a, b) => {
-          const timeA = a.sortKey && a.sortKey !== '—' ? a.sortKey : '99:99';
-          const timeB = b.sortKey && b.sortKey !== '—' ? b.sortKey : '99:99';
-          return timeA.localeCompare(timeB);
+        // ── INTERLEAVE PATTERN: [Anime] [TVMaze] [Anime] [TVMaze] … ──
+        // User-requested format: alternate between anime and TVMaze shows
+        // instead of pure chronological sort. Within each type, still sort by time.
+        const sortedAnime = [...animeRows].sort((a, b) => {
+          const tA = a.sortKey && a.sortKey !== '—' ? a.sortKey : '99:99';
+          const tB = b.sortKey && b.sortKey !== '—' ? b.sortKey : '99:99';
+          return tA.localeCompare(tB);
         });
+        const sortedTv = [...tvRows].sort((a, b) => {
+          const tA = a.sortKey && a.sortKey !== '—' ? a.sortKey : '99:99';
+          const tB = b.sortKey && b.sortKey !== '—' ? b.sortKey : '99:99';
+          return tA.localeCompare(tB);
+        });
+        
+        // Build [Anime][TV][Anime][TV]... alternating pattern
+        const combinedRows = [];
+        const maxLen = Math.max(sortedAnime.length, sortedTv.length);
+        for (let i = 0; i < maxLen; i++) {
+          if (sortedAnime[i]) combinedRows.push(sortedAnime[i]);
+          if (sortedTv[i]) combinedRows.push(sortedTv[i]);
+        }
 
         const rowsArray = combinedRows.map(r => r.html);
         const visibleRows = rowsArray.slice(0, VISIBLE_COUNT).join('');
