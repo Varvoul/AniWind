@@ -1,4 +1,4 @@
-import { memoize, setCacheHeaders, getCacheInfo } from '../_lib/cache.js';
+import { setCacheHeaders } from '../_lib/cache.js';
 
 // ─────────────────────────────────────────────────────────────────────────
 // TVMaze Schedule API Endpoint
@@ -58,6 +58,44 @@ const TVMAZE_CACHE_SECONDS = TVMAZE_CACHE_MS / 1000;
 
 // In-memory store for TVMaze cache (separate from main cache)
 const tvmazeStore = new Map();
+
+/**
+ * V4.8.0 FIX: cache-info reader for the tvmazeStore.
+ * The shared getCacheInfo() in _lib/cache.js reads a DIFFERENT Map (the
+ * column-endpoint store), so it always reported "not_cached" for TVMaze
+ * responses even when this endpoint's own cache was warm.
+ */
+function getTVMazeCacheInfo(key) {
+  const entry = tvmazeStore.get(key);
+  const now = Date.now();
+
+  if (!entry) {
+    return {
+      status: 'not_cached',
+      isCached: false,
+      ttl_ms: TVMAZE_CACHE_MS,
+      ttl_hours: 24,
+      message: 'Data will be fetched on first request'
+    };
+  }
+
+  const remainingMs = Math.max(0, entry.expiresAt - now);
+  const isFresh = remainingMs > 0;
+  return {
+    status: isFresh ? 'fresh' : 'expired',
+    isCached: true,
+    isFresh,
+    remaining_ms: remainingMs,
+    remaining_minutes: Math.round(remainingMs / (1000 * 60)),
+    ttl_ms: TVMAZE_CACHE_MS,
+    ttl_hours: 24,
+    fetched_at: entry.fetchedAt,
+    hit_count: entry.hitCount || 0,
+    message: isFresh
+      ? `Cache fresh, ${Math.round(remainingMs / (1000 * 60))}min remaining`
+      : 'Cache expired, will refresh on next request'
+  };
+}
 
 /**
  * Get today's date or a nearby date for the given day of week
@@ -248,11 +286,11 @@ export default async function handler(req, res) {
     res.setHeader('Cache-Control', `public, s-maxage=${TVMAZE_CACHE_SECONDS}, stale-while-revalidate=43200`);
     res.setHeader('Vercel-CDN-Cache-Control', `public, s-maxage=${TVMAZE_CACHE_SECONDS}`);
     
-    // Return response with cache info
+    // Return response with cache info (reads THIS endpoint's own store)
     const cacheKey = date ? `tvmaze_${day}_${date}` : `tvmaze_${day}`;
     const response = {
       ...scheduleData,
-      _cache: { ...getCacheInfo(cacheKey), ttl_hours: 24 },
+      _cache: getTVMazeCacheInfo(cacheKey),
       _version: '4.8.0',
       _timestamp: new Date().toISOString(),
       _endpoint: 'tvmaze-schedule'
