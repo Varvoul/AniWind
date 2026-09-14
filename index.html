@@ -5502,7 +5502,7 @@ titleEl.style.color = '#ffffff';
           // ── TV from /api/new-releases (page-based keys: '7', '8', etc.) ──
           // V4.9.0 FIX: Database stores TMDB data by PAGE number, not country code!
           // Keys are strings like '7', '8' (pagination from TMDB API)
-          const dbNR = await window.getHomeData('new_releases');
+          // NOTE: dbNR was already fetched above (line 5476) - no need to re-fetch
           const nrTvByPage = dbNR?.tmdb_tv || dbNR?.tmdbTV || {};
           const seenTv = new Set();
           const allTv = [];
