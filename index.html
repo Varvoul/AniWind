@@ -5486,15 +5486,21 @@ titleEl.style.color = '#ffffff';
           }
           console.log(`[New Releases] 🎌 new-releases anime: ${anime.length}`);
 
-          // ── TV from /api/hidden-tab (DE, CL, GB) ──
-          // V4.8.0: endpoint returns tmdb_tv / tmdb_movie (snake_case)
-          const NR_TV_COUNTRIES = ['DE', 'CL', 'GB'];
-          const hiddenTv = dbHidden?.tmdb_tv || dbHidden?.TMDB_TV || {};
+          // ── TV from /api/new-releases (page-based keys: '7', '8', etc.) ──
+          // V4.9.0 FIX: Database stores TMDB data by PAGE number, not country code!
+          // Keys are strings like '7', '8' (pagination from TMDB API)
+          const dbNR = await window.getHomeData('new_releases');
+          const nrTvByPage = dbNR?.tmdb_tv || dbNR?.tmdbTV || {};
           const seenTv = new Set();
           const allTv = [];
-          for (const c of NR_TV_COUNTRIES) {
-            const raw = hiddenTv[c];
-            const arr = Array.isArray(raw) ? raw : flattenTmdbMap(raw);
+          
+          // Extract TV shows from ALL page keys
+          const tvPageKeys = Object.keys(nrTvByPage).filter(k => !isNaN(k));
+          console.log(`[New Releases] 📺 TV page keys found: ${tvPageKeys.join(', ')}`);
+          
+          for (const pageKey of tvPageKeys) {
+            const raw = nrTvByPage[pageKey];
+            const arr = Array.isArray(raw) ? raw : [];
             for (const i of arr) {
               if (!i.poster_path || seenTv.has(i.id)) continue;
               seenTv.add(i.id);
@@ -5508,20 +5514,25 @@ titleEl.style.color = '#ffffff';
                 details: (i.first_air_date || '').slice(0, 4) || 'S?',
                 cert: 'PG-13',
                 quality: 'HD',
-                _source: 'hidden-tab'
+                _source: 'new-releases'
               });
             }
           }
-          console.log(`[New Releases] 📺 hidden-tab TV (DE/CL/GB): ${allTv.length}`);
+          console.log(`[New Releases] 📺 Total TV from pages: ${allTv.length}`);
 
-          // ── Movies from /api/hidden-tab (DE, CL, GB, TH) ──
-          const NR_MOVIE_COUNTRIES = ['DE', 'CL', 'GB', 'TH'];
-          const hiddenMovies = dbHidden?.tmdb_movie || dbHidden?.TMDB_Movie || {};
+          // ── Movies from /api/new-releases (page-based keys: '1', '2', etc.) ──
+          // V4.9.0 FIX: Same as TV - database uses PAGE numbers, not countries!
+          const nrMovieByPage = dbNR?.tmdb_movie || dbNR?.tmdbMovie || {};
           const seenMv = new Set();
           const allMovies = [];
-          for (const c of NR_MOVIE_COUNTRIES) {
-            const raw = hiddenMovies[c];
-            const arr = Array.isArray(raw) ? raw : flattenTmdbMap(raw);
+          
+          // Extract movies from ALL page keys
+          const moviePageKeys = Object.keys(nrMovieByPage).filter(k => !isNaN(k));
+          console.log(`[New Releases] 🎬 Movie page keys found: ${moviePageKeys.join(', ')}`);
+          
+          for (const pageKey of moviePageKeys) {
+            const raw = nrMovieByPage[pageKey];
+            const arr = Array.isArray(raw) ? raw : [];
             for (const i of arr) {
               if (!i.poster_path || seenMv.has(i.id)) continue;
               seenMv.add(i.id);
@@ -5535,11 +5546,12 @@ titleEl.style.color = '#ffffff';
                 details: '1h 45m',
                 cert: i.adult ? '18+' : 'PG-13',
                 quality: 'HD',
-                releaseDate: i.release_date || ''
+                releaseDate: i.release_date || '',
+                _source: 'new-releases'
               });
             }
           }
-          console.log(`[New Releases] 🎬 hidden-tab Movies (DE/CL/GB/TH): ${allMovies.length}`);
+          console.log(`[New Releases] 🎬 Total Movies from pages: ${allMovies.length}`);
 
           // ── ENSURE COMPLETE ROWS ──
           // Always pad to complete rows so the grid looks balanced.
@@ -6146,6 +6158,16 @@ titleEl.style.color = '#ffffff';
 
       let hiddenReleasesLoaded = false;
       let hiddenReleasesLoading = false;
+      
+      // ── COUNTRY FALLBACKS (V4.9.0) ──
+      // When a requested country has 0 items, use these alternatives:
+      const HIDDEN_TAB_FALLBACKS = {
+        'TW': ['JP', 'US'],    // Taiwan → Japan/US (Asian/Western content)
+        'PK': ['IN', 'BR'],    // Pakistan → India/Brazil (similar markets)
+        'TR': ['MX', 'ES'],    // Turkey → Mexico/Spain (Latin/Mediterranean)
+        'CL': ['MX', 'AR']     // Chile → Mexico/Argentina (Latin American)
+      };
+      
       /** Loads all 3 rows ONE AT A TIME (never in parallel) — spreads out load
        *  on the t-umi proxy and lets the user see content progressively instead
        *  of waiting for everything before anything appears. Only ever runs once
@@ -6159,23 +6181,36 @@ titleEl.style.color = '#ffffff';
         nrHiddenSkeletonRow('nrHiddenRow3');
 
         try {
+          // ── Row 1: Korea · Indonesia · Taiwan (with fallbacks) ──
           console.log('[Hidden] Row 1/3: KR + ID + TW...');
-          const row1 = await nrFetchHiddenRow(['KR', 'ID', 'TW'], 20);
-          nrRenderHiddenRow('nrHiddenRow1', row1);
+          let row1Countries = ['KR', 'ID', 'TW'];
+          let row1Labels = ['Korea', 'Indonesia', 'Taiwan'];
+          const row1 = await nrFetchHiddenRowWithFallback(row1Countries, row1Labels, 20);
+          nrRenderHiddenRow('nrHiddenRow1', row1.items);
+          // Update label to show actual countries used
+          document.querySelector('#nrHiddenRow1 .nr-hidden-row-label').textContent = row1.actualLabel;
 
           await nrHiddenSleep(400);
 
+          // ── Row 2: Pakistan · India · Philippines (with fallbacks) ──
           console.log('[Hidden] Row 2/3: PK + IN + PH...');
-          const row2 = await nrFetchHiddenRow(['PK', 'IN', 'PH'], 20);
-          nrRenderHiddenRow('nrHiddenRow2', row2);
+          let row2Countries = ['PK', 'IN', 'PH'];
+          let row2Labels = ['Pakistan', 'India', 'Philippines'];
+          const row2 = await nrFetchHiddenRowWithFallback(row2Countries, row2Labels, 20);
+          nrRenderHiddenRow('nrHiddenRow2', row2.items);
+          document.querySelector('#nrHiddenRow2 .nr-hidden-row-label').textContent = row2.actualLabel;
 
           await nrHiddenSleep(400);
 
+          // ── Row 3: Turkey · Chile · Taiwan (with fallbacks) ──
           console.log('[Hidden] Row 3/3: TR + CL + TW...');
-          const row3 = await nrFetchHiddenRow(['TR', 'CL', 'TW'], 20);
-          nrRenderHiddenRow('nrHiddenRow3', row3);
+          let row3Countries = ['TR', 'CL', 'TW'];
+          let row3Labels = ['Turkey', 'Chile', 'Taiwan'];
+          const row3 = await nrFetchHiddenRowWithFallback(row3Countries, row3Labels, 20);
+          nrRenderHiddenRow('nrHiddenRow3', row3.items);
+          document.querySelector('#nrHiddenRow3 .nr-hidden-row-label').textContent = row3.actualLabel;
 
-          const totalCount = row1.length + row2.length + row3.length;
+          const totalCount = row1.items.length + row2.items.length + row3.items.length;
           const countEl = document.getElementById('nrCountHidden');
           if (countEl) countEl.textContent = totalCount > 0 ? totalCount : '';
 
@@ -6186,6 +6221,69 @@ titleEl.style.color = '#ffffff';
         } finally {
           hiddenReleasesLoading = false;
         }
+      }
+      
+      /**
+       * Fetch hidden row data with automatic country fallback.
+       * If a requested country has 0 items, tries fallback countries.
+       * @returns { items: Array, actualLabel: string }
+       */
+      async function nrFetchHiddenRowWithFallback(countries, labels, targetPerType) {
+        const dbHidden = await window.getHomeData('hidden_tab');
+        const dbTv = dbHidden?.tmdb_tv || {};
+        const dbMovies = dbHidden?.tmdb_movie || {};
+        
+        const items = [];
+        const actualCountries = [];
+        
+        for (let i = 0; i < countries.length; i++) {
+          let country = countries[i];
+          let label = labels[i];
+          
+          // Check if this country has data
+          const tvData = dbTv[country] || [];
+          const movieData = dbMovies[country] || [];
+          const hasData = (Array.isArray(tvData) && tvData.length > 0) || 
+                         (Array.isArray(movieData) && movieData.length > 0);
+          
+          // If no data, try fallback countries
+          if (!hasData) {
+            console.warn(`[Hidden] ⚠️ ${country} (${label}) has 0 items, trying fallback...`);
+            const fallbacks = HIDDEN_TAB_FALLBACKS[country] || [];
+            for (const fb of fallbacks) {
+              const fbTv = dbTv[fb] || [];
+              const fbMovies = dbMovies[fb] || [];
+              if ((Array.isArray(fbTv) && fbTv.length > 0) || 
+                  (Array.isArray(fbMovies) && fbMovies.length > 0)) {
+                console.log(`[Hidden] ✓ Using ${fb} as fallback for ${country}`);
+                country = fb;
+                label = fb; // Use country code as label for fallback
+                break;
+              }
+            }
+          }
+          
+          actualCountries.push(label);
+          
+          // Extract items from this (possibly fallback) country
+          const finalTv = dbTv[country] || [];
+          const finalMovies = dbMovies[country] || [];
+          
+          // Interleave movies and TV
+          const tvItems = (Array.isArray(finalTv) ? finalTv : []).slice(0, targetPerType);
+          const movieItems = (Array.isArray(finalMovies) ? finalMovies : []).slice(0, targetPerType);
+          
+          const n = Math.max(tvItems.length, movieItems.length);
+          for (let j = 0; j < n; j++) {
+            if (movieItems[j]) items.push(nrHiddenMovieCard(movieItems[j], country));
+            if (tvItems[j]) items.push(nrHiddenTvCard(tvItems[j], country));
+          }
+        }
+        
+        return {
+          items,
+          actualLabel: actualCountries.join(' · ')
+        };
       }
 
       document.getElementById('releaseTabs').addEventListener('click', e => {
