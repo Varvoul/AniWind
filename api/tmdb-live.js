@@ -34,12 +34,14 @@ import { setCacheHeaders } from './_lib/cache.js';
 // ── CONFIGURATION ──
 const LIVE_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours in milliseconds
 const LIVE_TTL_SECONDS = LIVE_TTL_MS / 1000;
-const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
+
+// ⚡ USE SAME ENDPOINTS AS AUTOMATION WORKER (T-UMI PROXY)
+// Your automation uses: https://t-umi.zeraf.workers.dev/{tv|movie}/popular?watch_region={CODE}
+const T_UMI_BASE = 'https://t-umi.zeraf.workers.dev';
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p';
-const MAX_PAGES = 4; // Max pages to fetch (4 × 20 = 80 items per type)
+const MAX_PAGES = 2; // Match automation: 2 pages = 40 items per type
 const ITEMS_PER_PAGE = 20; // TMDB default
-const RATE_LIMIT_DELAY_MS = 250; // Delay between sequential requests (ms)
-const TMDB_API_KEY = process.env.TMDB_API_KEY || 'd961c1f70b9e8862b6d5203a2f7b9b49'; // Fallback key
+const RATE_LIMIT_DELAY_MS = 400; // Match automation's 400ms delay between calls
 
 // ── IN-MEMORY CACHE STORE ──
 // Key format: "tmdb-live:{country}:{type}" → { data, expiresAt, fetchedAt, hitCount }
@@ -82,40 +84,33 @@ function setCached(key, data) {
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 /**
- * Fetch TMDB discover results with pagination
+ * Fetch TMDB popular results using T-UMI PROXY (same as automation worker)
+ * 
+ * ENDPOINTS (matches automation exactly):
+ *   TV:    https://t-umi.zeraf.workers.dev/tv/popular?watch_region={COUNTRY}&page={N}
+ *   Movie: https://t-umi.zeraf.workers.dev/movie/popular?watch_region={COUNTRY}&page={N}
+ * 
  * Respects rate limits by using delays between requests
  */
-async function fetchTMDBDiscover(type, countryCode, year, maxPages = MAX_PAGES) {
+async function fetchTMDBPopular(type, countryCode, maxPages = MAX_PAGES) {
   const isMovie = type === 'movie';
-  const endpoint = isMovie ? '/discover/movie' : '/discover/tv';
+  // ⚡ USE SAME ENDPOINT STRUCTURE AS AUTOMATION WORKER
+  const endpoint = isMovie ? '/movie/popular' : '/tv/popular';
   
   const allResults = [];
   
   for (let page = 1; page <= maxPages; page++) {
-    // Rate limit: small delay between pages
+    // Rate limit: delay between pages (match automation's 400ms)
     if (page > 1) {
       await sleep(RATE_LIMIT_DELAY_MS);
     }
     
     try {
-      const params = new URLSearchParams({
-        api_key: TMDB_API_KEY,
-        with_origin_country: countryCode,
-        [`release_date.gte`]: `${year}-01-01`,
-        [`release_date.lte`]: `${year}-12-31`,
-        page: page.toString(),
-        sort_by: 'popularity.desc',
-        language: 'en-US'
-      });
-      
-      // TV-specific params
-      if (!isMovie) {
-        params.append('first_air_date.gte', `${year}-01-01`);
-        params.append('first_air_date.lte', `${year}-12-31`);
-      }
-      
-      const url = `${TMDB_BASE_URL}${endpoint}?${params}`;
-      console.log(`[TMDB-Live] Fetching: ${type}/${countryCode} page ${page}`);
+      // ⚡ BUILD URL EXACTLY LIKE AUTOMATION WORKER DOES
+      // Automation uses: https://t-umi.zeraf.workers.dev/{tv|movie}/popular?watch_region={CODE}&page=1
+      const url = `${T_UMI_BASE}${endpoint}?watch_region=${countryCode}&page=${page}`;
+      console.log(`[TMDB-Live] 📡 Fetching: ${type}/${countryCode} page ${page}`);
+      console.log(`[TMDB-Live] 🔗 URL: ${url}`);
       
       const response = await fetch(url);
       
@@ -125,6 +120,7 @@ async function fetchTMDBDiscover(type, countryCode, year, maxPages = MAX_PAGES) 
       }
       
       const data = await response.json();
+      // T-UMI proxy returns data in same format as TMDB API
       const results = data.results || [];
       
       console.log(`[TMDB-Live] ✅ ${type}/${countryCode} p${page}: ${results.length} items`);
@@ -136,8 +132,8 @@ async function fetchTMDBDiscover(type, countryCode, year, maxPages = MAX_PAGES) 
         break;
       }
       
-      // Stop if we have enough items
-      if (allResults.length >= 40) { // 40 items is plenty for UI
+      // Stop if we have enough items (40 is plenty for UI grid)
+      if (allResults.length >= 40) {
         break;
       }
       
@@ -177,7 +173,6 @@ export default async function handler(req, res) {
   // Normalize country code (uppercase, max 3 chars)
   const countryCode = country.toUpperCase().slice(0, 3);
   const requestType = (type || 'both').toLowerCase();
-  const currentYear = new Date().getFullYear();
   
   console.log(`[TMDB-Live] 📡 Request: country=${countryCode}, type=${requestType}`);
   
@@ -201,9 +196,9 @@ export default async function handler(req, res) {
       let tvData = getCached(tvCacheKey);
       
       if (!tvData) {
-        // Cache miss - fetch from TMDB API
-        console.log(`[TMDB-Live] 📺 Cache miss for TV/${countryCode}, fetching...`);
-        tvData = await fetchTMDBDiscover('tv', countryCode, currentYear);
+        // Cache miss - fetch from T-UMI proxy (same as automation)
+        console.log(`[TMDB-Live] 📺 Cache miss for TV/${countryCode}, fetching via T-UMI...`);
+        tvData = await fetchTMDBPopular('tv', countryCode);
         setCached(tvCacheKey, tvData);
         console.log(`[TMDB-Live] 💾 Cached ${tvData.length} TV items for ${countryCode}`);
       } else {
@@ -224,9 +219,9 @@ export default async function handler(req, res) {
       let movieData = getCached(movieCacheKey);
       
       if (!movieData) {
-        // Cache miss - fetch from TMDB API
-        console.log(`[TMDB-Live] 🎬 Cache miss for Movie/${countryCode}, fetching...`);
-        movieData = await fetchTMDBDiscover('movie', countryCode, currentYear);
+        // Cache miss - fetch from T-UMI proxy (same as automation)
+        console.log(`[TMDB-Live] 🎬 Cache miss for Movie/${countryCode}, fetching via T-UMI...`);
+        movieData = await fetchTMDBPopular('movie', countryCode);
         setCached(movieCacheKey, movieData);
         console.log(`[TMDB-Live] 💾 Cached ${movieData.length} Movie items for ${countryCode}`);
       } else {
