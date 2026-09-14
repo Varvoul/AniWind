@@ -4412,14 +4412,17 @@ async function loadNewAniocean() {
           uniqueTmdb.push(t);
         }
         const currentYear = new Date().getFullYear().toString();
+        // V4.8.0: the DB's hero tmdb_tv pages span all eras (1960→2026).
+        // The old current-year-only filter kept just 1 of 40 shows and left
+        // the hero almost anime-only. Keep every show that has a backdrop
+        // (hero requirement) — popularity sort puts current hits on top.
         const freshTmdbShows = uniqueTmdb.filter(show => {
           if (!show.backdrop_path) return false;  // Must have backdrop for hero
-          if (!show.first_air_date || !show.first_air_date.startsWith(currentYear)) return false;
           return true;
         });
         freshTmdbShows.sort((a, b) => (b.popularity||0) - (a.popularity||0));
         const topTmdbShows = freshTmdbShows.slice(0, HERO_CONFIG.tmdbTargetCount);
-        console.log(`[Hero] 📺 TMDB TV with dynamic ${currentYear} filter: ${topTmdbShows.length} shows ready`);
+        console.log(`[Hero] 📺 TMDB TV (backdrop filter, popularity-sorted, ${currentYear} data): ${topTmdbShows.length} shows ready`);
 
         // ═══════════════════════════════════════════════════════════════════
         // ANIME: dedup + bannerImage → coverImage.extraLarge fallback
@@ -6432,8 +6435,27 @@ titleEl.style.color = '#ffffff';
           return y > _curYear;
         };
 
-        const allTmdbMovies = dbUpMovies.filter(i => isUpcomingTmdb(i.release_date));
-        const allTmdbTV     = dbUpTv.filter(i => isUpcomingTmdb(i.first_air_date));
+        const allTmdbMovies = dbUpMovies
+          .filter(i => i.poster_path && i.poster_path !== 'null' && i.poster_path !== 'undefined')
+          .sort((a, b) => {
+            // V4.8.0: the automation's upcoming pages also carry on-air/popular
+            // items with past dates (the old hard "future date only" filter
+            // dropped ALL of them → 0 TV in the row). Future-dated items lead,
+            // newest first; the rest still display so the Anime|TV|Movie
+            // pattern is always populated.
+            const fa = isUpcomingTmdb(a.release_date) ? 1 : 0;
+            const fb = isUpcomingTmdb(b.release_date) ? 1 : 0;
+            if (fa !== fb) return fb - fa;
+            return (b.release_date || '').localeCompare(a.release_date || '');
+          });
+        const allTmdbTV = dbUpTv
+          .filter(i => i.poster_path && i.poster_path !== 'null' && i.poster_path !== 'undefined')
+          .sort((a, b) => {
+            const fa = isUpcomingTmdb(a.first_air_date) ? 1 : 0;
+            const fb = isUpcomingTmdb(b.first_air_date) ? 1 : 0;
+            if (fa !== fb) return fb - fa;
+            return (b.first_air_date || '').localeCompare(a.first_air_date || '');
+          });
         const upcomingAnimeRaw = dbUpAnime;
         console.log(`[Upcoming] Endpoint + dynamic year/month filter: ${allTmdbMovies.length} movies, ${allTmdbTV.length} TV, ${upcomingAnimeRaw.length} anime`);
         
