@@ -87,6 +87,17 @@
   window.dbAniListPage   = dbAniListPage;
   window.dbTmdbResults   = dbTmdbResults;
 
+  // V4.7.2 NEW: TVMaze schedule fetching function
+  /** Fetches one day of TV show schedule from /api/tvmaze-schedule/{day}. */
+  async function getTVMazeScheduleDay(day) {
+    const key = `tvmaze_schedule:${day}`;
+    if (_sectionPromises[key]) return _sectionPromises[key];
+    const p = fetch(`/api/tvmaze-schedule/${day}`).then(r => (r.ok ? r.json() : null)).catch(() => null);
+    _sectionPromises[key] = p;
+    return p;
+  }
+  window.getTVMazeScheduleDay = getTVMazeScheduleDay;
+
   const CF_WORKER_URL     = 'https://t-umi.bionmovies47.workers.dev'; // Fallback TMDB proxy (used when mapplee fails/rate-limits)
   const MAPLEE_API_URL    = 'https://mapplee.com/api/tmdb'; // Primary TMDB proxy
 

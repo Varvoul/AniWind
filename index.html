@@ -4146,7 +4146,7 @@ async function loadNewAniocean() {
         // Anime: bannerImage → coverImage.extraLarge fallback when bannerImage
         // is missing, so anime with only a poster still appear in the slider.
         const dbHS = await window.getHomeData('hero_slider');
-        const dbHSTv = Array.isArray(dbHS?.tmdbTV) ? dbHS.tmdbTV : [];
+        const dbHSTv = Array.isArray(dbHS?.tmdb_tv) ? dbHS.tmdb_tv : [];
         const dbHSAnime = Array.isArray(dbHS?.Anime) ? dbHS.Anime : [];
 
         // ═══════════════════════════════════════════════════════════════════
@@ -4768,7 +4768,7 @@ titleEl.style.color = '#ffffff';
 
         // ── TMDB TV from /api/hidden-tab filtered to AU, CA, CN ──
         const TOP_AIRING_TV_COUNTRIES = ['AU', 'CA', 'CN'];
-        const hiddenTvByCountry = dbHidden?.TMDB_TV || {};
+        const hiddenTvByCountry = dbHidden?.tmdb_tv || {};
         const seenTvIds = new Set();
         let tv = [];
         for (const country of TOP_AIRING_TV_COUNTRIES) {
@@ -5187,7 +5187,7 @@ titleEl.style.color = '#ffffff';
 
           // ── TV from /api/hidden-tab (DE, CL, GB) ──
           const NR_TV_COUNTRIES = ['DE', 'CL', 'GB'];
-          const hiddenTv = dbHidden?.TMDB_TV || {};
+          const hiddenTv = dbHidden?.tmdb_tv || {};
           const seenTv = new Set();
           const allTv = [];
           for (const c of NR_TV_COUNTRIES) {
@@ -5212,7 +5212,7 @@ titleEl.style.color = '#ffffff';
 
           // ── Movies from /api/hidden-tab (DE, CL, GB, TH) ──
           const NR_MOVIE_COUNTRIES = ['DE', 'CL', 'GB', 'TH'];
-          const hiddenMovies = dbHidden?.TMDB_Movie || {};
+          const hiddenMovies = dbHidden?.tmdb_movie || {};
           const seenMv = new Set();
           const allMovies = [];
           for (const c of NR_MOVIE_COUNTRIES) {
@@ -5759,8 +5759,8 @@ titleEl.style.color = '#ffffff';
         const dbHidden = await window.getHomeData('hidden_tab');
         for (let i = 0; i < countries.length; i++) {
           const country = countries[i];
-          const dbMovies = dbHidden?.TMDB_Movie?.[country];
-          const dbTv = dbHidden?.TMDB_TV?.[country];
+          const dbMovies = dbHidden?.tmdb_movie?.[country];
+          const dbTv = dbHidden?.tmdb_tv?.[country];
           let movies, tvShows;
           if ((Array.isArray(dbMovies) && dbMovies.length) || (Array.isArray(dbTv) && dbTv.length)) {
             movies = (dbMovies || []).slice(0, targetPerType);
@@ -6104,8 +6104,8 @@ titleEl.style.color = '#ffffff';
         }
 
         const dbUp = await window.getHomeData('upcoming_shows');
-        const dbUpMovies = Array.isArray(dbUp?.tmdbMovie) ? dbUp.tmdbMovie : [];
-        const dbUpTv     = Array.isArray(dbUp?.tmdbTV)    ? dbUp.tmdbTV    : [];
+        const dbUpMovies = Array.isArray(dbUp?.tmdb_movie) ? dbUp.tmdb_movie : [];
+        const dbUpTv     = Array.isArray(dbUp?.tmdb_tv)    ? dbUp.tmdb_tv    : [];
         const dbUpAnime  = Array.isArray(dbUp?.Anime)     ? dbUp.Anime     : [];
 
         // Dynamic date filter: current year + current/future month
@@ -6182,7 +6182,7 @@ titleEl.style.color = '#ffffff';
           }));
         
         // Map TMDB TV (from /discover/tv, first_air_date.gte filter — genuinely upcoming premieres)
-        const tmdbTVShows = allTmdbTV
+        const tmdbTvShows = allTmdbTV
           .map(i => ({
             id:`tmdb-uptv-${i.id}`, tmdb_id: i.id, title:i.name, original_title:i.original_name||i.name,
             type:'TV', poster:tmdbImg(i.poster_path), score:(i.vote_average||0).toFixed(1),
@@ -6200,14 +6200,14 @@ titleEl.style.color = '#ffffff';
           return hasPoster;
         });
         
-        console.log(`[Upcoming Filter] ✅ RESULTS: ${tmdbMovieShows.length} movies + ${tmdbTVShows.length} TV + ${anilistFiltered.length} anime`);
+        console.log(`[Upcoming Filter] ✅ RESULTS: ${tmdbMovieShows.length} movies + ${tmdbTvShows.length} TV + ${anilistFiltered.length} anime`);
         
         // Cross-source dedup (anime + TV + movies by id, plus title-based safety net)
         const _seenUpcoming = new Set();
         const _dedupedUpcoming = [
           ...anilistFiltered.slice(0, 50),
-          ...tmdbMovieShows,
-          ...tmdbTVShows
+          ...tmdb_movieShows,
+          ...tmdbTvShows
         ].filter(s => {
           if (!s.id || _seenUpcoming.has(s.id)) return false;
           _seenUpcoming.add(s.id);
@@ -6358,8 +6358,8 @@ titleEl.style.color = '#ffffff';
         // TMDB/AniList on cache miss and stores the result for 12h, shared
         // globally across all users — no per-user localStorage.
         const _dbRC = (page === 1 || page === 2) ? await window.getHomeData('recently_completed') : null;
-        const dbRCTv = _dbRC?.tmdbTV;
-        const dbRCMovies = _dbRC?.tmdbMovie;
+        const dbRCTv = _dbRC?.tmdb_tv;
+        const dbRCMovies = _dbRC?.tmdb_movie;
         const dbRCAnime = _dbRC?.Anime;
         const rcHasDb = Array.isArray(dbRCAnime) && dbRCAnime.length > 0
           && Array.isArray(dbRCTv) && dbRCTv.length > 0
@@ -6731,8 +6731,8 @@ titleEl.style.color = '#ffffff';
         // The /api/trending-now endpoint's `tmdbTV` array contains a MIX of
         // movies and TV shows (differentiated by `media_type`). Split it so
         // TV items go into the TV pool and movie items go into the Movie pool.
-        const tnTvRaw = Array.isArray(dbTN?.tmdbTV) ? dbTN.tmdbTV : [];
-        const tnMvRaw = Array.isArray(dbTN?.tmdbMovie) ? dbTN.tmdbMovie : [];
+        const tnTvRaw = Array.isArray(dbTN?.tmdb_tv) ? dbTN.tmdb_tv : [];
+        const tnMvRaw = Array.isArray(dbTN?.tmdb_movie) ? dbTN.tmdb_movie : [];
         const realTvItems = tnTvRaw.filter(i => i.poster_path && (
           i.media_type === 'tv' || (!i.media_type && (i.name || i.first_air_date))
         ));
@@ -6880,7 +6880,7 @@ titleEl.style.color = '#ffffff';
           .sort((a, b) => b._rank - a._rank);
 
         // ── TMDB TV ── (filter: vote_average + vote_count + popularity)
-        const mfTvRaw = Array.isArray(dbMF?.tmdbTV) ? dbMF.tmdbTV : [];
+        const mfTvRaw = Array.isArray(dbMF?.tmdb_tv) ? dbMF.tmdb_tv : [];
         const mfTv = mfTvRaw
           .filter(i => i.poster_path)
           .map(i => {
@@ -6907,7 +6907,7 @@ titleEl.style.color = '#ffffff';
           .sort((a, b) => b._rank - a._rank);
 
         // ── TMDB Movies ── (filter: vote_average + vote_count + popularity)
-        const mfMvRaw = Array.isArray(dbMF?.tmdbMovie) ? dbMF.tmdbMovie : [];
+        const mfMvRaw = Array.isArray(dbMF?.tmdb_movie) ? dbMF.tmdb_movie : [];
         const mfMv = mfMvRaw
           .filter(i => i.poster_path)
           .map(i => {
@@ -7648,23 +7648,25 @@ titleEl.style.color = '#ffffff';
       }
 
       // ---------- Helper: Fetch ALL 7 days in parallel (rate-limit safe) ----------
+      // V4.7.2 ENHANCED: Now fetches both Anime (Jikan) AND TV Shows (TVMaze)
       async function fetchAllDaysParallel() {
-        // DB (Neon ani_schedule, one endpoint per day) first — each day is
-        // already Jikan-shaped, so it drops straight into the existing
-        // renderer. Falls back to the live self-hosted Jikan schedule for
-        // any day the DB doesn't have data for (e.g. still syncing).
-        // All 7 requests hit the SAME server-side cached column fetch
-        // (see api/ani-schedule/[day].js), so this is one real DB query
-        // shared across all 7 days, not 7 separate ones.
-        console.log('[Schedule] 🚀 Starting parallel fetch of all 7 days...');
+        console.log('[Schedule] 🚀 Starting parallel fetch of all 7 days (Anime + TVMaze)...');
 
-        const dbResults = await Promise.allSettled(DAYS.map(day => window.getAniScheduleDay(day)));
+        // ── PARALLEL: Fetch both Anime schedule AND TVMaze schedule ──
+        const [animeResults, tvmazeResults] = await Promise.allSettled([
+          // Anime: DB (Neon ani_schedule) with Jikan fallback
+          Promise.allSettled(DAYS.map(day => window.getAniScheduleDay(day))),
+          // TVMaze: TV show schedules for multiple countries
+          Promise.allSettled(DAYS.map(day => window.getTVMazeScheduleDay(day)))
+        ]);
+
+        // ── Process ANIME results ──
         const dbByDay = {};
+        const animeRaw = animeResults.status === 'fulfilled' ? animeResults.value : [];
         DAYS.forEach((day, idx) => {
-          const r = dbResults[idx];
-          const arr = r.status === 'fulfilled' ? r.value?.data : null;
+          const r = animeRaw[idx];
+          const arr = r?.status === 'fulfilled' ? r.value?.data : null;
           if (Array.isArray(arr) && arr.length > 0) {
-            // Cross-source dedup by mal_id (safety net for sync duplicates)
             const _seen = new Set();
             dbByDay[day] = arr.filter(a => {
               const k = a.mal_id || a.id;
@@ -7675,23 +7677,22 @@ titleEl.style.color = '#ffffff';
           }
         });
 
+        // Fallback to Jikan for missing days
         const missingDays = DAYS.filter(day => !dbByDay[day]);
-
         const jikanResults = missingDays.length
           ? await Promise.allSettled(missingDays.map(day => fetchDayFromJikan(day)))
           : [];
 
-        const data = {};
+        const animeData = {};
         let missingIdx = 0;
         DAYS.forEach((day) => {
           if (dbByDay[day]) {
-            data[day] = dbByDay[day];
+            animeData[day] = dbByDay[day];
           } else {
             const result = jikanResults[missingIdx++];
-            // Also dedup Jikan fallback results
             const raw = result && result.status === 'fulfilled' ? result.value : [];
             const _seen = new Set();
-            data[day] = raw.filter(a => {
+            animeData[day] = raw.filter(a => {
               const k = a.mal_id || a.id;
               if (!k || _seen.has(k)) return false;
               _seen.add(k);
@@ -7699,11 +7700,47 @@ titleEl.style.color = '#ffffff';
             });
           }
         });
+
+        // ── Process TVMAZE results ──
+        const tvmazeData = {};
+        const tvmazeRaw = tvmazeResults.status === 'fulfilled' ? tvmazeResults.value : [];
+        let totalTvShows = 0;
         
-        const totalAnime = Object.values(data).reduce((sum, arr) => sum + arr.length, 0);
-        console.log(`[Schedule] ✅ Complete! Total: ${totalAnime} anime across 7 days`);
+        DAYS.forEach((day, idx) => {
+          const r = tvmazeRaw[idx];
+          const result = r?.status === 'fulfilled' ? r.value : null;
+          
+          if (result && result.countries) {
+            // Flatten all countries into one array for this day
+            const dayShows = [];
+            Object.entries(result.countries).forEach(([country, shows]) => {
+              if (Array.isArray(shows)) {
+                shows.forEach(show => {
+                  show._country = country; // Tag with country for display
+                  dayShows.push(show);
+                });
+              }
+            });
+            tvmazeData[day] = dayShows;
+            totalTvShows += dayShows.length;
+          } else {
+            tvmazeData[day] = [];
+          }
+        });
+
+        const totalAnime = Object.values(animeData).reduce((sum, arr) => sum + arr.length, 0);
+        console.log(`[Schedule] ✅ Complete! ${totalAnime} anime + ${totalTvShows} TV shows across 7 days`);
         
-        return data;
+        // Return combined data structure
+        return {
+          anime: animeData,
+          tvmaze: tvmazeData,
+          _stats: {
+            totalAnime,
+            totalTvShows,
+            totalItems: totalAnime + totalTvShows
+          }
+        };
       }
 
       // ---------- Enhanced Episode number calculation ----------
@@ -7778,27 +7815,15 @@ titleEl.style.color = '#ffffff';
 
       async function renderScheduleForDay(dayName) {
         const container = document.getElementById('eswBody');
-        const animeList = scheduleData?.[dayName] || [];
+        
+        // V4.7.2 UPDATED: Handle new data structure { anime: {}, tvmaze: {} }
+        const animeList = scheduleData?.anime?.[dayName] || [];
+        const tvmazeList = scheduleData?.tvmaze?.[dayName] || [];
 
-        // Brief loading state while we fetch this day's TV shows (anime data is
-        // already in memory from fetchAllDaysParallel, only TV needs a fetch).
+        // Brief loading state
         container.innerHTML = '<div style="text-align:center;padding:24px 10px;color:var(--text-muted);font-size:0.75rem;">Loading…</div>';
 
-        // Resolve the actual calendar date for this day-of-week within the
-        // currently selected week (TVMaze needs a real date, unlike Jikan's
-        // day-of-week-only schedule).
-        const weekDates = buildWeekDates();
-        const dateObj = weekDates[DAYS.indexOf(dayName)];
-        const dateStr = formatDateYMD(dateObj);
-
-        let tvResult = { shows: [], country: null };
-        try {
-          tvResult = await fetchSidebarTVShowsForDate(dateStr);
-        } catch (e) {
-          console.warn('[Sidebar-TVMaze] Failed to fetch TV shows for', dateStr, e.message);
-        }
-
-        if (!animeList.length && !tvResult.shows.length) {
+        if (!animeList.length && !tvmazeList.length) {
           container.innerHTML = `
             <div style="text-align:center;padding:30px 15px;color:var(--text-muted);">
               <i class="fas fa-calendar-times" style="font-size:2rem;opacity:0.3;margin-bottom:10px;display:block;"></i>
@@ -7818,7 +7843,6 @@ titleEl.style.color = '#ffffff';
                          anime.images?.jpg?.large_image_url || 
                          anime.images?.jpg?.image_url || '';
           // Enhanced broadcast time handling - Jikan v4 returns STRING format
-          // Format: "Mondays at 00:00 (JST)" or "Tuesdays at 18:30 (JST)"
           let broadcastTime = '—';
           const broadcast = anime.broadcast;
           if (typeof broadcast === 'string' && broadcast.trim()) {
@@ -7848,6 +7872,7 @@ titleEl.style.color = '#ffffff';
 
           return {
             sortKey: broadcastTime,
+            type: 'anime',
             html: buildScheduleRowHtml({
               watchUrl, external: false, time: broadcastTime, poster, title,
               subtitle: null, epLabel: `EP ${episode}`
@@ -7855,25 +7880,25 @@ titleEl.style.color = '#ffffff';
           };
         });
 
-        // Build TV row objects (sidebar countries: KR, TR, US, PK, IN)
-        const tvRows = tvResult.shows.map(show => {
-          const ep = show._episode || {};
+        // Build TVMaze TV row objects (from our new tvmaze-schedule endpoint)
+        const tvRows = tvmazeList.map(show => {
           const title = show.name || 'Unknown Title';
-          const poster = show.image?.medium || show.image?.original || '';
-          const watchUrl = show.url || '#';
-          const time = ep.airtime && ep.airtime.trim() ? ep.airtime : '—';
-          const epLabel = (ep.number) ? `E${ep.number}` : 'TV';
-          const subtitle = `TV · ${show._sourceCountry || tvResult.country || ''}`;
+          const poster = show.poster || '';
+          const watchUrl = show.url || `https://www.tvmaze.com/shows/${show.show_id}`;
+          const time = show.airtime && show.airtime.trim() ? show.airtime : '—';
+          const epLabel = show.episode_number ? `S${show.season_number || '?'}E${show.episode_number}` : 'TV';
+          const subtitle = `TV · ${show._country || show.country || ''} · ${show.network || ''}`;
 
           return {
             sortKey: time,
+            type: 'tvmaze',
             html: buildScheduleRowHtml({
               watchUrl, external: true, time, poster, title, subtitle, epLabel
             })
           };
         });
 
-        // Merge anime + TV, sorted by time (missing times sort last)
+        // Merge anime + TVMaze TV, sorted by time (missing times sort last)
         const combinedRows = [...animeRows, ...tvRows].sort((a, b) => {
           const timeA = a.sortKey && a.sortKey !== '—' ? a.sortKey : '99:99';
           const timeB = b.sortKey && b.sortKey !== '—' ? b.sortKey : '99:99';
