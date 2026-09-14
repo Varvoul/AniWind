@@ -1,5 +1,5 @@
 import { getSql, toArray } from '../_lib/neon.js';
-import { memoize, setCacheHeaders } from '../_lib/cache.js';
+import { memoize, setCacheHeaders, getCacheInfo } from '../_lib/cache.js';
 
 const VALID_DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
@@ -43,6 +43,9 @@ export default async function handler(req, res) {
     return res.status(200).json({
       data: scheduleByDay.byDay[toDbDayKey(day)] || [],
       updated_at: scheduleByDay.updated_at, // this column's own timestamp — never the row's
+      _cache: getCacheInfo('ani_schedule'),
+      _version: '4.8.0',
+      _timestamp: new Date().toISOString()
     });
   } catch (err) {
     return res.status(500).json({ error: 'DB fetch failed', message: err.message });

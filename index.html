@@ -2872,6 +2872,215 @@
         return map[status] || status || 'Unknown';
       }
 
+      /* ════════════════════════════════════════════════════════════════
+         UNIVERSAL ANIME NORMALIZER (V4.8.0)
+         The automation stores RAW data — AniList objects when it used the
+         AniList proxy, Jikan v4 objects (36 fields) when it fell back to
+         the self-hosted Jikan. The sections below must render BOTH.
+
+         normalizeAnimeItem() detects the source of a raw anime object and
+         converts it to the same "internal" shape anilistToInternal()
+         produces, so every card builder / infoUrl / watchUrl keeps working
+         regardless of which source filled the DB this cycle.
+
+         Detection logic:
+           - AniList : `title` is an OBJECT {romaji, english, native}
+           - Jikan   : `title` is a STRING + mal_id/images/aired/broadcast
+           - Anikoto : `title` is a STRING + slug/poster/is_sub (DB
+                       new_on_ruri shape) — passed through with light mapping
+         ════════════════════════════════════════════════════════════════ */
+      function stripHtmlTags(str) {
+        return String(str || '').replace(/<[^>]*>/g, '').replace(/&[^;\s]+;/g, ' ').trim();
+      }
+      function detectAnimeSource(m) {
+        if (!m || typeof m !== 'object') return 'unknown';
+        if (m.title && typeof m.title === 'object') return 'anilist';
+        if (m.slug && (m.poster || m.terms_by_type)) return 'anikoto';
+        if (typeof m.title === 'string' &&
+            (m.images || m.mal_id !== undefined || m.aired || m.broadcast)) return 'jikan';
+        if (m.coverImage) return 'anilist';
+        return 'unknown';
+      }
+      function jikanTypeToInternal(t) {
+        const map = { TV: 'TV', Movie: 'MOVIE', OVA: 'OVA', ONA: 'ONA', Special: 'SPECIAL', Music: 'MUSIC' };
+        return map[t] || t || 'TV';
+      }
+      function mapJikanStatus(status) {
+        const map = {
+          'Currently Airing': 'Airing',
+          'Finished Airing': 'Completed',
+          'Not yet aired': 'Upcoming'
+        };
+        return map[status] || status || 'Unknown';
+      }
+      function jikanYearOf(m) {
+        if (m.year) return m.year;
+        if (m.aired?.prop?.from?.year) return m.aired.prop.from.year;
+        if (m.premiered) {
+          const y = parseInt(String(m.premiered).slice(-4), 10);
+          if (!isNaN(y)) return y;
+        }
+        return '?';
+      }
+      function jikanDurationOf(m) {
+        // "24 min per ep" → "24m"
+        const match = String(m.duration || '').match(/(\d+)\s*min/);
+        return match ? `${match[1]}m` : '?';
+      }
+      function jikanIsAdult(m) {
+        if (m.rated === 'Rx - Hentai' || (m.rating || '').toLowerCase().startsWith('rx')) return true;
+        if (m.r18) return true;
+        const genres = [...(m.genres || []), ...(m.explicit_genres || [])];
+        return genres.some(g => (g.name || '').toLowerCase().includes('hentai'));
+      }
+      function jikanPosterOf(m) {
+        const imgs = m.images || {};
+        return imgs.webp?.large_image_url || imgs.jpg?.large_image_url ||
+               imgs.webp?.image_url  || imgs.jpg?.image_url  || m.image_url || '';
+      }
+      function jikanBannerOf(m) {
+        // Jikan has no banner field — the trailer's max-res YouTube
+        // thumbnail is the closest widescreen image available.
+        return m.trailer?.images?.maximum_image_url || '';
+      }
+      function coerceMalId(v) {
+        // The DB sometimes stores mal_id as a numeric STRING — coerce to a
+        // real number so id-keyed dedup and URL building stay consistent.
+        if (v == null || v === '') return null;
+        const n = Number(v);
+        return Number.isFinite(n) ? n : null;
+      }
+
+      /**
+       * Universal raw-anime → internal converter.
+       * Returns the SAME field set anilistToInternal() emits (plus `source`
+       * set to 'anilist' | 'jikan' | 'anikoto') so all section renderers can
+       * treat the result identically.
+       */
+      function normalizeAnimeItem(m) {
+        if (!m || typeof m !== 'object') return null;
+        const src = detectAnimeSource(m);
+
+        if (src === 'jikan') {
+          const title = m.title_english || m.title || m.title_japanese || 'Unknown';
+          return {
+            mal_id: coerceMalId(m.mal_id),
+            anilist_id: null,
+            title,
+            title_jp: m.title_japanese || '',
+            title_en: m.title_english || m.title || '',
+            slug: (m.title || m.title_english || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''),
+            poster: jikanPosterOf(m),
+            banner: jikanBannerOf(m),
+            score: (m.score != null && m.score > 0) ? Number(m.score).toFixed(1) : 'N/A',
+            type: jikanTypeToInternal(m.type),
+            rating: m.rating ? String(m.rating).split(' ')[0] : (jikanIsAdult(m) ? 'R18+' : 'PG-13'),
+            description: stripHtmlTags(m.synopsis).slice(0, 500) || 'No description available.',
+            year: jikanYearOf(m),
+            season: m.season ? String(m.season).toUpperCase() : undefined,
+            episodes: m.episodes || '?',
+            duration: jikanDurationOf(m),
+            genres: (m.genres || []).map(g => g.name).filter(Boolean),
+            studio: (m.studios || [])[0]?.name || '?',
+            studios: (m.studios || []).map(s => s.name).filter(Boolean),
+            status: mapJikanStatus(m.status),
+            popularity: m.members || m.popularity || 0,
+            trending: undefined,
+            nextEpisode: undefined,
+            isAdult: jikanIsAdult(m),
+            source: 'jikan'
+          };
+        }
+
+        if (src === 'anikoto') {
+          return {
+            mal_id: coerceMalId(m.mal_id),
+            anilist_id: null,
+            title: m.title || 'Unknown',
+            title_jp: '',
+            title_en: m.title || '',
+            slug: m.slug || (m.title || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''),
+            poster: m.poster || '',
+            banner: '',
+            score: m.score || 'N/A',
+            type: m.terms_by_type?.type?.[0] || 'TV',
+            rating: m.rating || 'N/A',
+            description: stripHtmlTags(m.description).slice(0, 500) || 'No description available.',
+            year: m.year || '?',
+            season: undefined,
+            episodes: '?',
+            duration: m.duration ? `${m.duration}m` : '?',
+            genres: m.terms_by_type?.genre || [],
+            studio: m.terms_by_type?.studios?.[0] || '?',
+            studios: m.terms_by_type?.studios || [],
+            status: 'Unknown',
+            popularity: 0,
+            trending: undefined,
+            nextEpisode: undefined,
+            isAdult: false,
+            is_sub: m.is_sub || 0,
+            is_dub: m.is_dub || 0,
+            source: 'anikoto'
+          };
+        }
+
+        // AniList (or unknown-but-AniList-like) — delegate to the existing
+        // converter so both paths share one code path.
+        if (m.title && typeof m.title === 'object') {
+          const internal = anilistToInternal(m);
+          return { ...internal, source: 'anilist' };
+        }
+        return null;
+      }
+
+      /* ════════════════════════════════════════════════════════════════
+         DB PAYLOAD HELPERS (V4.8.0)
+         The /api/<column> endpoints return the RAW jsonb exactly as the
+         automation stored it:
+           - Anime      : array (AniList or Jikan items) — or, defensively,
+                          a Jikan page object { data: [...], pagination }
+           - tmdb_tv    : { "1": [...], "2": [...] }  (page-keyed)
+                          or { "US": [...], "GB": [...] } (region-keyed)
+           - tmdb_movie : same shape as tmdb_tv
+         These helpers safely extract flat arrays from every shape ever
+         stored, for both the current and legacy key spellings.
+         ════════════════════════════════════════════════════════════════ */
+      function dbAnimeList(home) {
+        let arr = home?.Anime ?? home?.anime ?? home?.data ?? [];
+        // Defensive: a Jikan-style page object instead of a plain array
+        if (arr && typeof arr === 'object' && !Array.isArray(arr)) {
+          arr = Array.isArray(arr.data) ? arr.data : [];
+        }
+        return Array.isArray(arr) ? arr : [];
+      }
+      function flattenTmdbMap(obj) {
+        if (Array.isArray(obj)) return obj;
+        if (!obj || typeof obj !== 'object') return [];
+        const flat = [];
+        for (const val of Object.values(obj)) {
+          if (Array.isArray(val)) {
+            flat.push(...val);
+          } else if (val && Array.isArray(val.results)) {
+            flat.push(...val.results); // raw TMDB page object defensively
+          }
+        }
+        return flat;
+      }
+      function getTmdbArr(home, kind) {
+        // kind: 'tv' | 'movie' — checks every key spelling ever used
+        if (!home || typeof home !== 'object') return [];
+        const keys = kind === 'tv'
+          ? ['tmdb_tv', 'tmdbTV', 'TMDB_TV', 'TMDB_TV_DATA']
+          : ['tmdb_movie', 'tmdbMovie', 'TMDB_Movie', 'TMDB_MOVIE', 'TMDB_MV'];
+        for (const k of keys) {
+          const v = home[k];
+          if (v && ((Array.isArray(v) && v.length) || (!Array.isArray(v) && typeof v === 'object' && Object.keys(v).length))) {
+            return flattenTmdbMap(v);
+          }
+        }
+        return [];
+      }
+
       /* Deduplicate anime by mal_id across all sources */
       // ── Global hentai filter for all Jikan data ─────────────────────
       const _HENTAI_GENRE_IDS = new Set([12, 49]); // 12=Hentai, 49=Erotica
@@ -3859,6 +4068,47 @@ async function loadNewAniocean() {
         return { shows, country };
       }
 
+      /* ── V4.8.0: SERVER-ENDPOINT TV SCHEDULE (primary) ──
+       * Fetches one day of TV shows from /api/tvmaze-schedule/{day}?date=…
+       * The serverless function fetches ALL countries in parallel (staggered,
+       * rate-limit friendly), caches the result server-side for 24 HOURS and
+       * exposes cache info in the response — so all visitors share one cached
+       * fetch instead of every browser hammering TVMaze directly.
+       * Falls back to the legacy direct-TVMaze fetch if the endpoint fails. */
+      const _sidebarTVEndpointCache = {};
+      async function fetchSidebarTVFromEndpoint(dayName, dateStr) {
+        const cacheKey = `${dayName}:${dateStr}`;
+        if (_sidebarTVEndpointCache[cacheKey]) return _sidebarTVEndpointCache[cacheKey];
+
+        const url = `/api/tvmaze-schedule/${dayName}?date=${encodeURIComponent(dateStr)}`;
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) throw new Error(`tvmaze-schedule endpoint returned ${res.status}`);
+        const json = await res.json();
+
+        const validTypes = ['Scripted', 'Animation', 'Mini-Series', 'Documentary'];
+        const seenShowIds = new Set();
+        const shows = [];
+        const countries = json?.countries || {};
+        for (const [countryCode, arr] of Object.entries(countries)) {
+          if (!Array.isArray(arr)) continue;
+          for (const s of arr) {
+            // Filter to scripted/animation content (same policy as before) and
+            // require a poster so the sidebar never renders empty images.
+            if (s.show_type && !validTypes.includes(s.show_type)) continue;
+            if (!s.poster) continue;
+            if (s.show_id && seenShowIds.has(s.show_id)) continue;
+            if (s.show_id) seenShowIds.add(s.show_id);
+            shows.push({ ...s, _sourceCountry: s.country || countryCode });
+          }
+        }
+
+        const result = { shows, country: 'multi', cacheInfo: json?._cache || null };
+        console.log(`[Sidebar-TVMaze] ✅ endpoint: ${shows.length} shows for ${dayName} (${dateStr})` +
+          (result.cacheInfo ? ` | cache: ${result.cacheInfo.status}, ${result.cacheInfo.remaining_minutes ?? '?'}min left` : ''));
+        _sidebarTVEndpointCache[cacheKey] = result;
+        return result;
+      }
+
       /**
        * Multi-Country TVMaze Fetcher - Tries multiple countries to maximize scripted content!
        * Smart fallback: If primary country returns too few scripted shows, tries others.
@@ -4145,9 +4395,11 @@ async function loadNewAniocean() {
         // TMDB TV: filtered to DYNAMIC current-year (no hardcoded year).
         // Anime: bannerImage → coverImage.extraLarge fallback when bannerImage
         // is missing, so anime with only a poster still appear in the slider.
+        // V4.8.0: endpoint returns RAW jsonb (tmdb_tv page-keyed object) and
+        // Anime items may be AniList OR Jikan v4 — both are normalized here.
         const dbHS = await window.getHomeData('hero_slider');
-        const dbHSTv = Array.isArray(dbHS?.tmdbTV) ? dbHS.tmdbTV : [];
-        const dbHSAnime = Array.isArray(dbHS?.Anime) ? dbHS.Anime : [];
+        const dbHSTv = getTmdbArr(dbHS, 'tv');           // tmdb_tv: {"1": [...], "2": [...]} → flat array
+        const dbHSAnime = dbAnimeList(dbHS);              // AniList OR Jikan v4 items
 
         // ═══════════════════════════════════════════════════════════════════
         // TMDB TV: dedup + DYNAMIC current-year filter (never hardcoded)
@@ -4171,27 +4423,47 @@ async function loadNewAniocean() {
 
         // ═══════════════════════════════════════════════════════════════════
         // ANIME: dedup + bannerImage → coverImage.extraLarge fallback
+        // V4.8.0: works for BOTH AniList and Jikan v4 source items.
+        //   - AniList items: bannerImage, fallback coverImage.extraLarge/large
+        //   - Jikan items  : no banner field — trailer max-image, then the
+        //                    large poster image is used as the hero backdrop
+        //   - Banner-missing (no usable hero image at all) anime are filtered out
+        //   - Anime without a resolvable mal_id are dropped (broken info links)
         // ═══════════════════════════════════════════════════════════════════
         const seenAnime = new Set();
         const uniqueAnime = [];
         for (const a of dbHSAnime) {
-          if (!a.id || seenAnime.has(a.id)) continue;
-          seenAnime.add(a.id);
-          uniqueAnime.push(a);
+          const n = normalizeAnimeItem(a);
+          if (!n) continue;
+          if (n.isAdult) continue;
+          const key = n.mal_id || n.anilist_id || n.title;
+          if (!key || seenAnime.has(key)) continue;
+          seenAnime.add(key);
+          uniqueAnime.push({ raw: a, n });
         }
-        // Keep anime that have either a banner OR a coverImage (we'll fall back
-        // to coverImage.extraLarge at slide-mapping time, below).
-        const animeWithImage = uniqueAnime.filter(a =>
-          a.bannerImage || a.coverImage?.extraLarge || a.coverImage?.large
-        );
-        animeWithImage.sort((a, b) => {
-          const timeA = a.nextAiringEpisode?.timeUntilAiring || Infinity;
-          const timeB = b.nextAiringEpisode?.timeUntilAiring || Infinity;
+        // Keep anime that have a usable hero image. AniList: banner OR
+        // coverImage; Jikan: any image (large poster / trailer thumb).
+        // Anything with NO image at all is filtered out (banner-missing rule).
+        const animeWithImage = uniqueAnime.filter(({ raw, n }) => {
+          if (n.source === 'jikan') {
+            return !!(raw.images?.webp?.large_image_url || raw.images?.jpg?.large_image_url ||
+                      raw.images?.webp?.image_url || raw.images?.jpg?.image_url ||
+                      raw.trailer?.images?.maximum_image_url);
+          }
+          return !!(raw.bannerImage || raw.coverImage?.extraLarge || raw.coverImage?.large);
+        })
+        .filter(({ n }) => !!n.mal_id) // no mal_id → /info/anime/jikan-null link — drop
+        .map(({ raw, n }) => ({ raw, n }))
+        .sort((a, b) => {
+          const timeA = a.raw.nextAiringEpisode?.timeUntilAiring ?? (a.n.status === 'Airing' ? 1e9 : Infinity);
+          const timeB = b.raw.nextAiringEpisode?.timeUntilAiring ?? (b.n.status === 'Airing' ? 1e9 : Infinity);
           if (timeA !== timeB) return timeA - timeB;
-          return (b.averageScore||0) * (b.popularity||0) - (a.averageScore||0) * (a.popularity||0);
+          const pa = (parseFloat(a.n.score) || 0) * (Math.log10(a.n.popularity + 10) || 0);
+          const pb = (parseFloat(b.n.score) || 0) * (Math.log10(b.n.popularity + 10) || 0);
+          return pb - pa;
         });
         const topAnilistAnime = animeWithImage.slice(0, HERO_CONFIG.anilistTargetCount);
-        console.log(`[Hero] 🎌 Anime with banner→extraLarge fallback: ${topAnilistAnime.length} ready`);
+        console.log(`[Hero] 🎌 Anime with banner→extraLarge fallback: ${topAnilistAnime.length} ready (${topAnilistAnime.filter(x => x.n.source === 'jikan').length} jikan / ${topAnilistAnime.filter(x => x.n.source === 'anilist').length} anilist)`);
 
         const sourceType = 'Endpoint + dynamic year filter';
         console.log(`[Hero] 🎬 Fetched ${topTmdbShows.length} TV (${sourceType}) + ${topAnilistAnime.length} airing anime`);
@@ -4428,46 +4700,68 @@ async function loadNewAniocean() {
           infoHref:       `/info/tv/tmdb-tv-${t.id}/${(t.name||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')}-season-1`,
         }));
 
-        // ── 4b) Map Anilist slides — bannerImage → coverImage.extraLarge fallback ──
+        // ── 4b) Map anime slides (AniList OR Jikan) — banner → extraLarge fallback ──
         // Anime without bannerImage use coverImage.extraLarge as the hero
         // backdrop instead of being dropped — keeps more anime in the slider.
         console.log(`[Hero Image] Mapping ${topAnilistAnime.length} anime with banner→extraLarge fallback...`);
 
-        const anilistSlides = topAnilistAnime.map(m => {
+        const anilistSlides = topAnilistAnime.map(({ raw: m, n }) => {
           const slugify = t => (t||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
-          const genres = (m.genres || []).filter(Boolean);
-          const themes = (m.tags || []).filter(t => t.rank >= 60).map(t => t.name).slice(0, 2);
-          const year = m.startDate?.year?.toString() || '';
-          const studio = m.studios?.nodes?.[0]?.name || '';
+          const genres = n.genres || [];
+          // Themes: AniList tags ranked ≥60; Jikan named themes
+          const themes = n.source === 'jikan'
+            ? ((m.themes || []).map(t => t.name).filter(Boolean).slice(0, 2))
+            : ((m.tags || []).filter(t => t.rank >= 60).map(t => t.name).slice(0, 2));
+          const year = String(n.year && n.year !== '?' ? n.year : '');
+          const studio = n.studio && n.studio !== '?' ? n.studio : '';
           const formatMap = { TV: 'TV', TV_SHORT: 'TV Short', MOVIE: 'Movie', OVA: 'OVA', ONA: 'ONA', SPECIAL: 'Special' };
-          // PRIMARY: bannerImage; FALLBACK: coverImage.extraLarge (then large)
-          const heroImg = m.bannerImage || m.coverImage?.extraLarge || m.coverImage?.large || '';
-          const imgSource = m.bannerImage ? 'anilist-banner' : 'anilist-cover-extralarge';
+          const typeLabel = formatMap[n.type] || (n.source === 'jikan' ? (m.type || 'Anime') : (n.type || 'Anime'));
+          // PRIMARY: bannerImage (AniList) / trailer thumb (Jikan);
+          // FALLBACK: coverImage.extraLarge (AniList) / large poster (Jikan)
+          let heroImg = '';
+          let imgSource = '';
+          if (n.source === 'jikan') {
+            heroImg = m.trailer?.images?.maximum_image_url ||
+                      m.images?.webp?.large_image_url || m.images?.jpg?.large_image_url ||
+                      m.images?.webp?.image_url || m.images?.jpg?.image_url || '';
+            imgSource = m.trailer?.images?.maximum_image_url ? 'jikan-trailer-thumb' : 'jikan-large-poster';
+          } else {
+            heroImg = m.bannerImage || m.coverImage?.extraLarge || m.coverImage?.large || '';
+            imgSource = m.bannerImage ? 'anilist-banner' : 'anilist-cover-extralarge';
+          }
+          // Episode count: AniList nextAiringEpisode-aware; Jikan raw value
+          const epsRaw = n.source === 'jikan'
+            ? (n.episodes !== '?' ? String(n.episodes) : '?')
+            : (m.episodes ? String(m.episodes) : (m.nextAiringEpisode ? String(m.nextAiringEpisode.episode - 1) : '?'));
+          // Status pill
+          const airing = n.source === 'jikan'
+            ? (m.status === 'Currently Airing' || m.airing === true)
+            : (n.status === 'Airing' || !!m.nextAiringEpisode);
           return {
-            id:             `anilist-${m.id}`,
-            title:          m.title?.romaji || m.title?.english || 'Unknown Anime',
-            source:         'anilist',
-            type:           formatMap[m.format] || m.format || 'Anime',
+            id:             n.source === 'jikan' ? `jikan-${n.mal_id}` : `anilist-${n.anilist_id}`,
+            title:          n.title,
+            source:         n.source,
+            type:           typeLabel,
             genres:         genres,
             themes:         themes,
-            score:          m.averageScore ? Number(m.averageScore / 10).toFixed(1) : 'N/A',
+            score:          n.score,
             year:           year,
             duration:       '',
-            episodes:       m.episodes ? String(m.episodes) : (m.nextAiringEpisode ? String(m.nextAiringEpisode.episode - 1) : '?'),
-            synopsis:       (m.description || '').replace(/<[^>]*>/g, '').slice(0, 320),
+            episodes:       epsRaw,
+            synopsis:       (n.description || '').replace(/<[^>]*>/g, '').slice(0, 320),
             backdrop:       heroImg,
             backdrop_orig:  heroImg,
             backdrop_mobile:heroImg,
-            poster:         m.coverImage?.large || m.coverImage?.medium || '',
+            poster:         n.poster || '',
             certification:  'TV-14',
             studio:         studio,
-            mal_id:         m.idMal,
-            anilist_id:     m.id,
+            mal_id:         n.mal_id,
+            anilist_id:     n.anilist_id,
             image_source:   imgSource,
             image_confidence: 100,
             status_color:   '#38bdf8',
-            status_label:   '● Airing Now',
-            infoHref:       `/info/anime/jikan-${m.idMal}/${slugify(m.title?.romaji || m.title?.english)}`,
+            status_label:   airing ? '● Airing Now' : '● Anime',
+            infoHref:       `/info/anime/jikan-${n.mal_id}/${slugify(n.title)}`,
           };
         });
 
@@ -4747,37 +5041,41 @@ titleEl.style.color = '#ffffff';
           window.getHomeData('hidden_tab')
         ]);
 
-        // ── Anime from /api/top-airing ──
-        const dbTAAnime = Array.isArray(dbTA?.Anime) ? dbTA.Anime : [];
+        // ── Anime from /api/top-airing (V4.8.0: AniList OR Jikan v4 items) ──
+        const dbTAAnime = dbAnimeList(dbTA);
         const anime = [];
         for (const m of dbTAAnime) {
-          if (m.isAdult) continue;
-          const internal = anilistToInternal(m);
+          const n = normalizeAnimeItem(m);
+          if (!n || n.isAdult) continue;
           anime.push({
-            id: `anilist-air-${m.id}`,
-            mal_id: internal.mal_id,
-            title: internal.title,
-            poster: internal.poster,
+            id: `${n.source}-${n.mal_id != null && n.source !== 'anilist' ? n.mal_id : 'air-' + (n.anilist_id ?? n.mal_id)}`,
+            mal_id: n.mal_id,
+            title: n.title,
+            poster: n.poster,
             type: 'Anime',
-            duration: internal.duration || '?',
-            score: internal.score,
-            status: internal.status,
-            episodes: String(internal.episodes),
+            duration: n.duration || '?',
+            score: n.score,
+            status: n.status,
+            episodes: String(n.episodes),
           });
         }
 
         // ── TMDB TV from /api/hidden-tab filtered to AU, CA, CN ──
+        // V4.8.0: endpoint returns tmdb_tv (snake_case) — the old code read
+        // TMDB_TV (camelCase) which never existed → section showed anime only.
         const TOP_AIRING_TV_COUNTRIES = ['AU', 'CA', 'CN'];
-        const hiddenTvByCountry = dbHidden?.TMDB_TV || {};
+        const hiddenTvByCountry = dbHidden?.tmdb_tv || dbHidden?.TMDB_TV || {};
         const seenTvIds = new Set();
         let tv = [];
         for (const country of TOP_AIRING_TV_COUNTRIES) {
-          const arr = Array.isArray(hiddenTvByCountry[country]) ? hiddenTvByCountry[country] : [];
+          const raw = hiddenTvByCountry[country];
+          const arr = Array.isArray(raw) ? raw : flattenTmdbMap(raw);
           for (const i of arr) {
             if (!i.poster_path || seenTvIds.has(i.id)) continue;
             seenTvIds.add(i.id);
             tv.push({
               id: `tmdb-tv-${i.id}`,
+              tmdb_id: i.id,
               title: i.name || i.original_name || 'Unknown',
               poster: tmdbImg(i.poster_path),
               type: 'TV',
@@ -4794,20 +5092,20 @@ titleEl.style.color = '#ffffff';
         console.log(`[Top Airing] 📺 hidden-tab TV (AU/CA/CN): ${tv.length} shows`);
         console.log(`[Top Airing] 🎌 top-airing anime: ${anime.length} shows`);
 
-        // ── Pattern: TV-Anime-TV (two TV shows with one anime in the middle) ──
+        // ── Pattern: Anime-TV-Anime (V4.8.0: anime on the outside, TV sandwiched in) ──
         // Repeat until we run out of one source, then append leftovers.
         const combined = [];
-        const maxTriads = Math.min(Math.floor(tv.length / 2), anime.length);
+        const maxTriads = Math.min(Math.floor(anime.length / 2), tv.length);
         for (let i = 0; i < maxTriads; i++) {
-          combined.push(tv[i * 2]);
-          combined.push(anime[i]);
-          combined.push(tv[i * 2 + 1]);
+          combined.push(anime[i * 2]);
+          combined.push(tv[i]);
+          combined.push(anime[i * 2 + 1]);
         }
-        // Append any leftovers (TV or anime) so nothing gets dropped
-        const tvUsed = maxTriads * 2;
-        const animeUsed = maxTriads;
-        combined.push(...tv.slice(tvUsed));
+        // Append any leftovers (anime or TV) so nothing gets dropped
+        const animeUsed = maxTriads * 2;
+        const tvUsed = maxTriads;
         combined.push(...anime.slice(animeUsed));
+        combined.push(...tv.slice(tvUsed));
 
         // Cross-source dedup (anime + TV by id)
         const deduped = dedupById(combined, 'id').slice(0, 60);
@@ -5164,39 +5462,42 @@ titleEl.style.color = '#ffffff';
             window.getHomeData('hidden_tab')
           ]);
 
-          // ── Anime from /api/new-releases ──
-          const dbNRAnime = Array.isArray(dbNR?.Anime) ? dbNR.Anime : [];
+          // ── Anime from /api/new-releases (V4.8.0: AniList OR Jikan v4) ──
+          const dbNRAnime = dbAnimeList(dbNR);
           const anime = [];
           for (const m of dbNRAnime.slice(0, TARGET_SHOWS)) {
-            if (m.isAdult) continue;
-            const internal = anilistToInternal(m);
+            const n = normalizeAnimeItem(m);
+            if (!n || n.isAdult) continue;
             anime.push({
-              id: `anilist-${m.id}`,
-              mal_id: internal.mal_id,
-              title: internal.title,
-              poster: internal.poster,
+              id: n.source === 'jikan' ? `jikan-${n.mal_id}` : `anilist-${n.anilist_id ?? n.mal_id}`,
+              mal_id: n.mal_id,
+              title: n.title,
+              poster: n.poster,
               type: 'Anime',
-              score: internal.score,
-              duration: internal.duration || '?',
-              status: internal.status,
-              rating: internal.rating,
+              score: n.score,
+              duration: n.duration || '?',
+              status: n.status,
+              rating: n.rating,
               quality: 'HD'
             });
           }
           console.log(`[New Releases] 🎌 new-releases anime: ${anime.length}`);
 
           // ── TV from /api/hidden-tab (DE, CL, GB) ──
+          // V4.8.0: endpoint returns tmdb_tv / tmdb_movie (snake_case)
           const NR_TV_COUNTRIES = ['DE', 'CL', 'GB'];
-          const hiddenTv = dbHidden?.TMDB_TV || {};
+          const hiddenTv = dbHidden?.tmdb_tv || dbHidden?.TMDB_TV || {};
           const seenTv = new Set();
           const allTv = [];
           for (const c of NR_TV_COUNTRIES) {
-            const arr = Array.isArray(hiddenTv[c]) ? hiddenTv[c] : [];
+            const raw = hiddenTv[c];
+            const arr = Array.isArray(raw) ? raw : flattenTmdbMap(raw);
             for (const i of arr) {
               if (!i.poster_path || seenTv.has(i.id)) continue;
               seenTv.add(i.id);
               allTv.push({
                 id: `tmdb-tv-${i.id}`,
+                tmdb_id: i.id,
                 title: i.name || i.original_name || 'Unknown',
                 poster: tmdbImg(i.poster_path),
                 type: 'TV',
@@ -5212,16 +5513,18 @@ titleEl.style.color = '#ffffff';
 
           // ── Movies from /api/hidden-tab (DE, CL, GB, TH) ──
           const NR_MOVIE_COUNTRIES = ['DE', 'CL', 'GB', 'TH'];
-          const hiddenMovies = dbHidden?.TMDB_Movie || {};
+          const hiddenMovies = dbHidden?.tmdb_movie || dbHidden?.TMDB_Movie || {};
           const seenMv = new Set();
           const allMovies = [];
           for (const c of NR_MOVIE_COUNTRIES) {
-            const arr = Array.isArray(hiddenMovies[c]) ? hiddenMovies[c] : [];
+            const raw = hiddenMovies[c];
+            const arr = Array.isArray(raw) ? raw : flattenTmdbMap(raw);
             for (const i of arr) {
               if (!i.poster_path || seenMv.has(i.id)) continue;
               seenMv.add(i.id);
               allMovies.push({
                 id: `tmdb-mv-${i.id}`,
+                tmdb_id: i.id,
                 title: i.title || i.original_title || 'Unknown',
                 poster: tmdbImg(i.poster_path),
                 type: 'Movie',
@@ -5757,14 +6060,20 @@ titleEl.style.color = '#ffffff';
       async function nrFetchHiddenRow(countries, targetPerType = 20) {
         const items = [];
         const dbHidden = await window.getHomeData('hidden_tab');
+        // V4.8.0: endpoint returns tmdb_movie / tmdb_tv (snake_case) —
+        // the old TMDB_Movie / TMDB_TV lookups never matched → live fetches only.
+        const dbMoviesByCountry = dbHidden?.tmdb_movie || dbHidden?.TMDB_Movie || {};
+        const dbTvByCountry     = dbHidden?.tmdb_tv    || dbHidden?.TMDB_TV    || {};
         for (let i = 0; i < countries.length; i++) {
           const country = countries[i];
-          const dbMovies = dbHidden?.TMDB_Movie?.[country];
-          const dbTv = dbHidden?.TMDB_TV?.[country];
+          const dbMoviesRaw = dbMoviesByCountry[country];
+          const dbTvRaw     = dbTvByCountry[country];
+          const dbMovies = Array.isArray(dbMoviesRaw) ? dbMoviesRaw : flattenTmdbMap(dbMoviesRaw);
+          const dbTv     = Array.isArray(dbTvRaw)     ? dbTvRaw     : flattenTmdbMap(dbTvRaw);
           let movies, tvShows;
-          if ((Array.isArray(dbMovies) && dbMovies.length) || (Array.isArray(dbTv) && dbTv.length)) {
-            movies = (dbMovies || []).slice(0, targetPerType);
-            tvShows = (dbTv || []).slice(0, targetPerType);
+          if (dbMovies.length || dbTv.length) {
+            movies = dbMovies.slice(0, targetPerType);
+            tvShows = dbTv.slice(0, targetPerType);
           } else {
             if (i > 0) await nrHiddenSleep(NR_HIDDEN_RATE_LIMIT_MS);
             ({ movies, tvShows } = await fetchCountryMoviesAndTV(country, targetPerType));
@@ -6104,9 +6413,10 @@ titleEl.style.color = '#ffffff';
         }
 
         const dbUp = await window.getHomeData('upcoming_shows');
-        const dbUpMovies = Array.isArray(dbUp?.tmdbMovie) ? dbUp.tmdbMovie : [];
-        const dbUpTv     = Array.isArray(dbUp?.tmdbTV)    ? dbUp.tmdbTV    : [];
-        const dbUpAnime  = Array.isArray(dbUp?.Anime)     ? dbUp.Anime     : [];
+        // V4.8.0: endpoint returns tmdb_movie / tmdb_tv (snake_case, page-keyed)
+        const dbUpMovies = getTmdbArr(dbUp, 'movie');
+        const dbUpTv     = getTmdbArr(dbUp, 'tv');
+        const dbUpAnime  = dbAnimeList(dbUp);
 
         // Dynamic date filter: current year + current/future month
         const _now = new Date();
@@ -6124,41 +6434,39 @@ titleEl.style.color = '#ffffff';
 
         const allTmdbMovies = dbUpMovies.filter(i => isUpcomingTmdb(i.release_date));
         const allTmdbTV     = dbUpTv.filter(i => isUpcomingTmdb(i.first_air_date));
-        const anilistUpcomingAnime = dbUpAnime;
-        console.log(`[Upcoming] Endpoint + dynamic year/month filter: ${allTmdbMovies.length} movies, ${allTmdbTV.length} TV, ${anilistUpcomingAnime.length} anime`);
+        const upcomingAnimeRaw = dbUpAnime;
+        console.log(`[Upcoming] Endpoint + dynamic year/month filter: ${allTmdbMovies.length} movies, ${allTmdbTV.length} TV, ${upcomingAnimeRaw.length} anime`);
         
-        // Convert AniList upcoming anime (already filtered to JP TV/TV_SHORT, up to 50)
+        // Convert upcoming anime (V4.8.0: AniList OR Jikan v4 items)
         const anilistUpAnime = [];
-        for (const m of anilistUpcomingAnime) {
-          if (!m.isAdult) {
-            const internal = anilistToInternal(m);
-            // Better fallbacks for upcoming anime where some data may be TBA
-            const studioName = internal.studio && internal.studio !== '?' ? internal.studio : 'TBA';
-            const durValue = internal.duration && internal.duration !== '?' ? internal.duration : 
-              (m.format === 'MOVIE' ? '1h 30m' : m.format === 'ONA' ? '24m' : '24m');
-            const yearVal = internal.year && internal.year !== '?' ? internal.year : 
-              (m.startDate?.year || m.seasonYear || 'TBA');
-            
-            anilistUpAnime.push({
-              id:`anilist-up-${m.id}`,
-              title: internal.title,
-              original_title: internal.title_jp || internal.title,
-              type:'Anime',
-              poster: internal.poster,
-              score: internal.score,
-              genres: internal.genres || [],
-              releaseDate: yearVal,
-              synopsis: internal.description || 'No synopsis available.',
-              certification: internal.rating || 'PG-13',
-              studio: studioName,
-              duration: durValue,
-              year: yearVal,
-              episodes: m.episodes || '?',
-              format: m.format || 'TV',
-              mal_id: internal.mal_id,
-              anilist_id: m.id
-            });
-          }
+        for (const m of upcomingAnimeRaw) {
+          const n = normalizeAnimeItem(m);
+          if (!n || n.isAdult) continue;
+          // Better fallbacks for upcoming anime where some data may be TBA
+          const studioName = n.studio && n.studio !== '?' ? n.studio : 'TBA';
+          const durValue = n.duration && n.duration !== '?' ? n.duration : '24m';
+          const yearVal = n.year && n.year !== '?' ? n.year :
+            (m.startDate?.year || m.seasonYear || m.aired?.prop?.from?.year || 'TBA');
+
+          anilistUpAnime.push({
+            id: n.source === 'jikan' ? `jikan-up-${n.mal_id}` : `anilist-up-${n.anilist_id ?? n.mal_id}`,
+            title: n.title,
+            original_title: n.title_jp || n.title,
+            type:'Anime',
+            poster: n.poster,
+            score: n.score,
+            genres: n.genres || [],
+            releaseDate: String(yearVal),
+            synopsis: n.description || 'No synopsis available.',
+            certification: n.rating || 'PG-13',
+            studio: studioName,
+            duration: durValue,
+            year: yearVal,
+            episodes: n.episodes || '?',
+            format: n.source === 'jikan' ? (m.type || 'TV') : (m.format || 'TV'),
+            mal_id: n.mal_id,
+            anilist_id: n.anilist_id
+          });
         }
         
         // ════════════════════════════════════════════════════════════
@@ -6254,12 +6562,13 @@ titleEl.style.color = '#ffffff';
         const animeList = upcomingShows.filter(s => s.type === 'Anime');
         const movieList = upcomingShows.filter(s => s.type === 'Movie');
         
-        // Interleave in pattern: [TV] [Anime] [Movie] [TV] [Anime] [Movie]...
+        // Interleave in [Anime][TV][Movie] pattern, repeating (V4.8.0:
+        // anime first, then TV show, then movie — per section spec).
         const maxLen = Math.max(tvList.length, animeList.length, movieList.length);
         const interleaved = [];
         for (let i = 0; i < maxLen; i++) {
-          if (tvList[i]) interleaved.push({ item: tvList[i], type: 'tv' });
           if (animeList[i]) interleaved.push({ item: animeList[i], type: 'anime' });
+          if (tvList[i]) interleaved.push({ item: tvList[i], type: 'tv' });
           if (movieList[i]) interleaved.push({ item: movieList[i], type: 'movie' });
         }
         
@@ -6357,13 +6666,13 @@ titleEl.style.color = '#ffffff';
         // (/api/recently-completed-cache/<page>) that fetches from live
         // TMDB/AniList on cache miss and stores the result for 12h, shared
         // globally across all users — no per-user localStorage.
+        // V4.8.0: endpoint returns tmdb_tv / tmdb_movie (snake_case,
+        // page-keyed objects) — flatten before checking availability.
         const _dbRC = (page === 1 || page === 2) ? await window.getHomeData('recently_completed') : null;
-        const dbRCTv = _dbRC?.tmdbTV;
-        const dbRCMovies = _dbRC?.tmdbMovie;
-        const dbRCAnime = _dbRC?.Anime;
-        const rcHasDb = Array.isArray(dbRCAnime) && dbRCAnime.length > 0
-          && Array.isArray(dbRCTv) && dbRCTv.length > 0
-          && Array.isArray(dbRCMovies) && dbRCMovies.length > 0;
+        const dbRCTv = getTmdbArr(_dbRC, 'tv');
+        const dbRCMovies = getTmdbArr(_dbRC, 'movie');
+        const dbRCAnime = dbAnimeList(_dbRC);
+        const rcHasDb = dbRCAnime.length > 0 && dbRCTv.length > 0 && dbRCMovies.length > 0;
 
         // For pages 3+, try the server-side cache endpoint first. On success
         // we get a pre-shaped { tv: [...], movie: [...], anime: [...] } JSON
@@ -6455,9 +6764,11 @@ titleEl.style.color = '#ffffff';
         const allTmdbTv = tvResults.flatMap(r => r.results || []);
         const allTmdbMovies = movieResults.flatMap(r => r.results || []);
 
-        // Convert AniList completed anime — backfill missing MAL ids via
-        // title search instead of dropping the anime outright, so grid
-        // density isn't lost just because AniList lacks a MAL mapping.
+        // Convert completed anime — V4.8.0 handles BOTH AniList and Jikan v4
+        // items. Jikan items always carry mal_id (no backfill needed); AniList
+        // items missing idMal are backfilled via title search instead of
+        // dropping the anime outright, so grid density isn't lost just because
+        // AniList lacks a MAL mapping.
         //
         // Candidate pool is 2x TARGET_SHOWS (not just TARGET_SHOWS) — some
         // fraction of candidates won't resolve a confident mal_id via
@@ -6467,26 +6778,28 @@ titleEl.style.color = '#ffffff';
         // intended. The larger pool means losses there don't shrink the
         // final anime count nearly as much.
         let anilistItems = [];
-        if (anilistComp?.Page?.media) {
-          const candidates = anilistComp.Page.media.slice(0, TARGET_SHOWS * 2).filter(m => !m.isAdult);
+        if (dbRCAnime.length || anilistComp?.Page?.media) {
+          const sourceAnime = dbRCAnime.length ? dbRCAnime : (anilistComp?.Page?.media || []);
+          const candidates = sourceAnime.slice(0, TARGET_SHOWS * 2).filter(m => !m.isAdult);
           const resolved = await mapWithConcurrency(candidates, 3, async (m) => {
-            let malId = m.idMal || null;
-            if (!malId) {
+            const n = normalizeAnimeItem(m);
+            if (!n) return null;
+            let malId = n.mal_id || null;
+            if (!malId && n.source === 'anilist') {
               malId = await findMalIdByTitle(m);
             }
             // Still no confident mal_id after backfill attempt — skip this
             // one rather than risk a broken or (worse) wrong-anime link.
             if (!malId) return null;
-            const internal = anilistToInternal(m);
             
             return {
-              id:`anilist-comp-${m.id}`,
+              id:`${n.source === 'jikan' ? 'jikan-comp-' : 'anilist-comp-'}${malId}`,
               mal_id: malId,
-              title: internal.title,
-              poster: internal.poster,
-              type: internal.type || 'Anime',
-              year: String(internal.year),
-              score: internal.score,
+              title: n.title,
+              poster: n.poster,
+              type: n.type === 'MOVIE' ? 'Anime' : (n.type || 'Anime'),
+              year: String(n.year),
+              score: n.score,
               quality: 'HD'
             };
           });
@@ -6695,31 +7008,32 @@ titleEl.style.color = '#ffffff';
         const dbTN = await window.getHomeData('trending_now');
         const TRENDING_PER_TYPE = 7; // 7 anime + 7 TV + 7 movies = 21
 
-        // ── Anime ── (filter: averageScore + popularity + favourites)
-        const tnAnimeRaw = Array.isArray(dbTN?.Anime) ? dbTN.Anime : [];
+        // ── Anime ── (V4.8.0: AniList OR Jikan v4 items; ranked by score+popularity+favourites)
+        const tnAnimeRaw = dbAnimeList(dbTN);
         const tnAnime = tnAnimeRaw
-          .filter(m => !m.isAdult)
           .map(m => {
-            const internal = anilistToInternal(m);
+            const n = normalizeAnimeItem(m);
+            if (!n || n.isAdult) return null;
             return {
-              id: `anilist-tr-${m.id}`,
-              mal_id: internal.mal_id,
-              anilist_id: m.id,
-              title: internal.title,
-              poster: internal.poster,
+              id: n.source === 'jikan' ? `jikan-tr-${n.mal_id}` : `anilist-tr-${n.anilist_id ?? n.mal_id}`,
+              mal_id: n.mal_id,
+              anilist_id: n.anilist_id,
+              title: n.title,
+              poster: n.poster,
               type: 'Anime',
-              score: Number(internal.score) || 0,
-              averageScore: m.averageScore || 0,
-              meanScore: m.meanScore || 0,
-              popularity: m.popularity || 0,
-              favourites: m.favourites || 0,
-              format: m.format || 'TV',          // anime: TV / Movie / OVA / ONA / Special
-              season: m.season || null,          // anime only (SPRING/SUMMER/FALL/WINTER)
-              genres: internal.genres || [],
-              synopsis: internal.description || '',
-              release_date: `${internal.year}` || ''
+              score: Number(n.score) || 0,
+              averageScore: n.source === 'jikan' ? (Number(m.score) || 0) * 10 : (m.averageScore || 0),
+              meanScore: n.source === 'jikan' ? (Number(m.score) || 0) * 10 : (m.meanScore || 0),
+              popularity: n.source === 'jikan' ? (m.members || m.popularity || 0) : (m.popularity || 0),
+              favourites: n.source === 'jikan' ? (m.favorites || 0) : (m.favourites || 0),
+              format: n.source === 'jikan' ? (m.type || 'TV') : (m.format || 'TV'),  // anime: TV / Movie / OVA / ONA / Special
+              season: n.source === 'jikan' ? (m.season ? String(m.season).toUpperCase() : null) : (m.season || null),
+              genres: n.genres || [],
+              synopsis: n.description || '',
+              release_date: `${n.year && n.year !== '?' ? n.year : ''}`
             };
           })
+          .filter(Boolean)
           .sort((a, b) => {
             const sa = (a.averageScore || 0) + (a.popularity / 1000) + (a.favourites / 100);
             const sb = (b.averageScore || 0) + (b.popularity / 1000) + (b.favourites / 100);
@@ -6727,12 +7041,12 @@ titleEl.style.color = '#ffffff';
           })
           .slice(0, TRENDING_PER_TYPE);
 
-        // ── TMDB TV ──
-        // The /api/trending-now endpoint's `tmdbTV` array contains a MIX of
-        // movies and TV shows (differentiated by `media_type`). Split it so
-        // TV items go into the TV pool and movie items go into the Movie pool.
-        const tnTvRaw = Array.isArray(dbTN?.tmdbTV) ? dbTN.tmdbTV : [];
-        const tnMvRaw = Array.isArray(dbTN?.tmdbMovie) ? dbTN.tmdbMovie : [];
+        // ── TMDB TV + Movies ──
+        // V4.8.0: the endpoint returns tmdb_tv / tmdb_movie (snake_case,
+        // page-keyed objects) — the old tmdbTV/tmdbMovie lookups never matched,
+        // so TV shows and movies silently disappeared from this section.
+        const tnTvRaw = getTmdbArr(dbTN, 'tv');
+        const tnMvRaw = getTmdbArr(dbTN, 'movie');
         const realTvItems = tnTvRaw.filter(i => i.poster_path && (
           i.media_type === 'tv' || (!i.media_type && (i.name || i.first_air_date))
         ));
@@ -6842,45 +7156,49 @@ titleEl.style.color = '#ffffff';
 
       /* ── POPULAR (sidebar) — Mix of TMDB + AniList popular ── */
       let popularData = [];
+      const POPULAR_MAX_ITEMS = 14; // V4.8.0: mixed total must be within 14
       async function loadPopular() {
         // PRIMARY: /api/most-favourite — combined filter ranks by
         // (score + meanScore + popularity + favourites) for anime and
-        // (vote_average + vote_count + popularity) for TMDB. Pick top 13
+        // (vote_average + vote_count + popularity) for TMDB. Pick top 14
         // mixed (anime + TV + movies) from the ranked pool.
+        // V4.8.0: anime may be AniList OR Jikan v4; tmdb_tv/tmdb_movie are
+        // snake_case page-keyed objects.
         const dbMF = await window.getHomeData('most_favourite');
 
         // ── Anime ── (filter: averageScore + meanScore + popularity + favourites)
-        const mfAnimeRaw = Array.isArray(dbMF?.Anime) ? dbMF.Anime : [];
+        const mfAnimeRaw = dbAnimeList(dbMF);
         const mfAnime = mfAnimeRaw
-          .filter(m => !m.isAdult)
           .map(m => {
-            const internal = anilistToInternal(m);
-            const rankScore =
-              (m.averageScore || 0) +
-              (m.meanScore || 0) +
-              (m.popularity || 0) / 100 +
-              (m.favourites || 0) / 10;
+            const n = normalizeAnimeItem(m);
+            if (!n || n.isAdult) return null;
+            const avg = n.source === 'jikan' ? (Number(m.score) || 0) * 10 : (m.averageScore || 0);
+            const mean = n.source === 'jikan' ? (Number(m.score) || 0) * 10 : (m.meanScore || 0);
+            const pop = n.source === 'jikan' ? (m.members || m.popularity || 0) : (m.popularity || 0);
+            const fav = n.source === 'jikan' ? (m.favorites || 0) : (m.favourites || 0);
+            const rankScore = avg + mean + pop / 100 + fav / 10;
             return {
-              id: `anilist-pop-${m.id}`,
-              title: internal.title,
-              poster: internal.poster,
+              id: n.source === 'jikan' ? `jikan-pop-${n.mal_id}` : `anilist-pop-${n.anilist_id ?? n.mal_id}`,
+              title: n.title,
+              poster: n.poster,
               type: 'Anime',
-              score: internal.score,
-              year: String(internal.year),
-              certification: internal.rating,
-              duration: internal.duration,
-              genres: internal.genres,
-              synopsis: internal.description || 'No description available.',
-              studio: internal.studio,
-              mal_id: internal.mal_id,
-              anilist_id: m.id,
+              score: n.score,
+              year: String(n.year && n.year !== '?' ? n.year : '—'),
+              certification: n.rating,
+              duration: n.duration,
+              genres: n.genres,
+              synopsis: n.description || 'No description available.',
+              studio: n.studio,
+              mal_id: n.mal_id,
+              anilist_id: n.anilist_id,
               _rank: rankScore
             };
           })
+          .filter(Boolean)
           .sort((a, b) => b._rank - a._rank);
 
         // ── TMDB TV ── (filter: vote_average + vote_count + popularity)
-        const mfTvRaw = Array.isArray(dbMF?.tmdbTV) ? dbMF.tmdbTV : [];
+        const mfTvRaw = getTmdbArr(dbMF, 'tv');
         const mfTv = mfTvRaw
           .filter(i => i.poster_path)
           .map(i => {
@@ -6907,7 +7225,7 @@ titleEl.style.color = '#ffffff';
           .sort((a, b) => b._rank - a._rank);
 
         // ── TMDB Movies ── (filter: vote_average + vote_count + popularity)
-        const mfMvRaw = Array.isArray(dbMF?.tmdbMovie) ? dbMF.tmdbMovie : [];
+        const mfMvRaw = getTmdbArr(dbMF, 'movie');
         const mfMv = mfMvRaw
           .filter(i => i.poster_path)
           .map(i => {
@@ -6933,17 +7251,17 @@ titleEl.style.color = '#ffffff';
           })
           .sort((a, b) => b._rank - a._rank);
 
-        // ── Interleave: Anime, TV, Movie, Anime, TV, Movie… until 13 ──
+        // ── Interleave: Anime, TV, Movie, Anime, TV, Movie… until 14 ──
         const merged = [];
         const maxLen = Math.max(mfAnime.length, mfTv.length, mfMv.length);
-        for (let i = 0; i < maxLen && merged.length < 13; i++) {
-          if (i < mfAnime.length && merged.length < 13) merged.push(mfAnime[i]);
-          if (i < mfTv.length && merged.length < 13)    merged.push(mfTv[i]);
-          if (i < mfMv.length && merged.length < 13)    merged.push(mfMv[i]);
+        for (let i = 0; i < maxLen && merged.length < POPULAR_MAX_ITEMS; i++) {
+          if (i < mfAnime.length && merged.length < POPULAR_MAX_ITEMS) merged.push(mfAnime[i]);
+          if (i < mfTv.length && merged.length < POPULAR_MAX_ITEMS)    merged.push(mfTv[i]);
+          if (i < mfMv.length && merged.length < POPULAR_MAX_ITEMS)    merged.push(mfMv[i]);
         }
 
         // Cross-source dedup by id (anime + TV + movies)
-        const data = dedupById(merged, 'id').slice(0, 13);
+        const data = dedupById(merged, 'id').slice(0, POPULAR_MAX_ITEMS);
         data.forEach((item, i) => item.rank = i + 1);
         popularData = data;
 
@@ -7793,9 +8111,15 @@ titleEl.style.color = '#ffffff';
 
         let tvResult = { shows: [], country: null };
         try {
-          tvResult = await fetchSidebarTVShowsForDate(dateStr);
+          // V4.8.0 PRIMARY: server endpoint (multi-country, 24h server-side cache).
+          tvResult = await fetchSidebarTVFromEndpoint(dayName, dateStr);
         } catch (e) {
-          console.warn('[Sidebar-TVMaze] Failed to fetch TV shows for', dateStr, e.message);
+          console.warn('[Sidebar-TVMaze] endpoint failed, falling back to direct TVMaze:', e.message);
+          try {
+            tvResult = await fetchSidebarTVShowsForDate(dateStr);
+          } catch (e2) {
+            console.warn('[Sidebar-TVMaze] Failed to fetch TV shows for', dateStr, e2.message);
+          }
         }
 
         if (!animeList.length && !tvResult.shows.length) {
@@ -7855,15 +8179,23 @@ titleEl.style.color = '#ffffff';
           };
         });
 
-        // Build TV row objects (sidebar countries: KR, TR, US, PK, IN)
+        // Build TV row objects (V4.8.0: shows come from the server endpoint —
+        // already-normalized {name, poster, airtime, episode_number, country…} —
+        // or, on fallback, raw TVMaze show objects with a nested _episode).
         const tvRows = tvResult.shows.map(show => {
-          const ep = show._episode || {};
+          const isEndpointShape = show._episode === undefined;
+          const ep = isEndpointShape
+            ? { name: show.episode_name, season: show.season_number, number: show.episode_number, airtime: show.airtime, airstamp: show.airstamp }
+            : (show._episode || {});
           const title = show.name || 'Unknown Title';
-          const poster = show.image?.medium || show.image?.original || '';
+          const poster = isEndpointShape
+            ? (show.poster || '')
+            : (show.image?.medium || show.image?.original || '');
           const watchUrl = show.url || '#';
           const time = ep.airtime && ep.airtime.trim() ? ep.airtime : '—';
           const epLabel = (ep.number) ? `E${ep.number}` : 'TV';
-          const subtitle = `TV · ${show._sourceCountry || tvResult.country || ''}`;
+          const countryTag = show._sourceCountry || show.country || tvResult.country || '';
+          const subtitle = `TV · ${countryTag}`;
 
           return {
             sortKey: time,
