@@ -5112,7 +5112,7 @@ titleEl.style.color = '#ffffff';
 
         // Cross-source dedup (anime + TV by id)
         const deduped = dedupById(combined, 'id').slice(0, 60);
-        console.log(`[Top Airing] ✅ Pattern TV-Anime-TV: ${deduped.length} items`);
+        console.log(`[Top Airing] ✅ Pattern Anime-TV-Anime: ${deduped.length} items`);
         renderTopAiring(deduped);
 
         if (window.CacheHelpers) {
