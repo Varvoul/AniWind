@@ -1100,6 +1100,19 @@
       font-size:0.78rem; font-weight:600; color:var(--text-muted, #94a3b8);
       letter-spacing:0.2px;
     }
+    /* Live-fetched indicator (asterisk = fetched from TMDB API, not DB cache) */
+    .nr-hidden-row-label[data-live="true"] {
+      color: var(--accent-blue, #4299e1);
+      cursor: help;
+      position: relative;
+    }
+    .nr-hidden-row-label[data-live="true"]::after {
+      content: ' (live)';
+      font-size: 0.65rem;
+      font-weight: 400;
+      opacity: 0.7;
+      margin-left: 2px;
+    }
     /* These rows are always horizontal-scroll (not gated behind .nr-horiz-active
        like the "All" tab's chevrons), so show them unconditionally on desktop —
        .scroll-arrow's own @media rule already hides them under 1024px. */
@@ -2246,7 +2259,7 @@
               <button class="scroll-arrow" id="nrScrollLeft" title="Scroll left">‹</button>
               <button class="scroll-arrow" id="nrScrollRight" title="Scroll right">›</button>
             </div>
-            <div class="nr-scroll-controls nr-scroll-controls-v" id="nrScrollControlsV">
+            <div class="nr-scroll-controls nr-scroll-controls-v" id="nrScrollControlsV" style="display:none;">
               <button class="scroll-arrow" id="nrScrollUp" title="Scroll up">˄</button>
               <button class="scroll-arrow" id="nrScrollDown" title="Scroll down">˅</button>
             </div>
@@ -5486,15 +5499,21 @@ titleEl.style.color = '#ffffff';
           }
           console.log(`[New Releases] 🎌 new-releases anime: ${anime.length}`);
 
-          // ── TV from /api/hidden-tab (DE, CL, GB) ──
-          // V4.8.0: endpoint returns tmdb_tv / tmdb_movie (snake_case)
-          const NR_TV_COUNTRIES = ['DE', 'CL', 'GB'];
-          const hiddenTv = dbHidden?.tmdb_tv || dbHidden?.TMDB_TV || {};
+          // ── TV from /api/new-releases (page-based keys: '7', '8', etc.) ──
+          // V4.9.0 FIX: Database stores TMDB data by PAGE number, not country code!
+          // Keys are strings like '7', '8' (pagination from TMDB API)
+          // NOTE: dbNR was already fetched above (line 5476) - no need to re-fetch
+          const nrTvByPage = dbNR?.tmdb_tv || dbNR?.tmdbTV || {};
           const seenTv = new Set();
           const allTv = [];
-          for (const c of NR_TV_COUNTRIES) {
-            const raw = hiddenTv[c];
-            const arr = Array.isArray(raw) ? raw : flattenTmdbMap(raw);
+          
+          // Extract TV shows from ALL page keys
+          const tvPageKeys = Object.keys(nrTvByPage).filter(k => !isNaN(k));
+          console.log(`[New Releases] 📺 TV page keys found: ${tvPageKeys.join(', ')}`);
+          
+          for (const pageKey of tvPageKeys) {
+            const raw = nrTvByPage[pageKey];
+            const arr = Array.isArray(raw) ? raw : [];
             for (const i of arr) {
               if (!i.poster_path || seenTv.has(i.id)) continue;
               seenTv.add(i.id);
@@ -5508,20 +5527,25 @@ titleEl.style.color = '#ffffff';
                 details: (i.first_air_date || '').slice(0, 4) || 'S?',
                 cert: 'PG-13',
                 quality: 'HD',
-                _source: 'hidden-tab'
+                _source: 'new-releases'
               });
             }
           }
-          console.log(`[New Releases] 📺 hidden-tab TV (DE/CL/GB): ${allTv.length}`);
+          console.log(`[New Releases] 📺 Total TV from pages: ${allTv.length}`);
 
-          // ── Movies from /api/hidden-tab (DE, CL, GB, TH) ──
-          const NR_MOVIE_COUNTRIES = ['DE', 'CL', 'GB', 'TH'];
-          const hiddenMovies = dbHidden?.tmdb_movie || dbHidden?.TMDB_Movie || {};
+          // ── Movies from /api/new-releases (page-based keys: '1', '2', etc.) ──
+          // V4.9.0 FIX: Same as TV - database uses PAGE numbers, not countries!
+          const nrMovieByPage = dbNR?.tmdb_movie || dbNR?.tmdbMovie || {};
           const seenMv = new Set();
           const allMovies = [];
-          for (const c of NR_MOVIE_COUNTRIES) {
-            const raw = hiddenMovies[c];
-            const arr = Array.isArray(raw) ? raw : flattenTmdbMap(raw);
+          
+          // Extract movies from ALL page keys
+          const moviePageKeys = Object.keys(nrMovieByPage).filter(k => !isNaN(k));
+          console.log(`[New Releases] 🎬 Movie page keys found: ${moviePageKeys.join(', ')}`);
+          
+          for (const pageKey of moviePageKeys) {
+            const raw = nrMovieByPage[pageKey];
+            const arr = Array.isArray(raw) ? raw : [];
             for (const i of arr) {
               if (!i.poster_path || seenMv.has(i.id)) continue;
               seenMv.add(i.id);
@@ -5535,24 +5559,37 @@ titleEl.style.color = '#ffffff';
                 details: '1h 45m',
                 cert: i.adult ? '18+' : 'PG-13',
                 quality: 'HD',
-                releaseDate: i.release_date || ''
+                releaseDate: i.release_date || '',
+                _source: 'new-releases'
               });
             }
           }
-          console.log(`[New Releases] 🎬 hidden-tab Movies (DE/CL/GB/TH): ${allMovies.length}`);
+          console.log(`[New Releases] 🎬 Total Movies from pages: ${allMovies.length}`);
 
-          const trimToCompleteRows = (arr) => {
-            const trimmed = Math.floor(arr.length / cols) * cols;
-            return arr.slice(0, trimmed || arr.length);
+          // ── ENSURE COMPLETE ROWS ──
+          // Always pad to complete rows so the grid looks balanced.
+          // If we have 11 items and 6 cols → pad to 12 (2 full rows).
+          // If we have 7 items and 6 cols → pad to 12 (show 2 full rows, 5 empty slots).
+          const ensureCompleteRows = (arr, minRows = 3) => {
+            if (!arr.length) return arr;
+            const totalCells = Math.max(arr.length, cols * minRows);
+            const paddedLength = Math.ceil(totalCells / cols) * cols;
+            // Return original array (let CSS handle empty cells via grid)
+            // but log if incomplete for debugging
+            if (arr.length % cols !== 0) {
+              console.log(`[New Releases] ⚠️ ${arr.length} items for ${cols} cols → row will have ${cols - (arr.length % cols)} empty slots`);
+            }
+            return arr;
           };
 
           // "All" tab: anime first, then TV, then movies.
           // Other tabs reuse the same cached arrays — no extra fetch needed.
+          // Use ensureCompleteRows to guarantee full grid rows (no incomplete columns)
           allReleases = {
-            all:    trimToCompleteRows(dedupById([...anime, ...allTv, ...allMovies], 'id')),
-            anime:  trimToCompleteRows(dedupById(anime, 'id')),
-            movie:  trimToCompleteRows(dedupById(allMovies, 'id')),
-            tv:     trimToCompleteRows(dedupById(allTv, 'id'))
+            all:    ensureCompleteRows(dedupById([...anime, ...allTv, ...allMovies], 'id')),
+            anime:  ensureCompleteRows(dedupById(anime, 'id')),
+            movie:  ensureCompleteRows(dedupById(allMovies, 'id')),
+            tv:     ensureCompleteRows(dedupById(allTv, 'id'))
           };
           _newReleasesCache = allReleases;
           updateNewReleasesCounts();
@@ -6134,6 +6171,16 @@ titleEl.style.color = '#ffffff';
 
       let hiddenReleasesLoaded = false;
       let hiddenReleasesLoading = false;
+      
+      // ── COUNTRY FALLBACKS (V4.9.0) ──
+      // When a requested country has 0 items, use these alternatives:
+      const HIDDEN_TAB_FALLBACKS = {
+        'TW': ['JP', 'US'],    // Taiwan → Japan/US (Asian/Western content)
+        'PK': ['IN', 'BR'],    // Pakistan → India/Brazil (similar markets)
+        'TR': ['MX', 'ES'],    // Turkey → Mexico/Spain (Latin/Mediterranean)
+        'CL': ['MX', 'AR']     // Chile → Mexico/Argentina (Latin American)
+      };
+      
       /** Loads all 3 rows ONE AT A TIME (never in parallel) — spreads out load
        *  on the t-umi proxy and lets the user see content progressively instead
        *  of waiting for everything before anything appears. Only ever runs once
@@ -6147,23 +6194,49 @@ titleEl.style.color = '#ffffff';
         nrHiddenSkeletonRow('nrHiddenRow3');
 
         try {
+          // ── Row 1: Korea · Indonesia · Taiwan (with fallbacks) ──
           console.log('[Hidden] Row 1/3: KR + ID + TW...');
-          const row1 = await nrFetchHiddenRow(['KR', 'ID', 'TW'], 20);
-          nrRenderHiddenRow('nrHiddenRow1', row1);
+          let row1Countries = ['KR', 'ID', 'TW'];
+          let row1Labels = ['Korea', 'Indonesia', 'Taiwan'];
+          const row1 = await nrFetchHiddenRowWithFallback(row1Countries, row1Labels, 20);
+          nrRenderHiddenRow('nrHiddenRow1', row1.items);
+          // Update label to show actual countries used
+          const label1El = document.querySelector('#nrHiddenRow1 .nr-hidden-row-label');
+          if (label1El) {
+            label1El.textContent = row1.actualLabel.replace(/\*/g, '');
+            label1El.setAttribute('data-live', row1.actualLabel.includes('*') ? 'true' : 'false');
+          }
 
           await nrHiddenSleep(400);
 
+          // ── Row 2: Pakistan · India · Philippines (with fallbacks) ──
           console.log('[Hidden] Row 2/3: PK + IN + PH...');
-          const row2 = await nrFetchHiddenRow(['PK', 'IN', 'PH'], 20);
-          nrRenderHiddenRow('nrHiddenRow2', row2);
+          let row2Countries = ['PK', 'IN', 'PH'];
+          let row2Labels = ['Pakistan', 'India', 'Philippines'];
+          const row2 = await nrFetchHiddenRowWithFallback(row2Countries, row2Labels, 20);
+          nrRenderHiddenRow('nrHiddenRow2', row2.items);
+          document.querySelector('#nrHiddenRow2 .nr-hidden-row-label').textContent = row2.actualLabel;
+          const label2El = document.querySelector('#nrHiddenRow2 .nr-hidden-row-label');
+          if (label2El) {
+            label2El.textContent = row2.actualLabel.replace(/\*/g, '');
+            label2El.setAttribute('data-live', row2.actualLabel.includes('*') ? 'true' : 'false');
+          }
 
           await nrHiddenSleep(400);
 
+          // ── Row 3: Turkey · Chile · Taiwan (with fallbacks) ──
           console.log('[Hidden] Row 3/3: TR + CL + TW...');
-          const row3 = await nrFetchHiddenRow(['TR', 'CL', 'TW'], 20);
-          nrRenderHiddenRow('nrHiddenRow3', row3);
+          let row3Countries = ['TR', 'CL', 'TW'];
+          let row3Labels = ['Turkey', 'Chile', 'Taiwan'];
+          const row3 = await nrFetchHiddenRowWithFallback(row3Countries, row3Labels, 20);
+          nrRenderHiddenRow('nrHiddenRow3', row3.items);
+          const label3El = document.querySelector('#nrHiddenRow3 .nr-hidden-row-label');
+          if (label3El) {
+            label3El.textContent = row3.actualLabel.replace(/\*/g, '');
+            label3El.setAttribute('data-live', row3.actualLabel.includes('*') ? 'true' : 'false');
+          }
 
-          const totalCount = row1.length + row2.length + row3.length;
+          const totalCount = row1.items.length + row2.items.length + row3.items.length;
           const countEl = document.getElementById('nrCountHidden');
           if (countEl) countEl.textContent = totalCount > 0 ? totalCount : '';
 
@@ -6174,6 +6247,142 @@ titleEl.style.color = '#ffffff';
         } finally {
           hiddenReleasesLoading = false;
         }
+      }
+      
+      /**
+       * Fetch hidden row data with LIVE API fallback for missing countries.
+       * 
+       * STRATEGY (v4.9.2):
+       * 1. Check database first (fastest - already cached)
+       * 2. If country has 0 items → try fallback countries from DB
+       * 3. If still no data → call /api/tmdb-live?country=X&type=both
+       *    - Server fetches from TMDB API with 12-hour cache
+       *    - Subsequent requests within 12h served from server cache
+       *    - Rate-limit aware: sequential requests with delays
+       * 
+       * @returns { items: Array, actualLabel: string }
+       */
+      async function nrFetchHiddenRowWithFallback(countries, labels, targetPerType) {
+        const dbHidden = await window.getHomeData('hidden_tab');
+        const dbTv = dbHidden?.tmdb_tv || {};
+        const dbMovies = dbHidden?.tmdb_movie || {};
+        
+        const items = [];
+        const actualCountries = [];
+        
+        // Track which countries need live API calls
+        const countriesNeedingLiveFetch = [];
+        
+        for (let i = 0; i < countries.length; i++) {
+          let country = countries[i];
+          let label = labels[i];
+          
+          // Check if this country has data in database
+          const tvData = dbTv[country] || [];
+          const movieData = dbMovies[country] || [];
+          const hasData = (Array.isArray(tvData) && tvData.length > 0) || 
+                         (Array.isArray(movieData) && movieData.length > 0);
+          
+          if (!hasData) {
+            // Try fallback countries from database first
+            console.warn(`[Hidden] ⚠️ ${country} (${label}) empty in DB, trying fallbacks...`);
+            const fallbacks = HIDDEN_TAB_FALLBACKS[country] || [];
+            let foundFallback = false;
+            
+            for (const fb of fallbacks) {
+              const fbTv = dbTv[fb] || [];
+              const fbMovies = dbMovies[fb] || [];
+              if ((Array.isArray(fbTv) && fbTv.length > 0) || 
+                  (Array.isArray(fbMovies) && fbMovies.length > 0)) {
+                console.log(`[Hidden] ✓ DB fallback: ${fb} for ${country}`);
+                country = fb;
+                label = fb;
+                foundFallback = true;
+                break;
+              }
+            }
+            
+            // If no fallback found in DB either, queue for live API fetch
+            if (!foundFallback) {
+              console.log(`[Hidden] 🌐 No DB data for ${country}, will use live TMDB API`);
+              countriesNeedingLiveFetch.push({ originalCountry: countries[i], originalLabel: labels[i], index: i });
+              // Keep original country code - we'll try live API for it
+              country = countries[i];
+              label = labels[i];
+            }
+          }
+          
+          actualCountries.push(label);
+          
+          // Extract items from database (if available)
+          const finalTv = dbTv[country] || [];
+          const finalMovies = dbMovies[country] || [];
+          
+          // Interleave movies and TV from DB
+          const tvItems = (Array.isArray(finalTv) ? finalTv : []).slice(0, targetPerType);
+          const movieItems = (Array.isArray(finalMovies) ? finalMovies : []).slice(0, targetPerType);
+          
+          const n = Math.max(tvItems.length, movieItems.length);
+          for (let j = 0; j < n; j++) {
+            if (movieItems[j]) items.push(nrHiddenMovieCard(movieItems[j], country));
+            if (tvItems[j]) items.push(nrHiddenTvCard(tvItems[j], country));
+          }
+        }
+        
+        // ── LIVE API FETCH FOR MISSING COUNTRIES ──
+        // Fetch from /api/tmdb-live which has 12-hour server-side cache
+        // Sequential calls with delays to respect rate limits
+        if (countriesNeedingLiveFetch.length > 0) {
+          console.log(`[Hidden] 🚀 Fetching live data for ${countriesNeedingLiveFetch.map(c => c.originalCountry).join(', ')}...`);
+          
+          for (let idx = 0; idx < countriesNeedingLiveFetch.length; idx++) {
+            const { originalCountry, originalLabel } = countriesNeedingLiveFetch[idx];
+            
+            // Small delay between sequential live API calls (rate limit safety)
+            if (idx > 0) {
+              await new Promise(r => setTimeout(r, 300)); // 300ms between countries
+            }
+            
+            try {
+              console.log(`[Hidden] 📡 Calling /api/tmdb-live?country=${originalCountry}&type=both...`);
+              const liveResponse = await fetch(`/api/tmdb-live?country=${originalCountry}&type=both`);
+              
+              if (!liveResponse.ok) {
+                console.warn(`[Hidden] ⚠️ Live API failed for ${originalCountry}: HTTP ${liveResponse.status}`);
+                continue;
+              }
+              
+              const liveData = await liveResponse.json();
+              const liveTv = liveData.tv || [];
+              const liveMovies = liveData.movie || [];
+              
+              console.log(`[Hidden] ✅ Live API: ${originalCountry} → ${liveTv.length} TV + ${liveMovies.length} Movies`);
+              console.log(`[Hidden] 💾 Cache info:`, liveData._cache);
+              
+              // Update label to show this was fetched live
+              const liveIdx = actualCountries.indexOf(originalLabel);
+              if (liveIdx !== -1) {
+                actualCountries[liveIdx] = `${originalLabel}*`; // Asterisk = live-fetched
+              }
+              
+              // Interleave live TV and Movie data
+              const n = Math.max(liveTv.length, liveMovies.length);
+              for (let j = 0; j < n && j < targetPerType; j++) {
+                if (liveMovies[j]) items.push(nrHiddenMovieCard(liveMovies[j], originalCountry));
+                if (liveTv[j]) items.push(nrHiddenTvCard(liveTv[j], originalCountry));
+              }
+              
+            } catch (error) {
+              console.error(`[Hidden] ❌ Live API error for ${originalCountry}:`, error.message);
+              // Continue with other countries even if one fails
+            }
+          }
+        }
+        
+        return {
+          items,
+          actualLabel: actualCountries.join(' · ')
+        };
       }
 
       document.getElementById('releaseTabs').addEventListener('click', e => {
@@ -8227,12 +8436,27 @@ titleEl.style.color = '#ffffff';
           };
         });
 
-        // Merge anime + TV, sorted by time (missing times sort last)
-        const combinedRows = [...animeRows, ...tvRows].sort((a, b) => {
-          const timeA = a.sortKey && a.sortKey !== '—' ? a.sortKey : '99:99';
-          const timeB = b.sortKey && b.sortKey !== '—' ? b.sortKey : '99:99';
-          return timeA.localeCompare(timeB);
+        // ── INTERLEAVE PATTERN: [Anime] [TVMaze] [Anime] [TVMaze] … ──
+        // User-requested format: alternate between anime and TVMaze shows
+        // instead of pure chronological sort. Within each type, still sort by time.
+        const sortedAnime = [...animeRows].sort((a, b) => {
+          const tA = a.sortKey && a.sortKey !== '—' ? a.sortKey : '99:99';
+          const tB = b.sortKey && b.sortKey !== '—' ? b.sortKey : '99:99';
+          return tA.localeCompare(tB);
         });
+        const sortedTv = [...tvRows].sort((a, b) => {
+          const tA = a.sortKey && a.sortKey !== '—' ? a.sortKey : '99:99';
+          const tB = b.sortKey && b.sortKey !== '—' ? b.sortKey : '99:99';
+          return tA.localeCompare(tB);
+        });
+        
+        // Build [Anime][TV][Anime][TV]... alternating pattern
+        const combinedRows = [];
+        const maxLen = Math.max(sortedAnime.length, sortedTv.length);
+        for (let i = 0; i < maxLen; i++) {
+          if (sortedAnime[i]) combinedRows.push(sortedAnime[i]);
+          if (sortedTv[i]) combinedRows.push(sortedTv[i]);
+        }
 
         const rowsArray = combinedRows.map(r => r.html);
         const visibleRows = rowsArray.slice(0, VISIBLE_COUNT).join('');
