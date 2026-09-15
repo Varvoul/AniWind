@@ -36,8 +36,8 @@ const LIVE_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours in milliseconds
 const LIVE_TTL_SECONDS = LIVE_TTL_MS / 1000;
 
 // ⚡ USE SAME ENDPOINTS AS AUTOMATION WORKER (T-UMI PROXY)
-// Your automation uses: https://t-umi.bionmovies47.workers.dev/{tv|movie}/popular?watch_region={CODE}
-const T_UMI_BASE = 'https://t-umi.bionmovies47.workers.dev';
+// Your automation uses: https://t-umi.zeraf.workers.dev/{tv|movie}/popular?watch_region={CODE}
+const T_UMI_BASE = 'https://t-umi.zeraf.workers.dev';
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p';
 const MAX_PAGES = 2; // Match automation: 2 pages = 40 items per type
 const ITEMS_PER_PAGE = 20; // TMDB default
@@ -84,18 +84,22 @@ function setCached(key, data) {
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 /**
- * Fetch TMDB popular results using T-UMI PROXY (same as automation worker)
+ * Fetch TMDB results filtered by country of origin using DISCOVER endpoint.
  * 
- * ENDPOINTS (matches automation exactly):
- *   TV:    https://t-umi.zeraf.workers.dev/tv/popular?watch_region={COUNTRY}&page={N}
- *   Movie: https://t-umi.zeraf.workers.dev/movie/popular?watch_region={COUNTRY}&page={N}
+ * IMPORTANT: The /popular endpoint ignores watch_region and returns global/US content!
+ * We use /discover with with_origin_country to get ACTUAL country-specific content.
+ * 
+ * ENDPOINTS:
+ *   TV:    https://t-umi.zeraf.workers.dev/discover/tv?with_origin_country={CODE}&page={N}
+ *   Movie: https://t-umi.zeraf.workers.dev/discover/movie?with_origin_country={CODE}&page={N}
  * 
  * Respects rate limits by using delays between requests
  */
 async function fetchTMDBPopular(type, countryCode, maxPages = MAX_PAGES) {
   const isMovie = type === 'movie';
-  // ⚡ USE SAME ENDPOINT STRUCTURE AS AUTOMATION WORKER
-  const endpoint = isMovie ? '/movie/popular' : '/tv/popular';
+  // ⚡ USE DISCOVER ENDPOINT (filters by origin country - returns LOCAL content!)
+  // NOT /popular (ignores region, returns global US content)
+  const endpoint = isMovie ? '/discover/movie' : '/discover/tv';
   
   const allResults = [];
   
@@ -106,9 +110,9 @@ async function fetchTMDBPopular(type, countryCode, maxPages = MAX_PAGES) {
     }
     
     try {
-      // ⚡ BUILD URL EXACTLY LIKE AUTOMATION WORKER DOES
-      // Automation uses: https://t-umi.zeraf.workers.dev/{tv|movie}/popular?watch_region={CODE}&page=1
-      const url = `${T_UMI_BASE}${endpoint}?watch_region=${countryCode}&page=${page}`;
+      // ⚡ BUILD URL WITH COUNTRY FILTER
+      // with_origin_country=KR returns Korean content, PK returns Pakistani, etc.
+      const url = `${T_UMI_BASE}${endpoint}?with_origin_country=${countryCode}&sort_by=popularity.desc&page=${page}`;
       console.log(`[TMDB-Live] 📡 Fetching: ${type}/${countryCode} page ${page}`);
       console.log(`[TMDB-Live] 🔗 URL: ${url}`);
       
