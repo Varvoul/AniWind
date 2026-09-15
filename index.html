@@ -6263,119 +6263,49 @@ titleEl.style.color = '#ffffff';
        * @returns { items: Array, actualLabel: string }
        */
       async function nrFetchHiddenRowWithFallback(countries, labels, targetPerType) {
-        const dbHidden = await window.getHomeData('hidden_tab');
-        const dbTv = dbHidden?.tmdb_tv || {};
-        const dbMovies = dbHidden?.tmdb_movie || {};
-        
+        // V4.9.2.1 FIX: Always use LIVE API for Hidden tab
+        // The database may have stale US content from before the /discover fix
+        // /api/tmdb-live now correctly uses /discover endpoint with with_origin_country
         const items = [];
         const actualCountries = [];
         
-        // Track which countries need live API calls
-        const countriesNeedingLiveFetch = [];
-        
         for (let i = 0; i < countries.length; i++) {
-          let country = countries[i];
-          let label = labels[i];
-          
-          // Check if this country has data in database
-          const tvData = dbTv[country] || [];
-          const movieData = dbMovies[country] || [];
-          const hasData = (Array.isArray(tvData) && tvData.length > 0) || 
-                         (Array.isArray(movieData) && movieData.length > 0);
-          
-          if (!hasData) {
-            // Try fallback countries from database first
-            console.warn(`[Hidden] ⚠️ ${country} (${label}) empty in DB, trying fallbacks...`);
-            const fallbacks = HIDDEN_TAB_FALLBACKS[country] || [];
-            let foundFallback = false;
-            
-            for (const fb of fallbacks) {
-              const fbTv = dbTv[fb] || [];
-              const fbMovies = dbMovies[fb] || [];
-              if ((Array.isArray(fbTv) && fbTv.length > 0) || 
-                  (Array.isArray(fbMovies) && fbMovies.length > 0)) {
-                console.log(`[Hidden] ✓ DB fallback: ${fb} for ${country}`);
-                country = fb;
-                label = fb;
-                foundFallback = true;
-                break;
-              }
-            }
-            
-            // If no fallback found in DB either, queue for live API fetch
-            if (!foundFallback) {
-              console.log(`[Hidden] 🌐 No DB data for ${country}, will use live TMDB API`);
-              countriesNeedingLiveFetch.push({ originalCountry: countries[i], originalLabel: labels[i], index: i });
-              // Keep original country code - we'll try live API for it
-              country = countries[i];
-              label = labels[i];
-            }
-          }
+          const country = countries[i];
+          const label = labels[i];
           
           actualCountries.push(label);
           
-          // Extract items from database (if available)
-          const finalTv = dbTv[country] || [];
-          const finalMovies = dbMovies[country] || [];
-          
-          // Interleave movies and TV from DB
-          const tvItems = (Array.isArray(finalTv) ? finalTv : []).slice(0, targetPerType);
-          const movieItems = (Array.isArray(finalMovies) ? finalMovies : []).slice(0, targetPerType);
-          
-          const n = Math.max(tvItems.length, movieItems.length);
-          for (let j = 0; j < n; j++) {
-            if (movieItems[j]) items.push(nrHiddenMovieCard(movieItems[j], country));
-            if (tvItems[j]) items.push(nrHiddenTvCard(tvItems[j], country));
-          }
-        }
-        
-        // ── LIVE API FETCH FOR MISSING COUNTRIES ──
-        // Fetch from /api/tmdb-live which has 12-hour server-side cache
-        // Sequential calls with delays to respect rate limits
-        if (countriesNeedingLiveFetch.length > 0) {
-          console.log(`[Hidden] 🚀 Fetching live data for ${countriesNeedingLiveFetch.map(c => c.originalCountry).join(', ')}...`);
-          
-          for (let idx = 0; idx < countriesNeedingLiveFetch.length; idx++) {
-            const { originalCountry, originalLabel } = countriesNeedingLiveFetch[idx];
+          // ── ALWAYS FETCH FROM LIVE API (bypasses stale DB cache) ──
+          try {
+            console.log(`[Hidden] 🌐 Fetching live data for ${country} (${label})...`);
             
-            // Small delay between sequential live API calls (rate limit safety)
-            if (idx > 0) {
-              await new Promise(r => setTimeout(r, 300)); // 300ms between countries
+            // Small delay between countries to respect rate limits
+            if (i > 0) {
+              await new Promise(r => setTimeout(r, 300));
             }
             
-            try {
-              console.log(`[Hidden] 📡 Calling /api/tmdb-live?country=${originalCountry}&type=both...`);
-              const liveResponse = await fetch(`/api/tmdb-live?country=${originalCountry}&type=both`);
-              
-              if (!liveResponse.ok) {
-                console.warn(`[Hidden] ⚠️ Live API failed for ${originalCountry}: HTTP ${liveResponse.status}`);
-                continue;
-              }
-              
-              const liveData = await liveResponse.json();
-              const liveTv = liveData.tv || [];
-              const liveMovies = liveData.movie || [];
-              
-              console.log(`[Hidden] ✅ Live API: ${originalCountry} → ${liveTv.length} TV + ${liveMovies.length} Movies`);
-              console.log(`[Hidden] 💾 Cache info:`, liveData._cache);
-              
-              // Update label to show this was fetched live
-              const liveIdx = actualCountries.indexOf(originalLabel);
-              if (liveIdx !== -1) {
-                actualCountries[liveIdx] = `${originalLabel}*`; // Asterisk = live-fetched
-              }
-              
-              // Interleave live TV and Movie data
-              const n = Math.max(liveTv.length, liveMovies.length);
-              for (let j = 0; j < n && j < targetPerType; j++) {
-                if (liveMovies[j]) items.push(nrHiddenMovieCard(liveMovies[j], originalCountry));
-                if (liveTv[j]) items.push(nrHiddenTvCard(liveTv[j], originalCountry));
-              }
-              
-            } catch (error) {
-              console.error(`[Hidden] ❌ Live API error for ${originalCountry}:`, error.message);
-              // Continue with other countries even if one fails
+            const liveResponse = await fetch(`/api/tmdb-live?country=${country}&type=both`);
+            
+            if (!liveResponse.ok) {
+              console.warn(`[Hidden] ⚠️ Live API failed for ${country}: HTTP ${liveResponse.status}`);
+              continue;
             }
+            
+            const liveData = await liveResponse.json();
+            const movies = liveData.movie || [];
+            const tvShows = liveData.tv || [];
+            
+            console.log(`[Hidden] ✅ ${country}: ${movies.length} movies + ${tvShows.length} TV`);
+            
+            // Interleave movies and TV
+            const n = Math.max(movies.length, tvShows.length);
+            for (let j = 0; j < n && j < targetPerType; j++) {
+              if (movies[j]) items.push(nrHiddenMovieCard(movies[j], country));
+              if (tvShows[j]) items.push(nrHiddenTvCard(tvShows[j], country));
+            }
+            
+          } catch (e) {
+            console.error(`[Hidden] ❌ Failed to fetch ${country}:`, e.message);
           }
         }
         
