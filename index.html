@@ -2253,7 +2253,7 @@
               <button class="toggle-tab" data-filter="anime"><i class="fas fa-dragon"></i> Anime <span class="tab-count" id="nrCountAnime"></span></button>
               <button class="toggle-tab" data-filter="movie"><i class="fas fa-film"></i> Movies <span class="tab-count" id="nrCountMovie"></span></button>
               <button class="toggle-tab" data-filter="tv"><i class="fas fa-tv"></i> Series <span class="tab-count" id="nrCountTv"></span></button>
-              <button class="toggle-tab" data-filter="hidden"><i class="fas fa-eye-slash"></i> Hidden <span class="tab-count" id="nrCountHidden"></span></button>
+              <button class="toggle-tab" data-filter="hidden"><i class="fas fa-eye-slash"></i> Hidden</button>
             </div>
             <div class="nr-scroll-controls" id="nrScrollControls">
               <button class="scroll-arrow" id="nrScrollLeft" title="Scroll left">‹</button>
@@ -6309,20 +6309,6 @@ titleEl.style.color = '#ffffff';
                   : `<div class="nr-empty-state"><i class="fas fa-exclamation-triangle"></i><span>Failed to load content</span><button onclick="loadHiddenReleases()" style="margin-top:10px;padding:6px 16px;background:var(--btn-primary);color:#fff;border:none;border-radius:var(--radius-md);cursor:pointer;font-size:0.8rem;">Retry</button></div>`;
               }
             }
-          }
-
-          // Tab badge = real rendered cards across the 3 rows. .card-poster
-          // appears exactly once per card, and ":not(.skeleton)" skips the
-          // skeleton placeholders, so this stays accurate no matter how the
-          // rows were filled (cache, fetch, or retry).
-          const countEl = document.getElementById('nrCountHidden');
-          if (countEl) {
-            let rendered = 0;
-            HIDDEN_ROW_DEFS.forEach(d => {
-              const el = document.getElementById(d.containerId);
-              if (el) rendered += el.querySelectorAll('.card-poster:not(.skeleton)').length;
-            });
-            countEl.textContent = rendered > 0 ? rendered : '';
           }
 
           const done = HIDDEN_ROW_DEFS.filter(d => hiddenRowState[d.key] === 'loaded').length;
