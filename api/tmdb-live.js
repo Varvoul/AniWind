@@ -123,7 +123,9 @@ async function fetchTMDBPopular(type, countryCode, maxPages = MAX_PAGES) {
       // ⚡ BUILD URL WITH COUNTRY + DATE FILTERS
       // with_origin_country=KR returns Korean content, PK returns Pakistani, etc.
       // Date filter ensures we get CURRENT YEAR releases only!
-      const url = `${T_UMI_BASE}${endpoint}?with_origin_country=${countryCode}&${dateFilter}&sort_by=popularity.desc&page=${page}`;
+      // Sort by release date (NOT popularity) to get NEWEST content first!
+      const sortBy = isMovie ? 'release_date.desc' : 'first_air_date.desc';
+      const url = `${T_UMI_BASE}${endpoint}?with_origin_country=${countryCode}&${dateFilter}&sort_by=${sortBy}&page=${page}`;
       console.log(`[TMDB-Live] 📡 Fetching: ${type}/${countryCode} page ${page} (${currentYear})`);
       console.log(`[TMDB-Live] 🔗 URL: ${url}`);
       
