@@ -36,8 +36,8 @@ const LIVE_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours in milliseconds
 const LIVE_TTL_SECONDS = LIVE_TTL_MS / 1000;
 
 // ⚡ USE SAME ENDPOINTS AS AUTOMATION WORKER (T-UMI PROXY)
-// Your automation uses: https://t-umi.zeraf.workers.dev/{tv|movie}/popular?watch_region={CODE}
-const T_UMI_BASE = 'https://t-umi.zeraf.workers.dev';
+// Your automation uses: https://t-umi.bionmovies47.workers.dev/{tv|movie}/popular?watch_region={CODE}
+const T_UMI_BASE = 'https://t-umi.bionmovies47.workers.dev';
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p';
 const MAX_PAGES = 2; // Match automation: 2 pages = 40 items per type
 const ITEMS_PER_PAGE = 20; // TMDB default
