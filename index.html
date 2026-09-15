@@ -6222,21 +6222,40 @@ titleEl.style.color = '#ffffff';
             label2El.setAttribute('data-live', row2.actualLabel.includes('*') ? 'true' : 'false');
           }
 
-          await nrHiddenSleep(400);
+          await nrHiddenSleep(200);  // Reduced from 400ms for faster loading
 
           // ── Row 3: Turkey · Chile · Taiwan (with fallbacks) ──
           console.log('[Hidden] Row 3/3: TR + CL + TW...');
           let row3Countries = ['TR', 'CL', 'TW'];
           let row3Labels = ['Turkey', 'Chile', 'Taiwan'];
-          const row3 = await nrFetchHiddenRowWithFallback(row3Countries, row3Labels, 20);
-          nrRenderHiddenRow('nrHiddenRow3', row3.items);
-          const label3El = document.querySelector('#nrHiddenRow3 .nr-hidden-row-label');
-          if (label3El) {
-            label3El.textContent = row3.actualLabel.replace(/\*/g, '');
-            label3El.setAttribute('data-live', row3.actualLabel.includes('*') ? 'true' : 'false');
+          
+          // WRAP ROW 3 IN TRY-CATCH TO PREVENT SKELETON STUCK
+          try {
+            const row3 = await nrFetchHiddenRowWithFallback(row3Countries, row3Labels, 20);
+            
+            if (row3.items.length > 0) {
+              nrRenderHiddenRow('nrHiddenRow3', row3.items);
+            } else {
+              // Show empty state if no items returned
+              document.getElementById('nrHiddenRow3').innerHTML = 
+                '<div class="nr-empty-state"><i class="fas fa-inbox"></i><span>No releases available for this region</span></div>';
+            }
+            
+            const label3El = document.querySelector('#nrHiddenRow3 .nr-hidden-row-label');
+            if (label3El) {
+              label3El.textContent = row3.actualLabel.replace(/\*/g, '');
+              label3El.setAttribute('data-live', row3.actualLabel.includes('*') ? 'true' : 'false');
+            }
+          } catch (row3Error) {
+            console.error('[Hidden] Row 3 failed:', row3Error.message);
+            // Show error state instead of stuck skeletons
+            document.getElementById('nrHiddenRow3').innerHTML = 
+              `<div class="nr-empty-state"><i class="fas fa-exclamation-triangle"></i><span>Failed to load content</span><button onclick="loadHiddenReleases()" style="margin-top:10px;padding:6px 16px;background:var(--btn-primary);color:#fff;border:none;border-radius:var(--radius-md);cursor:pointer;font-size:0.8rem;">Retry</button></div>`;
           }
 
-          const totalCount = row1.items.length + row2.items.length + row3.items.length;
+          // Safe total count (row3 might be undefined if it failed)
+          const row3Items = (typeof row3 !== 'undefined' && row3) ? row3.items : [];
+          const totalCount = row1.items.length + row2.items.length + row3Items.length;
           const countEl = document.getElementById('nrCountHidden');
           if (countEl) countEl.textContent = totalCount > 0 ? totalCount : '';
 
@@ -6279,9 +6298,9 @@ titleEl.style.color = '#ffffff';
           try {
             console.log(`[Hidden] 🌐 Fetching live data for ${country} (${label})...`);
             
-            // Small delay between countries to respect rate limits
+            // Small delay between countries to respect rate limits (reduced for faster loading)
             if (i > 0) {
-              await new Promise(r => setTimeout(r, 300));
+              await new Promise(r => setTimeout(r, 150));  // 150ms (was 300ms)
             }
             
             const liveResponse = await fetch(`/api/tmdb-live?country=${country}&type=both`);

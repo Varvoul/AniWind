@@ -89,9 +89,14 @@ const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
  * IMPORTANT: The /popular endpoint ignores watch_region and returns global/US content!
  * We use /discover with with_origin_country to get ACTUAL country-specific content.
  * 
+ * DATE FILTERING: Dynamically filters for CURRENT YEAR content only
+ *   - Movies: release_date between Jan 1 and Dec 31 of current year
+ *   - TV Shows: first_air_date between Jan 1 and Dec 31 of current year
+ *   - This ensures users see RECENT content, not old classics
+ * 
  * ENDPOINTS:
- *   TV:    https://t-umi.zeraf.workers.dev/discover/tv?with_origin_country={CODE}&page={N}
- *   Movie: https://t-umi.zeraf.workers.dev/discover/movie?with_origin_country={CODE}&page={N}
+ *   TV:    https://t-umi.zeraf.workers.dev/discover/tv?with_origin_country={CODE}&first_air_date.gte=2026-01-01&...
+ *   Movie: https://t-umi.zeraf.workers.dev/discover/movie?with_origin_country={CODE}&release_date.gte=2026-01-01&...
  * 
  * Respects rate limits by using delays between requests
  */
@@ -100,6 +105,11 @@ async function fetchTMDBPopular(type, countryCode, maxPages = MAX_PAGES) {
   // ⚡ USE DISCOVER ENDPOINT (filters by origin country - returns LOCAL content!)
   // NOT /popular (ignores region, returns global US content)
   const endpoint = isMovie ? '/discover/movie' : '/discover/tv';
+  
+  // ⚡ DYNAMIC DATE RANGE - Always uses current year for RECENT content!
+  const currentYear = new Date().getFullYear();
+  const dateField = isMovie ? 'release_date' : 'first_air_date';
+  const dateFilter = `${dateField}.gte=${currentYear}-01-01&${dateField}.lte=${currentYear}-12-31`;
   
   const allResults = [];
   
@@ -110,10 +120,11 @@ async function fetchTMDBPopular(type, countryCode, maxPages = MAX_PAGES) {
     }
     
     try {
-      // ⚡ BUILD URL WITH COUNTRY FILTER
+      // ⚡ BUILD URL WITH COUNTRY + DATE FILTERS
       // with_origin_country=KR returns Korean content, PK returns Pakistani, etc.
-      const url = `${T_UMI_BASE}${endpoint}?with_origin_country=${countryCode}&sort_by=popularity.desc&page=${page}`;
-      console.log(`[TMDB-Live] 📡 Fetching: ${type}/${countryCode} page ${page}`);
+      // Date filter ensures we get CURRENT YEAR releases only!
+      const url = `${T_UMI_BASE}${endpoint}?with_origin_country=${countryCode}&${dateFilter}&sort_by=popularity.desc&page=${page}`;
+      console.log(`[TMDB-Live] 📡 Fetching: ${type}/${countryCode} page ${page} (${currentYear})`);
       console.log(`[TMDB-Live] 🔗 URL: ${url}`);
       
       const response = await fetch(url);
