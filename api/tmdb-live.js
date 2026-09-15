@@ -1,18 +1,21 @@
 // ─────────────────────────────────────────────────────────────────────────
-// TMDB LIVE FETCH ENDPOINT with 12-Hour Server-Side Cache
+// TMDB LIVE FETCH ENDPOINT with 6-Hour Server-Side Cache
 //
 // PURPOSE: Fetch TMDB data for specific countries when database has no cached
 // data for those regions (e.g., TW, PK, TR, CL which are often empty).
 //
 // CACHE STRATEGY:
-//   - 12-hour TTL (43200000ms) server-side in-memory cache
-//   - CDN cache headers for edge caching
-//   - Auto-refreshes after TTL expires
+//   - 6-hour TTL (21600000ms) server-side in-memory cache
+//   - CDN cache headers for edge caching (same 6h TTL for all users)
+//   - Auto-refreshes after TTL expires (first request after expiry
+//     re-fetches from TMDB, re-caches, and every user is served from the
+//     fresh cache again)
 //
 // RATE LIMIT HANDLING:
 //   - Sequential fetches (not parallel) to respect TMDB's 50 req/sec limit
 //   - 250ms delay between TV and Movie requests for same country
-//   - Max 5 pages per type (100 items total per country per type)
+//   - Max 4 pages per type; pagination stops early once 30 poster-valid
+//     items are collected (posterless items are dropped before caching)
 //
 // USAGE:
 //   GET /api/tmdb-live?country=TW&type=tv     → Taiwan TV shows
@@ -32,14 +35,16 @@
 import { setCacheHeaders } from './_lib/cache.js';
 
 // ── CONFIGURATION ──
-const LIVE_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours in milliseconds
+const LIVE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours in milliseconds (aligned with _lib/cache.js policy)
 const LIVE_TTL_SECONDS = LIVE_TTL_MS / 1000;
 
 // ⚡ USE SAME ENDPOINTS AS AUTOMATION WORKER (T-UMI PROXY)
 // Your automation uses: https://t-umi.zeraf.workers.dev/{tv|movie}/popular?watch_region={CODE}
 const T_UMI_BASE = 'https://t-umi.zeraf.workers.dev';
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p';
-const MAX_PAGES = 2; // Match automation: 2 pages = 40 items per type
+const MAX_PAGES = 4; // Paginate deeper: posterless items get dropped below, so
+                     // extra pages are needed to still fill the usable-items quota
+const MIN_VALID_ITEMS = 30; // Stop paginating once this many VALID (poster) items collected
 const ITEMS_PER_PAGE = 20; // TMDB default
 const RATE_LIMIT_DELAY_MS = 400; // Match automation's 400ms delay between calls
 
@@ -99,6 +104,10 @@ const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
  *   Movie: https://t-umi.zeraf.workers.dev/discover/movie?with_origin_country={CODE}&release_date.gte=2026-01-01&...
  * 
  * Respects rate limits by using delays between requests
+ *
+ * POSTER FILTER: items without a poster image (or a display name) are
+ * dropped BEFORE caching, so the cached copy itself is clean and every
+ * visitor gets poster-complete data straight from the cache.
  */
 async function fetchTMDBPopular(type, countryCode, maxPages = MAX_PAGES) {
   const isMovie = type === 'movie';
@@ -112,8 +121,14 @@ async function fetchTMDBPopular(type, countryCode, maxPages = MAX_PAGES) {
   const dateFilter = `${dateField}.gte=${currentYear}-01-01&${dateField}.lte=${currentYear}-12-31`;
   
   const allResults = [];
+  const seenIds = new Set(); // dedupe across pages
   
   for (let page = 1; page <= maxPages; page++) {
+    // Quota check: already collected enough USABLE (poster) items → stop
+    if (allResults.length >= MIN_VALID_ITEMS) {
+      break;
+    }
+    
     // Rate limit: delay between pages (match automation's 400ms)
     if (page > 1) {
       await sleep(RATE_LIMIT_DELAY_MS);
@@ -140,17 +155,25 @@ async function fetchTMDBPopular(type, countryCode, maxPages = MAX_PAGES) {
       // T-UMI proxy returns data in same format as TMDB API
       const results = data.results || [];
       
-      console.log(`[TMDB-Live] ✅ ${type}/${countryCode} p${page}: ${results.length} items`);
+      // ── POSTER FILTER + DEDUPE (server-side, applied before caching) ──
+      // Keep only items that actually have a poster image AND a display
+      // name — the client would render an ugly gradient placeholder for the
+      // rest. Filtering here means the 6h cached copy is already clean.
+      let kept = 0;
+      for (const item of results) {
+        if (!item || !item.poster_path) continue;
+        const displayName = isMovie ? (item.title || item.original_title) : (item.name || item.original_name);
+        if (!displayName) continue;
+        if (seenIds.has(item.id)) continue;
+        seenIds.add(item.id);
+        allResults.push(item);
+        kept++;
+      }
       
-      allResults.push(...results);
+      console.log(`[TMDB-Live] ✅ ${type}/${countryCode} p${page}: ${results.length} raw, ${kept} valid (posters), ${allResults.length} total`);
       
       // Stop if we got fewer results than requested (end of available data)
       if (results.length < ITEMS_PER_PAGE) {
-        break;
-      }
-      
-      // Stop if we have enough items (40 is plenty for UI grid)
-      if (allResults.length >= 40) {
         break;
       }
       

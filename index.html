@@ -6169,9 +6169,12 @@ titleEl.style.color = '#ffffff';
         enableArrowKeyScroll(container.closest('.nr-hidden-row'), container);
       });
 
-      let hiddenReleasesLoaded = false;
       let hiddenReleasesLoading = false;
-      
+
+      /* Per-row load status: 'loaded' | 'failed'. Lets a single failed row be
+         retried without re-fetching rows that already rendered. */
+      const hiddenRowState = {};
+
       // ── COUNTRY FALLBACKS (V4.9.0) ──
       // When a requested country has 0 items, use these alternatives:
       const HIDDEN_TAB_FALLBACKS = {
@@ -6180,154 +6183,223 @@ titleEl.style.color = '#ffffff';
         'TR': ['MX', 'ES'],    // Turkey → Mexico/Spain (Latin/Mediterranean)
         'CL': ['MX', 'AR']     // Chile → Mexico/Argentina (Latin American)
       };
-      
-      /** Loads all 3 rows ONE AT A TIME (never in parallel) — spreads out load
-       *  on the t-umi proxy and lets the user see content progressively instead
-       *  of waiting for everything before anything appears. Only ever runs once
-       *  per page visit — switching tabs back and forth after the first load
-       *  just re-shows the cached rows, no re-fetching. */
+
+      /* ── PAGE-LOAD CACHE (V4.9.3) ──
+         Once a row fully loads, its assembled card data is written to
+         localStorage with a 6-hour TTL that mirrors the server-side cache.
+         Page reloads inside that window paint the rows straight from this
+         cache and fire ZERO /api/tmdb-live calls; after the TTL expires the
+         next Hidden-tab visit re-fetches, re-caches, and the cycle repeats. */
+      const HIDDEN_CACHE_KEY = 'ruriHiddenTabCacheV1';
+      const HIDDEN_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours — same as server TTL
+
+      function nrHiddenCacheRead() {
+        try {
+          const raw = localStorage.getItem(HIDDEN_CACHE_KEY);
+          if (!raw) return null;
+          const parsed = JSON.parse(raw);
+          if (parsed && parsed.rows && parsed.expiresAt > Date.now()) return parsed;
+        } catch (e) { /* private mode / quota errors — just miss the cache */ }
+        return null;
+      }
+
+      function nrHiddenCacheWriteRow(rowKey, payload) {
+        try {
+          let cache = null;
+          try { cache = JSON.parse(localStorage.getItem(HIDDEN_CACHE_KEY) || 'null'); } catch (e) {}
+          if (!cache || typeof cache !== 'object') cache = {};
+          if (!cache.rows) cache.rows = {};
+          cache.rows[rowKey] = payload;
+          cache.savedAt = new Date().toISOString();
+          cache.expiresAt = Date.now() + HIDDEN_CACHE_TTL_MS;
+          localStorage.setItem(HIDDEN_CACHE_KEY, JSON.stringify(cache));
+        } catch (e) { /* ignore quota errors */ }
+      }
+
+      function nrHiddenCacheClear() {
+        try { localStorage.removeItem(HIDDEN_CACHE_KEY); } catch (e) {}
+      }
+
+      /* The row label lives inside .nr-hidden-row-header — a SIBLING of the
+         scroll container, NOT a descendant. The old selector
+         '#nrHiddenRow2 .nr-hidden-row-label' therefore matched null, and row
+         2's unguarded ".textContent =" assignment threw a TypeError that
+         aborted the whole loader mid-run — which is exactly why row 3 stayed
+         stuck on skeleton cards. Resolve the label through the shared parent
+         (.nr-hidden-row) instead, and always null-guard. */
+      function nrHiddenLabelEl(containerId) {
+        const row = document.getElementById(containerId);
+        const wrap = row ? row.closest('.nr-hidden-row') : null;
+        return wrap ? wrap.querySelector('.nr-hidden-row-label') : null;
+      }
+
+      function nrSetHiddenRowLabel(containerId, actualLabel) {
+        const el = nrHiddenLabelEl(containerId);
+        if (!el) return;
+        el.textContent = (actualLabel || '').replace(/\*/g, '');
+        el.setAttribute('data-live', (actualLabel || '').includes('*') ? 'true' : 'false');
+      }
+
+      /* Row definitions: countries, labels, and the small stagger (ms) before
+         this row starts fetching, so the 3 rows load IN PARALLEL without
+         bursting 9 requests at the serverless endpoints at the same instant.
+         Inside a row, the country calls stay sequential (150 ms gap). */
+      const HIDDEN_ROW_DEFS = [
+        { key: 'row1', containerId: 'nrHiddenRow1', countries: ['KR', 'ID', 'TW'], labels: ['Korea', 'Indonesia', 'Taiwan'], staggerMs: 0 },
+        { key: 'row2', containerId: 'nrHiddenRow2', countries: ['PK', 'IN', 'PH'], labels: ['Pakistan', 'India', 'Philippines'], staggerMs: 250 },
+        { key: 'row3', containerId: 'nrHiddenRow3', countries: ['TR', 'CL', 'TW'], labels: ['Turkey', 'Chile', 'Taiwan'], staggerMs: 500 }
+      ];
+
+      /** Loads the Hidden tab's 3 country rows.
+       *  1. Rows freshly cached in localStorage (6h TTL) paint instantly —
+       *     zero API calls.
+       *  2. Missing/expired rows fetch IN PARALLEL with a respectful stagger,
+       *     each rendering the moment it finishes, then written back to the
+       *     page-load cache.
+       *  3. A failed row shows a Retry button; retrying only re-fetches the
+       *     failed rows, never the ones already on screen. */
       async function loadHiddenReleases() {
-        if (hiddenReleasesLoaded || hiddenReleasesLoading) return;
+        if (hiddenReleasesLoading) return;
+        if (HIDDEN_ROW_DEFS.every(d => hiddenRowState[d.key] === 'loaded')) return;
         hiddenReleasesLoading = true;
-        nrHiddenSkeletonRow('nrHiddenRow1');
-        nrHiddenSkeletonRow('nrHiddenRow2');
-        nrHiddenSkeletonRow('nrHiddenRow3');
 
         try {
-          // ── Row 1: Korea · Indonesia · Taiwan (with fallbacks) ──
-          console.log('[Hidden] Row 1/3: KR + ID + TW...');
-          let row1Countries = ['KR', 'ID', 'TW'];
-          let row1Labels = ['Korea', 'Indonesia', 'Taiwan'];
-          const row1 = await nrFetchHiddenRowWithFallback(row1Countries, row1Labels, 20);
-          nrRenderHiddenRow('nrHiddenRow1', row1.items);
-          // Update label to show actual countries used
-          const label1El = document.querySelector('#nrHiddenRow1 .nr-hidden-row-label');
-          if (label1El) {
-            label1El.textContent = row1.actualLabel.replace(/\*/g, '');
-            label1El.setAttribute('data-live', row1.actualLabel.includes('*') ? 'true' : 'false');
-          }
+          const cache = nrHiddenCacheRead();
+          const pending = [];
 
-          await nrHiddenSleep(400);
-
-          // ── Row 2: Pakistan · India · Philippines (with fallbacks) ──
-          console.log('[Hidden] Row 2/3: PK + IN + PH...');
-          let row2Countries = ['PK', 'IN', 'PH'];
-          let row2Labels = ['Pakistan', 'India', 'Philippines'];
-          const row2 = await nrFetchHiddenRowWithFallback(row2Countries, row2Labels, 20);
-          nrRenderHiddenRow('nrHiddenRow2', row2.items);
-          document.querySelector('#nrHiddenRow2 .nr-hidden-row-label').textContent = row2.actualLabel;
-          const label2El = document.querySelector('#nrHiddenRow2 .nr-hidden-row-label');
-          if (label2El) {
-            label2El.textContent = row2.actualLabel.replace(/\*/g, '');
-            label2El.setAttribute('data-live', row2.actualLabel.includes('*') ? 'true' : 'false');
-          }
-
-          await nrHiddenSleep(200);  // Reduced from 400ms for faster loading
-
-          // ── Row 3: Turkey · Chile · Taiwan (with fallbacks) ──
-          console.log('[Hidden] Row 3/3: TR + CL + TW...');
-          let row3Countries = ['TR', 'CL', 'TW'];
-          let row3Labels = ['Turkey', 'Chile', 'Taiwan'];
-          
-          // WRAP ROW 3 IN TRY-CATCH TO PREVENT SKELETON STUCK
-          try {
-            const row3 = await nrFetchHiddenRowWithFallback(row3Countries, row3Labels, 20);
-            
-            if (row3.items.length > 0) {
-              nrRenderHiddenRow('nrHiddenRow3', row3.items);
+          for (const def of HIDDEN_ROW_DEFS) {
+            if (hiddenRowState[def.key] === 'loaded') continue;
+            const cached = cache && cache.rows && cache.rows[def.key];
+            if (cached && Array.isArray(cached.items) && cached.items.length) {
+              nrRenderHiddenRow(def.containerId, cached.items);
+              nrSetHiddenRowLabel(def.containerId, cached.actualLabel);
+              hiddenRowState[def.key] = 'loaded';
+              console.log(`[Hidden] ${def.key}: ${cached.items.length} items painted from page-load cache (0 API calls)`);
             } else {
-              // Show empty state if no items returned
-              document.getElementById('nrHiddenRow3').innerHTML = 
-                '<div class="nr-empty-state"><i class="fas fa-inbox"></i><span>No releases available for this region</span></div>';
+              pending.push(def);
             }
-            
-            const label3El = document.querySelector('#nrHiddenRow3 .nr-hidden-row-label');
-            if (label3El) {
-              label3El.textContent = row3.actualLabel.replace(/\*/g, '');
-              label3El.setAttribute('data-live', row3.actualLabel.includes('*') ? 'true' : 'false');
-            }
-          } catch (row3Error) {
-            console.error('[Hidden] Row 3 failed:', row3Error.message);
-            // Show error state instead of stuck skeletons
-            document.getElementById('nrHiddenRow3').innerHTML = 
-              `<div class="nr-empty-state"><i class="fas fa-exclamation-triangle"></i><span>Failed to load content</span><button onclick="loadHiddenReleases()" style="margin-top:10px;padding:6px 16px;background:var(--btn-primary);color:#fff;border:none;border-radius:var(--radius-md);cursor:pointer;font-size:0.8rem;">Retry</button></div>`;
           }
 
-          // Safe total count (row3 might be undefined if it failed)
-          const row3Items = (typeof row3 !== 'undefined' && row3) ? row3.items : [];
-          const totalCount = row1.items.length + row2.items.length + row3Items.length;
-          const countEl = document.getElementById('nrCountHidden');
-          if (countEl) countEl.textContent = totalCount > 0 ? totalCount : '';
+          if (pending.length) {
+            // Skeletons only for the rows we still need to fetch
+            pending.forEach(d => nrHiddenSkeletonRow(d.containerId));
+            console.log(`[Hidden] Fetching ${pending.length}/3 row(s) in parallel (staggered)...`);
 
-          hiddenReleasesLoaded = true;
-          console.log(`[Hidden] ✅ Complete: ${totalCount} total items across 3 rows`);
-        } catch (e) {
-          console.error('[Hidden] Failed:', e.message);
+            const settled = await Promise.all(pending.map(def => (async () => {
+              if (def.staggerMs) await nrHiddenSleep(def.staggerMs);
+              try {
+                const { items, actualLabel } = await nrFetchHiddenRowWithFallback(def.countries, def.labels, 20);
+                return { def, items, actualLabel, error: null };
+              } catch (e) {
+                console.error(`[Hidden] ${def.key} failed:`, e.message);
+                return { def, items: [], actualLabel: '', error: e.message };
+              }
+            })()));
+
+            for (const { def, items, actualLabel, error } of settled) {
+              if (!error && items.length) {
+                nrRenderHiddenRow(def.containerId, items);
+                nrSetHiddenRowLabel(def.containerId, actualLabel);
+                nrHiddenCacheWriteRow(def.key, { items, actualLabel });
+                hiddenRowState[def.key] = 'loaded';
+              } else {
+                hiddenRowState[def.key] = 'failed';
+                document.getElementById(def.containerId).innerHTML = !error
+                  ? '<div class="nr-empty-state"><i class="fas fa-inbox"></i><span>No releases available for this region</span></div>'
+                  : `<div class="nr-empty-state"><i class="fas fa-exclamation-triangle"></i><span>Failed to load content</span><button onclick="loadHiddenReleases()" style="margin-top:10px;padding:6px 16px;background:var(--btn-primary);color:#fff;border:none;border-radius:var(--radius-md);cursor:pointer;font-size:0.8rem;">Retry</button></div>`;
+              }
+            }
+          }
+
+          // Tab badge = real rendered cards across the 3 rows. .card-poster
+          // appears exactly once per card, and ":not(.skeleton)" skips the
+          // skeleton placeholders, so this stays accurate no matter how the
+          // rows were filled (cache, fetch, or retry).
+          const countEl = document.getElementById('nrCountHidden');
+          if (countEl) {
+            let rendered = 0;
+            HIDDEN_ROW_DEFS.forEach(d => {
+              const el = document.getElementById(d.containerId);
+              if (el) rendered += el.querySelectorAll('.card-poster:not(.skeleton)').length;
+            });
+            countEl.textContent = rendered > 0 ? rendered : '';
+          }
+
+          const done = HIDDEN_ROW_DEFS.filter(d => hiddenRowState[d.key] === 'loaded').length;
+          console.log(`[Hidden] ✅ Complete: ${done}/3 rows loaded`);
+
         } finally {
           hiddenReleasesLoading = false;
         }
       }
-      
+      /* The whole tab runs inside an IIFE — expose the loader globally so the
+         per-row Retry button (inline onclick) can reach it. */
+      window.loadHiddenReleases = loadHiddenReleases;
+
       /**
-       * Fetch hidden row data with LIVE API fallback for missing countries.
-       * 
-       * STRATEGY (v4.9.2):
-       * 1. Check database first (fastest - already cached)
-       * 2. If country has 0 items → try fallback countries from DB
-       * 3. If still no data → call /api/tmdb-live?country=X&type=both
-       *    - Server fetches from TMDB API with 12-hour cache
-       *    - Subsequent requests within 12h served from server cache
-       *    - Rate-limit aware: sequential requests with delays
-       * 
+       * Fetch hidden row data from the LIVE country endpoint with a
+       * poster-completeness filter.
+       *
+       * STRATEGY (v4.9.3):
+       * 1. Per country: GET /api/tmdb-live?country=X&type=both
+       *    - The serverless endpoint rate-limits its own TMDB upstream
+       *      (400ms between page calls) and caches each country/type for
+       *      6 HOURS server-side + at the CDN edge, so every visitor is
+       *      served from cache and TMDB is only hit once per TTL window.
+       * 2. Items WITHOUT a poster image are dropped here (the server already
+       *    drops them before caching too) so the row never renders
+       *    empty-gradient placeholder cards.
+       * 3. Movies and TV are interleaved per country, up to targetPerType
+       *    of each type per country.
+       *
        * @returns { items: Array, actualLabel: string }
        */
       async function nrFetchHiddenRowWithFallback(countries, labels, targetPerType) {
-        // V4.9.2.1 FIX: Always use LIVE API for Hidden tab
-        // The database may have stale US content from before the /discover fix
-        // /api/tmdb-live now correctly uses /discover endpoint with with_origin_country
         const items = [];
         const actualCountries = [];
-        
+
         for (let i = 0; i < countries.length; i++) {
           const country = countries[i];
           const label = labels[i];
-          
+
           actualCountries.push(label);
-          
-          // ── ALWAYS FETCH FROM LIVE API (bypasses stale DB cache) ──
+
           try {
             console.log(`[Hidden] 🌐 Fetching live data for ${country} (${label})...`);
-            
-            // Small delay between countries to respect rate limits (reduced for faster loading)
+
+            // Respectful gap between country calls (the endpoint itself is
+            // edge-cached for 6h, so this only matters on the first visit)
             if (i > 0) {
-              await new Promise(r => setTimeout(r, 150));  // 150ms (was 300ms)
+              await new Promise(r => setTimeout(r, 150));
             }
-            
+
             const liveResponse = await fetch(`/api/tmdb-live?country=${country}&type=both`);
-            
+
             if (!liveResponse.ok) {
               console.warn(`[Hidden] ⚠️ Live API failed for ${country}: HTTP ${liveResponse.status}`);
               continue;
             }
-            
+
             const liveData = await liveResponse.json();
-            const movies = liveData.movie || [];
-            const tvShows = liveData.tv || [];
-            
-            console.log(`[Hidden] ✅ ${country}: ${movies.length} movies + ${tvShows.length} TV`);
-            
+
+            // ── POSTER FILTER: skip items with no poster image entirely ──
+            const movies = (liveData.movie || []).filter(m => m.poster_path && (m.title || m.original_title));
+            const tvShows = (liveData.tv || []).filter(t => t.poster_path && (t.name || t.original_name));
+
+            console.log(`[Hidden] ✅ ${country}: ${movies.length} movies + ${tvShows.length} TV (posters only)`);
+
             // Interleave movies and TV
             const n = Math.max(movies.length, tvShows.length);
             for (let j = 0; j < n && j < targetPerType; j++) {
               if (movies[j]) items.push(nrHiddenMovieCard(movies[j], country));
               if (tvShows[j]) items.push(nrHiddenTvCard(tvShows[j], country));
             }
-            
+
           } catch (e) {
             console.error(`[Hidden] ❌ Failed to fetch ${country}:`, e.message);
           }
         }
-        
+
         return {
           items,
           actualLabel: actualCountries.join(' · ')
