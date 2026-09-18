@@ -3677,7 +3677,7 @@
   const MetadataManager = {
     // Base configuration
     siteName: 'Rowana',
-    siteUrl: 'https://rowana.vercel.app',
+    siteUrl: 'https://ruristream.vercel.app',
     logoUrl: 'https://i.postimg.cc/BvwTjXgv/image-359e594e.png',
     defaultImage: 'https://i.postimg.cc/BvwTjXgv/image-359e594e.png',
     twitterHandle: '@rowana_official',
@@ -3722,18 +3722,18 @@
     
     // ANIME-SPECIFIC METADATA (For anime niche users)
     animeMeta: {
-      title: 'Rowana · Watch Anime Online Free in HD · Sub & Dub',
+      title: 'RuriStream · Watch Anime Online Free in HD · Sub & Dub',
       description: 'Watch anime online free in HD quality. Stream subbed and dubbed anime episodes with no ads and no signup required. From seasonal hits to classic series, movies & donghua — all in one place. The anime site that actually works.',
       keywords: 'watch anime online, free anime streaming, anime HD, dubbed anime, subbed anime, anime subtitles, anime episodes, no ads anime, anime movies, anime streaming site, watch anime free, anime online, english dub anime, japanese anime, korean anime, chinese anime, donghua, latest anime, seasonal anime, popular anime, anime recommendations, 1080p anime, anime streaming platform, best anime site',
-      ogTitle: 'Rowana · Watch Anime Online Free in HD · Sub & Dub',
+      ogTitle: 'RuriStream · Watch Anime Online Free in HD · Sub & Dub',
       ogDescription: 'Stream subbed and dubbed anime in HD — no ads, no signup walls, no geo-blocks. Just pick a show and watch. Seasonal hits, classics, movies & dongua updated daily.',
-      twitterTitle: 'Rowana · Watch Anime Online Free in HD · Sub & Dub',
+      twitterTitle: 'Ruristream · Watch Anime Online Free in HD · Sub & Dub',
       twitterDescription: 'HD anime streaming that doesn\'t suck. No ad overload, no signup traps — just subbed & dubbed anime that plays when you click it.'
     },
     
     // MOVIE+TV SPECIFIC METADATA (For movie/tv niche users)
     movieTvMeta: {
-      title: 'Rowana · Watch Movies & TV Shows Online Free in HD',
+      title: 'RuriStream · Watch Movies & TV Shows Online Free in HD',
       description: 'Watch movies and TV shows online free in HD quality. Stream the latest films, hit series, Netflix originals and blockbuster movies with no ads and no signup required. Your go-to destination for free movie streaming that actually works.',
       keywords: 'watch movies online, free movie streaming, movies HD, watch tv shows online, free tv series streaming, latest movies, new movies 2025 2026, netflix alternatives, free movies no signup, hd movies, tv shows streaming, binge watch, full movies online, movie streaming site, watch series free, cinema movies, action movies, comedy movies, drama series, best movie site',
       ogTitle: 'Rowana · Watch Movies & TV Shows Online Free in HD',
@@ -3747,12 +3747,12 @@
       // HOME PAGE (index.html) - HYBRID: Targets BOTH anime AND movie/TV audiences
       // Pattern inspired by Mapplee ("Stream movies, TV shows, anime...") + Cineby (comprehensive listing)
       home: {
-        title: 'Rowana · Watch Anime, Movies & TV Shows Online Free in HD',
+        title: 'RuriStream · Watch Anime, Movies & TV Shows Online Free in HD',
         description: 'Stream anime, movies and TV shows online free in HD. Watch the latest anime episodes in sub or dub, binge-watch hit TV series, and catch new release movies — all in one place with no ads and no signup required. Millions of titles, unlimited entertainment.',
         keywords: 'watch anime online, free anime streaming, watch movies online, free movie streaming, watch tv shows online, free tv series, anime HD, movies HD, dubbed anime, subbed anime, latest movies, new tv series, no ads streaming, anime movies, tv shows 2025 2026, netflix alternative, free streaming site, Rowana, watch anime free, watch movies free, english dub anime, japanese anime, korean drama, chinese donghua, binge watch, 1080p streaming, hd movies online',
-        ogTitle: 'Rowana · Watch Anime, Movies & TV Shows Online Free in HD',
+        ogTitle: 'RuriStream · Watch Anime, Movies & TV Shows Online Free in HD',
         ogDescription: 'Stream anime, movies and TV shows in HD — no ads, no signup walls, no geo-blocks. Anime (sub & dub), hit series, new releases. Millions of titles, one site.',
-        twitterTitle: 'Rowana · Free Streaming: Anime, Movies & TV Shows in HD',
+        twitterTitle: 'RuriStream · Free Streaming: Anime, Movies & TV Shows in HD',
         twitterDescription: 'The only streaming site you need. Anime (sub/dub), movies, TV shows — all free, all HD, no ads. Actually works.',
         type: 'website'
       },
@@ -3795,37 +3795,37 @@
       
       // INFO PAGE (info.html) - Dynamic based on URL params
       info: {
-        titleTemplate: '{title} - Watch {type} Online Free | Rowana',
-        descriptionTemplate: 'Watch {title} online free in HD on Rowana. {meta} Stream now with no ads and no signup required.',
-        keywordsTemplate: '{title}, watch {title} online, {title} streaming, {title} free, {title} HD, {title} episodes, {title} full, watch {type} online, free {type} streaming, Rowana',
-        ogTitleTemplate: '{title} - Watch {type} Online Free | Rowana',
-        ogDescriptionTemplate: 'Watch {title} online free in HD. {meta} No ads, no signup — just watch on Rowana.',
-        twitterTitleTemplate: '{title} | Watch on Rowana',
-        twitterDescriptionTemplate: 'Stream {title} free in HD on Rowana. {meta}',
+        titleTemplate: '{title} - Watch {type} Online Free | Ruristream',
+        descriptionTemplate: 'Watch {title} online free in HD on Ruristream. {meta} Stream now with no ads and no signup required.',
+        keywordsTemplate: '{title}, watch {title} online, {title} streaming, {title} free, {title} HD, {title} episodes, {title} full, watch {type} online, free {type} streaming, Ruristream',
+        ogTitleTemplate: '{title} - Watch {type} Online Free | Ruristream',
+        ogDescriptionTemplate: 'Watch {title} online free in HD. {meta} No ads, no signup — just watch on Ruristream.',
+        twitterTitleTemplate: '{title} | Watch on Ruristream',
+        twitterDescriptionTemplate: 'Stream {title} free in HD on Ruristream. {meta}',
         type: 'video.other' // For individual show/movie pages
       },
       
       // SEARCH RESULTS PAGE
       search: {
-        titleTemplate: 'Search Results for "{query}" | Rowana',
-        descriptionTemplate: 'Search results for "{query}" on Rowana. Find and watch anime, movies and TV shows matching your search. Free HD streaming with no ads.',
+        titleTemplate: 'Search Results for "{query}" | RuriStream',
+        descriptionTemplate: 'Search results for "{query}" on Ruristream. Find and watch anime, movies and TV shows matching your search. Free HD streaming with no ads.',
         keywordsTemplate: '{query}, watch {query} online, {query} streaming, {query} free, search anime, search movies, search tv shows, Rowana search',
-        ogTitleTemplate: '"{query}" - Search Results | Rowana',
-        ogDescriptionTemplate: 'Find "{query}" and stream free on Rowana. Anime, movies, TV shows — all in HD.',
-        twitterTitleTemplate: 'Search: "{query}" | Rowana',
-        twitterDescriptionTemplate: 'Search results for "{query}" on Rowana. Watch free in HD.',
+        ogTitleTemplate: '"{query}" - Search Results | RuriStream',
+        ogDescriptionTemplate: 'Find "{query}" and stream free on Ruristream. Anime, movies, TV shows — all in HD.',
+        twitterTitleTemplate: 'Search: "{query}" | RuriStream',
+        twitterDescriptionTemplate: 'Search results for "{query}" on Ruristream. Watch free in HD.',
         type: 'website'
       },
       
       // GENERIC FALLBACK
       fallback: {
-        title: 'Rowana · Watch Anime, Movies & TV Shows Online Free',
+        title: 'RuriStream · Watch Anime, Movies & TV Shows Online Free',
         description: 'Stream anime, movies and TV shows online free in HD quality. No ads, no signup required. Your ultimate free streaming destination.',
-        keywords: 'streaming, watch online, free movies, free anime, free tv shows, HD streaming, Rowana, no ads streaming',
-        ogTitle: 'Rowana · Free Streaming: Anime, Movies & TV Shows',
+        keywords: 'streaming, watch online, free movies, free anime, free tv shows, HD streaming, Ruristream, no ads streaming',
+        ogTitle: 'RuriStream · Free Streaming: Anime, Movies & TV Shows',
         ogDescription: 'Your ultimate free streaming destination. Anime, movies, TV shows in HD. No ads, no signup.',
-        twitterTitle: 'Rowana · Free Online Streaming',
-        twitterDescription: 'Stream anime, movies and TV shows free on Rowana. HD quality, no ads.',
+        twitterTitle: 'RuriStream · Free Online Streaming',
+        twitterDescription: 'Stream anime, movies and TV shows free on Ruristream. HD quality, no ads.',
         type: 'website'
       }
     },
