@@ -1472,7 +1472,7 @@
             <button class="auth-back-link" id="backLoginTop" type="button">← Back to Sign In</button>
 
             <div class="auth-heading">Create account ✨</div>
-            <div class="auth-subheading">Join <span>Rowana</span> — it's free forever.</div>
+            <div class="auth-subheading">Join <span>RuriStream</span> — it's free forever.</div>
 
             <!-- Avatar picker — Frieren.jpeg pre-set, click to change
                  (upload from device OR choose from bucket collection). -->
