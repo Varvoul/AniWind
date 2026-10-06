@@ -107,6 +107,17 @@
   // and rate-limits per IP before anything reaches Supabase.
   const SEARCH_PROXY_URL  = 'https://supabase-search-proxy.bionmovies47.workers.dev';
 
+  // ── ruri: jikan-v4-style anime data API over the SAME Supabase tables ──
+  // Cloudflare Worker (ruri.bionmovies47.workers.dev) serving anime_data
+  // (/s-mal profile) and anikoto_data (/anikoto profile) from Cloudflare's
+  // edge with a 5-minute cache per query. PRIMARY source for the anime tab:
+  // one endpoint covers both DBs and keeps search traffic off Supabase.
+  // If ruri is slow or down, the existing chain below takes over unchanged
+  // (edge proxy -> direct RPC -> anikoto RPC -> AniList -> Jikan).
+  const RURI_URL          = 'https://ruri.bionmovies47.workers.dev';
+  const RURI_TIMEOUT_MS   = 1200; // matches DB_TIMEOUT_MS - fallback chain absorbs overruns
+  const RURI_LIMIT        = 8;   // same page size the RPC search path uses
+
   // Calls one of the three whitelisted RPCs. Tries the edge proxy first
   // (for rate-limiting), falls back to direct Supabase RPC call with the
   // publishable key if the Worker is unavailable or returns 401 (e.g. when
@@ -2034,12 +2045,33 @@
    */
   async function fetchSeasonsByRelations(relations) {
     const RELEVANT_TYPES = new Set(['SEQUEL', 'PREQUEL', 'PARENT', 'SIDE_STORY', 'ALTERNATIVE']);
+    // Defense in depth: accept both raw relations shapes (pipeline object or
+    // flat array) in case a caller passes an un-normalized payload.
+    relations = flattenRelations(relations) || [];
     const relatedIds = [...new Set(
       relations
         .filter(r => r && r.mal_id && RELEVANT_TYPES.has((r.relation_type || '').toUpperCase()))
         .map(r => r.mal_id)
     )];
     if (relatedIds.length === 0) return [];
+
+    // ── Try 1: ruri batch lookup (edge-cached jikan-v4 over anime_data) ──
+    // Results are reordered to match the relations order so sequel/prequel
+    // chains read top-down; the old RPC returned rows in arbitrary DB order.
+    try {
+      const items = await ruriFetch(`/s-mal/anime?mal_ids=${encodeURIComponent(relatedIds.slice(0, 25).join(','))}&limit=25`);
+      if (Array.isArray(items) && items.length > 0) {
+        const byId = new Map(items.map(it => [it.mal_id, it]));
+        return relatedIds
+          .map(id => byId.get(id))
+          .filter(Boolean)
+          .map(mapRuriSeasonCard);
+      }
+    } catch (e) {
+      console.warn('[Season] ruri relations lookup failed:', e.message);
+    }
+
+    // ── Try 2 (fallback, unchanged): get_anime_data_by_mal_ids RPC ──
     try {
       const { data, error } = await callSearchRPC('get_anime_data_by_mal_ids', { p_mal_ids: relatedIds });
       if (error || !data) return [];
@@ -2078,6 +2110,18 @@
     try {
       const safeBase = sanitizeSearchQuery(baseName);
       if (!safeBase) return [];
+
+      // ── Try 1: ruri prefix search ordered by year (edge-cached) ──
+      // match=prefix anchors the pattern exactly like the old RPC's
+      // p_match_mode:'prefix' instead of ruri's default contains mode.
+      try {
+        const items = await ruriFetch(`/s-mal/anime?q=${encodeURIComponent(safeBase)}&match=prefix&order_by=year&sort=asc&limit=20`);
+        if (Array.isArray(items) && items.length > 0) return items.map(mapRuriSeasonCard);
+      } catch (e) {
+        console.warn('[Season] ruri related-seasons query failed:', e.message);
+      }
+
+      // ── Try 2 (fallback, unchanged): prefix RPC via the edge proxy ──
       const { data, error } = await callSearchRPC('search_anime_data', {
         p_query: safeBase,
         p_match_mode: 'prefix',
@@ -2151,13 +2195,20 @@
   
   /**
    * Anime search fallback chain (in priority order):
-   *   1. Supabase anime_data   — primary DB, fastest & most complete
-   *   2. Supabase anikoto_data — secondary DB, fills gaps anime_data is missing
-   *   3. AniList GraphQL       — external, broad coverage
-   *   4. Jikan API             — external, last resort (slowest / most rate-limit sensitive)
+   *   1. ruri (Cloudflare Worker)  — primary, jikan-v4 API over BOTH Supabase
+   *      DBs (anime_data + anikoto_data) with edge caching; s-mal first,
+   *      anikoto fills in when s-mal has < 3 hits
+   *   2. Supabase anime_data via supabase-search-proxy — first fallback, same
+   *      table ruri's s-mal profile reads (runs only when ruri fails or
+   *      underdelivers)
+   *   3. Supabase anikoto_data — second fallback (skipped when ruri already
+   *      served the anikoto tier), fills gaps anime_data is missing
+   *   4. AniList GraphQL       — external, broad coverage
+   *   5. Jikan API             — external, last resort (slowest / most rate-limit sensitive)
    * Each tier only runs if the previous tier didn't already return >= 3 results,
-   * so a healthy DB responds fast and the external APIs rarely get hit at all —
-   * important for staying fast and not overloading anything at high traffic.
+   * so a healthy ruri answers from the edge and neither Supabase nor the
+   * external APIs get hit at all — important for staying fast and not
+   * overloading anything at high traffic.
    */
   async function fetchAnimeWithFallbacks(q) {
     const cacheKey = `anime:${q}`;
@@ -2180,7 +2231,38 @@
     // that actually need it.
     let results = [];
     
-    // ── SOURCE 1: SUPABASE anime_data (Primary) ──
+    // ── SOURCE 0: RURI (primary — jikan-v4 API serving both DBs from the edge) ──
+    console.log(`[Search] Starting ruri search for "${q}" (timeout: ${RURI_TIMEOUT_MS}ms)`);
+    const ruriStart = performance.now();
+    
+    const ruriResult = await withTimeout(
+      ruriSearch(q).catch(err => {
+        console.warn(`[Search] ruri error: ${err.message}`);
+        return null;
+      }),
+      RURI_TIMEOUT_MS,
+      'ruri'
+    );
+    
+    let ruriServedAnikoto = false;
+    if (!ruriResult.timedOut && ruriResult.result && ruriResult.result.items && ruriResult.result.items.length > 0) {
+      results = ruriResult.result.items;
+      ruriServedAnikoto = ruriResult.result.servedAnikoto;
+      const ruriElapsed = (performance.now() - ruriStart).toFixed(0);
+      console.log(`[Search] ✅ ruri returned ${results.length} results in ${ruriElapsed}ms (s-mal:${ruriResult.result.servedSMal} anikoto:${ruriServedAnikoto})`);
+      
+      if (results.length >= 3) {
+        animeSearchCache.set(cacheKey, { results, timestamp: Date.now() });
+        console.log(`[Search] ✅ Sufficient results from ruri (${results.length}), returning early [${(performance.now() - overallStart).toFixed(0)}ms total]`);
+        return results;
+      }
+    } else if (ruriResult.timedOut) {
+      console.log(`[Search] ⏰ ruri timed out after ${RURI_TIMEOUT_MS}ms, falling back to supabase-search-proxy...`);
+    } else {
+      console.log(`[Search] ⚠️ ruri returned 0/unusable results, falling back to supabase-search-proxy...`);
+    }
+    
+    // ── SOURCE 1: SUPABASE anime_data via edge proxy (Fallback #1 — unchanged) ──
     console.log(`[Search] Starting anime_data search for "${q}" (timeout: ${DB_TIMEOUT_MS}ms)`);
     const dbStart = performance.now();
     
@@ -2196,8 +2278,12 @@
     const dbElapsed = (performance.now() - dbStart).toFixed(0);
     
     if (!dbResult.timedOut && dbResult.result && dbResult.result.length > 0) {
-      results = dbResult.result;
-      console.log(`[Search] ✅ anime_data returned ${results.length} results in ${dbElapsed}ms`);
+      // ruri may already have produced partial results - dedupe-append so the
+      // proxy path only tops up what ruri missed (keeps ruri as primary).
+      const dbExistingIds = new Set(results.map(r => r.mal_id).filter(Boolean));
+      const dbNewResults = dbResult.result.filter(r => !r.mal_id || !dbExistingIds.has(r.mal_id));
+      results = [...results, ...dbNewResults];
+      console.log(`[Search] ✅ anime_data returned ${dbResult.result.length} results (${dbNewResults.length} new) in ${dbElapsed}ms`);
       
       if (results.length >= 3) {
         animeSearchCache.set(cacheKey, { results, timestamp: Date.now() });
@@ -2210,18 +2296,23 @@
       console.log(`[Search] ⚠️ anime_data returned 0 results in ${dbElapsed}ms, trying anikoto_data...`);
     }
     
-    // ── SOURCE 2: SUPABASE anikoto_data (Fallback #1) ──
-    console.log(`[Search] Starting anikoto_data search for "${q}" (timeout: ${ANIKOTO_TIMEOUT_MS}ms)`);
+    // ── SOURCE 2: SUPABASE anikoto_data (Fallback #2) ──
+    // Tier skipped when ruri already served the anikoto profile for this
+    // query - the RPC would return the same rows and entries without a
+    // mal_id can't be deduped, so re-running it would only add duplicates.
+    if (ruriServedAnikoto) console.log(`[Search] ↩️ anikoto_data already served by ruri, skipping RPC tier`);
     const anikotoStart = performance.now();
     
-    const anikotoResult = await withTimeout(
-      searchAnimeFromAnikoto(q).catch(err => {
-        console.warn(`[Search] anikoto_data error: ${err.message}`);
-        return [];
-      }),
-      ANIKOTO_TIMEOUT_MS,
-      'anikoto_data'
-    );
+    const anikotoResult = ruriServedAnikoto
+      ? { timedOut: false, result: [] }
+      : await withTimeout(
+          searchAnimeFromAnikoto(q).catch(err => {
+            console.warn(`[Search] anikoto_data error: ${err.message}`);
+            return [];
+          }),
+          ANIKOTO_TIMEOUT_MS,
+          'anikoto_data'
+        );
     
     const anikotoElapsed = (performance.now() - anikotoStart).toFixed(0);
     
@@ -2242,10 +2333,10 @@
     } else if (anikotoResult.timedOut) {
       console.log(`[Search] ⏰ anikoto_data timed out after ${ANIKOTO_TIMEOUT_MS}ms, trying AniList...`);
     } else {
-      console.log(`[Search] ⚠️ anikoto_data returned 0 results in ${anikotoElapsed}ms, trying AniList...`);
+      console.log(`[Search] ⚠️ anikoto_data returned 0 results${ruriServedAnikoto ? ' (tier served by ruri)' : ''} in ${anikotoElapsed}ms, trying AniList...`);
     }
     
-    // ── SOURCE 3: ANILIST GRAPHQL (Fallback #2) ──
+    // ── SOURCE 3: ANILIST GRAPHQL (Fallback #3) ──
     // Rate limit only applies from here on - this is the first tier hitting an external API.
     const nowBeforeExternal = Date.now();
     const timeSinceLastCall = nowBeforeExternal - lastApiCallTime;
@@ -2319,7 +2410,180 @@
     return results;
   }
 
-  /* ── SOURCE 1: SUPABASE DB SEARCH (OPTIMIZED) ── */
+  /* ── SOURCE 0: RURI (primary — one edge API over anime_data + anikoto_data) ──
+     Serves the same two Supabase tables the fallback chain uses, but from
+     Cloudflare's edge with a 5-minute cache per query. Semantics mirror the
+     fallback tiers so primary and fallback agree: anime_data (/s-mal) first,
+     anikoto (/anikoto) only fills in when s-mal has fewer than 3 hits, results
+     deduped by mal_id. Any failure (timeout / 5xx / bad payload / network)
+     throws -> fetchAnimeWithFallbacks falls through to the untouched proxy
+     chain below. */
+
+  const ruriSearchCache = new Map();
+  const RURI_CACHE_TTL = 3 * 60 * 1000; // same as DB_CACHE_TTL
+
+  async function ruriFetch(pathAndQuery) {
+    const res = await fetch(`${RURI_URL}${pathAndQuery}`, {
+      headers: { 'Accept': 'application/json' },
+      signal: AbortSignal.timeout(RURI_TIMEOUT_MS)
+    });
+    if (!res.ok) throw new Error(`ruri HTTP ${res.status}`);
+    const json = await res.json();
+    if (!json || !Array.isArray(json.data)) throw new Error('ruri bad payload');
+    return json.data;
+  }
+
+  // The relations column stores two shapes in the wild:
+  //   - {primary: {seasons: {...}, relations: [{mal_id, relation_type, title, ...}]}}
+  //     (pipeline-written rows - ALL current rows use this shape)
+  //   - flat arrays [{mal_id, relation_type, title}] (the shape
+  //     fetchSeasonsByRelations was written against)
+  // Because every row uses the nested object shape, the Array.isArray() check
+  // in fetchSeasonsByRelations never matched and relations-based season
+  // grouping silently never ran - every lookup fell to the prefix heuristic.
+  // Normalizing both shapes here fixes that for the ruri AND the RPC path.
+  function flattenRelations(relations) {
+    if (Array.isArray(relations)) return relations.filter(r => r && r.mal_id);
+    const arr = relations && typeof relations === 'object' ? relations.primary?.relations : null;
+    if (Array.isArray(arr)) {
+      return arr
+        .filter(r => r && r.mal_id)
+        .map(r => ({ mal_id: r.mal_id, relation_type: r.relation_type || r.relation || '', title: r.title || '' }));
+    }
+    return null;
+  }
+
+  // ruri s-mal list item -> the db-source shape searchAnimeFromDB produces,
+  // so everything downstream (season grouping, rendering, dedupe) is agnostic
+  // of which source served the row.
+  function mapRuriSMalItem(item) {
+    const romanji = (item.titles || []).find(t => t.type === 'Romanji');
+    return {
+      poster: item.images?.jpg?.large_image_url || item.images?.jpg?.image_url || '',
+      title: item.title_english || item.title || 'Unknown Title',
+      original: [item.title_japanese, romanji?.title].filter(Boolean).join(' / ') || '',
+      meta: [
+        item.type,
+        (item.studios || []).map(s => s.name).filter(Boolean).join(', '),
+        item.year,
+        item.episodes ? `${item.episodes} eps` : null
+      ].filter(Boolean).join(' · '),
+      score: item.score ? `★ ${item.score}` : null,
+      mal_id: item.mal_id,
+      source: 'db',
+      year: item.year,
+      episodes: item.episodes,
+      status: item.status,
+      genres: (item.genres || []).map(g => g.name).filter(Boolean),
+      certification: shortCertification(item.rating),
+      relations: flattenRelations(item.relations)
+    };
+  }
+
+  // Card shape used by the related-seasons helpers (no studio in meta there).
+  function mapRuriSeasonCard(item) {
+    const romanji = (item.titles || []).find(t => t.type === 'Romanji');
+    return {
+      poster: item.images?.jpg?.large_image_url || item.images?.jpg?.image_url || '',
+      title: item.title_english || item.title || 'Unknown Title',
+      original: [item.title_japanese, romanji?.title].filter(Boolean).join(' / ') || '',
+      meta: [item.type, item.year, item.episodes ? `${item.episodes} eps` : null].filter(Boolean).join(' · '),
+      score: item.score ? `★ ${item.score}` : null,
+      genres: (item.genres || []).map(g => g.name).filter(Boolean),
+      certification: shortCertification(item.rating),
+      mal_id: item.mal_id,
+      source: 'db',
+      year: item.year,
+      episodes: item.episodes,
+      status: item.status
+    };
+  }
+
+  // ruri anikoto list item -> the anikoto-source shape searchAnimeFromAnikoto
+  // produces (mal_id only when it's a real number so the UI can fall back to
+  // an anikoto-{id} link).
+  function mapRuriAnikotoItem(item) {
+    const parsedMalId = item.mal_id && /^\d+$/.test(String(item.mal_id).trim())
+      ? parseInt(item.mal_id, 10)
+      : null;
+    const synonym = (item.titles || []).find(t => t.type === 'Synonym');
+    return {
+      poster: item.images?.jpg?.large_image_url || '',
+      title: item.title || 'Unknown Title',
+      original: synonym && synonym.title !== item.title ? synonym.title : '',
+      meta: [
+        item.type ? String(item.type).toUpperCase() : null,
+        item.year,
+        item.episodes ? `${item.episodes} eps` : null,
+        item.status
+      ].filter(Boolean).join(' · '),
+      score: item.score ? `★ ${item.score}` : null,
+      mal_id: parsedMalId,
+      anikoto_id: item.anikoto_id,
+      slug: item.slug || null,
+      source: 'anikoto',
+      year: item.year,
+      episodes: item.episodes,
+      status: item.status
+    };
+  }
+
+  /**
+   * ruri search: /s-mal (anime_data) first, then /anikoto fills in when the
+   * s-mal side has fewer than 3 hits - mirroring the tier semantics of
+   * fetchAnimeWithFallbacks. Returns { items, servedSMal, servedAnikoto };
+   * never throws for a single-profile failure (a partial ruri win is still
+   * used), only a total failure surfaces as empty items.
+   */
+  async function ruriSearch(q) {
+    const cacheKey = `ruri:${q}`;
+    if (ruriSearchCache.has(cacheKey)) {
+      const cached = ruriSearchCache.get(cacheKey);
+      if (Date.now() - cached.timestamp < RURI_CACHE_TTL) {
+        console.log(`[Ruri Search] Cache hit for:`, q);
+        return cached.value;
+      }
+      ruriSearchCache.delete(cacheKey);
+    }
+
+    const safeQ = sanitizeSearchQuery(q);
+    if (!safeQ) return { items: [], servedSMal: false, servedAnikoto: false };
+
+    const enc = encodeURIComponent;
+    let servedSMal = false, servedAnikoto = false;
+    let items = [];
+
+    try {
+      const smal = (await ruriFetch(`/s-mal/anime?q=${enc(safeQ)}&order_by=score&sort=desc&limit=${RURI_LIMIT}`))
+        .map(mapRuriSMalItem);
+      servedSMal = true;
+      items = smal;
+    } catch (e) {
+      console.warn(`[Ruri Search] s-mal failed (${e.message})`);
+    }
+
+    if (items.length < 3) {
+      try {
+        const anikoto = (await ruriFetch(`/anikoto/anime?q=${enc(safeQ)}&order_by=score&sort=desc&limit=${RURI_LIMIT}`))
+          .map(mapRuriAnikotoItem);
+        servedAnikoto = true;
+        // Dedupe against s-mal results by mal_id where both have one;
+        // anikoto rows without a usable mal_id are always kept (same rule
+        // the anikoto RPC tier applies in the fallback chain).
+        const existingIds = new Set(items.map(r => r.mal_id).filter(Boolean));
+        items = [...items, ...anikoto.filter(r => !r.mal_id || !existingIds.has(r.mal_id))];
+      } catch (e) {
+        console.warn(`[Ruri Search] anikoto failed (${e.message})`);
+      }
+    }
+
+    const value = { items, servedSMal, servedAnikoto };
+    ruriSearchCache.set(cacheKey, { value, timestamp: Date.now() });
+    return value;
+  }
+
+  /* ── FALLBACK #1: SUPABASE DB SEARCH via supabase-search-proxy (OPTIMIZED) ──
+     Runs only when ruri failed or returned fewer than 3 results. */
   // Performance optimizations:
   // 1. Prefix match first (uses index) → faster than contains
   // 2. Minimal field selection → less data transfer
@@ -2507,7 +2771,7 @@
         status: item.status,
         genres: parseGenres(item.genres),
         certification: shortCertification(item.rating),
-        relations: item.relations || null
+        relations: flattenRelations(item.relations)
       }));
       
       // Cache the results
@@ -2520,7 +2784,7 @@
     }
   }
 
-  /* ── SOURCE 2: SUPABASE anikoto_data (fallback when anime_data has nothing) ──
+  /* ── FALLBACK #2: SUPABASE anikoto_data (fallback when anime_data has nothing) ──
      Uses the search_anikoto_fuzzy RPC (SQL function, trigram-indexed) instead
      of building .or()/ilike filters client-side — one indexed round trip,
      safe under very high request volume since Postgres does all the matching
@@ -2594,8 +2858,8 @@
     }
   }
 
-  /* ── SOURCE 4: JIKAN API SEARCH (last resort — public API, slowest & most
-     rate-limit-sensitive of the four sources) ── */
+  /* ── FALLBACK #4: JIKAN API SEARCH (last resort — public API, slowest & most
+     rate-limit-sensitive of the sources) ── */
   async function searchAnimeFromJikan(q) {
     const response = await fetch(`${JIKAN_API_BASE}?q=${encodeURIComponent(q)}&page=1&limit=8&sfw=true`, {
       headers: { 'Accept': 'application/json' },
@@ -2628,7 +2892,7 @@
     }));
   }
 
-  /* ── SOURCE 3: ANILIST GRAPHQL SEARCH ── */
+  /* ── FALLBACK #3: ANILIST GRAPHQL SEARCH ── */
   async function searchAnimeFromAniList(q) {
     const query = `
       query ($search: String, $page: Int, $perPage: Int) {
