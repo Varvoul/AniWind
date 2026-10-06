@@ -134,6 +134,16 @@
     .slide[data-image-source*="anilist"].active .slide-bg {
       animation: kenburns-banner 16s ease-in-out infinite alternate;
     }
+    /* T59: "New on Ruri" background enrichment slides — matched landscape
+       backgrounds (16:9-ish) keep the default cover fit (the AniList
+       auto 100% short-banner fit would leave side gaps), focus slightly
+       above center, and reuse the transform-only banner pan when active. */
+    .slide[data-image-source="newonruri-background"] .slide-bg {
+      background-position: center 30%;
+    }
+    .slide[data-image-source="newonruri-background"].active .slide-bg {
+      animation: kenburns-banner 16s ease-in-out infinite alternate;
+    }
     
     /* Gradient overlay for area below Anilist banner (fills empty space) */
     .slide[data-image-source*="anilist"]::before {
@@ -4856,6 +4866,51 @@ async function loadNewAniocean() {
         });
         console.log(`[Hero Image] Resolution complete:`, imageSources);
 
+        // ── T59: cross-source duplicate drop (same show via TWO chains) ──
+        // A franchise could enter the hero twice: once from the AniList
+        // airing chain and once from the TMDB tv chain (Doraemon (2005) was
+        // slide ~20 via TMDB AND slide ~31 via AniList — the old dedup only
+        // compared slide ids, which live in different namespaces). Keep the
+        // anime slide (richer data + AniList banner), drop the TMDB twin.
+        const _baseTitle = t => (t || '').toLowerCase()
+          .replace(/\((?:19|20)\d{2}[^)]*\)/g, ' ')
+          .replace(/\b(?:19|20)\d{2}\b/g, ' ')
+          .replace(/[^a-z0-9]+/g, '');
+        const _titleSim = (a, b) => {
+          if (!a || !b) return 0;
+          if (a === b) return 1;
+          const longer = a.length >= b.length ? a : b, shorter = a.length >= b.length ? b : a;
+          // Length-ratio guard: raw Levenshtein similarity is scaled by the
+          // longer string, so ANY short title vs a long one scores ~1
+          // ("slow horses" vs a 69-char romaji blob = 0.896!). Titles of
+          // wildly different lengths can never be the same show.
+          if (shorter.length / longer.length < 0.6) return 0;
+          const costs = Array(shorter.length + 1).fill(0).map((_, i) => i);
+          for (let i = 1; i <= longer.length; i++) {
+            let prev = i;
+            for (let j = 1; j <= shorter.length; j++) {
+              const cost = longer[i - 1] !== shorter[j - 1] ? 1 : 0;
+              prev = Math.min(prev + 1, costs[j] + 1, costs[j - 1] + cost);
+              costs[j] = prev;
+            }
+          }
+          return 1 - costs[shorter.length] / longer.length;
+        };
+        const _animeTitles = jikanSlides.map(s => _baseTitle(s.title)).filter(Boolean);
+        for (let i = tmdbSlides.length - 1; i >= 0; i--) {
+          const bt = _baseTitle(tmdbSlides[i].title);
+          let dup = bt.length >= 4 && _animeTitles.includes(bt);
+          if (!dup && bt.length >= 6) {
+            for (const at of _animeTitles) {
+              if (_titleSim(at, bt) >= 0.85) { dup = true; break; }
+            }
+          }
+          if (dup) {
+            console.log(`[Hero] 🔁 Cross-source duplicate dropped: TMDB "${tmdbSlides[i].title}" (same show already in the anime chain)`);
+            tmdbSlides.splice(i, 1);
+          }
+        }
+
         // ── 5) Merge: ANIME FIRST pattern (~70% Anilist) ────────────────
         // Total: ~27 Anilist + 13 TMDB = ~40 slides (Anilist ≈ 67-70%)
         // Pattern: Anime starts first, then alternates (Anime+TMDB)
@@ -4885,6 +4940,9 @@ async function loadNewAniocean() {
 
         console.log(`[Hero] ${tmdbSlides.length} TMDB + ${jikanSlides.length} Jikan = ${heroData.length} total slides`);
         renderHero();
+        // T59: upgrade poster-fallback slides with landscape backgrounds
+        // matched from the "New on Ruri" dataset (async, non-blocking).
+        enrichHeroBanners();
         
         // ✅ CACHE: Write to professional cache system
         if (window.CacheHelpers) {
@@ -5005,6 +5063,160 @@ titleEl.style.textShadow = shadow;
 titleEl.style.color = '#ffffff';
 });
 }
+      /* ── T59: BANNER ENRICHMENT from "New on Ruri" backgrounds ───────
+         Anime slides whose data has no bannerImage fall back to the portrait
+         poster (ambient blur). The site's own "New on Ruri" dataset
+         (/api/new-on-ruri) carries a landscape `background_image` for many
+         titles. On every hero load we match banner-less slides against that
+         dataset (mal_id -> anilist_id -> base title), validate the candidate
+         is truly landscape (aspect >= 1.5 probe decode) and upgrade the slide
+         in place. This doubles as the banner-availability check mechanism:
+         when a banner becomes available later (hero cache refresh adds
+         bannerImage, or New-on-Ruri gains a background), the next hero load
+         automatically picks it up — cover/poster remains the final fallback. */
+      const HERO_BG_ENRICH_KEY = 'ruriHeroBgEnrichV1';
+      const HERO_BG_ENRICH_TTL = 6 * 3600 * 1000;   // aligns with the 6h server caches
+      function heroBaseTitle(t) {
+        return (t || '').toLowerCase()
+          .replace(/\((?:19|20)\d{2}[^)]*\)/g, ' ')
+          .replace(/\b(?:19|20)\d{2}\b/g, ' ')
+          .replace(/[^a-z0-9]+/g, '');
+      }
+      function heroTitleSimilarity(a, b) {
+        if (!a || !b) return 0;
+        if (a === b) return 1;
+        const longer = a.length >= b.length ? a : b, shorter = a.length >= b.length ? b : a;
+        // Length-ratio guard: raw Levenshtein similarity is scaled by the
+        // longer string, so ANY short title vs a long one scores ~1 — every
+        // match would be false. Titles of wildly different lengths can
+        // never be the same show.
+        if (shorter.length / longer.length < 0.6) return 0;
+        const costs = Array(shorter.length + 1).fill(0).map((_, i) => i);
+        for (let i = 1; i <= longer.length; i++) {
+          let prev = i;
+          for (let j = 1; j <= shorter.length; j++) {
+            const cost = longer[i - 1] !== shorter[j - 1] ? 1 : 0;
+            prev = Math.min(prev + 1, costs[j] + 1, costs[j - 1] + cost);
+            costs[j] = prev;
+          }
+        }
+        return 1 - costs[shorter.length] / longer.length;
+      }
+      function heroBgEnrichLookup(key) {
+        try {
+          const raw = localStorage.getItem(HERO_BG_ENRICH_KEY);
+          if (!raw) return null;
+          const c = JSON.parse(raw);
+          const e = c && c[key];
+          if (!e) return null;
+          if (Date.now() - (e.t || 0) > HERO_BG_ENRICH_TTL) return null;
+          return e.v === 'ok';
+        } catch (err) { return null; }
+      }
+      function heroBgEnrichStore(key, ok) {
+        try {
+          const raw = localStorage.getItem(HERO_BG_ENRICH_KEY);
+          const c = raw ? JSON.parse(raw) : {};
+          c[key] = { v: ok ? 'ok' : 'no', t: Date.now() };
+          const keys = Object.keys(c);
+          if (keys.length > 200) {
+            keys.sort((a, b) => (c[a].t || 0) - (c[b].t || 0));
+            for (let i = 0; i < keys.length - 200; i++) delete c[keys[i]];
+          }
+          localStorage.setItem(HERO_BG_ENRICH_KEY, JSON.stringify(c));
+        } catch (err) { /* private mode / quota — non-fatal */ }
+      }
+      function probeLandscapeImage(url) {
+        return new Promise(resolve => {
+          let settled = false;
+          const finish = ok => { if (!settled) { settled = true; resolve(ok); } };
+          const im = new Image();
+          im.onload = () => finish(im.naturalWidth >= 480 && im.naturalHeight > 0 && im.naturalWidth / im.naturalHeight >= 1.5);
+          im.onerror = () => finish(false);
+          setTimeout(() => finish(false), 5000);
+          im.referrerPolicy = 'no-referrer';
+          im.src = url;
+        });
+      }
+      async function enrichHeroBanners() {
+        try {
+          const candidates = heroData.filter(s => (s.mal_id || s.anilist_id) && s.image_source &&
+            /large-poster|cover-extralarge|trailer-thumb/.test(s.image_source));
+          if (!candidates.length) return;
+          console.log(`[Hero Banner] 🔎 Checking ${candidates.length} banner-less slides against New-on-Ruri backgrounds...`);
+          const norAnime = (await window.getHomeData('new_on_ruri'))?.Anime;
+          if (!Array.isArray(norAnime) || !norAnime.length) {
+            console.log('[Hero Banner] New-on-Ruri data unavailable — slides keep the poster fallback (re-checked next load)');
+            return;
+          }
+          // Index the dataset: mal_id / anilist_id / base titles -> background_image
+          const byMal = new Map(), byAni = new Map(), byTitle = new Map();
+          for (const a of norAnime) {
+            const bg = typeof a.background_image === 'string' && /^https?:\/\//i.test(a.background_image) ? a.background_image : '';
+            if (!bg) continue;
+            if (a.mal_id) byMal.set(String(a.mal_id), bg);
+            if (a.ani_id) byAni.set(String(a.ani_id), bg);
+            const variants = [a.title, a.native, a.titles, a.alternative].flatMap(v => Array.isArray(v) ? v : (v ? [v] : []));
+            for (const v of variants) {
+              if (typeof v !== 'string') continue;
+              // titles/alternative are often comma/semicolon-joined
+              // concatenations of every title variant (romaji, native,
+              // synonyms) — split into pieces and index each one, else the
+              // whole blob becomes a garbage index key.
+              for (const piece of v.split(/[,;|·・]/)) {
+                const p = piece.trim();
+                if (p.length < 4 || p.length > 80 || /^\d+$/.test(p)) continue;
+                const k = heroBaseTitle(p);
+                if (k && !byTitle.has(k)) byTitle.set(k, bg);
+              }
+            }
+          }
+          let matched = 0, upgraded = 0, rejected = 0;
+          for (const s of candidates) {
+            let url = null, how = '';
+            if (s.mal_id && byMal.has(String(s.mal_id))) { url = byMal.get(String(s.mal_id)); how = 'mal_id'; }
+            else if (s.anilist_id && byAni.has(String(s.anilist_id))) { url = byAni.get(String(s.anilist_id)); how = 'anilist_id'; }
+            else {
+              const bt = heroBaseTitle(s.title);
+              if (bt && byTitle.has(bt)) { url = byTitle.get(bt); how = 'title'; }
+              else if (bt.length >= 6) {
+                for (const [k, v] of byTitle) {
+                  if (heroTitleSimilarity(bt, k) >= 0.85) { url = v; how = 'title~'; break; }
+                }
+              }
+            }
+            if (!url) continue;
+            matched++;
+            const ck = 'bg' + (s.mal_id || s.anilist_id);
+            let ok = heroBgEnrichLookup(ck);
+            if (ok === null) { ok = await probeLandscapeImage(url); heroBgEnrichStore(ck, ok); }
+            if (!ok) { rejected++; console.log(`[Hero Banner] ⛔ "${s.title}" candidate rejected (not landscape / unreachable)`); continue; }
+            // Upgrade the slide data object
+            s.backdrop = url; s.backdrop_orig = url; s.backdrop_mobile = url;
+            s.image_source = 'newonruri-background';
+            upgraded++;
+            console.log(`[Hero Banner] ✅ "${s.title}" ← landscape background (${how})`);
+            // Upgrade the rendered slide in place — no full re-render
+            const idx = heroData.indexOf(s);
+            const el = document.querySelector(`#slidesContainer .slide[data-index="${idx}"]`);
+            if (el) {
+              el.dataset.bgMobile = url; el.dataset.bgDesktop = url; el.dataset.bgOrig = url;
+              el.setAttribute('data-image-source', 'newonruri-background');
+              el.classList.remove('slide-poster-fallback');
+              const posterImg = el.querySelector('.slide-poster');
+              if (posterImg) posterImg.remove();
+            }
+          }
+          console.log(`[Hero Banner] 🖼️ Enrichment done: ${matched}/${candidates.length} matched, ${upgraded} upgraded to landscape banner${rejected ? `, ${rejected} rejected` : ''}`);
+          if (upgraded) {
+            ensureSlideImages(currentSlide, true);   // re-apply lazy window incl. upgraded slides in view
+            preloadNextSlideImage();
+          }
+        } catch (e) {
+          console.warn('[Hero Banner] Enrichment skipped:', e && e.message ? e.message : e);
+        }
+      }
+
       function renderHero() {
         const container = document.getElementById('slidesContainer');
         const slugify = t => (t||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
