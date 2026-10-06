@@ -458,6 +458,19 @@
       background: rgba(255,255,255,0.3);
       border-radius: 50%;
       cursor: pointer;
+      position: relative;
+    }
+    /* T60: enlarge the click/tap hit area without changing the visual size
+       (5-7px dots are too small to tap reliably, especially on mobile) */
+    .dot::after {
+      content: '';
+      position: absolute;
+      inset: -6px;
+      border-radius: 50%;
+    }
+    .dot:focus-visible {
+      outline: 2px solid #fff;
+      outline-offset: 2px;
     }
     .dot.active {
       background: #fff;
@@ -5266,7 +5279,7 @@ titleEl.style.color = '#ffffff';
         const totalSlides = heroData.length;
         const showDots = Math.min(totalSlides, 30);
         document.getElementById('sliderDots').innerHTML = Array.from({length:showDots},(_,i) =>
-          `<span class="dot${i===0?' active':''}" data-index="${i}"></span>`
+          `<span class="dot${i===0?' active':''}" role="button" tabindex="0" aria-label="Go to slide ${Math.min(totalSlides, Math.round(i*(totalSlides/showDots))+1)} of ${totalSlides}" data-index="${i}"></span>`
         ).join('');
         // Only reset to slide 0 on first render — don't interrupt user mid-scroll
         if (!_heroRendered) {
@@ -5370,6 +5383,30 @@ titleEl.style.color = '#ffffff';
       }
       document.getElementById('prevSlide').addEventListener('click', ()=>goToSlide(currentSlide-1));
       document.getElementById('nextSlide').addEventListener('click', ()=>goToSlide(currentSlide+1));
+      /* ── T60: DOT NAVIGATION — click / tap / keyboard to jump ───────────
+         Dots are capped at 30 while the slide count can be higher, so each
+         dot represents totalSlides/dots.length slides (the same ratio used
+         to highlight the active dot in updateSlidePos). Clicking a dot
+         jumps to the slide it represents, keeping dot-highlight consistent.
+         Enter/Space activate dots for keyboard users. Autoplay phase resets
+         after a jump UNLESS the hero is hover-paused (desktop) — mouseleave
+         restarts autoplay as before. */
+      document.getElementById('sliderDots').addEventListener('click', (e) => {
+        const dot = e.target.closest('.dot');
+        if (!dot) return;
+        const idx = parseInt(dot.dataset.index, 10);
+        const dots = document.querySelectorAll('#sliderDots .dot');
+        if (isNaN(idx) || !dots.length || !heroData.length) return;
+        goToSlide(Math.round(idx * (heroData.length / dots.length)));
+        if (!heroSection.matches(':hover')) { stopHeroInterval(); startHeroInterval(); }
+      });
+      document.getElementById('sliderDots').addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        const dot = e.target.closest('.dot');
+        if (!dot) return;
+        e.preventDefault();
+        dot.click();
+      });
       /* ── AUTOPLAY: pause while hovering the hero (desktop standard UX) ── */
       const heroSection = document.getElementById('heroSlider');
       function startHeroInterval() {
