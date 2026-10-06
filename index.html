@@ -76,6 +76,7 @@
       aspect-ratio: 16 / 9;
       overflow: hidden;
       background: #000;
+      touch-action: pan-y;  /* native vertical scroll; horizontal drags go to the slider */
     }
     .slides-container {
       display: flex;
@@ -85,20 +86,39 @@
     .slide {
       min-width: 100%;
       height: 100%;
-      background-size: cover;
-      background-position: center center;
       position: relative;
       display: flex;
       align-items: flex-end;
       padding: 0 5%;
       overflow: hidden;
-      animation: kenburns 12s ease-in-out infinite alternate;
-      /* Sharpen images for better clarity on desktop */
-      image-rendering: -webkit-optimize-contrast;
-      image-rendering: crisp-edges;
+      /* PERF V2: the image now lives on the .slide-bg inner layer below —
+         the slide itself never paints a background, so translateX morph
+         transitions composite cheaply and repaints stay local. */
     }
-    /* Special handling for anime poster images - focus on upper portion */
-    .slide[data-anime="true"] {
+    /* ── GPU-COMPOSITED BACKGROUND LAYER (perf fix) ─────────────────────
+       The old Ken Burns animated `background-size` on .slide — un-compositable,
+       forcing a full hero repaint EVERY FRAME on ALL ~60 slides (even offscreen
+       ones) while backdrop-filter blurred the moving result. That paint storm
+       is what made the slider hang. Now:
+         - zoom animates `transform: scale()` ONLY -> GPU-composited, 0 repaints
+         - only the ACTIVE slide animates (.slide.active rules)
+         - gentle drift per user choice: scale 1.0 -> 1.04 over 16s
+         - inset overscan hides scaled edges; crisp-edges resampling removed */
+    .slide-bg {
+      position: absolute;
+      inset: -4%;
+      background-size: cover;
+      background-position: center center;
+      background-repeat: no-repeat;
+      z-index: 0;
+      will-change: transform;
+      pointer-events: none;
+    }
+    .slide.active .slide-bg {
+      animation: kenburns 16s ease-in-out infinite alternate;
+    }
+    /* Anime posters: focus on the upper portion (characters/faces) */
+    .slide[data-anime="true"] .slide-bg {
       background-position: center 20%;
     }
     
@@ -107,11 +127,12 @@
        Anilist banners are ~1000x380px (wide but short)
        Show at natural aspect ratio, no vertical stretching
        ════════════════════════════════════════════════════════════ */
-    .slide[data-image-source*="anilist"] {
+    .slide[data-image-source*="anilist"] .slide-bg {
       background-size: auto 100%;        /* Fit width, maintain aspect ratio */
-      background-repeat: no-repeat;
       background-position: center top;   /* Align to top */
-      animation: kenburns-banner 14s ease-in-out infinite alternate;
+    }
+    .slide[data-image-source*="anilist"].active .slide-bg {
+      animation: kenburns-banner 16s ease-in-out infinite alternate;
     }
     
     /* Gradient overlay for area below Anilist banner (fills empty space) */
@@ -131,14 +152,18 @@
       pointer-events: none;
     }
     
-    /* Subtle Ken Burns effect for banners (horizontal pan only) */
+    /* Subtle Ken Burns for banners — pan via transform ONLY (GPU-composited);
+       background-size stays fixed at auto 100%. Fixed 1.06 base scale gives the
+       pan travel room without ever exposing layer edges. */
     @keyframes kenburns-banner {
-      0%   { background-size: auto 100%; transform: translateX(0); }
-      100% { background-size: auto 105%; transform: translateX(-2%); }  /* Gentle right pan */
+      0%   { transform: scale(1.06) translateX(1.2%); }
+      100% { transform: scale(1.06) translateX(-1.2%); }
     }
     
-    /* Anime slide enhancement for non-Anilist sources (TMDB/Jikan fallback) */
-    .slide-anime:not([data-image-source*="anilist"]) {
+    /* Anime slide enhancement for non-Anilist sources (TMDB/Jikan fallback).
+       Applied to .slide-bg only (static filter rasterizes once) — on .slide it
+       would also color-shift the glass info card and its text. */
+    .slide-anime:not([data-image-source*="anilist"]) .slide-bg {
       filter: contrast(1.05) saturate(1.1);
     }
     .slide::after {
@@ -151,12 +176,44 @@
       z-index: 1;
     }
     @keyframes kenburns {
-      0%   { background-size: cover; transform: scale(1); }
-      100% { background-size: cover; transform: scale(1.05); }
+      0%   { transform: scale(1); }
+      100% { transform: scale(1.04); }
+    }
+    /* ════════════════════════════════════════════════════════════
+       POSTER-FALLBACK SLIDES (no banner image available)
+       "Ambient blur" style: the cover art itself becomes a blurred,
+       darkened full-bleed backdrop, and the sharp poster is featured
+       centered like a movie poster. These slides read as intentional
+       and stay visually close to banner slides (Spotify/AniList style).
+       The blur layer is STATIC (no animation) so the expensive blur
+       rasterizes exactly once per slide instead of per frame.
+       ════════════════════════════════════════════════════════════ */
+    .slide-poster-fallback .slide-bg {
+      filter: blur(30px) brightness(0.55) saturate(1.2);
+      transform: scale(1.18);              /* hide blurred edge bleed */
+      animation: none !important;          /* static = one-time raster */
+    }
+    .slide-poster {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      max-height: 80%;
+      max-width: min(44%, 520px);
+      object-fit: contain;
+      border-radius: 12px;
+      box-shadow: 0 18px 60px rgba(0, 0, 0, 0.55),
+                  0 0 0 1px rgba(255, 255, 255, 0.12);
+      z-index: 2;
+      pointer-events: none;
+    }
+    /* Accessibility: respect reduced-motion preference */
+    @media (prefers-reduced-motion: reduce) {
+      .slide-bg { animation: none !important; }
     }
     .slide-content {
       position: relative;
-      z-index: 2;
+      z-index: 3;
       max-width: 650px;
       width: 100%;
       margin-bottom: 6%;
@@ -2194,6 +2251,16 @@
   }
   .slide-counter {
     font-size: 0.58rem !important;
+  }
+  /* Poster-fallback slides on mobile: smaller centered poster + lighter blur */
+  .slide-poster {
+    max-height: 62%;
+    max-width: 60%;
+    top: 46%;
+    border-radius: 8px;
+  }
+  .slide-poster-fallback .slide-bg {
+    filter: blur(22px) brightness(0.5) saturate(1.15);
   }
 }
     /* Tablet range: 4-line desktop clamp is too tall for the shorter hero
@@ -4468,6 +4535,7 @@ async function loadNewAniocean() {
           }
           return !!(raw.bannerImage || raw.coverImage?.extraLarge || raw.coverImage?.large);
         })
+        .filter(({ n }) => String(n.type || '').toUpperCase() === 'TV') // HERO = TV series only (drops Movies/OVA/ONA/Special/Music/TV Short)
         .filter(({ n }) => !!n.mal_id) // no mal_id → /info/anime/jikan-null link — drop
         .map(({ raw, n }) => ({ raw, n }))
         .sort((a, b) => {
@@ -4479,7 +4547,7 @@ async function loadNewAniocean() {
           return pb - pa;
         });
         const topAnilistAnime = animeWithImage.slice(0, HERO_CONFIG.anilistTargetCount);
-        console.log(`[Hero] 🎌 Anime with banner→extraLarge fallback: ${topAnilistAnime.length} ready (${topAnilistAnime.filter(x => x.n.source === 'jikan').length} jikan / ${topAnilistAnime.filter(x => x.n.source === 'anilist').length} anilist)`);
+        console.log(`[Hero] 🎌 TV-only anime with banner→extraLarge fallback: ${topAnilistAnime.length} ready (${topAnilistAnime.filter(x => x.n.source === 'jikan').length} jikan / ${topAnilistAnime.filter(x => x.n.source === 'anilist').length} anilist)`);
 
         const sourceType = 'Endpoint + dynamic year filter';
         console.log(`[Hero] 🎬 Fetched ${topTmdbShows.length} TV (${sourceType}) + ${topAnilistAnime.length} airing anime`);
@@ -4948,12 +5016,20 @@ titleEl.style.color = '#ffffff';
           const watchHref = watchUrl(s);  // Generates proper SEO-friendly watch URL
           const statusColor = s.status_color || 'var(--accent-blue)';
           const statusLabel = s.status_label || '● Airing';
+          // PERF: no inline background-image here anymore — backgrounds load
+          // lazily via ensureSlideImages() (only ~4 slides around the current
+          // one) instead of all 60 images downloading at page load.
+          // Poster-only slides (no banner available) get the ambient-blur
+          // fallback: blurred cover backdrop + sharp centered poster (CSS).
+          const posterOnly = !s.backdrop || s.backdrop === s.poster ||
+            (s.image_source && /large-poster|cover-extralarge/.test(s.image_source));
           return `
-          <div class="slide${isAnime ? ' slide-anime' : ''}" data-index="${i}"${isAnime ? ' data-anime="true"' : ''}${s.image_source ? ` data-image-source="${s.image_source}"` : ''}
-            style="background-image:url('${s.backdrop||s.poster}');"
+          <div class="slide${isAnime ? ' slide-anime' : ''}${posterOnly ? ' slide-poster-fallback' : ''}" data-index="${i}"${isAnime ? ' data-anime="true"' : ''}${s.image_source ? ` data-image-source="${s.image_source}"` : ''}
             data-bg-mobile="${s.backdrop_mobile||s.poster}"
             data-bg-desktop="${s.backdrop||s.poster}"
             data-bg-orig="${s.backdrop_orig||s.backdrop||s.poster}">
+            <div class="slide-bg" aria-hidden="true"></div>
+            ${posterOnly ? `<img class="slide-poster" src="${s.poster||s.backdrop}" alt="" loading="${i < 2 ? 'eager' : 'lazy'}" onerror="this.style.display='none'">` : ''}
             <div class="slide-content">
               <h1 class="slide-title">${s.title}</h1>
               <div class="slide-meta">
@@ -4998,20 +5074,58 @@ titleEl.style.color = '#ffffff';
         if (_heroInterval) clearInterval(_heroInterval);
         _heroInterval = setInterval(() => goToSlide(currentSlide + 1), 6000);
       }
-      // Apply correct backdrop resolution based on screen width
-      function applyResponsiveBackdrops() {
+      /* ── LAZY BACKGROUND LOADER (perf fix) ─────────────────────────────
+         Old behavior: every slide's background-image was assigned at render
+         time, so ALL ~60 full-res images downloaded and decoded at page load
+         while ~56 of them sat offscreen. Now only a small window around the
+         current slide (1 back, 2 forward) ever gets an image assigned; the
+         rest stay dark until the carousel approaches them. */
+      const BG_WINDOW_BACK = 1, BG_WINDOW_FWD = 2;
+      function backdropUrlFor(el) {
         const isDesktop = window.innerWidth >= 768;
         const isLargeDesktop = window.innerWidth >= 1440;
-        document.querySelectorAll('#slidesContainer .slide').forEach(el => {
-          const url = isLargeDesktop
-            ? (el.dataset.bgOrig || el.dataset.bgDesktop)
-            : isDesktop
-              ? el.dataset.bgDesktop
-              : el.dataset.bgMobile;
-          if (url) el.style.backgroundImage = `url('${url}')`;
-        });
+        return isLargeDesktop
+          ? (el.dataset.bgOrig || el.dataset.bgDesktop)
+          : isDesktop
+            ? el.dataset.bgDesktop
+            : el.dataset.bgMobile;
       }
-      window.addEventListener('resize', applyResponsiveBackdrops);
+      function ensureSlideImages(center = currentSlide, force = false) {
+        const slides = document.querySelectorAll('#slidesContainer .slide');
+        const n = slides.length;
+        if (!n) return;
+        for (let off = -BG_WINDOW_BACK; off <= BG_WINDOW_FWD; off++) {
+          const idx = ((center + off) % n + n) % n;
+          const el = slides[idx];
+          const bg = el.querySelector('.slide-bg');
+          if (!bg) continue;
+          const url = backdropUrlFor(el);
+          if (!url) continue;
+          if (!force && bg.dataset.loadedUrl === url) continue;
+          bg.style.backgroundImage = `url('${url}')`;
+          bg.dataset.loadedUrl = url;
+        }
+      }
+      /* Preload the next slide's image so the 0.55s morph never reveals a
+         half-loaded backdrop. */
+      function preloadNextSlideImage() {
+        const slides = document.querySelectorAll('#slidesContainer .slide');
+        if (!slides.length) return;
+        const next = slides[((currentSlide + 1) % slides.length + slides.length) % slides.length];
+        const url = backdropUrlFor(next);
+        if (url) { const im = new Image(); im.src = url; }
+      }
+      /* Kept for compatibility: re-resolve the visible window with the
+         device-appropriate resolution. Debounced 150ms (was: instant, and it
+         reassigned ALL 60 backgrounds on every resize tick). */
+      function applyResponsiveBackdrops() {
+        ensureSlideImages(currentSlide, true);
+      }
+      let _heroResizeTimer = null;
+      window.addEventListener('resize', () => {
+        clearTimeout(_heroResizeTimer);
+        _heroResizeTimer = setTimeout(applyResponsiveBackdrops, 150);
+      });
       /* Also re-apply hero accent colors on resize so the mobile/desktop
          text-shadow swaps correctly when crossing the 768px breakpoint. */
       let _heroAccentResizeTimer = null;
@@ -5023,6 +5137,14 @@ titleEl.style.color = '#ffffff';
       function goToSlide(i) { currentSlide = ((i%heroData.length)+heroData.length)%heroData.length; updateSlidePos(); }
       function updateSlidePos() {
         document.getElementById('slidesContainer').style.transform = `translateX(-${currentSlide*100}%)`;
+        /* PERF: Ken Burns runs only on the active slide (.slide.active CSS).
+           Toggling here starts the gentle zoom fresh on each visit and pauses
+           it everywhere else (1 animated slide instead of ~60). */
+        document.querySelectorAll('#slidesContainer .slide').forEach((el, idx) => {
+          el.classList.toggle('active', idx === currentSlide);
+        });
+        ensureSlideImages(currentSlide);
+        preloadNextSlideImage();
         // Dots are capped at 30 — highlight the proportionally closest dot
         const dots = document.querySelectorAll('#sliderDots .dot');
         const total = heroData.length;
@@ -5036,6 +5158,59 @@ titleEl.style.color = '#ffffff';
       }
       document.getElementById('prevSlide').addEventListener('click', ()=>goToSlide(currentSlide-1));
       document.getElementById('nextSlide').addEventListener('click', ()=>goToSlide(currentSlide+1));
+      /* ── AUTOPLAY: pause while hovering the hero (desktop standard UX) ── */
+      const heroSection = document.getElementById('heroSlider');
+      function startHeroInterval() {
+        if (_heroInterval) clearInterval(_heroInterval);
+        _heroInterval = setInterval(() => goToSlide(currentSlide + 1), 6000);
+      }
+      function stopHeroInterval() {
+        if (_heroInterval) { clearInterval(_heroInterval); _heroInterval = null; }
+      }
+      heroSection.addEventListener('mouseenter', stopHeroInterval);
+      heroSection.addEventListener('mouseleave', () => { stopHeroInterval(); startHeroInterval(); });
+      /* ── MOBILE SWIPE: follow-finger drag + snap ────────────────────────
+         Horizontal-intent detection (|dx| > |dy|) so vertical page scrolling
+         is never hijacked (plus touch-action: pan-y in CSS). Dragging disables
+         the container transition, the track follows the finger 1:1, and
+         release snaps to the nearest slide (threshold 60px). Arrows, dots and
+         autoplay are unaffected. */
+      let _swipeX0 = null, _swipeY0 = 0, _swiping = false, _swipeDx = 0;
+      heroSection.addEventListener('touchstart', (e) => {
+        _swipeX0 = e.touches[0].clientX; _swipeY0 = e.touches[0].clientY;
+        _swiping = false; _swipeDx = 0;
+      }, { passive: true });
+      heroSection.addEventListener('touchmove', (e) => {
+        if (_swipeX0 === null) return;
+        const dx = e.touches[0].clientX - _swipeX0;
+        const dy = e.touches[0].clientY - _swipeY0;
+        if (!_swiping) {
+          if (Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy) + 6) {
+            _swiping = true;
+            const c = document.getElementById('slidesContainer');
+            c.style.transition = 'none';
+            stopHeroInterval();
+          } else if (Math.abs(dy) > 12) { _swipeX0 = null; return; }
+        }
+        if (_swiping) {
+          _swipeDx = dx;
+          const c = document.getElementById('slidesContainer');
+          c.style.transform = `translateX(calc(-${currentSlide * 100}% + ${dx}px))`;
+        }
+      }, { passive: true });
+      heroSection.addEventListener('touchend', () => {
+        if (_swiping) {
+          const c = document.getElementById('slidesContainer');
+          c.style.transition = '';
+          if (Math.abs(_swipeDx) > 60) {
+            goToSlide(currentSlide + (_swipeDx < 0 ? 1 : -1));
+          } else {
+            updateSlidePos(); // snap back to current
+          }
+          startHeroInterval();
+        }
+        _swipeX0 = null; _swiping = false; _swipeDx = 0;
+      });
       // Auto-advance is started inside renderHero() to avoid stacking intervals
 
       /* ── TOP AIRING ── */
