@@ -1995,9 +1995,13 @@
         : await fetchRelatedSeasons(baseName, results);
       
       if (seasonResults.length > 0) {
-        // Merge and deduplicate
+        // Merge and deduplicate (mal_id OR AniList identity — NULL-mal rows
+        // carry no mal_id, so the season heuristic would otherwise re-add
+        // the very row the main search already returned)
         const existingIds = new Set(results.map(r => r.mal_id).filter(Boolean));
-        const newSeasons = seasonResults.filter(r => !existingIds.has(r.mal_id));
+        const existingAlis = new Set(results.map(r => r.anilist_id || r.anilistId).filter(Boolean));
+        const newSeasons = seasonResults.filter(r =>
+          !existingIds.has(r.mal_id) && !(r.anilist_id && existingAlis.has(r.anilist_id)));
         
         if (newSeasons.length > 0) {
           console.log(`[Season] Found ${newSeasons.length} additional seasons for "${baseName}"`);
@@ -2084,6 +2088,7 @@
         genres: parseGenres(item.genres),
         certification: shortCertification(item.rating),
         mal_id: item.mal_id,
+        anilist_id: item.anilist_id ?? null,
         source: 'db',
         year: item.year,
         episodes: item.episodes,
@@ -2138,6 +2143,7 @@
         genres: parseGenres(item.genres),
         certification: shortCertification(item.rating),
         mal_id: item.mal_id,
+        anilist_id: item.anilist_id ?? null,
         source: 'db',
         year: item.year,
         episodes: item.episodes,
@@ -2493,6 +2499,7 @@
       genres: (item.genres || []).map(g => g.name).filter(Boolean),
       certification: shortCertification(item.rating),
       mal_id: item.mal_id,
+      anilist_id: item.anilist_id ?? null,
       source: 'db',
       year: item.year,
       episodes: item.episodes,
