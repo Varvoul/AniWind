@@ -2909,7 +2909,7 @@ img { max-width: 100%; height: auto; display: block; }
               fetchAllAnimeData(currentState.data?.title),
               fetchAnimeScheduleData()
             ]);
-          } else {
+          } else if (currentState.source === 'tmdb') {
             await Promise.all([
               loadSidebarContent(),
               loadRecommendations()
@@ -2947,7 +2947,7 @@ img { max-width: 100%; height: auto; display: block; }
         const _src = currentState.source;
         const _id  = currentState.id;
         const _type = currentState.type;
-        const _mid = _src === 'jikan' ? `jikan-${_id}` : `tmdb-${_type}-${_id}`;
+        const _mid = mediaKeyOf();
         const perm = currentState.isPermanent;
         let missing = [];
 
@@ -2986,6 +2986,7 @@ img { max-width: 100%; height: auto; display: block; }
           // Re-fetch missing full data if needed
           if (missing.includes('full_data')) {
             if (_src === 'jikan') await fetchJikanData();
+            else if (_src === 'anikoto' || _src === 'anilist') await fetchRuriData();
             else if (_src === 'tmdb') await fetchTMDBData();
           }
 
@@ -3012,7 +3013,7 @@ img { max-width: 100%; height: auto; display: block; }
 
       function parseUrl() {
         const path = window.location.pathname;
-        const match = path.match(/\/info\/(anime|tv|movie)\/(jikan|tmdb-(?:tv|movie))-(\d+)(?:\/[^/]+)?/);
+        const match = path.match(/\/info\/(anime|tv|movie)\/(jikan|anikoto|anilist|tmdb-(?:tv|movie))-(\d+)(?:\/[^/]+)?/);
         
         if (!match) {
           console.error('URL does not match expected format:', path);
@@ -3029,6 +3030,10 @@ img { max-width: 100%; height: auto; display: block; }
         if (sourcePrefix === 'jikan') {
           currentState.source = 'jikan';
           currentState.type = 'anime';
+        } else if (sourcePrefix === 'anikoto' || sourcePrefix === 'anilist') {
+          // ruri worker serves anikoto_data / anime_data as jikan-v4-shaped data
+          currentState.source = sourcePrefix;
+          currentState.type = 'anime';
         } else if (sourcePrefix === 'tmdb-tv') {
           currentState.source = 'tmdb';
           currentState.type = 'tv';
@@ -3036,6 +3041,73 @@ img { max-width: 100%; height: auto; display: block; }
           currentState.source = 'tmdb';
           currentState.type = 'movie';
         }
+      }
+
+      /* ── ruri-aware helpers (anikoto-/anilist- pages + dead-MAL fallback) ──
+         ruri serves both Supabase anime tables as jikan-v4-shaped objects:
+           /s-mal/anime/jikan-{mal}/full | /s-mal/anime/anilist-{ali}/full
+           /anikoto/anime/anikoto-{id}/full | /anikoto/anime/anilist-{ali}/full
+         Used for (1) anikoto-/anilist- prefixed info pages and (2) the
+         fallback when MAL deletes an entry the DB still anchors (the DB row
+         remains the identity; Jikan/AniList live lookups are best-effort). */
+      const RURI_BASE = 'https://ruri.bionmovies47.workers.dev';
+
+      function mediaKeyOf() {
+        return currentState.source === 'tmdb'
+          ? `tmdb-${currentState.type}-${currentState.id}`
+          : `${currentState.source}-${currentState.id}`;
+      }
+
+      function jikanIdOf() {
+        // MAL id usable for api.jikan.moe / animethemes calls on this page
+        if (currentState.source === 'jikan') return currentState.id;
+        const m = currentState.data && currentState.data.mal_id;
+        return m ? (parseInt(m, 10) || null) : null;
+      }
+
+      function _ruriApply(data, cacheKey) {
+        currentState.data = data;
+        currentState.title = data.title_english || data.title || 'Unknown';
+        currentState.isPermanent = !!(window.AniCache && window.AniCache.isPermanentStatus(data.status));
+        if (window.AniCache) {
+          window.AniCache.set({ cacheKey: `info:full_data:${cacheKey}`, pageSource: 'info',
+            section: 'info_full_data', showId: null, malId: data.mal_id ? String(data.mal_id) : null,
+            data, permanent: currentState.isPermanent })
+            .then(r => { if (!r) console.warn('[Ruri] Failed to save full data for', cacheKey); })
+            .catch(() => {});
+        }
+      }
+
+      async function fetchRuriData() {
+        // anikoto-{id} / anilist-{id} pages: resolve via ruri profiles
+        const src = currentState.source;
+        const id = currentState.id;
+        const urls = src === 'anikoto'
+          ? [`${RURI_BASE}/anikoto/anime/anikoto-${id}/full`]
+          : [`${RURI_BASE}/s-mal/anime/anilist-${id}/full`, `${RURI_BASE}/anikoto/anime/anilist-${id}/full`];
+        for (const url of urls) {
+          try {
+            const res = await fetch(url, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(12000) });
+            if (!res.ok) continue;
+            const json = await res.json();
+            const data = json && json.data;
+            if (!data || !(data.title || data.title_english)) continue;
+            _ruriApply(data, `${src}-${id}`);
+            return;
+          } catch (e) { console.warn('[Ruri] fetch failed:', url, e.message); }
+        }
+        throw new Error(`ruri: no data for ${src}-${id}`);
+      }
+
+      async function fetchRuriJikanFallback(malId) {
+        // jikan-{mal} page whose MAL entry is gone (404) — serve the DB row
+        const res = await fetch(`${RURI_BASE}/s-mal/anime/jikan-${malId}/full`,
+                                { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(12000) });
+        if (!res.ok) throw new Error(`ruri HTTP ${res.status}`);
+        const json = await res.json();
+        const data = json && json.data;
+        if (!data || !(data.title || data.title_english)) throw new Error('ruri: row not found');
+        _ruriApply(data, `jikan-${malId}`);
       }
 
       async function initAuth() {
@@ -3066,9 +3138,7 @@ img { max-width: 100%; height: auto; display: block; }
           const _src    = currentState.source;
           const _id     = currentState.id;
           const _type   = currentState.type; // 'anime'|'movie'|'tv'
-          const _mediaId = _src === 'jikan'
-            ? `jikan-${_id}`
-            : `tmdb-${_type}-${_id}`;
+          const _mediaId = mediaKeyOf();
 
           // 1. Try shows table first
           if (window.AniCache) {
@@ -3160,6 +3230,7 @@ img { max-width: 100%; height: auto; display: block; }
                 (async () => {
                   try {
                     if (_src === 'jikan') await fetchJikanData();
+                    else if (_src === 'anikoto' || _src === 'anilist') await fetchRuriData();
                     else if (_src === 'tmdb') await fetchTMDBData();
 
                     // Re-render sections that depend on full API data
@@ -3169,7 +3240,7 @@ img { max-width: 100%; height: auto; display: block; }
                     // Save to shows table with the new complete data
                     if (window.AniCache && currentState.data) {
                       const d2 = currentState.data;
-                      const isA2 = _src === 'jikan';
+                      const isA2 = _src !== 'tmdb';
                       const saveRow2 = {
                         id: _mediaId, media_id: _mediaId,
                         type: isA2 ? 'Anime' : (_type === 'movie' ? 'Movie' : 'TV'),
@@ -3217,6 +3288,7 @@ img { max-width: 100%; height: auto; display: block; }
 
           // 2. Live API fetch
           if (_src === 'jikan') await fetchJikanData();
+          else if (_src === 'anikoto' || _src === 'anilist') await fetchRuriData();
           else if (_src === 'tmdb') await fetchTMDBData();
 
           document.title = `${currentState.title} - Aniocean`;
@@ -3226,7 +3298,7 @@ img { max-width: 100%; height: auto; display: block; }
           // 3. Save to Supabase after API fetch (dedup handled inside AniCache.save)
           if (window.AniCache && currentState.data) {
             const d = currentState.data;
-            const isA = _src === 'jikan';
+            const isA = _src !== 'tmdb';
             const saveRow = {
               id:             _mediaId,
               media_id:       _mediaId,
@@ -3288,7 +3360,14 @@ img { max-width: 100%; height: auto; display: block; }
             if (!saveResult) console.warn('[AniCache] Failed to save full Jikan data for', sid);
           }
         } catch (jikanError) {
-          console.warn('[Jikan] Failed, falling back to AniList GraphQL:', jikanError.message);
+          console.warn('[Jikan] Failed, trying ruri DB fallback:', jikanError.message);
+          try {
+            await fetchRuriJikanFallback(currentState.id);
+            return;
+          } catch (ruriError) {
+            console.warn('[Ruri] DB fallback failed:', ruriError.message);
+          }
+          console.warn('[Ruri] falling back to AniList GraphQL');
           await fetchAnilistData(currentState.id);
         }
       }
@@ -3587,7 +3666,7 @@ img { max-width: 100%; height: auto; display: block; }
       // Caching: uses media_cache table. Finished Airing → permanent. Currently Airing → permanent (episode data stable).
       async function fetchAnimeScheduleData() {
         if (currentState.source !== 'jikan') return;
-        const _mid = `jikan-${currentState.id}`;
+        const _mid = mediaKeyOf();
         const _cacheKey = `info:animeschedule:${_mid}`;
 
         // ── Step 1: Check DB cache first ──
@@ -3689,7 +3768,7 @@ img { max-width: 100%; height: auto; display: block; }
 
       function renderHero() {
         const data = currentState.data;
-        const isAnime = currentState.source === 'jikan';
+        const isAnime = currentState.source !== 'tmdb';
         
         const typeNameMap = { 'anime': 'Anime', 'tv': 'TV Show', 'movie': 'Movie' };
         document.getElementById('typeName').textContent = typeNameMap[currentState.type] || currentState.type;
@@ -3767,7 +3846,7 @@ img { max-width: 100%; height: auto; display: block; }
 
       function renderStats() {
         const data = currentState.data;
-        const isAnime = currentState.source === 'jikan';
+        const isAnime = currentState.source !== 'tmdb';
         const platform = isAnime ? 'MAL' : 'TMDB';
         const rating = isAnime ? data.score : data.vote_average;
         const starColor = isAnime ? '#2e51a2' : '#01b4e4';
@@ -3821,7 +3900,7 @@ img { max-width: 100%; height: auto; display: block; }
 
       function renderSynopsis() {
         const data = currentState.data;
-        const isAnime = currentState.source === 'jikan';
+        const isAnime = currentState.source !== 'tmdb';
         document.getElementById('synopsisTitle').textContent = isAnime ? 'Synopsis' : 'Overview';
         const text = isAnime ? data.synopsis : data.overview;
         document.getElementById('synopsisText').textContent = text || 'No description available.';
@@ -3829,7 +3908,7 @@ img { max-width: 100%; height: auto; display: block; }
 
       function renderDetails() {
         const data = currentState.data;
-        const isAnime = currentState.source === 'jikan';
+        const isAnime = currentState.source !== 'tmdb';
         const grid = document.getElementById('detailsGrid');
         const details = [];
         
@@ -3977,7 +4056,7 @@ img { max-width: 100%; height: auto; display: block; }
       async function renderSeasons() {
         const section = document.getElementById('seasonsSection');
         const data = currentState.data;
-        const isAnime = currentState.source === 'jikan';
+        const isAnime = currentState.source !== 'tmdb';
         
         let seasons = [];
         if (isAnime) {
@@ -4098,7 +4177,7 @@ img { max-width: 100%; height: auto; display: block; }
           const _src  = currentState.source;
           const _id   = currentState.id;
           const _type = currentState.type;
-          const _mid  = _src === 'jikan' ? `jikan-${_id}` : `tmdb-${_type}-${_id}`;
+          const _mid  = mediaKeyOf();
           const dbDet = await window.AniCache.getDetails(_mid, { permanent: currentState.isPermanent }).catch(()=>null);
           if (dbDet) {
             console.log('[AniCache] show_details loaded from DB for', _mid);
@@ -4439,7 +4518,7 @@ img { max-width: 100%; height: auto; display: block; }
           user_id:         currentState.currentUser.id,
           show_id:         parseInt(currentState.id) || 0,
           media_id:        `${currentState.source}-${currentState.id}`,
-          media_type:      currentState.source === 'jikan' ? 'anime' : currentState.type,
+          media_type:      currentState.source !== 'tmdb' ? 'anime' : currentState.type,
           bookmark_status: statuses.join(','),
           updated_at:      new Date().toISOString()
         };
@@ -4447,7 +4526,7 @@ img { max-width: 100%; height: auto; display: block; }
 
       function buildBookmarkPayloadFull(statuses) {
         const d       = currentState.data;
-        const isAnime = currentState.source === 'jikan';
+        const isAnime = currentState.source !== 'tmdb';
         const mal_id  = isAnime  ? (parseInt(d.mal_id  || currentState.id) || null) : null;
         const tmdb_id = !isAnime ? (parseInt(currentState.id)              || null) : null;
         const username = currentState.currentUser?.user_metadata?.username
@@ -4772,7 +4851,8 @@ img { max-width: 100%; height: auto; display: block; }
       });
 
       async function loadSidebarContent() {
-        const isAnime = currentState.source === 'jikan';
+        if (currentState.source !== 'jikan' && currentState.source !== 'tmdb') return;
+        const isAnime = currentState.source === 'jikan'; // jikan/tmdb only (guarded above)
         if (isAnime) {
           // Jikan: sequence the three sidebar calls with delays to avoid rate-limit collisions
           // Main page data fetch + waterTemple + sunken are already in-flight, so we stagger
@@ -5649,7 +5729,7 @@ function renderSunkenPagination(currentPage, totalPages, container) {
       async function loadCastData() {
         const container = document.getElementById('castList');
         const data = currentState.data;
-        const isAnime = currentState.source === 'jikan';
+        const isAnime = currentState.source !== 'tmdb';
         
         if (isAnime) {
           // ── AniList fallback: use pre-fetched character data with JP + EN VAs ──
@@ -5720,14 +5800,19 @@ function renderSunkenPagination(currentPage, totalPages, container) {
             container.innerHTML = `<div class="cast-warp-container"><div class="cast-list-grid">${castRows}</div>`;
             // Save cast to DB
             if (window.AniCache && window._lastCastData?.length) {
-              const _mid = `jikan-${currentState.id}`;
+              const _mid = mediaKeyOf();
               window.AniCache.saveDetails(_mid, {cast_crew: window._lastCastData}, { permanent: currentState.isPermanent }).catch(()=>{});
             }
             return;
           }
           container.innerHTML = '<p class="loading-text" style="padding:20px 0;">Loading cast...</p>';
           try {
-            const res = await fetch(`https://api.jikan.moe/v4/anime/${currentState.id}/characters`);
+            const jikanId = jikanIdOf();
+            if (!jikanId) {
+              container.innerHTML = '<p class="loading-text">Cast data not available for this entry</p>';
+              return;
+            }
+            const res = await fetch(`https://api.jikan.moe/v4/anime/${jikanId}/characters`);
             if (!res.ok) throw new Error(`Jikan characters error: ${res.status}`);
             const { data: charsData } = await res.json();
             const chars = (charsData || []).sort((a, b) => {
@@ -5871,16 +5956,14 @@ function renderSunkenPagination(currentPage, totalPages, container) {
       });
       // AniCache: save cast to show_details
       if (window.AniCache && window._lastCastData && window._lastCastData.length) {
-        const _mid = currentState.source==='jikan'
-          ? `jikan-${currentState.id}`
-          : `tmdb-${currentState.type}-${currentState.id}`;
+        const _mid = mediaKeyOf();
         window.AniCache.saveDetails(_mid, {cast_crew: window._lastCastData}, { permanent: currentState.isPermanent }).catch(()=>{});
       }
 
       async function loadArtworkData() {
         const container = document.getElementById('artworkGrid');
         const data = currentState.data;
-        const isAnime = currentState.source === 'jikan';
+        const isAnime = currentState.source !== 'tmdb';
         
         container.innerHTML = '<p class="loading-text" style="grid-column:1/-1;padding:20px 0;">Loading artwork...</p>';
 
@@ -5901,7 +5984,8 @@ function renderSunkenPagination(currentPage, totalPages, container) {
 
           // Fetch /pictures for all extra images
           try {
-            const res = await fetch(`https://api.jikan.moe/v4/anime/${currentState.id}/pictures`);
+            const jikanId = jikanIdOf();
+            const res = jikanId ? await fetch(`https://api.jikan.moe/v4/anime/${jikanId}/pictures`) : { ok: false };
             if (res.ok) {
               const { data: pics } = await res.json();
               (pics || []).forEach(pic => {
@@ -5969,9 +6053,7 @@ function renderSunkenPagination(currentPage, totalPages, container) {
         `).join('');
       // AniCache: save artwork to show_details
       if (window.AniCache && window._lastArtworkData && window._lastArtworkData.length) {
-        const _mid = currentState.source==='jikan'
-          ? `jikan-${currentState.id}`
-          : `tmdb-${currentState.type}-${currentState.id}`;
+        const _mid = mediaKeyOf();
         window.AniCache.saveDetails(_mid, {artwork: window._lastArtworkData}, { permanent: currentState.isPermanent }).catch(()=>{});
       }
       }
@@ -5979,7 +6061,7 @@ function renderSunkenPagination(currentPage, totalPages, container) {
       async function loadTrailerData() {
         const container = document.getElementById('trailerContainer');
         const data = currentState.data;
-        const isAnime = currentState.source === 'jikan';
+        const isAnime = currentState.source !== 'tmdb';
         let trailerUrl = null;
         
         if (isAnime) {
@@ -6002,9 +6084,7 @@ function renderSunkenPagination(currentPage, totalPages, container) {
         }
         // AniCache: save trailer to show_details
         if (window.AniCache && trailerUrl) {
-          const _mid = currentState.source==='jikan'
-            ? `jikan-${currentState.id}`
-            : `tmdb-${currentState.type}-${currentState.id}`;
+          const _mid = mediaKeyOf();
           const ytKey = trailerUrl.replace(/.*embed[/]/, '').replace(/[?].*/, '');
           window.AniCache.saveDetails(_mid, {
             trailers: [{ key: ytKey, url: trailerUrl, name: currentState.title + ' - Trailer', site: 'YouTube' }]
@@ -6014,7 +6094,7 @@ function renderSunkenPagination(currentPage, totalPages, container) {
 
       async function loadThemesData() {
         const container = document.getElementById('themesContainer');
-        if (currentState.source !== 'jikan') {
+        if (currentState.source === 'tmdb') {
           container.innerHTML = '<p class="loading-text">Theme songs only available for anime</p>';
           return;
         }
@@ -6113,7 +6193,7 @@ function renderSunkenPagination(currentPage, totalPages, container) {
       }
       // AniCache: save themes to show_details
       if (window.AniCache && window._lastThemesData && window._lastThemesData.length) {
-        const _mid = `jikan-${currentState.id}`;
+        const _mid = mediaKeyOf();
         window.AniCache.saveDetails(_mid, {themes: window._lastThemesData}, { permanent: currentState.isPermanent }).catch(()=>{});
       }
 
@@ -6126,7 +6206,7 @@ function renderSunkenPagination(currentPage, totalPages, container) {
       function renderHistogram() {
         const container = document.getElementById('scoreHistogram');
         const data = currentState.data;
-        const isAnime = currentState.source === 'jikan';
+        const isAnime = currentState.source !== 'tmdb';
         // AniList fallback: use REAL score distribution
         if (isAnime && data._anilistExtras?.scoreDistribution?.length) {
           const dist = data._anilistExtras.scoreDistribution;
@@ -6150,7 +6230,7 @@ function renderSunkenPagination(currentPage, totalPages, container) {
       function renderSegmentedBar() {
         const container = document.getElementById('statusBar');
         const data = currentState.data;
-        const isAnime = currentState.source === 'jikan';
+        const isAnime = currentState.source !== 'tmdb';
         // AniList fallback: use REAL status distribution
         if (isAnime && data._anilistExtras?.statusDistribution?.length) {
           const dist = data._anilistExtras.statusDistribution;
@@ -6172,7 +6252,7 @@ function renderSunkenPagination(currentPage, totalPages, container) {
       function renderMetricCards() {
         const container = document.getElementById('metricCards');
         const data = currentState.data;
-        const isAnime = currentState.source === 'jikan';
+        const isAnime = currentState.source !== 'tmdb';
         // AniList fallback: use real stats
         const rank       = isAnime ? (data.rank       || null) : (data.popularity  || null);
         const popularity = isAnime ? (data.popularity || null) : (data.vote_count   || null);
