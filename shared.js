@@ -2470,6 +2470,7 @@
       ].filter(Boolean).join(' · '),
       score: item.score ? `★ ${item.score}` : null,
       mal_id: item.mal_id,
+      anilist_id: item.anilist_id ?? null,
       source: 'db',
       year: item.year,
       episodes: item.episodes,
@@ -2765,6 +2766,7 @@
         ].filter(Boolean).join(' · '),
         score: item.score ? `★ ${item.score}` : null,
         mal_id: item.mal_id,
+        anilist_id: item.anilist_id ?? null,
         source: 'db',
         year: item.year,
         episodes: item.episodes,
@@ -3132,20 +3134,29 @@
       let detailsUrl = '#';
       const slug = slugify(r.title);
 
-      // ── ANIME: /info/anime/jikan-{mal_id}/slug ──
-      // db/jikan/anilist sources always have mal_id.
-      if (r.mal_id) {
+      // ── ANIME: source-aware identity links ──
+      // anikoto_data rows ALWAYS link by their own anikoto_id: the DB row is
+      // the identity (ruri serves the info page from that same row), so an
+      // upstream mal_id error can never route the card to the wrong anime.
+      if (r.source === 'anikoto' && r.anikoto_id) {
+        detailsUrl = `/info/anime/anikoto-${r.anikoto_id}`;
+        const anikotoSlug = r.slug || slug;
+        if (anikotoSlug) detailsUrl += `/${anikotoSlug}`;
+      }
+
+      // ── ANIME (db/jikan/anilist rows with mal_id): /info/anime/jikan-{mal_id}/slug ──
+      else if (r.mal_id) {
         detailsUrl = `/info/anime/jikan-${r.mal_id}`;
         if (slug) detailsUrl += `/${slug}`;
       }
 
-      // ── ANIME (anikoto_data, no mal_id on this row): fallback to anikoto-{id} ──
-      // Some anikoto_data rows are missing a mal_id — link by anikoto_id instead
-      // so the suggestion is still clickable and lands on a valid info page.
-      else if (r.source === 'anikoto' && r.anikoto_id) {
-        detailsUrl = `/info/anime/anikoto-${r.anikoto_id}`;
-        const anikotoSlug = r.slug || slug;
-        if (anikotoSlug) detailsUrl += `/${anikotoSlug}`;
+      // ── ANIME (anime_data row with NO mal_id): fall back to its AniList id ──
+      // 230 anime_data rows have no mal_id — their cards previously rendered
+      // dead "#" links. ruri resolves anilist-{id} on /s-mal and info.html
+      // already renders anilist- pages.
+      else if (r.anilist_id || r.anilistId) {
+        detailsUrl = `/info/anime/anilist-${r.anilist_id || r.anilistId}`;
+        if (slug) detailsUrl += `/${slug}`;
       }
       
       // ── TMDB MOVIE/TV: Link to TMDB info pages ──
