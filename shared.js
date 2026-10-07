@@ -2287,7 +2287,9 @@
       // ruri may already have produced partial results - dedupe-append so the
       // proxy path only tops up what ruri missed (keeps ruri as primary).
       const dbExistingIds = new Set(results.map(r => r.mal_id).filter(Boolean));
-      const dbNewResults = dbResult.result.filter(r => !r.mal_id || !dbExistingIds.has(r.mal_id));
+      const dbExistingAlis = new Set(results.map(r => r.anilist_id || r.anilistId).filter(Boolean));
+      const dbNewResults = dbResult.result.filter(r =>
+        !(r.mal_id && dbExistingIds.has(r.mal_id)) && !(r.anilist_id && dbExistingAlis.has(r.anilist_id)));
       results = [...results, ...dbNewResults];
       console.log(`[Search] ✅ anime_data returned ${dbResult.result.length} results (${dbNewResults.length} new) in ${dbElapsed}ms`);
       
