@@ -3342,7 +3342,10 @@ img { max-width: 100%; height: auto; display: block; }
 
       async function fetchJikanData() {
         try {
-          const res = await fetch(`https://api.jikan.moe/v4/anime/${currentState.id}/full`);
+          // 12s timeout: Jikan can HANG on MAL ids whose entry was deleted
+          // (observed live for 42496) — without it the page never falls back
+          const res = await fetch(`https://api.jikan.moe/v4/anime/${currentState.id}/full`,
+                                  { signal: AbortSignal.timeout(12000) });
           if (!res.ok) throw new Error(`Jikan API error: ${res.status}`);
           const { data } = await res.json();
           currentState.data = data;
