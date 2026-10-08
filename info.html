@@ -3917,8 +3917,9 @@ img { max-width: 100%; height: auto; display: block; }
         
         if (isAnime) {
           if (data.title_english) details.push({ label: 'Title', value: data.title_english });
-          // Romanji = data.title (the romaji/default title from Jikan, distinct from english)
-          const romanji = data.title;
+          // Romanji: ruri DB payloads carry titles[] with a proper Romanji entry
+          // (live Jikan payloads do not - fall back to data.title, the MAL romaji title)
+          const romanji = (data.titles || []).find(t => t.type === 'Romanji')?.title || data.title;
           if (romanji && romanji !== data.title_english) details.push({ label: 'Romanji', value: romanji });
           if (data.title_japanese) details.push({ label: 'Japanese', value: data.title_japanese });
           if (data.title_synonyms?.length) details.push({ label: 'Synonyms', value: data.title_synonyms.join(', ') });
@@ -3927,7 +3928,9 @@ img { max-width: 100%; height: auto; display: block; }
           if (data.original_title || data.original_name) details.push({ label: 'Original', value: data.original_title || data.original_name });
         }
         
-        const country = isAnime ? 'Japan' : data.origin_country?.[0] || data.production_countries?.[0]?.iso_3166_1 || 'Unknown';
+        // ruri DB payloads carry country_of_origin (anime_data column); live Jikan
+        // payloads do not - keep the historical 'Japan' default for those
+        const country = isAnime ? (data.country_of_origin || 'Japan') : data.origin_country?.[0] || data.production_countries?.[0]?.iso_3166_1 || 'Unknown';
         details.push({ label: 'Country', value: country });
         
         if (isAnime && data.genres?.length) {
@@ -4547,10 +4550,10 @@ img { max-width: 100%; height: auto; display: block; }
           eng_title:                             isAnime ? (d.title_english || d.title || '') : (d.title || d.name || ''),
           default_title:                         isAnime ? (d.title || '') : (d.title || d.name || ''),
           original_title:                        isAnime ? '' : (d.original_title || d.original_name || ''),
-          romanji_title:                         isAnime ? (d.title || '') : '',
+          romanji_title:                         isAnime ? ((d.titles || []).find(t => t.type === 'Romanji')?.title || d.title || '') : '',
           japanese_title:                        isAnime ? (d.title_japanese || '') : '',
           synonyms:                              isAnime ? (d.title_synonyms || []).join(', ') : '',
-          country_name:                          isAnime ? 'Japan' : (d.origin_country?.[0] || d.production_countries?.[0]?.iso_3166_1 || ''),
+          country_name:                          isAnime ? (d.country_of_origin || 'Japan') : (d.origin_country?.[0] || d.production_countries?.[0]?.iso_3166_1 || ''),
           genres:                                (d.genres || []).map(g => g.name).join(', '),
           aired_date:                            _formatAiredDate(d, isAnime),
           broadcast_day_time:                    isAnime ? (d.broadcast?.string || '') : '',
