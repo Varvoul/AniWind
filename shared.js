@@ -2325,11 +2325,16 @@
     const anikotoElapsed = (performance.now() - anikotoStart).toFixed(0);
     
     if (!anikotoResult.timedOut && anikotoResult.result && anikotoResult.result.length > 0) {
-      // Dedupe against anime_data results by mal_id where both have one;
-      // anikoto rows without a mal_id (mal_id null/empty) are always kept
-      // since they can't collide with anything already in `results`.
+      // Dedupe against anime_data results by mal_id OR AniList identity
+      // (NULL-mal backfilled rows, e.g. Soul Land S6-8, collide by anilist_id
+      // even though they carry no mal_id).
       const existingIds = new Set(results.map(r => r.mal_id).filter(Boolean));
-      const newResults = anikotoResult.result.filter(r => !r.mal_id || !existingIds.has(r.mal_id));
+      const existingAlis = new Set(results.map(r => r.anilist_id || r.anilistId).filter(Boolean).map(String));
+      const newResults = anikotoResult.result.filter(r => {
+        if (r.mal_id && existingIds.has(r.mal_id)) return false;
+        if (r.anilist_id && existingAlis.has(String(r.anilist_id))) return false;
+        return true;
+      });
       results = [...results, ...newResults];
       console.log(`[Search] ✅ anikoto_data returned ${anikotoResult.result.length} results (${newResults.length} new) in ${anikotoElapsed}ms`);
       
@@ -2368,7 +2373,7 @@
     const anilistElapsed = (performance.now() - anilistStart).toFixed(0);
     
     if (!anilistResult.timedOut && anilistResult.result && anilistResult.result.length > 0) {
-      const existingIds = new Set(results.map(r => r.mal_id || r.anilistId).filter(Boolean));
+      const existingIds = new Set(results.map(r => r.mal_id || r.anilistId || r.anilist_id).filter(Boolean));
       const newResults = anilistResult.result.filter(r => !existingIds.has(r.anilistId) && !existingIds.has(r.mal_id));
       results = [...results, ...newResults];
       console.log(`[Search] ✅ AniList returned ${anilistResult.result.length} results (${newResults.length} new) in ${anilistElapsed}ms`);
@@ -2529,6 +2534,7 @@
       ].filter(Boolean).join(' · '),
       score: item.score ? `★ ${item.score}` : null,
       mal_id: parsedMalId,
+      anilist_id: item.anilist_id ?? null,
       anikoto_id: item.anikoto_id,
       slug: item.slug || null,
       source: 'anikoto',
@@ -2577,11 +2583,19 @@
         const anikoto = (await ruriFetch(`/anikoto/anime?q=${enc(safeQ)}&order_by=score&sort=desc&limit=${RURI_LIMIT}`))
           .map(mapRuriAnikotoItem);
         servedAnikoto = true;
-        // Dedupe against s-mal results by mal_id where both have one;
-        // anikoto rows without a usable mal_id are always kept (same rule
-        // the anikoto RPC tier applies in the fallback chain).
+        // Dedupe against s-mal results by mal_id OR AniList identity.
+        // anime_data rows that carry only an anilist_id (no MAL entry exists,
+        // e.g. Soul Land S6-8) would otherwise render TWICE for the same
+        // anime: once as the s-mal card and once as the anikoto card.
         const existingIds = new Set(items.map(r => r.mal_id).filter(Boolean));
-        items = [...items, ...anikoto.filter(r => !r.mal_id || !existingIds.has(r.mal_id))];
+        const existingAlis = new Set(
+          items.map(r => r.anilist_id ?? r.anilistId).filter(v => v !== null && v !== undefined && v !== '').map(String)
+        );
+        items = [...items, ...anikoto.filter(r => {
+          if (r.mal_id && existingIds.has(r.mal_id)) return false;
+          if (r.anilist_id && existingAlis.has(String(r.anilist_id))) return false;
+          return true;
+        })];
       } catch (e) {
         console.warn(`[Ruri Search] anikoto failed (${e.message})`);
       }
@@ -2852,6 +2866,7 @@
           ].filter(Boolean).join(' · '),
           score: item.score ? `★ ${item.score}` : null,
           mal_id: parsedMalId,
+          anilist_id: item.anilist_id ?? null,
           anikoto_id: item.anikoto_id,
           slug: item.slug || null,
           source: 'anikoto',
