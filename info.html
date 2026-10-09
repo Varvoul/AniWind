@@ -3920,13 +3920,17 @@ img { max-width: 100%; height: auto; display: block; }
         const details = [];
         
         if (isAnime) {
-          if (data.title_english) details.push({ label: 'Title', value: data.title_english });
+          // Details grid policy: every standard field always renders a row — "N/A" when
+          // the field has no data (consistent layout + honest missing-data signal).
           // Romanji: ruri DB payloads carry titles[] with a proper Romanji entry
           // (live Jikan payloads do not - fall back to data.title, the MAL romaji title)
-          const romanji = (data.titles || []).find(t => t.type === 'Romanji')?.title || data.title;
-          if (romanji && romanji !== data.title_english) details.push({ label: 'Romanji', value: romanji });
-          if (data.title_japanese) details.push({ label: 'Japanese', value: data.title_japanese });
-          if (data.title_synonyms?.length) details.push({ label: 'Synonyms', value: data.title_synonyms.join(', ') });
+          const romanji = (data.titles || []).find(t => t.type === 'Romanji')?.title || data.title || null;
+          const titleVal = data.title_english || romanji || 'N/A';
+          details.push({ label: 'Title', value: titleVal });
+          if (romanji && romanji !== titleVal) details.push({ label: 'Romanji', value: romanji });
+          else if (!romanji) details.push({ label: 'Romanji', value: 'N/A' });
+          details.push({ label: 'Japanese', value: data.title_japanese || 'N/A' });
+          details.push({ label: 'Synonyms', value: data.title_synonyms?.length ? data.title_synonyms.join(', ') : 'N/A' });
         } else {
           if (data.title || data.name) details.push({ label: 'Title', value: data.title || data.name });
           if (data.original_title || data.original_name) details.push({ label: 'Original', value: data.original_title || data.original_name });
@@ -3937,19 +3941,23 @@ img { max-width: 100%; height: auto; display: block; }
         const country = isAnime ? (data.country_of_origin || 'Japan') : data.origin_country?.[0] || data.production_countries?.[0]?.iso_3166_1 || 'Unknown';
         details.push({ label: 'Country', value: country });
         
-        if (isAnime && data.genres?.length) {
-          const allGenres = [
-            ...(data.genres?.map(g => g.name) || []),
-            ...(data.themes?.map(g => g.name) || []),
-            ...(data.demographics?.map(g => g.name) || [])
-          ];
-          const uniqueGenres = [...new Set(allGenres)];
-          const genreHtml = uniqueGenres.map(name => {
-            const firstChar = name.charAt(0).toLowerCase();
-            const colorAttr = GENRE_COLOR_MAP[firstChar] || '';
-            return `<a href="/genre/${name.toLowerCase().replace(/\s+/g, '-')}" class="genre-tag" ${colorAttr}>${name}</a>`;
-          }).join('');
-          details.push({ label: 'Genres', value: `<div class="genre-tags">${genreHtml}</div>`, isHtml: true });
+        if (isAnime) {
+          if (data.genres?.length) {
+            const allGenres = [
+              ...(data.genres?.map(g => g.name) || []),
+              ...(data.themes?.map(g => g.name) || []),
+              ...(data.demographics?.map(g => g.name) || [])
+            ];
+            const uniqueGenres = [...new Set(allGenres)];
+            const genreHtml = uniqueGenres.map(name => {
+              const firstChar = name.charAt(0).toLowerCase();
+              const colorAttr = GENRE_COLOR_MAP[firstChar] || '';
+              return `<a href="/genre/${name.toLowerCase().replace(/\s+/g, '-')}" class="genre-tag" ${colorAttr}>${name}</a>`;
+            }).join('');
+            details.push({ label: 'Genres', value: `<div class="genre-tags">${genreHtml}</div>`, isHtml: true });
+          } else {
+            details.push({ label: 'Genres', value: 'N/A' });
+          }
         } else if (!isAnime && data.genres?.length) {
           const genreHtml = data.genres.map(g => {
             const name = g.name;
@@ -3963,10 +3971,14 @@ img { max-width: 100%; height: auto; display: block; }
         const status = isAnime ? data.status : (data.status === 'Released' ? 'Released' : data.status);
         details.push({ label: 'Status', value: status });
         
-        if (isAnime && data.aired?.from) {
-          const from = new Date(data.aired.from).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-          const to = data.aired.to ? new Date(data.aired.to).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Ongoing';
-          details.push({ label: 'Aired', value: `${from} to ${to}` });
+        if (isAnime) {
+          if (data.aired?.from) {
+            const from = new Date(data.aired.from).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            const to = data.aired.to ? new Date(data.aired.to).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Ongoing';
+            details.push({ label: 'Aired', value: `${from} to ${to}` });
+          } else {
+            details.push({ label: 'Aired', value: 'N/A' });
+          }
         } else if (!isAnime) {
           const date = data.release_date || data.first_air_date;
           if (date) {
@@ -3975,17 +3987,23 @@ img { max-width: 100%; height: auto; display: block; }
           }
         }
         
-        if (isAnime && data.season && data.year) {
-          const season = data.season.charAt(0).toUpperCase() + data.season.slice(1);
-          const seasonSlug = slugify(season);
-          details.push({ 
-            label: 'Premiered', 
-            value: `<a href="/season/${seasonSlug}+${data.year}">${season} ${data.year}</a>`, 
-            isHtml: true 
-          });
+        if (isAnime) {
+          if (data.season && data.year) {
+            const season = data.season.charAt(0).toUpperCase() + data.season.slice(1);
+            const seasonSlug = slugify(season);
+            details.push({ 
+              label: 'Premiered', 
+              value: `<a href="/season/${seasonSlug}+${data.year}">${season} ${data.year}</a>`, 
+              isHtml: true 
+            });
+          } else {
+            details.push({ label: 'Premiered', value: 'N/A' });
+          }
         }
         
-        if ((isAnime || currentState.type === 'tv') && data.broadcast?.string) {
+        if (isAnime) {
+          details.push({ label: 'Broadcast', value: data.broadcast?.string || 'N/A' });
+        } else if (currentState.type === 'tv' && data.broadcast?.string) {
           details.push({ label: 'Broadcast', value: data.broadcast.string });
         }
         
@@ -4008,18 +4026,20 @@ img { max-width: 100%; height: auto; display: block; }
               value: `<span id="episodeDetailValue" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;justify-content:flex-end;">${episodeHtml}</span>`, 
               isHtml: true 
             });
+          } else {
+            details.push({ label: 'Episodes', value: 'N/A' });
           }
         }
         
-        if (isAnime && data.source) {
-          details.push({ label: 'Source', value: data.source });
+        if (isAnime) {
+          details.push({ label: 'Source', value: data.source || 'N/A' });
         }
         
-        if (data.popularity !== undefined) {
+        if (isAnime) {
+          details.push({ label: 'Popularity', value: data.popularity != null ? formatNumber(data.popularity) : 'N/A' });
+          details.push({ label: 'Rank', value: data.rank ? `#${data.rank}` : 'N/A' });
+        } else if (data.popularity !== undefined) {
           details.push({ label: 'Popularity', value: formatNumber(data.popularity) });
-        }
-        if (data.rank !== undefined) {
-          details.push({ label: 'Rank', value: data.rank ? `#${data.rank}` : '—' });
         }
         
         const studios = isAnime ? data.studios : data.production_companies || data.networks;
@@ -4029,6 +4049,8 @@ img { max-width: 100%; height: auto; display: block; }
             return `<a href="/studio/${studioSlug}">${s.name}</a>`;
           }).join(', ');
           details.push({ label: 'Studio' + (studios.length > 1 ? 's' : ''), value: studioLinks, isHtml: true });
+        } else if (isAnime) {
+          details.push({ label: 'Studio', value: 'N/A' });
         }
         
         if (isAnime) {
@@ -4063,7 +4085,7 @@ img { max-width: 100%; height: auto; display: block; }
         grid.innerHTML = details.map(d => `
           <div class="detail-item">
             <span class="detail-label">${d.label}:</span>
-            <span class="detail-value">${d.isHtml ? d.value : escapeHtml(d.value || '—')}</span>
+            <span class="detail-value">${d.isHtml ? d.value : escapeHtml(d.value === 0 ? '0' : (d.value || 'N/A'))}</span>
           </div>
         `).join('');
       }
