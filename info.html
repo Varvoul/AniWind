@@ -4031,9 +4031,14 @@ img { max-width: 100%; height: auto; display: block; }
           details.push({ label: 'Studio' + (studios.length > 1 ? 's' : ''), value: studioLinks, isHtml: true });
         }
         
-        if (isAnime && data.producers?.length) {
-          const producers = data.producers.slice(0, 5).map(p => p.name).join(', ');
-          details.push({ label: 'Producer' + (data.producers.length > 1 ? 's' : ''), value: producers });
+        if (isAnime) {
+          // Producers: clean each name (strip stray quote/bracket chars, drop empty/'unknown'),
+          // always show the row — display N/A when the field has no data instead of [] or nothing
+          const producerNames = (data.producers || [])
+            .map(p => String(p?.name ?? '').trim().replace(/^["'[\]]+|["'[\]]+$/g, ''))
+            .filter(n => n && n.toLowerCase() !== 'unknown');
+          const producers = producerNames.slice(0, 5).join(', ');
+          details.push({ label: producerNames.length === 1 ? 'Producer' : 'Producers', value: producers || 'N/A' });
         } else if (!isAnime && data.production_companies?.length > (data.studios?.length || 0)) {
           const producers = data.production_companies.slice(5).map(p => p.name).join(', ');
           if (producers) details.push({ label: 'Producers', value: producers });
