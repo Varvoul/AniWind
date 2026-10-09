@@ -3974,8 +3974,11 @@ img { max-width: 100%; height: auto; display: block; }
         if (isAnime) {
           if (data.aired?.from) {
             const from = new Date(data.aired.from).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-            const to = data.aired.to ? new Date(data.aired.to).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Ongoing';
-            details.push({ label: 'Aired', value: `${from} to ${to}` });
+            // finished entries with no end date show the start date alone ("to Ongoing" would be wrong)
+            const to = data.aired.to
+              ? new Date(data.aired.to).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+              : (data.status === 'Finished Airing' ? null : 'Ongoing');
+            details.push({ label: 'Aired', value: to ? `${from} to ${to}` : from });
           } else if (data.aired?.string && data.aired.string !== 'Not available') {
             // upstream published a human-readable window but no parseable from/to dates
             details.push({ label: 'Aired', value: data.aired.string });
