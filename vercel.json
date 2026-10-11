@@ -24,14 +24,18 @@
     { "source": "/info/movie/:id/:slug",   "destination": "/info.html" },
     { "source": "/info/tv/:id",            "destination": "/info.html" },
     { "source": "/info/tv/:id/:slug",      "destination": "/info.html" },
+    { "source": "/info/:type/:id/:slug/season/:season", "destination": "/info.html" },
     { "source": "info/TV/:id/:slug",        "destination": "/info.html" },
 
     { "source": "/watch/anime/:id",        "destination": "/watch.html" },
     { "source": "/watch/anime/:id/:slug",  "destination": "/watch.html" },
+    { "source": "/watch/anime/:id/:slug/episode/:ep", "destination": "/watch.html" },
     { "source": "/watch/movie/:id",        "destination": "/watch.html" },
     { "source": "/watch/movie/:id/:slug",  "destination": "/watch.html" },
+    { "source": "/watch/movie/:id/:slug/season/:season/episode/:ep", "destination": "/watch.html" },
     { "source": "/watch/tv/:id",           "destination": "/watch.html" },
     { "source": "/watch/tv/:id/:slug",     "destination": "/watch.html" },
+    { "source": "/watch/tv/:id/:slug/season/:season/episode/:ep", "destination": "/watch.html" },
 
     { "source": "/jikan/:path*",           "destination": "https://api.jikan.moe/v4/:path*" }
   ],
