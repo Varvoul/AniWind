@@ -3109,7 +3109,7 @@ img { max-width: 100%; height: auto; display: block; }
         let missing = [];
 
         // 1. Check full API data in media_cache
-        const fullData = await window.AniCache.get(`info:full_data:${_mid}`).catch(()=>null);
+        const fullData = await window.AniCache.get(fullDataCacheKey()).catch(()=>null);
         if (!fullData || !(fullData.title || fullData.name)) missing.push('full_data');
 
         // 2. Check show_details — skip on attempt 0 because renderTabs()
@@ -3220,6 +3220,19 @@ img { max-width: 100%; height: auto; display: block; }
           : `${currentState.source}-${currentState.id}`;
       }
 
+      function fullDataCacheKey() {
+        // v2 bump for anikoto pages ONLY: full_data payloads cached before the
+        // facts-repair carry provider-garbage aired/season values (e.g.
+        // "Jul 3, 2026 to Nov 30, 1899", season-less years) that fill-only
+        // enrichment would never overwrite — abandon those caches once and let
+        // every anikoto page rebuild through fetchRuriData + repairAnikotoFacts.
+        // Non-anikoto keys keep their original shape so their caches stay valid.
+        const mid = mediaKeyOf();
+        return currentState.source === 'anikoto'
+          ? `info:full_data:v2:${mid}`
+          : `info:full_data:${mid}`;
+      }
+
       function jikanIdOf() {
         // MAL id usable for jikan-self / animethemes calls on this page
         if (currentState.source === 'jikan') return currentState.id;
@@ -3279,7 +3292,7 @@ img { max-width: 100%; height: auto; display: block; }
         currentState.title = data.title_english || data.title || 'Unknown';
         currentState.isPermanent = !!(window.AniCache && window.AniCache.isPermanentStatus(data.status));
         if (window.AniCache) {
-          window.AniCache.set({ cacheKey: `info:full_data:${cacheKey}`, pageSource: 'info',
+          window.AniCache.set({ cacheKey: fullDataCacheKey(), pageSource: 'info',
             section: 'info_full_data', showId: null, malId: data.mal_id ? String(data.mal_id) : null,
             data, permanent: currentState.isPermanent })
             .then(r => { if (!r) console.warn('[Ruri] Failed to save full data for', cacheKey); })
@@ -3351,8 +3364,11 @@ img { max-width: 100%; height: auto; display: block; }
             const data = json && json.data;
             if (!data || !(data.title || data.title_english)) continue;
             _ruriApply(data, `${src}-${id}`);
+            // anikoto rows carry unreliable provider dates/seasons — repair the
+            // publication facts from the owner's curated s-mal row first, then
             // fill any displayed-but-missing metadata from the page-type's
             // secondary source (self-hosted jikan / anilist proxy) before render
+            if (src === 'anikoto') await repairAnikotoFacts();
             await enrichAnimeMetadata();
             return true;
           } catch (e) { console.warn('[Ruri] fetch failed:', url, e.message); }
@@ -3484,10 +3500,59 @@ img { max-width: 100%; height: auto; display: block; }
           }
           console.log('[Enrich] filled:', filled.join(', '));
           if (window.AniCache) {
-            window.AniCache.set({ cacheKey: `info:full_data:${mediaKeyOf()}`, pageSource: 'info',
+            window.AniCache.set({ cacheKey: fullDataCacheKey(), pageSource: 'info',
               section: 'info_full_data', showId: null, malId: d.mal_id ? String(d.mal_id) : null,
               data: d, permanent: currentState.isPermanent }).catch(() => {});
           }
+        }
+      }
+
+      // ── Anikoto publication-facts repair ───────────────────────────
+      // The anikoto provider's date/season columns are unreliable (real case:
+      // anikoto-8904 aired.string "Jul 3, 2026 to Nov 30, 1899", season null,
+      // year 2026 -> Show Details rendered the garbage range and a season-less
+      // "2026" Premiered). The owner's own s-mal row for the same mal_id is
+      // the curated source for publication facts, so overwrite from it. This
+      // deliberately breaks the fill-only enrichment rule for these fields:
+      // the provider values are PRESENT but WRONG, so absence-detection can't
+      // catch them. Runs before render; fails open on any fetch problem.
+      async function repairAnikotoFacts() {
+        if (currentState.source !== 'anikoto') return;
+        const d = currentState.data;
+        const mid = d && parseInt(d.mal_id, 10);
+        if (!mid) return;
+        try {
+          const res = await fetch(`${RURI_BASE}/s-mal/anime/jikan-${mid}/full`,
+                                  { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(8000) });
+          if (!res.ok) return; // fail open — render the provider values as-is
+          const json = await res.json();
+          const row = json && json.data;
+          if (!row || typeof row !== 'object') return;
+
+          const repaired = [];
+          // aired: the s-mal row wins when it has parseable dates or any
+          // usable human-readable window (the provider's 1899 zero-dates and
+          // year-shifted ranges are exactly what we are repairing)
+          const smalAiredUsable = _metaHas(row.aired?.from) ||
+                                  (row.aired?.string && row.aired.string !== 'Not available');
+          if (smalAiredUsable) { d.aired = row.aired; repaired.push('aired'); }
+          if (_metaHas(row.season) && row.season !== d.season) { d.season = row.season; repaired.push('season'); }
+          if (_metaHas(row.year) && row.year !== d.year) { d.year = row.year; repaired.push('year'); }
+          if (_metaHas(row.season_year) && !_metaHas(d.season_year)) { d.season_year = row.season_year; repaired.push('season_year'); }
+          if (_metaHas(row.broadcast?.string)) { d.broadcast = row.broadcast; repaired.push('broadcast'); }
+          // duration is fill-only: rarely garbage, just often absent
+          if (!_metaHas(d.duration) && _metaHas(row.duration)) { d.duration = row.duration; repaired.push('duration'); }
+
+          if (repaired.length) {
+            console.log('[FactsRepair] anikoto publication facts corrected from s-mal row jikan-' + mid + ':', repaired.join(', '));
+            if (window.AniCache) {
+              window.AniCache.set({ cacheKey: fullDataCacheKey(), pageSource: 'info',
+                section: 'info_full_data', showId: null, malId: String(mid),
+                data: d, permanent: currentState.isPermanent }).catch(() => {});
+            }
+          }
+        } catch (e) {
+          console.warn('[FactsRepair] skipped:', e && e.message);
         }
       }
 
@@ -3529,7 +3594,7 @@ img { max-width: 100%; height: auto; display: block; }
 
               // Also try to load the FULL cached API response from media_cache
               // This contains fields not stored in shows table (relations, broadcast, themes, etc.)
-              const fullCacheKey = `info:full_data:${_mediaId}`;
+              const fullCacheKey = fullDataCacheKey();
               const fullData = await window.AniCache.get(fullCacheKey).catch(()=>null);
 
               currentState.data = currentState.data || {};
@@ -3734,7 +3799,7 @@ img { max-width: 100%; height: auto; display: block; }
           // Cache full Jikan response
           if (window.AniCache) {
             const sid = `jikan-${currentState.id}`;
-            const saveResult = await window.AniCache.set({ cacheKey:`info:full_data:${sid}`, pageSource:'info',
+            const saveResult = await window.AniCache.set({ cacheKey: fullDataCacheKey(), pageSource:'info',
               section:'info_full_data', showId:null,
               malId:currentState.id, data: currentState.data,
               permanent: currentState.isPermanent,
@@ -3818,7 +3883,7 @@ img { max-width: 100%; height: auto; display: block; }
           if (window.AniCache && (d.id || id)) {
             const sid = `tmdb-${endpoint}-${id}`;
             const trimmedData = window.AniCache.trimTMDBData(d);
-            const saveResult = await window.AniCache.set({ cacheKey:`info:full_data:${sid}`, pageSource:'info',
+            const saveResult = await window.AniCache.set({ cacheKey: fullDataCacheKey(), pageSource:'info',
               section:'info_full_data', showId:null,
               tmdbId:id, data: trimmedData,
               permanent: currentState.isPermanent,
@@ -3890,7 +3955,7 @@ img { max-width: 100%; height: auto; display: block; }
         // Cache permanently (keyed by the page's own media id, not the MAL id)
         if (window.AniCache) {
           const sid = mediaKeyOf();
-          await window.AniCache.set({ cacheKey:`info:full_data:${sid}`, pageSource:'info',
+          await window.AniCache.set({ cacheKey: fullDataCacheKey(), pageSource:'info',
             section:'info_full_data', showId:null, malId:malId, data,
             permanent: currentState.isPermanent,
           });
