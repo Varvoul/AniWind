@@ -3033,6 +3033,16 @@ img { max-width: 100%; height: auto; display: block; }
         // Inject skeletons immediately so user sees structure, not blank page
         injectInfoSkeletons();
 
+        // ── Anikoto id-shift guard ────────────────────────────────
+        // The anikoto provider re-syncs its numeric ids; stale links then
+        // resolve to a different show than the URL slug names. Verify the
+        // pairing against the live catalog BEFORE any cache read / render,
+        // and redirect to the stable row when they disagree.
+        if (currentState.source === 'anikoto' && currentState.slug) {
+          const shifted = await verifyAnikotoSlug();
+          if (shifted) { removeInfoSkeletons(); return; }
+        }
+
         // Auth
         if (typeof window.supabaseClient !== 'undefined') await initAuth();
 
@@ -3215,6 +3225,52 @@ img { max-width: 100%; height: auto; display: block; }
         if (currentState.source === 'jikan') return currentState.id;
         const m = currentState.data && currentState.data.mal_id;
         return m ? (parseInt(m, 10) || null) : null;
+      }
+
+      // ── Anikoto id-shift guard ─────────────────────────────────────
+      // The anikoto provider re-syncs its numeric ids (e.g. the 2026-07
+      // re-sync moved every anikoto_id). Old links/bookmarks like
+      // /info/anime/anikoto-50/ah-my-goddess then resolve to a DIFFERENT
+      // show while the URL slug still names the original one — and the
+      // permanent AniCache would keep serving the stale pairing. Verify
+      // the id->slug pairing against the live catalog (ruri list endpoint,
+      // exact slug filter) and redirect to the stable row (jikan_ref
+      // preferred — MAL ids never shift) on mismatch. Fails open: any
+      // network/parse problem renders the page as requested.
+      async function verifyAnikotoSlug() {
+        const slug = String(currentState.slug || '').toLowerCase();
+        const id = currentState.id;
+        if (!slug || !/^[a-z0-9][a-z0-9_-]*$/.test(slug) || !id) return false;
+        // One check per browser session per media — repeat navigations skip it
+        const ssKey = `anikotoSlugOK:${mediaKeyOf()}`;
+        try { if (sessionStorage.getItem(ssKey) === '1') return false; } catch (e) { /* private mode */ }
+        try {
+          const res = await fetch(`${RURI_BASE}/anikoto/anime?slug=${encodeURIComponent(slug)}&limit=1`,
+                                  { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(6000) });
+          if (!res.ok) return false;                        // fail open
+          const json = await res.json();
+          const row = json && Array.isArray(json.data) ? json.data[0] : null;
+          if (!row || row.anikoto_id == null) return false; // slug unknown to the catalog -> nothing to correct
+          if (parseInt(row.anikoto_id, 10) === id) {
+            try { sessionStorage.setItem(ssKey, '1'); } catch (e) {}
+            return false;                                   // pairing intact — normal render
+          }
+          // Mismatch: the URL id now belongs to another show. Send the
+          // visitor to the row the slug actually names, on its stable source.
+          let target = null;
+          const jref = typeof row.jikan_ref === 'string' ? row.jikan_ref : '';
+          if (/^jikan-\d+$/.test(jref)) target = `/info/anime/${jref}/${slug}`;
+          else if (row.anikoto_id) target = `/info/anime/anikoto-${parseInt(row.anikoto_id, 10)}/${slug}`;
+          if (currentState.urlSeason) target += `/season/${currentState.urlSeason}`;
+          if (target && target !== window.location.pathname) {
+            console.warn(`[Anikoto] id shift: anikoto-${id} no longer maps to "${slug}" — redirecting to ${target}`);
+            location.replace(target + window.location.search);
+            return true;
+          }
+        } catch (e) {
+          console.warn('[Anikoto] slug verify skipped:', e && e.message);
+        }
+        return false;
       }
 
       function _ruriApply(data, cacheKey) {
