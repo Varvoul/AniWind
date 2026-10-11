@@ -170,6 +170,24 @@ img { max-width: 100%; height: auto; display: block; }
   );
   pointer-events: none;
 }
+/* Anime pages: banner images are usually 1200-2360px wide — cap the backdrop
+   height so upscale blur stays acceptable, and softly blur when the source
+   banner is smaller than the viewport (looks intentional, not broken) */
+.backdrop-container.anime-backdrop {
+  aspect-ratio: 16 / 5.5;
+  min-height: 260px;
+  max-height: 400px;
+}
+@media (max-width: 768px) {
+  .backdrop-container.anime-backdrop {
+    min-height: 200px;
+    max-height: 240px;
+  }
+}
+.backdrop-img.backdrop-soft {
+  filter: blur(5px) brightness(0.92) saturate(1.05);
+  transform: scale(1.07);
+}
 
 /* Main grid layout - MATCHED TO INDEX.HTML */
 .info-grid {
@@ -221,7 +239,9 @@ img { max-width: 100%; height: auto; display: block; }
   border-bottom: none;
 }
 
-.sidebar-section h4 {
+/* Scoped to the DIRECT section heading only — a plain descendant selector
+   also styled the card-title h4s inside the lists (put every title in a box) */
+.sidebar-section > h4 {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -233,6 +253,48 @@ img { max-width: 100%; height: auto; display: block; }
   margin: 0;
   border-bottom: 1px solid var(--border-subtle);
 }
+
+/* Sidebar section header — title left, TV | Movie sliding toggle right.
+   Round thumb slides smoothly between the two options. */
+.side-type-toggle {
+  margin-left: auto;
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.38);
+  border-radius: 999px;
+  padding: 2px;
+  user-select: none;
+  flex-shrink: 0;
+}
+.side-type-toggle .side-toggle-thumb {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: 2px;
+  width: calc(50% - 3px);
+  border-radius: 999px;
+  background: var(--btn-primary, #2b6cb0);
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.45);
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.side-type-toggle.active-movie .side-toggle-thumb {
+  transform: translateX(calc(100% + 2px));
+}
+.side-type-btn {
+  position: relative;
+  z-index: 1;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.62rem;
+  font-weight: 700;
+  padding: 3px 11px;
+  border-radius: 999px;
+  letter-spacing: 0.04em;
+  transition: color 0.22s ease;
+}
+.side-type-btn.active { color: #fff; }
 
 .sidebar-list {
   padding: 8px;
@@ -724,6 +786,22 @@ img { max-width: 100%; height: auto; display: block; }
   border-color: var(--btn-primary);
   transform: translateY(-1px);
 }
+/* Bigger brand icons inside external buttons (MAL was too small) */
+.ext-link-btn svg {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+}
+.ext-link-btn.imdb {
+  color: #f5c518;
+  border-color: rgba(245, 197, 24, 0.4);
+  background: rgba(245, 197, 24, 0.12);
+}
+.ext-link-btn.imdb:hover {
+  color: #000;
+  background: #f5c518;
+  border-color: #f5c518;
+}
 .ext-link-btn.mal {
   color: #4a90d9;
   border-color: rgba(74, 144, 217, 0.4);
@@ -766,6 +844,9 @@ img { max-width: 100%; height: auto; display: block; }
   transform: translateY(-4px);
   box-shadow: 0 20px 40px rgba(0,0,0,0.4);
 }
+.season-card:active {
+  transform: scale(0.97);
+}
 .season-card::before {
   content: '';
   position: absolute;
@@ -781,12 +862,12 @@ img { max-width: 100%; height: auto; display: block; }
 }
 .season-number {
   font-weight: 700;
-  font-size: 0.9rem;
+  font-size: 0.72rem;
   color: #fff;
   text-align: center;
-  padding: 6px 20px;
+  padding: 3px 14px;
   background: rgba(43, 108, 176, 0.95);
-  border-radius: 20px;
+  border-radius: 14px;
   backdrop-filter: blur(4px);
   max-width: 90%;
   white-space: nowrap;
@@ -1210,36 +1291,35 @@ img { max-width: 100%; height: auto; display: block; }
   stroke-linejoin: round;
 }
 
-/* Artwork Grid */
+/* Artwork Grid — Pinterest-style masonry: natural aspect ratios, no forced crops,
+   compact tiles on both PC and mobile instead of oversized cells */
 .artwork-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
+  columns: 240px 4;
+  column-gap: 10px;
 }
 .artwork-item {
+  display: inline-block;
+  width: 100%;
+  margin: 0 0 10px;
+  break-inside: avoid;
+  -webkit-column-break-inside: avoid;
   border-radius: 10px;
   overflow: hidden;
   cursor: pointer;
   position: relative;
-  aspect-ratio: 2/3; /* default: poster */
   background: var(--bg-surface);
-}
-.artwork-item--backdrop {
-  aspect-ratio: 16/9;
-  grid-column: span 2;
-}
-.artwork-item--logo {
-  aspect-ratio: 2/1;
-  grid-column: span 2;
 }
 .artwork-item img {
   width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: transform 0.2s;
+  height: auto;
   display: block;
+  transition: transform 0.2s;
 }
-.artwork-item:hover img { transform: scale(1.04); }
+.artwork-item:hover img { transform: scale(1.03); }
+@media (max-width: 600px) {
+  .artwork-grid { columns: 2; column-gap: 8px; }
+  .artwork-item { margin-bottom: 8px; border-radius: 8px; }
+}
 .artwork-type-badge {
   position: absolute;
   bottom: 6px;
@@ -1502,13 +1582,22 @@ img { max-width: 100%; height: auto; display: block; }
 
 .recs-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(185px, 1fr));
+  grid-template-columns: repeat(2, 1fr); /* mobile portrait */
   gap: 16px;
 }
 
-@media (min-width: 768px) {
+/* mobile landscape */
+@media (max-width: 768px) and (orientation: landscape) {
   .recs-grid {
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* PC: 6 or 7 columns by display size — JS tops sections up so every
+   page always shows four FULL rows (never a stub last row) */
+@media (min-width: 769px) and (max-width: 1200px) {
+  .recs-grid {
+    grid-template-columns: repeat(6, 1fr);
   }
 }
 
@@ -1518,21 +1607,12 @@ img { max-width: 100%; height: auto; display: block; }
   }
 }
 
-@media (max-width: 1200px) and (min-width: 769px) {
-  .recs-grid {
-    grid-template-columns: repeat(4, 1fr);
-  }
-}
-
-@media (max-width: 768px) and (orientation: landscape) {
+/* big phones in landscape (iPhone/Pixel ~769-934px wide but low height) —
+   still 3 columns per spec; desktop windows of the same width keep 6.
+   MUST come after the PC rules so the override wins on equal specificity. */
+@media (min-width: 769px) and (max-width: 934px) and (max-height: 500px) and (orientation: landscape) {
   .recs-grid {
     grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-@media (max-width: 480px) {
-  .recs-grid {
-    grid-template-columns: repeat(2, 1fr);
   }
 }
 
@@ -2123,12 +2203,24 @@ img { max-width: 100%; height: auto; display: block; }
   display: none;                /* Chrome, Safari, Opera */
 }
 
-/* Inner grid (2‑column layout) */
+/* Inner grid — responsive 2-3 column rows (rectangular cards, never oversized).
+   Mobile: fixed 2 columns per row as requested. */
 .seasons-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 14px;
   padding: 2px; /* tiny breathing room */
+}
+@media (max-width: 560px) {
+  .seasons-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  /* compact fonts so text never dwarfs the low-height cards */
+  .season-number { font-size: 0.6rem; padding: 2px 9px; border-radius: 10px; }
+  .season-relation-tag { font-size: 0.48rem; padding: 1px 5px; }
+  .season-now-tag { font-size: 0.46rem; padding: 2px 5px; }
+  .season-info-overlay { padding: 4px 6px 6px; gap: 2px; }
 }
 
 /* Season card styling (original) */
@@ -2146,6 +2238,9 @@ img { max-width: 100%; height: auto; display: block; }
 .season-card:hover {
   transform: translateY(-4px);
   box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+}
+.season-card:active {
+  transform: scale(0.97);
 }
 
 .season-card::before {
@@ -2165,12 +2260,12 @@ img { max-width: 100%; height: auto; display: block; }
 
 .season-number {
   font-weight: 700;
-  font-size: 0.9rem;
+  font-size: 0.72rem;
   color: #fff;
   text-align: center;
-  padding: 6px 20px;
+  padding: 3px 14px;
   background: rgba(43, 108, 176, 0.95);
-  border-radius: 20px;
+  border-radius: 14px;
   backdrop-filter: blur(4px);
   max-width: 90%;
   white-space: nowrap;
@@ -2183,20 +2278,20 @@ img { max-width: 100%; height: auto; display: block; }
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 8px 12px 12px;
+  padding: 5px 10px 8px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   z-index: 2;
 }
 
 .season-relation-tag {
-  font-size: 0.65rem;
+  font-size: 0.52rem;
   font-weight: 700;
-  letter-spacing: 0.06em;
-  padding: 2px 8px;
-  border-radius: 20px;
+  letter-spacing: 0.05em;
+  padding: 1px 6px;
+  border-radius: 12px;
   background: rgba(236, 201, 75, 0.2);
   border: 1px solid rgba(236, 201, 75, 0.5);
   color: var(--accent-gold, #ecc94b);
@@ -2213,17 +2308,42 @@ img { max-width: 100%; height: auto; display: block; }
   z-index: 0;
 }
 
+/* Anime relation cards: semi-transparent amber + blurred image treatment */
+.season-card img.season-rel-img {
+  filter: blur(3px) brightness(0.8) saturate(1.08);
+  transform: scale(1.09);
+}
+.season-card .season-amber-veil {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(236, 201, 75, 0.14) 0%, rgba(20, 16, 4, 0.42) 100%);
+  z-index: 1;
+  pointer-events: none;
+}
+/* Current season highlight (TMDB tv pages) */
+.season-card.season-current {
+  outline: 2px solid var(--accent-gold, #ecc94b);
+  box-shadow: 0 0 0 4px rgba(236, 201, 75, 0.18);
+}
+.season-card .season-now-tag {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 3;
+  font-size: 0.5rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  padding: 2px 6px;
+  border-radius: 12px;
+  background: rgba(236, 201, 75, 0.92);
+  color: #201a05;
+  text-transform: uppercase;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .seasons-scroll-container {
     max-height: 420px;
-  }
-}
-
-@media (max-width: 480px) {
-  .seasons-grid {
-    grid-template-columns: 1fr;
-    gap: 12px;
   }
 }
 
@@ -2496,7 +2616,7 @@ img { max-width: 100%; height: auto; display: block; }
               <input type="radio" id="tab-r-trailer" name="info-tabs">
               <label class="tab-radio-label" for="tab-r-trailer" data-tab="trailer">Trailer</label>
               <input type="radio" id="tab-r-themes" name="info-tabs">
-              <label class="tab-radio-label" for="tab-r-themes" data-tab="themes">Themes</label>
+              <label class="tab-radio-label" for="tab-r-themes" data-tab="themes" id="tabLabelThemes">Themes</label>
               <input type="radio" id="tab-r-statistics" name="info-tabs">
               <label class="tab-radio-label" for="tab-r-statistics" data-tab="statistics">Statistics</label>
               <span class="tab-glider"></span>
@@ -2508,7 +2628,7 @@ img { max-width: 100%; height: auto; display: block; }
             <button class="tab-btn active" data-tab="cast">Cast/Crew</button>
             <button class="tab-btn" data-tab="artwork">Artwork</button>
             <button class="tab-btn" data-tab="trailer">Trailer</button>
-            <button class="tab-btn" data-tab="themes">Themes</button>
+            <button class="tab-btn" data-tab="themes" id="tabBtnThemes">Themes</button>
             <button class="tab-btn" data-tab="statistics">Statistics</button>
             <div class="tab-indicator" id="tabIndicator"></div>
           </div>
@@ -2581,15 +2701,33 @@ img { max-width: 100%; height: auto; display: block; }
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-combined">
     <div class="sidebar-section">
-      <h4><i class="fa-solid fa-gem"></i> Hidden Gem</h4>
+      <h4><i class="fa-solid fa-gem"></i> Hidden Gem
+        <span class="side-type-toggle" data-section="hiddenGem">
+          <span class="side-toggle-thumb"></span>
+          <button type="button" class="side-type-btn active" data-type="tv">TV</button>
+          <button type="button" class="side-type-btn" data-type="movie">Movie</button>
+        </span>
+      </h4>
       <div class="sidebar-list" id="hiddenGemList"></div>
     </div>
     <div class="sidebar-section">
-      <h4><i class="fa-solid fa-star"></i> Top Ranking</h4>
+      <h4><i class="fa-solid fa-star"></i> Top Ranking
+        <span class="side-type-toggle" data-section="topRanking">
+          <span class="side-toggle-thumb"></span>
+          <button type="button" class="side-type-btn active" data-type="tv">TV</button>
+          <button type="button" class="side-type-btn" data-type="movie">Movie</button>
+        </span>
+      </h4>
       <div class="sidebar-list" id="topRankingList"></div>
     </div>
     <div class="sidebar-section">
-      <h4><i class="fa-solid fa-heart"></i> Most Favourite</h4>
+      <h4><i class="fa-solid fa-heart"></i> Most Favourite
+        <span class="side-type-toggle" data-section="mostFavourite">
+          <span class="side-toggle-thumb"></span>
+          <button type="button" class="side-type-btn active" data-type="tv">TV</button>
+          <button type="button" class="side-type-btn" data-type="movie">Movie</button>
+        </span>
+      </h4>
       <div class="sidebar-list" id="mostFavouriteList"></div>
     </div>
   </div>
@@ -2622,10 +2760,32 @@ img { max-width: 100%; height: auto; display: block; }
         ALLANIME_API: 'https://allanime-api.shashankbhake.codes',
         ANIMETHEMES_API: 'https://api.animethemes.moe/graphql',
         ANIMETHEMES_VIDEO: 'https://v.animethemes.moe',
+        RURI_BASE: 'https://ruri.bionmovies47.workers.dev',
+        JIKAN_SELF: 'https://jikan-api-bohb.onrender.com/v4',
+        MAPPLE_BASE: 'https://mapple-tmdb-proxy.vercel.app/api',
         DEBOUNCE_MS: 300,
         BOOKMARK_AUTO_CLOSE_MS: 5000,
         ALERT_AUTO_CLOSE_MS: 3000
       };
+
+      // Sunken Treasures genre extraction — if any of these exist in the page's
+      // show details they are used first (in this order), otherwise the first two
+      // genres from the details payload are taken
+      const SUNKEN_GENRE_PRIORITY = ['action', 'thriller', 'horror', 'adventure', 'comedy', 'fantasy', 'sci-fi', 'school'];
+      const SUNKEN_MAX_PAGES = 5; // pagination capped at pages 1-5
+
+      // TMDB genre id -> name (sidebar pills for top_rated/popular rows which carry genre_ids)
+      const TMDB_GENRE_MAP = {
+        28: 'Action', 12: 'Adventure', 16: 'Animation', 35: 'Comedy', 80: 'Crime',
+        99: 'Documentary', 18: 'Drama', 10751: 'Family', 14: 'Fantasy', 36: 'History',
+        27: 'Horror', 10402: 'Music', 9648: 'Mystery', 10749: 'Romance',
+        878: 'Science Fiction', 10770: 'TV Movie', 53: 'Thriller', 10752: 'War', 37: 'Western',
+        10759: 'Action & Adventure', 10762: 'Kids', 10763: 'News', 10764: 'Reality',
+        10765: 'Sci-Fi & Fantasy', 10766: 'Soap', 10767: 'Talk', 10768: 'War & Politics'
+      };
+
+      // ISO-3166 alpha-2 -> country name fallback (Intl.DisplayNames covers the rest)
+      const ISO_COUNTRY_FALLBACK = { US: 'United States', GB: 'United Kingdom', JP: 'Japan', KR: 'South Korea' };
 
       const GENRE_COLOR_MAP = {
         'a': 'data-start="a"', 'b': 'data-start="b"', 'c': 'data-start="c"',
@@ -2633,61 +2793,16 @@ img { max-width: 100%; height: auto; display: block; }
         'm': 'data-start="m"', 'r': 'data-start="r"', 's': 'data-start="s"'
       };
 
-      // Jikan Genre IDs for Sunken Treasures
-      // 30 genres → C(30,2) = 435 unique 2-genre pairs → covers 390 pages easily
-      // Genre IDs: https://api.jikan.moe/v4/genres/anime
-      const JIKAN_GENRE_POOL = [
-        1,   // Action
-        2,   // Adventure
-        4,   // Comedy
-        8,   // Drama
-        10,  // Fantasy
-        14,  // Horror
-        22,  // Romance
-        24,  // Sci-Fi
-        37,  // Supernatural
-        41,  // Suspense
-        46,  // Award Winning
-        50,  // Sports
-        62,  // Iyashikei
-        76,  // Idols & Celebrities  
-        81,  // Mythology
-        91,  // Reverse Harem
-        104, // Medical
-        117, // Isekai
-        7,   // Mystery
-        36,  // Slice of Life
-        30,  // Sports (alt)
-        23,  // School
-        27,  // Shounen
-        42,  // Seinen
-        43,  // Josei
-        9,   // Ecchi
-        18,  // Mecha
-        38,  // Military
-        58,  // Gore
-        75,  // Gag Humor
-      ];
-
-      // Generate up to `count` unique 2-genre combinations
-      // With 30 genres → 435 unique pairs (more than enough for 390 pages)
-      function generateGenreCombos(pool, count = 390) {
-        const combos = [];
-        for (let i = 0; i < pool.length && combos.length < count; i++) {
-          for (let j = i + 1; j < pool.length && combos.length < count; j++) {
-            combos.push([pool[i], pool[j]]);
-          }
-        }
-        return combos.slice(0, count);
-      }
-
-      const SUNKEN_GENRE_COMBOS = generateGenreCombos(JIKAN_GENRE_POOL, 390);
+      // ── Sunken Treasures data source (ruri list search, paginated 1-5) ──
+      // replaces the old 390 genre-combo Jikan rotation
 
       let currentState = {
         source: null, id: null, type: null, title: '',
+        slug: null, urlSeason: null,
         data: null, currentUser: null,
         selectedStatuses: [], dropdownTimer: null,
         bookmarkRowId: null, allAnimeData: null,
+        sideType: { hiddenGem: 'tv', topRanking: 'tv', mostFavourite: 'tv' },
         isPermanent: false  // true = Finished Airing → cache forever
       };
 
@@ -2904,9 +3019,10 @@ img { max-width: 100%; height: auto; display: block; }
           }
           removeInfoSkeletons(); // Remove overlays — real elements now populated
           initUI();
+          initSidebarToggles();
           await fetchUserBookmarks();
 
-          if (currentState.source === 'jikan') {
+          if (currentState.source !== 'tmdb') {
             await Promise.all([
               loadSidebarContent(),
               loadRecommendations(),
@@ -2968,14 +3084,14 @@ img { max-width: 100%; height: auto; display: block; }
         }
 
         // 3. Check water temple (ANIME ONLY — TMDB pages don't have this section)
-        if (_src === 'jikan') {
-          const wt = await window.AniCache.get(`info:water_temple:${_id}`).catch(()=>null);
+        if (_src !== 'tmdb') {
+          const wt = await window.AniCache.get(`info:water_temple:${_mid}`).catch(()=>null);
           if (!wt || !wt.length) missing.push('water_temple');
         }
 
         // 4. Check recommended_for_you (TMDB only)
         if (_src === 'tmdb') {
-          const rfy = await window.AniCache.get(`info:recommended_for_you:${_id}`).catch(()=>null);
+          const rfy = await window.AniCache.get(`info:recommended_for_you:${_mid}`).catch(()=>null);
           if (!rfy || !rfy.length) missing.push('recommended_for_you');
         }
 
@@ -2989,9 +3105,8 @@ img { max-width: 100%; height: auto; display: block; }
         try {
           // Re-fetch missing full data if needed
           if (missing.includes('full_data')) {
-            if (_src === 'jikan') await fetchJikanData();
-            else if (_src === 'anikoto' || _src === 'anilist') await fetchRuriData();
-            else if (_src === 'tmdb') await fetchTMDBData();
+            if (_src === 'tmdb') await fetchTMDBData();
+            else await fetchRuriData();
           }
 
           // Re-render to trigger tab/section loaders which will save to DB
@@ -2999,7 +3114,7 @@ img { max-width: 100%; height: auto; display: block; }
             loadCastData();
             loadArtworkData();
             loadTrailerData();
-            loadThemesData();
+            if (_src !== 'tmdb') loadThemesData();
           }
           if (missing.includes('water_temple')) {
             await loadWaterTemple();
@@ -3017,20 +3132,20 @@ img { max-width: 100%; height: auto; display: block; }
 
       function parseUrl() {
         const path = window.location.pathname;
-        const match = path.match(/\/info\/(anime|tv|movie)\/(jikan|anikoto|anilist|tmdb-(?:tv|movie))-(\d+)(?:\/[^/]+)?/);
-        
+        const match = path.match(/\/info\/(anime|tv|movie)\/(jikan|anikoto|anilist|tmdb-(?:tv|movie))-(\d+)(?:\/[^/]+)?(?:\/season\/\d+)?/);
+
         if (!match) {
           console.error('URL does not match expected format:', path);
           showError('Invalid show URL format');
           return;
         }
-        
+
         const [, pageType, sourcePrefix, idStr] = match;
         const id = parseInt(idStr, 10);
-        
+
         currentState.type = pageType;
         currentState.id = id;
-        
+
         if (sourcePrefix === 'jikan') {
           currentState.source = 'jikan';
           currentState.type = 'anime';
@@ -3045,6 +3160,12 @@ img { max-width: 100%; height: auto; display: block; }
           currentState.source = 'tmdb';
           currentState.type = 'movie';
         }
+
+        // Deep-link support: /info/tv/tmdb-tv-65494/<slug>/season/2 (also plain /season/N)
+        const slugMatch = path.match(new RegExp(`/info/(?:anime|tv|movie)/${sourcePrefix}-${id}/([^/]+)`));
+        currentState.slug = (slugMatch && slugMatch[1] !== 'season') ? slugMatch[1] : null;
+        const seasonMatch = path.match(/\/season\/(\d+)/);
+        currentState.urlSeason = seasonMatch ? parseInt(seasonMatch[1], 10) : null;
       }
 
       /* ── ruri-aware helpers (anikoto-/anilist- pages + dead-MAL fallback) ──
@@ -3063,13 +3184,14 @@ img { max-width: 100%; height: auto; display: block; }
       }
 
       function jikanIdOf() {
-        // MAL id usable for api.jikan.moe / animethemes calls on this page
+        // MAL id usable for jikan-self / animethemes calls on this page
         if (currentState.source === 'jikan') return currentState.id;
         const m = currentState.data && currentState.data.mal_id;
         return m ? (parseInt(m, 10) || null) : null;
       }
 
       function _ruriApply(data, cacheKey) {
+        data = _normalizeAnimeData(data);
         currentState.data = data;
         currentState.title = data.title_english || data.title || 'Unknown';
         currentState.isPermanent = !!(window.AniCache && window.AniCache.isPermanentStatus(data.status));
@@ -3082,13 +3204,62 @@ img { max-width: 100%; height: auto; display: block; }
         }
       }
 
+      // Shape-tolerant normalizer: ruri DB rows, live Jikan v4 payloads and
+      // AniList-mapped objects all end up with the same access patterns
+      function _normalizeAnimeData(data) {
+        if (!data || typeof data !== 'object') return data;
+        // banner_image: string → {large, small}
+        if (typeof data.banner_image === 'string' && data.banner_image) {
+          data.banner_image = { large: data.banner_image, small: data.banner_image };
+        }
+        // relations: ruri dict {primary:{seasons:{sequels:[...],...},relations:[...]}} → jikan-style array
+        if (data.relations && !Array.isArray(data.relations)) {
+          const out = [];
+          try {
+            const prim = data.relations.primary || data.relations;
+            const seasonMap = {
+              sequels: 'Sequel', prequels: 'Prequel', side_stories: 'Side story',
+              alternative_versions: 'Alternative version', alternative_settings: 'Alternative setting',
+              spin_offs: 'Spin-off', parent_stories: 'Parent story', adaptations: 'Adaptation'
+            };
+            const seasons = (prim && prim.seasons) || {};
+            Object.entries(seasons).forEach(([k, arr]) => {
+              if (Array.isArray(arr) && arr.length) {
+                out.push({ relation: seasonMap[k] || k.replace(/_/g, ' '), entry: arr.map(e => ({
+                  mal_id: e.mal_id, name: e.title || e.name, type: 'anime', image: e.image || null })) });
+              }
+            });
+            (Array.isArray(prim && prim.relations) ? prim.relations : []).forEach(rr => {
+              const entries = rr.entry || rr.items || [];
+              if (entries.length) {
+                out.push({ relation: rr.relation || rr.name || 'Related', entry: entries.map(e => ({
+                  mal_id: e.mal_id, name: e.title || e.name, type: e.type || 'anime', image: e.image || null })) });
+              }
+            });
+          } catch (e) { /* leave untouched */ }
+          if (out.length) data.relations = out; else delete data.relations;
+        }
+        // synonyms fallback from titles[]
+        if ((!data.title_synonyms || !data.title_synonyms.length) && Array.isArray(data.titles)) {
+          const syn = data.titles.filter(t => t.type === 'Synonym').map(t => t.title).filter(Boolean);
+          if (syn.length) data.title_synonyms = syn;
+        }
+        return data;
+      }
+
       async function fetchRuriData() {
-        // anikoto-{id} / anilist-{id} pages: resolve via ruri profiles
+        // PRIMARY metadata source for every anime info page — endpoint chosen by
+        // the {source-id} pair in the URL:
+        //   jikan-{mal}    → /s-mal/anime/jikan-{id}/full
+        //   anilist-{ali}  → /s-mal/anime/anilist-{id}/full
+        //   anikoto-{aid}  → /anikoto/anime/anikoto-{id}/full
         const src = currentState.source;
         const id = currentState.id;
         const urls = src === 'anikoto'
           ? [`${RURI_BASE}/anikoto/anime/anikoto-${id}/full`]
-          : [`${RURI_BASE}/s-mal/anime/anilist-${id}/full`, `${RURI_BASE}/anikoto/anime/anilist-${id}/full`];
+          : src === 'anilist'
+            ? [`${RURI_BASE}/s-mal/anime/anilist-${id}/full`, `${RURI_BASE}/anikoto/anime/anilist-${id}/full`]
+            : [`${RURI_BASE}/s-mal/anime/jikan-${id}/full`];
         for (const url of urls) {
           try {
             const res = await fetch(url, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(12000) });
@@ -3097,9 +3268,17 @@ img { max-width: 100%; height: auto; display: block; }
             const data = json && json.data;
             if (!data || !(data.title || data.title_english)) continue;
             _ruriApply(data, `${src}-${id}`);
-            return;
+            // fill any displayed-but-missing metadata from the page-type's
+            // secondary source (self-hosted jikan / anilist proxy) before render
+            await enrichAnimeMetadata();
+            return true;
           } catch (e) { console.warn('[Ruri] fetch failed:', url, e.message); }
         }
+        // ruri unavailable → legacy live-source chain
+        try {
+          if (src === 'jikan') { await fetchJikanData(); return true; }
+          if (src === 'anilist') { await fetchAnilistData(null, id); return true; }
+        } catch (e) { console.warn('[Fallback] chain failed for', src, id, e.message); }
         throw new Error(`ruri: no data for ${src}-${id}`);
       }
 
@@ -3112,6 +3291,121 @@ img { max-width: 100%; height: auto; display: block; }
         const data = json && json.data;
         if (!data || !(data.title || data.title_english)) throw new Error('ruri: row not found');
         _ruriApply(data, `jikan-${malId}`);
+        await enrichAnimeMetadata();
+      }
+
+      // ── Missing-metadata enrichment ─────────────────────────────────
+      // If any displayed field (poster+title, stats container, show details,
+      // backdrop) is missing from the ruri DB row, fetch it from the
+      // owner's secondary source for that page type and merge ONLY what is
+      // missing:   jikan-{id}/anikoto-{id} pages → self-hosted Jikan /full
+      //            anilist-{id} pages           → anilist-my-proxy /api/anilist/{id}/full
+      function _metaHas(v) {
+        return v !== null && v !== undefined && v !== '' &&
+               !(Array.isArray(v) && !v.length) &&
+               !(typeof v === 'object' && !Array.isArray(v) && !Object.keys(v).length);
+      }
+
+      function _missingMetaFields(d) {
+        const miss = [];
+        if (!d || typeof d !== 'object') return miss;
+        if (!_metaHas(d.title) && !_metaHas(d.title_english)) miss.push('title');
+        if (!_metaHas(d.images?.jpg?.large_image_url) && !_metaHas(d.images?.jpg?.image_url)) miss.push('images');
+        if (!_metaHas(d.banner_image)) miss.push('banner_image');
+        if (!_metaHas(d.synopsis)) miss.push('synopsis');
+        if (!_metaHas(d.score)) miss.push('score');
+        if (!_metaHas(d.scored_by)) miss.push('scored_by');
+        if (!_metaHas(d.rank)) miss.push('rank');
+        if (!_metaHas(d.popularity)) miss.push('popularity');
+        if (!_metaHas(d.members)) miss.push('members');
+        if (!_metaHas(d.favorites)) miss.push('favorites');
+        if (!_metaHas(d.episodes)) miss.push('episodes');
+        if (!_metaHas(d.status)) miss.push('status');
+        if (!_metaHas(d.aired)) miss.push('aired');
+        if (!_metaHas(d.season) && !_metaHas(d.year)) miss.push('season');
+        if (!_metaHas(d.duration)) miss.push('duration');
+        if (!_metaHas(d.rating)) miss.push('rating');
+        if (!_metaHas(d.studios)) miss.push('studios');
+        if (!_metaHas(d.producers)) miss.push('producers');
+        if (!_metaHas(d.licensors)) miss.push('licensors');
+        if (!_metaHas(d.genres)) miss.push('genres');
+        if (!_metaHas(d.title_japanese)) miss.push('title_japanese');
+        if (!_metaHas(d.title_synonyms)) miss.push('title_synonyms');
+        if (!_metaHas(d.background)) miss.push('background');
+        if (!_metaHas(d.broadcast)) miss.push('broadcast');
+        if (!_metaHas(d.source)) miss.push('source');
+        if (!_metaHas(d.external_links)) miss.push('external_links');
+        return miss;
+      }
+
+      async function enrichAnimeMetadata() {
+        const d = currentState.data;
+        if (!d || currentState.source === 'tmdb') return;
+        const miss = _missingMetaFields(d);
+        if (!miss.length) return;
+        console.log('[Enrich] missing fields:', miss.join(', '));
+
+        // secondary source chosen by the page's {source-id} pair
+        let url = null;
+        if (currentState.source === 'anilist') {
+          const aid = Number(d.anilist_id) || currentState.id;
+          if (aid) url = `https://anilist-my-proxy.vercel.app/api/anilist/${aid}/full`;
+        } else {
+          const mid = currentState.source === 'jikan'
+            ? currentState.id
+            : (parseInt(d.mal_id, 10) || jikanIdOf());
+          if (mid) url = `${CONFIG.JIKAN_SELF}/anime/${mid}/full`;
+        }
+        if (!url) return;
+
+        let fb = null;
+        for (let attempt = 0; attempt < 2 && !fb; attempt++) {
+          try {
+            const r = await fetch(url, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(20000) });
+            if (r.ok) fb = await r.json();
+          } catch (e) { console.warn('[Enrich] fetch failed:', e.message); }
+        }
+        if (!fb) return;
+        if (fb && typeof fb === 'object' && fb.data && typeof fb.data === 'object') fb = fb.data;
+        if (!fb || typeof fb !== 'object') return;
+
+        const filled = [];
+        for (const k of miss) {
+          if (k === 'images') {
+            const fbImg = (fb.images && (fb.images.jpg || fb.images.webp))
+              ? fb.images
+              : (fb.image_url ? { jpg: { image_url: fb.image_url, large_image_url: fb.image_url } } : null);
+            if (!fbImg) continue;
+            d.images = d.images || {};
+            ['jpg', 'webp'].forEach(fmt => {
+              const src = fbImg[fmt];
+              if (!src) return;
+              if (!_metaHas(d.images[fmt]?.large_image_url) && !_metaHas(d.images[fmt]?.image_url)) {
+                d.images[fmt] = src;
+                filled.push('images.' + fmt);
+              }
+            });
+            continue;
+          }
+          const v = fb[k];
+          if (!_metaHas(v)) continue;
+          // never overwrite a present value — fill-only semantics
+          d[k] = v;
+          filled.push(k);
+        }
+
+        if (filled.length) {
+          _normalizeAnimeData(d);
+          if (!currentState.title || currentState.title === 'Unknown') {
+            currentState.title = d.title_english || d.title || currentState.title;
+          }
+          console.log('[Enrich] filled:', filled.join(', '));
+          if (window.AniCache) {
+            window.AniCache.set({ cacheKey: `info:full_data:${mediaKeyOf()}`, pageSource: 'info',
+              section: 'info_full_data', showId: null, malId: d.mal_id ? String(d.mal_id) : null,
+              data: d, permanent: currentState.isPermanent }).catch(() => {});
+          }
+        }
       }
 
       async function initAuth() {
@@ -3233,9 +3527,8 @@ img { max-width: 100%; height: auto; display: block; }
                 console.log('[AniCache] info: starting background refresh for complete data', _mediaId);
                 (async () => {
                   try {
-                    if (_src === 'jikan') await fetchJikanData();
-                    else if (_src === 'anikoto' || _src === 'anilist') await fetchRuriData();
-                    else if (_src === 'tmdb') await fetchTMDBData();
+                    if (_src === 'tmdb') await fetchTMDBData();
+                    else await fetchRuriData();
 
                     // Re-render sections that depend on full API data
                     renderHero(); renderStats(); renderSynopsis(); renderDetails();
@@ -3291,9 +3584,8 @@ img { max-width: 100%; height: auto; display: block; }
           }
 
           // 2. Live API fetch
-          if (_src === 'jikan') await fetchJikanData();
-          else if (_src === 'anikoto' || _src === 'anilist') await fetchRuriData();
-          else if (_src === 'tmdb') await fetchTMDBData();
+          if (_src === 'tmdb') await fetchTMDBData();
+          else await fetchRuriData();
 
           document.title = `${currentState.title} - Aniocean`;
           renderHero(); renderStats(); renderSynopsis(); renderDetails();
@@ -3352,7 +3644,7 @@ img { max-width: 100%; height: auto; display: block; }
                                   { signal: AbortSignal.timeout(12000) });
           if (!res.ok) throw new Error(`Jikan API error: ${res.status}`);
           const { data } = await res.json();
-          currentState.data = data;
+          currentState.data = _normalizeAnimeData(data);
           currentState.title = data.title_english || data.title || 'Unknown';
           // Determine permanent cache based on airing status
           currentState.isPermanent = !!(window.AniCache && window.AniCache.isPermanentStatus(data.status));
@@ -3361,7 +3653,7 @@ img { max-width: 100%; height: auto; display: block; }
             const sid = `jikan-${currentState.id}`;
             const saveResult = await window.AniCache.set({ cacheKey:`info:full_data:${sid}`, pageSource:'info',
               section:'info_full_data', showId:null,
-              malId:currentState.id, data,
+              malId:currentState.id, data: currentState.data,
               permanent: currentState.isPermanent,
             });
             if (!saveResult) console.warn('[AniCache] Failed to save full Jikan data for', sid);
@@ -3380,17 +3672,18 @@ img { max-width: 100%; height: auto; display: block; }
       }
 
       async function fetchTMDBData() {
-        const endpoint  = currentState.type;   // "movie" or "tv"
+        // PRIMARY: mapple-tmdb-proxy combined detail endpoint — ONE call returns
+        // metadata + cast/crew + pictures + external ids + statistics +
+        // recommendations + similar + videos + watch providers + keywords +
+        // reviews + translations for both movie and tv
+        const endpoint = currentState.type;   // "movie" or "tv"
         const id        = currentState.id;
+        const primary   = `${CONFIG.MAPPLE_BASE}/details/${endpoint}/${id}`;
+        // Backup tiers (standard TMDB shapes — renderers are shape-tolerant)
         const appendQs  = 'append_to_response=credits,videos,external_ids,images,content_ratings,release_dates&include_image_language=en,null';
         const TMDB_TOK  = 'eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI0Yjc0YzE4NjlkZGQxMWEzNTM1MDFlNGI0MjY4MzA3YyIsIm5iZiI6MTc2NDM5Mzg3MS4yNTEwMDAyLCJzdWIiOiI2OTJhODM4ZjNkNTVkM2Y1NzJiOGVlYjIiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.qN331VqKQ5rfgvkadaRLYG6fNXp4t_lOee3K15f4gCo';
-
-        // ── Tier 1: aniocen worker (no auth header needed — worker injects it) ──
-        const tier1 = `${CONFIG.TMDB_WORKER}/3/${endpoint}/${id}?${appendQs}`;
-        // ── Tier 2: Direct TMDB API with Bearer token ──────────────────────────
-        const tier2 = `https://api.themoviedb.org/3/${endpoint}/${id}?${appendQs}`;
-        // ── Tier 3: mapplee.com — same TMDB data structure, no auth required ───
-        const tier3 = `https://mapplee.com/api/tmdb/${endpoint}/${id}?language=en-US`;
+        const tier2 = `${CONFIG.TMDB_WORKER}/3/${endpoint}/${id}?${appendQs}`;
+        const tier3 = `https://api.themoviedb.org/3/${endpoint}/${id}?${appendQs}`;
 
         async function tryUrl(url, headers={}) {
           const res = await fetch(url, {
@@ -3399,50 +3692,52 @@ img { max-width: 100%; height: auto; display: block; }
           });
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           const data = await res.json();
-          if (!data.id && !data.title && !data.name) throw new Error('Empty response');
+          if (!data.id && !data.title && !data.name && !data.data) throw new Error('Empty response');
           return data;
         }
 
         try {
           let data;
-          // Try tier 1 (aniocen proxy)
           try {
-            data = await tryUrl(tier1);
-            console.log('[TMDB] ✅ aniocen proxy');
+            const json = await tryUrl(primary);
+            data = json.data || json;
+            console.log('[TMDB] ✅ mapple combined details');
           } catch(e1) {
-            console.warn('[TMDB] aniocen failed:', e1.message);
-            // Try tier 2 (direct TMDB)
+            console.warn('[TMDB] mapple failed:', e1.message);
             try {
-              data = await tryUrl(tier2, { Authorization: `Bearer ${TMDB_TOK}` });
-              console.log('[TMDB] ✅ direct API');
+              data = await tryUrl(tier2);
+              console.log('[TMDB] ✅ aniocen proxy fallback');
             } catch(e2) {
-              console.warn('[TMDB] direct API failed:', e2.message);
-              // Try tier 3 (mapplee.com) — returns identical TMDB structure
-              data = await tryUrl(tier3);
-              console.log('[TMDB] ✅ mapplee fallback');
+              console.warn('[TMDB] aniocen failed:', e2.message);
+              data = await tryUrl(tier3, { Authorization: `Bearer ${TMDB_TOK}` });
+              console.log('[TMDB] ✅ direct API fallback');
             }
           }
 
-          // mapplee response may use slightly different field names — normalise
-          if (!data.credits && data.cast) {
-            data.credits = { cast: data.cast, crew: data.crew || [] };
+          // mapple nests sections (metadata/statistics/cast_crew/...); flatten
+          // metadata to top-level so every renderer can read either shape
+          if (data.metadata && typeof data.metadata === 'object') {
+            const flat = { ...data, ...(data.metadata || {}) };
+            flat.metadata = data.metadata;
+            currentState.data = flat;
+          } else {
+            // legacy/backup shapes — normalise minimal wrappers
+            if (!data.credits && data.cast) data.credits = { cast: data.cast, crew: data.crew || [] };
+            if (!data.videos && data.video_results) data.videos = { results: data.video_results };
+            if (!data.images) data.images = { posters:[], backdrops:[], logos:[] };
+            currentState.data = data;
           }
-          if (!data.videos && data.video_results) {
-            data.videos = { results: data.video_results };
-          }
-          if (!data.images) data.images = { posters:[], backdrops:[], logos:[] };
-
-          currentState.data  = data;
-          currentState.title = data.title || data.name || 'Unknown';
+          const d = currentState.data;
+          currentState.title = d.title || d.name || (d.metadata && (d.metadata.title || d.metadata.name)) || 'Unknown';
           // Determine permanent cache based on status (Ended/Released = permanent)
-          currentState.isPermanent = !!(window.AniCache && window.AniCache.isPermanentStatus(data.status));
+          currentState.isPermanent = !!(window.AniCache && window.AniCache.isPermanentStatus(d.status));
           // Cache the full show info JSON — trim first to reduce payload size
-          if (window.AniCache && data.id) {
-            const sid = `tmdb-${endpoint}-${data.id}`;
-            const trimmedData = window.AniCache.trimTMDBData(data);
+          if (window.AniCache && (d.id || id)) {
+            const sid = `tmdb-${endpoint}-${id}`;
+            const trimmedData = window.AniCache.trimTMDBData(d);
             const saveResult = await window.AniCache.set({ cacheKey:`info:full_data:${sid}`, pageSource:'info',
               section:'info_full_data', showId:null,
-              tmdbId:data.id, data: trimmedData,
+              tmdbId:id, data: trimmedData,
               permanent: currentState.isPermanent,
             });
             if (!saveResult) console.warn('[AniCache] Failed to save full TMDB data for', sid);
@@ -3465,24 +3760,29 @@ img { max-width: 100%; height: auto; display: block; }
       const AL_SEASON_MAP = { WINTER:'Winter', SPRING:'Spring', SUMMER:'Summer', FALL:'Fall' };
       const AL_GENRE_TO_MAL = { Action:1, Adventure:2, Comedy:4, Drama:8, Fantasy:10, Horror:14, Mystery:7, Romance:22, 'Sci-Fi':24, Sports:30, Supernatural:37, Suspense:41, 'Award Winning':46, 'Slice of Life':36, Ecchi:9, Mecha:18, Music:19, Military:38, School:23, Shounen:27, Seinen:42, Josei:43, Isekai:62, 'Boys Love':28, 'Girls Love':26, Gourmet:47, 'Idols & Celebrities':76, Medical:104, Mythology:81, 'Reverse Harem':91 };
 
-      async function fetchAnilistData(malId) {
-        console.log('[AniList] Fetching via GraphQL for MAL ID:', malId);
+      async function fetchAnilistData(malId, anilistId = null) {
+        console.log('[AniList] Fetching via GraphQL for', malId ? 'MAL ID ' + malId : 'AniList ID ' + anilistId);
 
-        const mainQuery = `query($malId:Int){Media(idMal:$malId,type:ANIME){id idMal title{romaji english native}type format status(version:2)description(asHtml:false)startDate{year month day}endDate{year month day}season seasonYear episodes duration coverImage{extraLarge large medium color}bannerImage genres synonyms averageScore meanScore popularity trending favourites tags{name rank isMediaSpoiler}studios(isMain:true){nodes{name}}producers:studios(isMain:false){nodes{name}}countryOfOrigin isAdult nextAiringEpisode{airingAt episode}siteUrl trailer{id site thumbnail}externalLinks{url site}rankings{rank type season year allTime format}stats{scoreDistribution{score amount}statusDistribution{status amount}}relations{edges{relationType node{id idMal title{romaji english native}type format status coverImage{large medium}episodes bannerImage}}}characters(sort:ROLE,page:1,perPage:25){edges{role node{id name{full}image{large medium}}voiceActors(language:JAPANESE){id name{full}languageV2 image{large medium}}}}recommendations(sort:RATING_DESC,page:1,perPage:15){nodes{mediaRecommendation{media{id idMal title{romaji english}coverImage{large}averageScore episodes format status genres popularity}}}}}}`;
+        // Lookup by MAL id or by AniList id (anilist-{id} info pages)
+        const mediaSel = malId ? 'Media(idMal:$malId,type:ANIME)' : 'Media(id:$alId,type:ANIME)';
+        const varDecl  = malId ? '$malId:Int' : '$alId:Int';
+        const variables = malId ? { malId } : { alId: anilistId };
 
-        const engVaQuery = `query($malId:Int){Media(idMal:$malId,type:ANIME){characters(sort:ROLE,page:1,perPage:25){edges{role node{id name{full}}voiceActors(language:ENGLISH){id name{full}languageV2 image{large medium}}}}}`;
+        const mainQuery = `query(${varDecl}){${mediaSel}{id idMal title{romaji english native}type format status(version:2)description(asHtml:false)startDate{year month day}endDate{year month day}season seasonYear episodes duration coverImage{extraLarge large medium color}bannerImage genres synonyms averageScore meanScore popularity trending favourites tags{name rank isMediaSpoiler}studios(isMain:true){nodes{name}}producers:studios(isMain:false){nodes{name}}countryOfOrigin isAdult nextAiringEpisode{airingAt episode}siteUrl trailer{id site thumbnail}externalLinks{url site}rankings{rank type season year allTime format}stats{scoreDistribution{score amount}statusDistribution{status amount}}relations{edges{relationType node{id idMal title{romaji english native}type format status coverImage{large medium}episodes bannerImage}}}characters(sort:ROLE,page:1,perPage:25){edges{role node{id name{full}image{large medium}}voiceActors(language:JAPANESE){id name{full}languageV2 image{large medium}}}}recommendations(sort:RATING_DESC,page:1,perPage:15){nodes{mediaRecommendation{media{id idMal title{romaji english}coverImage{large}averageScore episodes format status genres popularity}}}}}}`;
+
+        const engVaQuery = `query(${varDecl}){${mediaSel}{characters(sort:ROLE,page:1,perPage:25){edges{role node{id name{full}}voiceActors(language:ENGLISH){id name{full}languageV2 image{large medium}}}}}`;
 
         // Fetch main data + Japanese VAs
         const mainRes = await fetch(ANILIST_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-          body: JSON.stringify({ query: mainQuery, variables: { malId } }),
+          body: JSON.stringify({ query: mainQuery, variables }),
           signal: AbortSignal.timeout(15000)
         });
         if (!mainRes.ok) throw new Error(`AniList HTTP ${mainRes.status}`);
         const mainJson = await mainRes.json();
         const media = mainJson?.data?.Media;
-        if (!media) throw new Error('AniList: no media found for MAL ID ' + malId);
+        if (!media) throw new Error('AniList: no media found for ' + (malId ? 'MAL ID ' + malId : 'AniList ID ' + anilistId));
 
         // Fetch English VAs in parallel
         let engVaEdges = null;
@@ -3490,7 +3790,7 @@ img { max-width: 100%; height: auto; display: block; }
           const engRes = await fetch(ANILIST_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-            body: JSON.stringify({ query: engVaQuery, variables: { malId } }),
+            body: JSON.stringify({ query: engVaQuery, variables }),
             signal: AbortSignal.timeout(10000)
           });
           if (engRes.ok) { const ej = await engRes.json(); engVaEdges = ej?.data?.Media?.characters?.edges || []; }
@@ -3504,9 +3804,9 @@ img { max-width: 100%; height: auto; display: block; }
         currentState.isPermanent = !!(window.AniCache && window.AniCache.isPermanentStatus(data.status));
         console.log('[AniList] Successfully loaded anime data for:', currentState.title);
 
-        // Cache permanently
+        // Cache permanently (keyed by the page's own media id, not the MAL id)
         if (window.AniCache) {
-          const sid = `jikan-${malId}`;
+          const sid = mediaKeyOf();
           await window.AniCache.set({ cacheKey:`info:full_data:${sid}`, pageSource:'info',
             section:'info_full_data', showId:null, malId:malId, data,
             permanent: currentState.isPermanent,
@@ -3638,7 +3938,7 @@ img { max-width: 100%; height: auto; display: block; }
       }
 
       async function fetchAllAnimeData(query) {
-        if (currentState.source !== 'jikan' || !query) return;
+        if (currentState.source === 'tmdb' || !query) return;
         try {
           // Use the English title or romaji title as search query
           const searchTitle = currentState.data?.title_english || query;
@@ -3672,7 +3972,7 @@ img { max-width: 100%; height: auto; display: block; }
       // Fetch sub/dub episode counts + anilist info from AnimeSchedule proxy
       // Caching: uses media_cache table. Finished Airing → permanent. Currently Airing → permanent (episode data stable).
       async function fetchAnimeScheduleData() {
-        if (currentState.source !== 'jikan') return;
+        if (currentState.source === 'tmdb') return;
         const _mid = mediaKeyOf();
         const _cacheKey = `info:animeschedule:${_mid}`;
 
@@ -3776,41 +4076,84 @@ img { max-width: 100%; height: auto; display: block; }
       function renderHero() {
         const data = currentState.data;
         const isAnime = currentState.source !== 'tmdb';
-        
+        const isMobile = window.matchMedia('(max-width: 768px)').matches;
+
         const typeNameMap = { 'anime': 'Anime', 'tv': 'TV Show', 'movie': 'Movie' };
         document.getElementById('typeName').textContent = typeNameMap[currentState.type] || currentState.type;
         document.getElementById('typeLink').href = `/type/${currentState.type}`;
         document.getElementById('breadcrumbTitle').textContent = currentState.title;
-        
-        const backdrop = isAnime 
-          ? (data._anilistExtras?.bannerImage || data.images?.jpg?.large_image_url) 
-          : data.backdrop_path 
-            ? `https://image.tmdb.org/t/p/original${data.backdrop_path}` 
-            : '';
-        document.getElementById('backdropImg').src = backdrop || 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 600"><rect fill="%23131f2e" width="1600" height="600"/></svg>';
-        
-        const poster = isAnime 
-          ? data.images?.jpg?.image_url 
-          : data.poster_path 
-            ? `https://image.tmdb.org/t/p/w500${data.poster_path}` 
+
+        // ── Backdrop: banner large on PC / small on mobile, poster fallback.
+        // anikoto pages use background_image (falls back to poster).
+        let backdrop = '';
+        if (isAnime) {
+          const bi = data.banner_image;
+          const bannerL = (bi && typeof bi === 'object') ? (bi.large || bi.small || '') : (typeof bi === 'string' ? bi : '');
+          const bannerS = (bi && typeof bi === 'object') ? (bi.small || bi.large || '') : bannerL;
+          if (currentState.source === 'anikoto' && data.background_image) {
+            backdrop = data.background_image;
+          } else {
+            backdrop = isMobile ? (bannerS || bannerL) : (bannerL || bannerS);
+          }
+          if (!backdrop && data.background_image) backdrop = data.background_image;
+          if (!backdrop) backdrop = data.images?.jpg?.large_image_url || data.images?.jpg?.image_url || '';
+        } else {
+          if (data.backdrop_path) backdrop = `https://image.tmdb.org/t/p/${isMobile ? 'w780' : 'original'}${data.backdrop_path}`;
+          else if (data.poster_path) backdrop = `https://image.tmdb.org/t/p/w780${data.poster_path}`;
+        }
+        const bdEl = document.getElementById('backdropImg');
+        bdEl.classList.remove('backdrop-soft');
+        const bdContainer = bdEl.closest('.backdrop-container');
+        if (bdContainer) bdContainer.classList.toggle('anime-backdrop', isAnime);
+        if (isAnime && backdrop) {
+          // Banner smaller than viewport gets upscaled → soften with an intentional
+          // blur so the artifact reads as a design choice instead of a glitch
+          try {
+            const probe = new Image();
+            probe.onload = () => {
+              if (probe.naturalWidth && probe.naturalWidth < Math.max(1280, window.innerWidth * 0.9)) {
+                bdEl.classList.add('backdrop-soft');
+              }
+            };
+            probe.src = backdrop;
+          } catch (e) { /* ignore */ }
+        }
+        bdEl.src = backdrop || 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 600"><rect fill="%23131f2e" width="1600" height="600"/></svg>';
+
+        const poster = isAnime
+          ? (data.images?.jpg?.image_url || data.images?.jpg?.large_image_url || '')
+          : data.poster_path
+            ? `https://image.tmdb.org/t/p/w500${data.poster_path}`
             : '';
         document.getElementById('posterImg').src = poster || 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 300"><rect fill="%231e2633" width="200" height="300"/></svg>';
-        
+
         document.getElementById('showTitle').textContent = currentState.title;
-        
+
         const metaParts = [];
-        const score = isAnime ? data.score : (data.vote_average || data.score);
+        const score = isAnime ? data.score : (data.vote_average || (data.statistics && data.statistics.vote_average) || data.score);
         if (score != null) metaParts.push(`★ ${typeof score==='string' ? score : Number(score).toFixed(1)}`);
         metaParts.push(data.type || typeNameMap[currentState.type] || currentState.type);
         const studio = getFirstStudio(data, isAnime);
         if (studio) metaParts.push(studio);
-        const duration = formatDuration(data.duration, isAnime, currentState.type);
+        let durationRaw = null;
+        if (isAnime) durationRaw = data.duration;
+        else if (currentState.type === 'movie') durationRaw = data.runtime ? `${data.runtime} min` : null;
+        else durationRaw = (data.episode_run_time && data.episode_run_time[0]) ? `${data.episode_run_time[0]} min` : null;
+        const duration = formatDuration(durationRaw, isAnime, currentState.type);
         if (duration) metaParts.push(duration);
-        
+
         document.getElementById('metadataRow').innerHTML = metaParts.map(m => `<span>${m}</span>`).join('');
-        
+
+        // ── Watch Now link formats ──
+        // anime: /watch/anime/{jikan|anilist|anikoto}-{id}/{slug}/episode/01
+        // tmdb:  /watch/{tv|movie}/tmdb-{tv|movie}-{id}/{slug}/season/1/episode/1
         const slug = slugify(currentState.title);
-        const watchPath = `/watch/${currentState.type}/${currentState.source}-${currentState.id}/${slug}`;
+        let watchPath;
+        if (isAnime) {
+          watchPath = `/watch/anime/${currentState.source}-${currentState.id}/${slug}/episode/01`;
+        } else {
+          watchPath = `/watch/${currentState.type}/tmdb-${currentState.type}-${currentState.id}/${slug}/season/1/episode/1`;
+        }
         document.getElementById('watchNowBtn').href = watchPath;
       }
 
@@ -3844,6 +4187,37 @@ img { max-width: 100%; height: auto; display: block; }
         }
       }
 
+      // ISO code -> full country name (dynamic, with tiny fallback map).
+      // Non-ISO values (ruri stores "japan" as a word) get title-cased.
+      function regionName(iso) {
+        if (!iso) return null;
+        const v = String(iso).trim();
+        if (!v) return null;
+        if (/^[A-Za-z]{2}$/.test(v)) {
+          try {
+            const dn = new Intl.DisplayNames(['en'], { type: 'region' });
+            const name = dn.of(v.toUpperCase());
+            if (name && name.toUpperCase() !== v.toUpperCase()) return name;
+          } catch (e) { /* Intl.DisplayNames unsupported */ }
+          return ISO_COUNTRY_FALLBACK[v.toUpperCase()] || v.toUpperCase();
+        }
+        return v.replace(/\b\w/g, c => c.toUpperCase());
+      }
+
+      // Memoised self-hosted jikan /full — relations, cast, artwork and
+      // statistics all reuse ONE fetch per page instead of hammering Render
+      function jikanSelfFull(malId) {
+        if (!malId) return Promise.resolve(null);
+        if (!currentState._jikanSelfCache) currentState._jikanSelfCache = {};
+        const key = String(malId);
+        if (!currentState._jikanSelfCache[key]) {
+          currentState._jikanSelfCache[key] = fetchWithRetry(`${CONFIG.JIKAN_SELF}/anime/${key}/full`)
+            .then(r => r.json())
+            .catch(e => { console.warn('[JikanSelf] failed:', e.message); return null; });
+        }
+        return currentState._jikanSelfCache[key];
+      }
+
       function renderLanguageBadges(subCount, dubCount) {
         const container = document.getElementById('languageBadges');
         container.innerHTML = '';
@@ -3854,53 +4228,57 @@ img { max-width: 100%; height: auto; display: block; }
       function renderStats() {
         const data = currentState.data;
         const isAnime = currentState.source !== 'tmdb';
+        const stats = data.statistics || {};
         const platform = isAnime ? 'MAL' : 'TMDB';
-        const rating = isAnime ? data.score : data.vote_average;
+        const rating = isAnime ? data.score : (stats.vote_average || data.vote_average);
         const starColor = isAnime ? '#2e51a2' : '#01b4e4';
-        
+
         document.getElementById('platformLabel').textContent = platform;
         document.getElementById('platformStar').style.color = starColor;
-        document.getElementById('ratingValue').textContent = rating ? rating.toFixed(1) : 'N/A';
+        document.getElementById('ratingValue').textContent = rating ? Number(rating).toFixed(1) : 'N/A';
         document.getElementById('formatValue').textContent =
-          (data.type && data.type !== 'Anime' && data.type !== 'Movie' && data.type !== 'TV')
-            ? data.type  // Jikan format: TV, OVA, ONA, Movie, Music, etc.
-            : (isAnime ? (data.type === 'Movie' ? 'Movie' : 'TV') : currentState.type);
-        
+          isAnime
+            ? ((data.type && data.type !== 'Anime' && data.type !== 'Movie' && data.type !== 'TV')
+                ? data.type  // Jikan format: TV, OVA, ONA, Movie, Music, etc.
+                : (data.type === 'Movie' ? 'Movie' : 'TV'))
+            : (currentState.type === 'movie' ? 'Movie' : 'TV');
+
         // Duration — for TMDB use runtime (movie) or episode_run_time (TV)
         let duration = null;
         if (isAnime) {
           duration = formatDuration(data.duration, true, currentState.type);
         } else if (currentState.type === 'movie') {
-          const mins = data.runtime;
+          const mins = data.runtime || stats.runtime;
           if (mins) {
             const h = Math.floor(mins / 60);
             const m = mins % 60;
             duration = h > 0 ? `${h}h ${m}min` : `${m}min`;
           }
- 
-} else if (currentState.type === 'tv') {
-  const runTimes = data.episode_run_time;
-  if (runTimes?.length) {
-    duration = `${runTimes[0]} min`;
-  } else if (data.last_episode_to_air?.runtime) {
-    duration = `${data.last_episode_to_air.runtime} min`;
-  } else if (data.next_episode_to_air?.runtime) {
-    duration = `${data.next_episode_to_air.runtime} min`;
-  }
-}
+        } else if (currentState.type === 'tv') {
+          const runTimes = data.episode_run_time || [];
+          if (runTimes.length) {
+            duration = `${runTimes[0]} min`;
+          } else if (data.last_episode_to_air?.runtime) {
+            duration = `${data.last_episode_to_air.runtime} min`;
+          } else if (data.next_episode_to_air?.runtime) {
+            duration = `${data.next_episode_to_air.runtime} min`;
+          }
+        }
 
-        document.getElementById('durationValue').textContent = duration || '—';
-        
+        document.getElementById('durationValue').textContent = duration || 'N/A';
+
         // Content rating
-        let contentRating = '—';
+        let contentRating = 'N/A';
         if (isAnime) {
-          contentRating = data.rating ? data.rating.split(' - ')[0] : '—';
+          contentRating = data.rating ? data.rating.split(' - ')[0] : 'N/A';
         } else if (currentState.type === 'movie') {
-          const usRelease = data.release_dates?.results?.find(r => r.iso_3166_1 === 'US');
-          contentRating = usRelease?.release_dates?.[0]?.certification || '—';
+          const rd = data.release_dates?.results || [];
+          const usRelease = rd.find(r => r.iso_3166_1 === 'US');
+          contentRating = usRelease?.release_dates?.find(x => x.certification)?.certification
+                          || usRelease?.release_dates?.[0]?.certification || 'N/A';
         } else if (currentState.type === 'tv') {
           const usRating = data.content_ratings?.results?.find(r => r.iso_3166_1 === 'US');
-          contentRating = usRating?.rating || '—';
+          contentRating = usRating?.rating || 'N/A';
         }
         document.getElementById('contentRating').textContent = contentRating;
       }
@@ -3932,15 +4310,23 @@ img { max-width: 100%; height: auto; display: block; }
           details.push({ label: 'Japanese', value: data.title_japanese || 'N/A' });
           details.push({ label: 'Synonyms', value: data.title_synonyms?.length ? data.title_synonyms.join(', ') : 'N/A' });
         } else {
-          if (data.title || data.name) details.push({ label: 'Title', value: data.title || data.name });
-          if (data.original_title || data.original_name) details.push({ label: 'Original', value: data.original_title || data.original_name });
+          // TMDB — every standard field always renders; "N/A" keeps the grid consistent
+          details.push({ label: 'Title', value: data.title || data.name || 'N/A' });
+          details.push({ label: 'Original', value: data.original_title || data.original_name || 'N/A' });
         }
-        
-        // ruri DB payloads carry country_of_origin (anime_data column); live Jikan
-        // payloads do not - keep the historical 'Japan' default for those
-        const country = isAnime ? (data.country_of_origin || 'Japan') : data.origin_country?.[0] || data.production_countries?.[0]?.iso_3166_1 || 'Unknown';
-        details.push({ label: 'Country', value: country });
-        
+
+        // Country — ISO codes converted to full country names (dynamic)
+        let countryVal = 'N/A';
+        if (isAnime) {
+          countryVal = data.country_of_origin ? regionName(data.country_of_origin) : 'Japan';
+        } else {
+          const countryList = data.production_countries?.length
+            ? data.production_countries.map(c => regionName(c.iso_3166_1)).filter(Boolean)
+            : (data.origin_country || []).map(c => regionName(c)).filter(Boolean);
+          if (countryList.length) countryVal = [...new Set(countryList)].join(', ');
+        }
+        details.push({ label: 'Country', value: countryVal });
+
         if (isAnime) {
           if (data.genres?.length) {
             const allGenres = [
@@ -3958,14 +4344,18 @@ img { max-width: 100%; height: auto; display: block; }
           } else {
             details.push({ label: 'Genres', value: 'N/A' });
           }
-        } else if (!isAnime && data.genres?.length) {
-          const genreHtml = data.genres.map(g => {
-            const name = g.name;
-            const firstChar = name.charAt(0).toLowerCase();
-            const colorAttr = GENRE_COLOR_MAP[firstChar] || '';
-            return `<a href="/genre/${name.toLowerCase().replace(/\s+/g, '-')}" class="genre-tag" ${colorAttr}>${name}</a>`;
-          }).join('');
-          details.push({ label: 'Genres', value: `<div class="genre-tags">${genreHtml}</div>`, isHtml: true });
+        } else if (!isAnime) {
+          if (data.genres?.length) {
+            const genreHtml = data.genres.map(g => {
+              const name = g.name;
+              const firstChar = name.charAt(0).toLowerCase();
+              const colorAttr = GENRE_COLOR_MAP[firstChar] || '';
+              return `<a href="/genre/${name.toLowerCase().replace(/\s+/g, '-')}" class="genre-tag" ${colorAttr}>${name}</a>`;
+            }).join('');
+            details.push({ label: 'Genres', value: `<div class="genre-tags">${genreHtml}</div>`, isHtml: true });
+          } else {
+            details.push({ label: 'Genres', value: 'N/A' });
+          }
         }
         
         const status = isAnime ? data.status : (data.status === 'Released' ? 'Released' : data.status);
@@ -3989,22 +4379,68 @@ img { max-width: 100%; height: auto; display: block; }
           }
           // anime movies with no aired data: hide the row entirely
         } else if (!isAnime) {
+          // TMDB Premiered — month + year of release / first air (no link, unlike anime)
           const date = data.release_date || data.first_air_date;
           if (date) {
+            try {
+              const d = new Date(date);
+              if (!isNaN(d.getTime())) {
+                const monthYear = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                details.push({ label: 'Premiered', value: monthYear });
+              } else {
+                details.push({ label: 'Premiered', value: 'N/A' });
+              }
+            } catch (e) {
+              details.push({ label: 'Premiered', value: 'N/A' });
+            }
             const formatted = new Date(date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-            details.push({ label: data.release_date ? 'Released' : 'First Air Date', value: formatted });
+            details.push({ label: data.release_date ? 'Release Date' : 'First Air Date', value: formatted });
+          } else {
+            details.push({ label: 'Premiered', value: 'N/A' });
+            details.push({ label: currentState.type === 'movie' ? 'Release Date' : 'First Air Date', value: 'N/A' });
+          }
+          // Seasons & Episodes (tv) / Runtime (movie)
+          if (currentState.type === 'tv') {
+            const ns = data.number_of_seasons || (data.statistics && data.statistics.number_of_seasons);
+            const ne = data.number_of_episodes || (data.statistics && data.statistics.number_of_episodes);
+            details.push({ label: 'Seasons', value: ns ? String(ns) : 'N/A' });
+            details.push({ label: 'Episodes', value: ne ? String(ne) : 'N/A' });
+          } else {
+            const rt = data.runtime || (data.statistics && data.statistics.runtime);
+            details.push({ label: 'Runtime', value: rt ? formatDuration(`${rt} min`, false, 'movie') : 'N/A' });
+          }
+          // Original language + spoken languages (dynamic full names)
+          try {
+            const langDn = new Intl.DisplayNames(['en'], { type: 'language' });
+            const ol = data.original_language;
+            details.push({ label: 'Original Language', value: ol ? (langDn.of(ol) || ol) : 'N/A' });
+            const spoken = (data.spoken_languages || []).map(l => l.english_name || l.name || langDn.of(l.iso_639_1 || '')).filter(Boolean);
+            details.push({ label: 'Spoken Languages', value: spoken.length ? [...new Set(spoken)].join(', ') : 'N/A' });
+          } catch (e) {
+            details.push({ label: 'Original Language', value: data.original_language || 'N/A' });
+            details.push({ label: 'Spoken Languages', value: 'N/A' });
+          }
+          // Networks (tv) / Created by (tv)
+          if (currentState.type === 'tv') {
+            const networks = (data.networks || []).map(n => n.name).filter(Boolean);
+            details.push({ label: 'Network' + (networks.length > 1 ? 's' : ''), value: networks.length ? networks.join(', ') : 'N/A' });
+            const creators = (data.created_by || []).map(c => c.name).filter(Boolean);
+            details.push({ label: 'Created By', value: creators.length ? creators.join(', ') : 'N/A' });
           }
         }
         
         if (isAnime) {
           if (data.season && data.year) {
             const season = data.season.charAt(0).toUpperCase() + data.season.slice(1);
-            const seasonSlug = slugify(season);
-            details.push({ 
-              label: 'Premiered', 
-              value: `<a href="/season/${seasonSlug}+${data.year}">${season} ${data.year}</a>`, 
-              isHtml: true 
+            // Best-fit URL pattern: /season/{season_name}/year/{year_number}
+            // — hierarchical, keyword-separated, unambiguous and SEO friendly
+            details.push({
+              label: 'Premiered',
+              value: `<a href="/season/${String(data.season).toLowerCase()}/year/${data.year}">${season} ${data.year}</a>`,
+              isHtml: true
             });
+          } else if (data.year) {
+            details.push({ label: 'Premiered', value: data.year });
           } else {
             details.push({ label: 'Premiered', value: 'N/A' });
           }
@@ -4013,17 +4449,15 @@ img { max-width: 100%; height: auto; display: block; }
         if (isAnime) {
           // movies: hide the Broadcast row entirely (they never broadcast)
           if (!isAnimeMovie) details.push({ label: 'Broadcast', value: data.broadcast?.string || 'N/A' });
-        } else if (currentState.type === 'tv' && data.broadcast?.string) {
-          details.push({ label: 'Broadcast', value: data.broadcast.string });
         }
         
-        if (currentState.type !== 'movie') {
-          const episodes = isAnime ? data.episodes : data.number_of_episodes || data.number_of_seasons;
+        if (isAnime) {
+          const episodes = data.episodes;
           if (episodes) {
             // Build episode HTML with sub/dub counts if available
             const allAnime = currentState.allAnimeData;
             let episodeHtml = `<span>${episodes}</span>`;
-            if (isAnime && allAnime) {
+            if (allAnime) {
               const { episodes_sub, episodes_dub } = allAnime;
               if (episodes_sub > 0 || episodes_dub > 0) {
                 episodeHtml = `<span>${episodes}</span>`;
@@ -4031,10 +4465,10 @@ img { max-width: 100%; height: auto; display: block; }
                 if (episodes_dub > 0) episodeHtml += ` <span style="color:var(--text-muted);font-size:0.8em;">|</span> <i class="fa-solid fa-microphone" style="color:#7ec8f7;" title="Dubbed"></i> ${episodes_dub}`;
               }
             }
-            details.push({ 
-              label: 'Episodes', 
-              value: `<span id="episodeDetailValue" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;justify-content:flex-end;">${episodeHtml}</span>`, 
-              isHtml: true 
+            details.push({
+              label: 'Episodes',
+              value: `<span id="episodeDetailValue" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;justify-content:flex-end;">${episodeHtml}</span>`,
+              isHtml: true
             });
           } else {
             details.push({ label: 'Episodes', value: 'N/A' });
@@ -4048,8 +4482,11 @@ img { max-width: 100%; height: auto; display: block; }
         if (isAnime) {
           details.push({ label: 'Popularity', value: data.popularity != null ? formatNumber(data.popularity) : 'N/A' });
           details.push({ label: 'Rank', value: data.rank ? `#${data.rank}` : 'N/A' });
-        } else if (data.popularity !== undefined) {
-          details.push({ label: 'Popularity', value: formatNumber(data.popularity) });
+        } else {
+          const stats2 = data.statistics || {};
+          details.push({ label: 'Popularity', value: (data.popularity ?? stats2.popularity) != null ? formatNumber(data.popularity ?? stats2.popularity) : 'N/A' });
+          const vc = data.vote_count ?? stats2.vote_count;
+          details.push({ label: 'Vote Count', value: vc != null ? formatNumber(vc) : 'N/A' });
         }
         
         const studios = isAnime ? data.studios : data.production_companies || data.networks;
@@ -4059,8 +4496,8 @@ img { max-width: 100%; height: auto; display: block; }
             return `<a href="/studio/${studioSlug}">${s.name}</a>`;
           }).join(', ');
           details.push({ label: 'Studio' + (studios.length > 1 ? 's' : ''), value: studioLinks, isHtml: true });
-        } else if (isAnime) {
-          details.push({ label: 'Studio', value: 'N/A' });
+        } else {
+          details.push({ label: isAnime ? 'Studio' : 'Studios', value: 'N/A' });
         }
         
         if (isAnime) {
@@ -4078,7 +4515,7 @@ img { max-width: 100%; height: auto; display: block; }
         
         const extLinks = [];
         if (isAnime && data.mal_id) {
-          extLinks.push(`<a href="https://myanimelist.net/anime/${data.mal_id}" target="_blank" class="ext-link-btn mal"><svg width="20" height="20" viewBox="-890.88 -890.88 2805.76 2805.76"><circle cx="512" cy="512" r="512" style="fill:#2e51a2"/><path d="M432.49 410.61V590.3l-44.86-.06V479l-43.31 51.29-42.43-52.44-.43 112.75H256V410.65h47l39.79 54.29 43-54.31zm184.06 44.14.53 135.15h-50.45l-.17-61.25h-59.73c1.49 10.65 4.48 27 8.9 38 3.31 8.13 6.36 16 12.44 24.06l-36.37 24c-7.45-13.57-13.27-28.52-18.73-44.42a198.31 198.31 0 0 1-10.82-46.49c-1.81-16-2.07-31.38 2.28-47.19a83.37 83.37 0 0 1 24.77-39.81c6.68-6.25 16-10.67 23.47-14.66s15.85-5.63 23.62-7.66a158 158 0 0 1 25.41-3.9c8.49-.73 23.62-1.41 51-.6l11.63 37.31h-58.78c-12.65.17-18.73 0-28.61 4.46a47.7 47.7 0 0 0-27.26 41l56.81.7.81-38.61h49.26zM701.72 410v141.35L768 552l-9.17 37.87H656.28V409.33z" style="fill:#fff"/></svg> MyAnimeList</a>`);
+          extLinks.push(`<a href="https://myanimelist.net/anime/${data.mal_id}" target="_blank" class="ext-link-btn mal"><svg width="24" height="24" viewBox="-890.88 -890.88 2805.76 2805.76"><circle cx="512" cy="512" r="512" style="fill:#2e51a2"/><path d="M432.49 410.61V590.3l-44.86-.06V479l-43.31 51.29-42.43-52.44-.43 112.75H256V410.65h47l39.79 54.29 43-54.31zm184.06 44.14.53 135.15h-50.45l-.17-61.25h-59.73c1.49 10.65 4.48 27 8.9 38 3.31 8.13 6.36 16 12.44 24.06l-36.37 24c-7.45-13.57-13.27-28.52-18.73-44.42a198.31 198.31 0 0 1-10.82-46.49c-1.81-16-2.07-31.38 2.28-47.19a83.37 83.37 0 0 1 24.77-39.81c6.68-6.25 16-10.67 23.47-14.66s15.85-5.63 23.62-7.66a158 158 0 0 1 25.41-3.9c8.49-.73 23.62-1.41 51-.6l11.63 37.31h-58.78c-12.65.17-18.73 0-28.61 4.46a47.7 47.7 0 0 0-27.26 41l56.81.7.81-38.61h49.26zM701.72 410v141.35L768 552l-9.17 37.87H656.28V409.33z" style="fill:#fff"/></svg> MyAnimeList</a>`);
         }
         // Add Anilist button — DB anilist_link first (synchronous, already in the /full
         // payload for ~15.8k rows), then AnimeSchedule proxy, then AniList GraphQL rescue path.
@@ -4088,11 +4525,14 @@ img { max-width: 100%; height: auto; display: block; }
           || currentState.data?._anilistExtras?.anilistUrl || '';
         const anilistUrl = /^https:\/\/anilist\.co\//.test(anilistRaw) ? anilistRaw : '';
         if (isAnime) {
-          extLinks.push(`<a href="${anilistUrl || '#'}" target="_blank" class="ext-link-btn anilist" ${!anilistUrl ? 'style="display:none;"' : ''}><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M6.361 2.943 0 21.056h4.942l1.077-3.133H11.4l1.052 3.133H22.9c.71 0 1.1-.392 1.1-1.101V17.53c0-.71-.39-1.101-1.1-1.101h-6.483V4.045c0-.71-.392-1.102-1.101-1.102h-2.422c-.71 0-1.101.392-1.101 1.102v1.064l-.758-2.166zm2.324 5.948 1.688 5.018H7.144z"/></svg> AniList</a>`);
+          extLinks.push(`<a href="${anilistUrl || '#'}" target="_blank" class="ext-link-btn anilist" ${!anilistUrl ? 'style="display:none;"' : ''}><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M6.361 2.943 0 21.056h4.942l1.077-3.133H11.4l1.052 3.133H22.9c.71 0 1.1-.392 1.1-1.101V17.53c0-.71-.39-1.101-1.1-1.101h-6.483V4.045c0-.71-.392-1.102-1.101-1.102h-2.422c-.71 0-1.101.392-1.101 1.102v1.064l-.758-2.166zm2.324 5.948 1.688 5.018H7.144z"/></svg> AniList</a>`);
         }
         if (!isAnime && currentState.id) {
           const tmdbType = currentState.type;
           extLinks.push(`<a href="https://www.themoviedb.org/${tmdbType}/${currentState.id}" target="_blank" class="ext-link-btn tmdb"><i class="fa-brands fa-mdb"></i> TMDB</a>`);
+          // IMDb — icon rendered as the classic yellow badge; link only when the id exists
+          const imdbId = data.external_ids?.imdb_id || null;
+          extLinks.push(`<a href="${imdbId ? 'https://www.imdb.com/title/' + imdbId + '/' : '#'}" target="_blank" class="ext-link-btn imdb" ${!imdbId ? 'style="display:none;"' : ''} title="View on IMDb" aria-label="IMDb"><svg width="34" height="17" viewBox="0 0 64 32" aria-hidden="true"><rect width="64" height="32" rx="6" fill="currentColor"/><text x="32" y="23" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-size="16" font-weight="900" fill="#0d1626" letter-spacing="0.5">IMDb</text></svg></a>`);
         }
         if (extLinks.length) details.push({ label: 'External', value: `<div class="external-links">${extLinks.join('')}</div>`, isHtml: true });
         
@@ -4106,123 +4546,173 @@ img { max-width: 100%; height: auto; display: block; }
 
       async function renderSeasons() {
         const section = document.getElementById('seasonsSection');
+        const grid = document.getElementById('seasonsGrid');
         const data = currentState.data;
         const isAnime = currentState.source !== 'tmdb';
-        
-        let seasons = [];
-        if (isAnime) {
-          const relationsArray = Array.isArray(data.relations) ? data.relations : [];
-          const relatedAnime = [];
-          for (const rel of relationsArray) {
-            const relType = (rel.relation || '').toLowerCase();
-            if (['prequel','sequel','side story','alternative version','alternative setting','spin-off'].includes(relType)) {
-              for (const entry of (rel.entry || [])) {
-                if (entry.type === 'anime') relatedAnime.push({ ...entry, relation: rel.relation });
-              }
-            }
-          }
-          seasons = relatedAnime;
-          if (!seasons.some(s => s.mal_id === currentState.id)) {
-            seasons.unshift({ mal_id: currentState.id, name: currentState.title, type: 'anime', relation: 'Current' });
-          }
-        } else if (currentState.type === 'tv') {
-          seasons = data.seasons?.filter(s => s.season_number > 0) || [];
-        }
-        
-        if (!seasons.length) { section.style.display = 'none'; return; }
-        
-        section.style.display = 'block';
-        const grid = document.getElementById('seasonsGrid');
 
-        // For anime: show placeholder cards immediately, then fill images async
-        if (isAnime) {
-          // Render cards with placeholder first
-          grid.innerHTML = seasons.map((season, idx) => {
-            const seasonTitle = season.name || currentState.title;
-            const slug = slugify(seasonTitle);
-            const seasonUrl = `/info/anime/jikan-${season.mal_id}/${slug}`;
-            const relationLabel = season.relation ? `<span class="season-relation-tag">${escapeHtml(season.relation)}</span>` : '';
-            const isCurrent = season.mal_id === currentState.id;
-            const currentImg = isCurrent
-              ? (data.images?.jpg?.large_image_url || data.images?.jpg?.image_url || '')
-              : '';
-            return `<a href="${seasonUrl}" class="season-card" data-season-idx="${idx}">
-              <img id="season-img-${idx}" src="${escapeHtml(currentImg)}" alt="${escapeHtml(seasonTitle)}" loading="lazy"
-                style="${currentImg ? '' : 'display:none;'}"
-                onerror="this.style.display='none'">
-              <div class="season-img-placeholder" id="season-placeholder-${idx}" style="${currentImg ? 'display:none;' : ''}">
-                <i class="fa-solid fa-film" style="font-size:2rem;opacity:0.3;"></i>
-              </div>
+        // ── TMDB TV: season cards with deep links + current-season highlight ──
+        if (!isAnime && currentState.type === 'tv') {
+          const seasons = (data.seasons || []).filter(s => (s.season_number || 0) > 0);
+          if (!seasons.length) { section.style.display = 'none'; return; }
+          section.style.display = 'block';
+          const showSlug = slugify(currentState.title);
+          const currentSeason = currentState.urlSeason || 1;
+          grid.innerHTML = seasons.map(season => {
+            const num = season.season_number;
+            const seasonTitle = season.name || `Season ${num}`;
+            const seasonUrl = `/info/tv/tmdb-tv-${currentState.id}/${showSlug}/season/${num}`;
+            const poster = season.poster_path ? `https://image.tmdb.org/t/p/w300${season.poster_path}` : '';
+            const isCurrent = num === currentSeason;
+            return `<a href="${seasonUrl}" class="season-card${isCurrent ? ' season-current' : ''}">
+              ${poster
+                ? `<img src="${poster}" alt="${escapeHtml(seasonTitle)}" loading="lazy" onerror="this.style.display='none'">`
+                : `<div class="season-img-placeholder"><i class="fa-solid fa-film" style="font-size:2rem;opacity:0.3;"></i></div>`}
+              ${isCurrent ? '<span class="season-now-tag">Now Viewing</span>' : ''}
               <div class="season-info-overlay">
-                ${relationLabel}
-                <span class="season-number">${escapeHtml(seasonTitle)}</span>
+                <span class="season-number">Season ${num}</span>
               </div>
             </a>`;
           }).join('');
+          return;
+        }
 
-          // Fetch images for non-current entries in background
-          // Use a shared in-memory cache to avoid re-fetching on re-renders
-          if (!window._jikanImgCache) window._jikanImgCache = {};
-
-          seasons.forEach(async (season, idx) => {
-            if (season.mal_id === currentState.id) return; // already have it from main data
-            try {
-              const cacheKey = `jikan_img_${season.mal_id}`;
-              let imgUrl = window._jikanImgCache[cacheKey] || sessionStorage.getItem(cacheKey);
-
-              if (!imgUrl) {
-                // Stagger requests: 1s between each to stay well under Jikan's 3 req/sec limit
-                await new Promise(r => setTimeout(r, idx * 1000));
-                const res = await fetch(`https://api.jikan.moe/v4/anime/${season.mal_id}`);
-                if (res.status === 429) {
-                  // Rate limited — wait 2s and retry once
-                  await new Promise(r => setTimeout(r, 2000));
-                  const retry = await fetch(`https://api.jikan.moe/v4/anime/${season.mal_id}`);
-                  if (!retry.ok) return;
-                  const { data: animeData } = await retry.json();
-                  imgUrl = animeData.images?.jpg?.large_image_url || animeData.images?.jpg?.image_url || '';
-                } else if (!res.ok) {
-                  return;
-                } else {
-                  const { data: animeData } = await res.json();
-                  imgUrl = animeData.images?.jpg?.large_image_url || animeData.images?.jpg?.image_url || '';
-                }
-                if (imgUrl) {
-                  window._jikanImgCache[cacheKey] = imgUrl;
-                  try { sessionStorage.setItem(cacheKey, imgUrl); } catch(e) {}
-                }
-              }
-
-              if (imgUrl) {
-                const imgEl = document.getElementById(`season-img-${idx}`);
-                const phEl = document.getElementById(`season-placeholder-${idx}`);
-                if (imgEl) { imgEl.src = imgUrl; imgEl.style.display = ''; }
-                if (phEl) phEl.style.display = 'none';
-              }
-            } catch (e) { console.warn(`Season image fetch failed for mal_id ${season.mal_id}:`, e); }
-          });
-
-        } else {
-          // TMDB seasons already have poster_path
-          grid.innerHTML = seasons.map(season => {
-            const seasonTitle = season.name || currentState.title;
-            const seasonNumber = season.season_number || 1;
-            const slug = slugify(seasonTitle);
-            const seasonUrl = `/info/tv/tmdb-tv-${currentState.id}/${slug}-season-${seasonNumber}`;
-            const backdrop = season.poster_path ? `https://image.tmdb.org/t/p/w500${season.poster_path}` : '';
-            return `<a href="${seasonUrl}" class="season-card">
-              ${backdrop
-                ? `<img src="${backdrop}" alt="${escapeHtml(seasonTitle)}" loading="lazy" onerror="this.style.display='none'">`
+        // ── TMDB MOVIE: belongs_to_collection card ──
+        if (!isAnime && currentState.type === 'movie') {
+          const col = data.belongs_to_collection;
+          if (col && (col.name || col.poster_path || col.backdrop_path)) {
+            section.style.display = 'block';
+            const img = col.backdrop_path
+              ? `https://image.tmdb.org/t/p/w780${col.backdrop_path}`
+              : (col.poster_path ? `https://image.tmdb.org/t/p/w500${col.poster_path}` : '');
+            grid.innerHTML = `<div class="season-card">
+              ${img
+                ? `<img src="${img}" alt="${escapeHtml(col.name || 'Collection')}" loading="lazy" onerror="this.style.display='none'">`
                 : `<div class="season-img-placeholder"><i class="fa-solid fa-film" style="font-size:2rem;opacity:0.3;"></i></div>`}
               <div class="season-info-overlay">
-                <span class="season-number">Season ${seasonNumber}</span>
+                <span class="season-relation-tag">Collection</span>
+                <span class="season-number">${escapeHtml(col.name || 'Collection')}</span>
               </div>
-            </a>`;
-          }).join('');
+            </div>`;
+          } else {
+            section.style.display = 'none';
+          }
+          return;
+        }
+
+        // ── ANIME: relations come from the self-hosted jikan /anime/{mal}/full,
+        //    then each relation's MAL id is matched on ruri to pull its banner
+        //    image (poster fallback) for the blurred amber cards ──
+        const malId = jikanIdOf();
+        let related = [];
+        if (malId) {
+          try {
+            const j = await jikanSelfFull(malId);
+            const rels = Array.isArray(j && j.relations) ? j.relations : [];
+            for (const rel of rels) {
+              const relType = (rel.relation || '').toLowerCase();
+              if (['prequel','sequel','side story','alternative version','alternative setting','spin-off'].includes(relType)) {
+                for (const en of (rel.entry || rel.items || [])) {
+                  if ((en.type || 'anime') === 'anime' && Number(en.mal_id) !== Number(malId)) {
+                    related.push({ mal_id: Number(en.mal_id), name: en.name || en.title, relation: rel.relation });
+                  }
+                }
+              }
+            }
+          } catch (e) { console.warn('[Seasons] jikan relations failed:', e.message); }
+        }
+
+        // de-dupe (an entry can appear under two relation kinds)
+        const seenIds = new Set();
+        const seasons = related.filter(r => !seenIds.has(r.mal_id) && seenIds.add(r.mal_id));
+
+        const selfEntry = { mal_id: Number(malId || currentState.id), name: currentState.title, relation: 'Current', self: true };
+        const all = [...seasons, selfEntry];
+        // old → new ordering (MAL ids track release chronology closely)
+        all.sort((a, b) => a.mal_id - b.mal_id);
+
+        if (!all.length) { section.style.display = 'none'; return; }
+        section.style.display = 'block';
+
+        // placeholder cards first, images + links filled after the ruri batch resolves
+        grid.innerHTML = all.map((s, idx) => {
+          const seasonTitle = s.name || currentState.title;
+          const relationLabel = s.relation ? `<span class="season-relation-tag">${escapeHtml(s.relation)}</span>` : '';
+          return `<a href="#" class="season-card" data-season-idx="${idx}">
+            <img id="season-img-${idx}" src="" alt="${escapeHtml(seasonTitle)}" loading="lazy" style="display:none;" class="season-rel-img" onerror="this.style.display='none'">
+            <span class="season-amber-veil"></span>
+            <div class="season-img-placeholder" id="season-placeholder-${idx}">
+              <i class="fa-solid fa-film" style="font-size:2rem;opacity:0.3;"></i>
+            </div>
+            ${s.self ? '<span class="season-now-tag">Now Viewing</span>' : ''}
+            <div class="season-info-overlay">
+              ${relationLabel}
+              <span class="season-number">${escapeHtml(seasonTitle)}</span>
+            </div>
+          </a>`;
+        }).join('');
+
+        try {
+          const ids = all.filter(s => !s.self).map(s => s.mal_id);
+          if (ids.length) {
+            const res = await fetch(`${RURI_BASE}/s-mal/anime?mal_ids=${ids.join(',')}`,
+                                    { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(12000) });
+            if (res.ok) {
+              const rows = (await res.json()).data || [];
+              const byMal = {};
+              rows.forEach(r => { byMal[Number(r.mal_id)] = r; });
+              all.forEach((s, idx) => {
+                const row = s.self ? data : byMal[s.mal_id];
+                if (!row) { if (s.self) _fillSeasonCard(idx, s, data.images?.jpg?.large_image_url || '', `/info/anime/${currentState.source}-${currentState.id}/${slugify(currentState.title)}`); return; }
+                const banner = row.banner_image && typeof row.banner_image === 'object'
+                  ? (row.banner_image.large || row.banner_image.small || '')
+                  : (typeof row.banner_image === 'string' ? row.banner_image : '');
+                const img = banner || row.images?.jpg?.large_image_url || row.images?.jpg?.image_url || '';
+                // info page url mirrors the current page's source prefix where the
+                // row provides a matching id; otherwise anchors on the MAL id
+                let prefix = currentState.source;
+                let sid = s.mal_id;
+                if (s.self) {
+                  prefix = currentState.source;
+                  sid = currentState.id;
+                } else if (prefix === 'anilist' && row.anilist_id) {
+                  sid = row.anilist_id;
+                } else if (prefix !== 'jikan') {
+                  prefix = 'jikan';
+                }
+                const slug = slugify(s.name || currentState.title);
+                _fillSeasonCard(idx, s, img, `/info/anime/${prefix}-${sid}/${slug}`);
+              });
+            }
+          } else {
+            // relations list empty — at least fill the self card
+            _fillSeasonCard(all.findIndex(s => s.self), all.find(s => s.self),
+              data.images?.jpg?.large_image_url || '',
+              `/info/anime/${currentState.source}-${currentState.id}/${slugify(currentState.title)}`);
+          }
+        } catch (e) { console.warn('[Seasons] ruri batch images failed:', e.message); }
+      }
+
+      function _fillSeasonCard(idx, s, imgUrl, url) {
+        if (idx < 0 || !s) return;
+        const cardEl = document.querySelector(`[data-season-idx="${idx}"]`);
+        if (cardEl && url) cardEl.href = url;
+        if (imgUrl) {
+          const imgEl = document.getElementById(`season-img-${idx}`);
+          const phEl = document.getElementById(`season-placeholder-${idx}`);
+          if (imgEl) { imgEl.src = imgUrl; imgEl.style.display = ''; }
+          if (phEl) phEl.style.display = 'none';
         }
       }
 
       async function renderTabs() {
+        // Themes tab only exists on anime pages — hide it on TMDB movie/tv
+        const _isAnimePage = currentState.source !== 'tmdb';
+        const _themesLabel = document.getElementById('tabLabelThemes');
+        const _themesBtn = document.getElementById('tabBtnThemes');
+        if (!_isAnimePage) {
+          if (_themesLabel) _themesLabel.style.display = 'none';
+          if (_themesBtn) _themesBtn.style.display = 'none';
+        }
         // Try show_details table first for tabs
         if (window.AniCache) {
           const _src  = currentState.source;
@@ -4235,13 +4725,13 @@ img { max-width: 100%; height: auto; display: block; }
             if (dbDet.cast_crew)        _renderCastFromDB(dbDet.cast_crew);
             if (dbDet.artwork)          _renderArtworkFromDB(dbDet.artwork);
             if (dbDet.trailers)         _renderTrailersFromDB(dbDet.trailers);
-            if (dbDet.themes)           _renderThemesFromDB(dbDet.themes);
+            if (dbDet.themes && _isAnimePage) _renderThemesFromDB(dbDet.themes);
             loadStatisticsData();
             // Load only MISSING tabs from API — these will also save to DB
             if (!dbDet.cast_crew)   loadCastData();
             if (!dbDet.artwork)     loadArtworkData();
             if (!dbDet.trailers)    loadTrailerData();
-            if (!dbDet.themes)      loadThemesData();
+            if (!dbDet.themes && _isAnimePage) loadThemesData();
             return;
           }
         }
@@ -4249,7 +4739,7 @@ img { max-width: 100%; height: auto; display: block; }
         loadCastData();
         loadArtworkData();
         loadTrailerData();
-        loadThemesData();
+        if (_isAnimePage) loadThemesData();
         loadStatisticsData();
       }
 
@@ -4619,7 +5109,7 @@ img { max-width: 100%; height: auto; display: block; }
           anime_duration_time:                   isAnime  ? (d.duration || '') : '',
           tmdb_movie_tv_runtime:                 !isAnime ? (parseInt(d.runtime || d.episode_run_time?.[0]) || null) : null,
           show_poster_link:                      isAnime  ? (d.images?.jpg?.image_url || '') : (d.poster_path ? `https://image.tmdb.org/t/p/w500${d.poster_path}` : ''),
-          show_backdrop_landscape_image_link:    isAnime ? (d.images?.jpg?.large_image_url || '') : (d.backdrop_path ? `https://image.tmdb.org/t/p/original${d.backdrop_path}` : ''),
+          show_backdrop_landscape_image_link:    isAnime ? ((d.banner_image && typeof d.banner_image === 'object' ? (d.banner_image.large || d.banner_image.small) : (typeof d.banner_image === 'string' ? d.banner_image : null)) || d.background_image || d.images?.jpg?.large_image_url || '') : (d.backdrop_path ? `https://image.tmdb.org/t/p/original${d.backdrop_path}` : ''),
           external_link_mal:                     isAnime  ? `https://myanimelist.net/anime/${mal_id}` : '',
           external_link_tmdb:                    !isAnime ? `https://www.themoviedb.org/${currentState.type}/${tmdb_id}` : '',
           updated_at:                            new Date().toISOString()
@@ -4902,22 +5392,123 @@ img { max-width: 100%; height: auto; display: block; }
       });
 
       async function loadSidebarContent() {
-        if (currentState.source !== 'jikan' && currentState.source !== 'tmdb') return;
-        const isAnime = currentState.source === 'jikan'; // jikan/tmdb only (guarded above)
+        const isAnime = currentState.source !== 'tmdb';
         if (isAnime) {
-          // Jikan: sequence the three sidebar calls with delays to avoid rate-limit collisions
-          // Main page data fetch + waterTemple + sunken are already in-flight, so we stagger
-          await new Promise(r => setTimeout(r, 500));
-          await loadHiddenGems(isAnime);
-          await new Promise(r => setTimeout(r, 500));
-          await loadTopRanking(isAnime);
-          await new Promise(r => setTimeout(r, 500));
-          await loadMostFavourite(isAnime);
+          // Stagger the three ruri calls — edge-cached, but stay polite on cold colos
+          await _loadSidebarSection('hiddenGem', isAnime);
+          await new Promise(r => setTimeout(r, 400));
+          await _loadSidebarSection('topRanking', isAnime);
+          await new Promise(r => setTimeout(r, 400));
+          await _loadSidebarSection('mostFavourite', isAnime);
         } else {
-          // TMDB: all three can run in parallel (no rate-limit issue with the worker)
-          await Promise.all([loadHiddenGems(isAnime), loadTopRanking(isAnime), loadMostFavourite(isAnime)]);
+          // TMDB: all three can run in parallel (no rate-limit issue with the proxy)
+          await Promise.all([
+            _loadSidebarSection('hiddenGem', false),
+            _loadSidebarSection('topRanking', false),
+            _loadSidebarSection('mostFavourite', false)
+          ]);
         }
       }
+
+      // ══════════════════════════════════════════════════════════════
+      // SIDEBAR SECTIONS — dedicated endpoints per page type:
+      //   anime : ruri  /s-mal/anime/hidden-gems | /s-mal/top/anime | /s-mal/favorites/anime  (?type=tv|movie)
+      //   tmdb  : mapple /hidden-gems/{tv|movies} | /tmdb/{type}/top_rated | /tmdb/{type}/popular
+      // The Hidden Gem / Top Ranking / Most Favourite headers carry a smooth
+      // sliding TV | Movie toggle (anime pages only).
+      // ══════════════════════════════════════════════════════════════
+      function _sidebarListId(section) {
+        return section === 'hiddenGem' ? 'hiddenGemList'
+             : section === 'topRanking' ? 'topRankingList'
+             : 'mostFavouriteList';
+      }
+
+      function _sidebarUrl(section, isAnime, type) {
+        if (isAnime) {
+          if (section === 'hiddenGem')   return `${RURI_BASE}/s-mal/anime/hidden-gems?type=${type}`;
+          if (section === 'topRanking')  return `${RURI_BASE}/s-mal/top/anime?type=${type}`;
+          return `${RURI_BASE}/s-mal/favorites/anime?type=${type}`;
+        }
+        if (section === 'hiddenGem')   return `${CONFIG.MAPPLE_BASE}/hidden-gems/${type === 'movie' ? 'movies' : 'tv'}?page=1`;
+        if (section === 'topRanking')  return `${CONFIG.MAPPLE_BASE}/tmdb/${type}/top_rated?language=en-US&page=1`;
+        return `${CONFIG.MAPPLE_BASE}/tmdb/${type}/popular?language=en-US&page=1`;
+      }
+
+      async function _loadSidebarSection(section, isAnime, force = false) {
+        const type = isAnime ? (currentState.sideType[section] || 'tv') : currentState.type;
+        const container = document.getElementById(_sidebarListId(section));
+        if (!container) return;
+        // v2 key — invalidates pre-polish cached sidebar HTML (Tv capitalization etc.)
+        const cacheKey = `sidebar_html:v2:${section}:${isAnime ? 'anime-' + type : currentState.type}`;
+        if (!force) {
+          if (window.AniCache) {
+            try {
+              const cached = await window.AniCache.get(cacheKey);
+              if (cached && cached._html) { container.innerHTML = cached._html; return; }
+            } catch (e) { /* fall through */ }
+          }
+          try {
+            const ss = sessionStorage.getItem(cacheKey);
+            if (ss) {
+              const { html, ts } = JSON.parse(ss);
+              if (Date.now() - ts < 15 * 60 * 1000) { container.innerHTML = html; return; }
+            }
+          } catch (e) { /* fall through */ }
+        }
+        container.innerHTML = skItems(8);
+        try {
+          const res = await fetchWithRetry(_sidebarUrl(section, isAnime, type));
+          const json = await res.json();
+          const cap = section === 'topRanking' ? 19 : section === 'mostFavourite' ? 21 : 17;
+          let items = (json.data || json.results || []).slice(0, cap);
+          if (!items.length) throw new Error('empty list');
+          if (!isAnime) {
+            // TMDB rows carry genre_ids — map them to names for the pills
+            items = items.map(it => ({ ...it, _genres: (it.genre_ids || []).map(id => TMDB_GENRE_MAP[id]).filter(Boolean) }));
+          }
+          const htmlOut = items.map((item, i) => renderSidebarItem(item, i + 1, isAnime, section === 'topRanking')).join('');
+          container.innerHTML = htmlOut;
+          try { sessionStorage.setItem(cacheKey, JSON.stringify({ html: htmlOut, ts: Date.now() })); } catch (e) {}
+          // Global 72h cache (section name drives the TTL inside AniCache)
+          if (window.AniCache) {
+            window.AniCache.set({
+              cacheKey, pageSource: 'info',
+              section: section === 'hiddenGem' ? 'hidden_gem' : section === 'topRanking' ? 'top_ranking' : 'most_favourite',
+              mediaType: isAnime ? type : currentState.type,
+              data: { _html: htmlOut }, itemCount: items.length, permanent: false
+            }).catch(() => {});
+          }
+        } catch (e) {
+          container.innerHTML = '<div class="loading-text">Failed to load</div>';
+          console.error(`${section} load error:`, e);
+        }
+      }
+
+      // TV | Movie sliding toggles in the sidebar section headers
+      function initSidebarToggles() {
+        const isAnime = currentState.source !== 'tmdb';
+        document.querySelectorAll('.side-type-toggle').forEach(tg => {
+          if (!isAnime) { tg.style.display = 'none'; return; }
+          tg.addEventListener('click', (e) => {
+            const btn = e.target.closest('.side-type-btn');
+            if (!btn) return;
+            e.preventDefault();
+            const section = tg.dataset.section;
+            const type = btn.dataset.type;
+            if ((currentState.sideType[section] || 'tv') === type) return;
+            currentState.sideType[section] = type;
+            // smooth thumb slide (no pop/jump — pure CSS transform transition)
+            tg.classList.toggle('active-movie', type === 'movie');
+            tg.querySelectorAll('.side-type-btn').forEach(b => b.classList.toggle('active', b === btn));
+            _loadSidebarSection(section, true, true);
+          });
+        });
+      }
+
+      // Thin wrappers kept for the existing call sites
+      async function loadHiddenGems(isAnime)   { return _loadSidebarSection('hiddenGem', isAnime); }
+      async function loadTopRanking(isAnime)   { return _loadSidebarSection('topRanking', isAnime); }
+      async function loadMostFavourite(isAnime){ return _loadSidebarSection('mostFavourite', isAnime); }
 
       // Fetch with automatic retry on 429/504 rate-limit/timeout responses
       async function fetchWithRetry(url, maxRetries = 2, baseDelay = 1500) {
@@ -4940,215 +5531,6 @@ img { max-width: 100%; height: auto; display: block; }
         }
       }
 
-      async function loadHiddenGems(isAnime) {
-        // Global 72h cache — same list for ALL info pages of this type
-        const mType = isAnime ? 'anime' : currentState.type;
-        const _hgKey = `sidebar_html:hidden_gem:${mType}`;
-        if (window.AniCache) {
-          const cached = await window.AniCache.get(_hgKey);
-          if (cached && cached._html) {
-            const el = document.getElementById('hiddenGemList');
-            if (el) el.innerHTML = cached._html;
-            return;
-          }
-        }
-        const container = document.getElementById('hiddenGemList');
-        const cacheKey = `sidebar_gems_${mType}`;
-        try {
-          // sessionStorage (15 min TTL) for fast same-session reloads
-          const cached = sessionStorage.getItem(cacheKey);
-          if (cached) {
-            const { html: ch, ts } = JSON.parse(cached);
-            if (Date.now() - ts < 15 * 60 * 1000) { container.innerHTML = ch; return; }
-          }
-          // Supabase shows table fallback (always available, no expiry)
-          const dbItems = await window.AniCache.get({
-            section: 'hidden_gem',
-            media_type: mType,
-            limit: 17
-          }).catch(() => []);
-          if (Array.isArray(dbItems) && dbItems.length) {
-            const htmlOut = dbItems.map((s, i) => renderSidebarItem(
-              isAnime
-                ? { mal_id: s.mal_id, title: s.title, images: { jpg: { image_url: s.poster } }, score: s.score, type: s.type || 'Anime', year: (s.aired_date || s.year || '').slice(0,4), _genres: s.genres || [], _studio: s.studio_name || s.studio || '', _rating: s.content_rating || '' }
-                : { id: s.tmdb_id, title: s.title, name: s.title, _supaImg: s.poster, poster: s.poster, vote_average: Number(s.score||0), score: Number(s.score||0), type: s.type || currentState.type, year: (s.aired_date || s.year || '').slice(0,4), _genres: s.genres || [], _studio: s.studio_name || s.studio || '', _rating: s.content_rating || '' },
-              i + 1, isAnime
-            )).join('');
-            container.innerHTML = htmlOut;
-            try { sessionStorage.setItem(cacheKey, JSON.stringify({ html: htmlOut, ts: Date.now() })); } catch(e) {}
-            return;
-          }
-          // Live API
-          let items = [];
-          if (isAnime) {
-            const res = await fetchWithRetry('https://api.jikan.moe/v4/anime?min_score=8.0&order_by=popularity&sort=desc&limit=17');
-            const { data } = await res.json();
-            items = data.filter(a => (a.score >= 7.6 && a.popularity > 500) || a.popularity > 1500).slice(0, 17);
-          } else {
-            const endpoint = currentState.type;
-            const voteMin = endpoint === 'movie' ? 150 : 100;
-            const voteMax = endpoint === 'movie' ? 1200 : 1000;
-            const res = await fetch(`${CONFIG.TMDB_WORKER}/3/discover/${endpoint}?vote_average.gte=7.8&vote_count.gte=${voteMin}&vote_count.lte=${voteMax}&sort_by=popularity.asc&page=1`);
-            const { results } = await res.json();
-            items = results.slice(0, 17);
-          }
-          const htmlOut = items.map((item, i) => renderSidebarItem(item, i + 1, isAnime)).join('');
-          container.innerHTML = htmlOut;
-          try { sessionStorage.setItem(cacheKey, JSON.stringify({ html: htmlOut, ts: Date.now() })); } catch(e) {}
-          // Save to DB — global 72h cache (NOT permanent, always 72h regardless of show status)
-          if (window.AniCache && items.length) {
-            const rows = items.map(item => isAnime
-              ? { id:`jikan-${item.mal_id}`, type:'Anime', title:item.title_english||item.title, poster:item.images?.jpg?.large_image_url||'', score:item.score, members:item.members, genres:(item.genres||[]).map(g=>g.name), show_status:item.status||'Currently Airing', mal_id:item.mal_id, studio_name:(item.studios&&item.studios[0]&&item.studios[0].name)||'', content_rating:item.rating||'', year:item.aired?.from?.slice(0,4)||'' }
-              : { id:`tmdb-${currentState.type}-${item.id}`, type:currentState.type==='movie'?'Movie':'TV', title:item.title||item.name, poster:item.poster_path?`https://image.tmdb.org/t/p/w185${item.poster_path}`:'', score:item.vote_average, members:item.vote_count, show_status:currentState.type==='movie'?'Released':'Returning Series', genres:(item.genres||[]).map(g=>g.name), studio_name:(item.production_companies&&item.production_companies[0]&&item.production_companies[0].name)||(item.networks&&item.networks[0]&&item.networks[0].name)||'', content_rating:'', year:(item.release_date||item.first_air_date||'').slice(0,4) }
-            );
-            window.AniCache.save(rows).catch(()=>{});
-            // Store HTML in media_cache with 72h TTL (section 'hidden_gem' → TTL=72)
-            window.AniCache.set({ cacheKey: _hgKey, pageSource:'info', section:'hidden_gem',
-              mediaType: mType, data: { _html: htmlOut, items: rows }, itemCount: rows.length,
-              permanent: false }).catch(()=>{});
-          }
-        } catch (e) {
-          container.innerHTML = '<div class="loading-text">Failed to load</div>';
-          console.error('Hidden gems load error:', e);
-        }
-      }
-
-      async function loadTopRanking(isAnime) {
-        // Global 72h cache — same list for ALL info pages of this type
-        const mType = isAnime ? 'anime' : currentState.type;
-        const _trKey = `sidebar_html:top_ranking:${mType}`;
-        if (window.AniCache) {
-          const cached = await window.AniCache.get(_trKey);
-          if (cached && cached._html) {
-            const el = document.getElementById('topRankingList');
-            if (el) el.innerHTML = cached._html;
-            return;
-          }
-        }
-        const container = document.getElementById('topRankingList');
-        const cacheKey = `sidebar_top_${mType}`;
-        try {
-          const cached = sessionStorage.getItem(cacheKey);
-          if (cached) {
-            const { html: ch, ts } = JSON.parse(cached);
-            if (Date.now() - ts < 15 * 60 * 1000) { container.innerHTML = ch; return; }
-          }
-          // Supabase shows table fallback (always available, no expiry)
-          const dbItems = await window.AniCache.get({
-            section: 'top_ranking',
-            media_type: mType,
-            limit: 19
-          }).catch(() => []);
-          if (Array.isArray(dbItems) && dbItems.length) {
-            const htmlOut = dbItems.map((s, i) => renderSidebarItem(
-              isAnime
-                ? { mal_id: s.mal_id, title: s.title, images: { jpg: { image_url: s.poster } }, score: s.score, rank: i+1, type: s.type || 'Anime', year: (s.aired_date || s.year || '').slice(0,4), _genres: s.genres || [], _studio: s.studio_name || s.studio || '', _rating: s.content_rating || '' }
-                : { id: s.tmdb_id, title: s.title, name: s.title, _supaImg: s.poster, poster: s.poster, vote_average: Number(s.score||0), score: Number(s.score||0), type: s.type || currentState.type, year: (s.aired_date || s.year || '').slice(0,4), _genres: s.genres || [], _studio: s.studio_name || s.studio || '', _rating: s.content_rating || '' },
-              i + 1, isAnime, true
-            )).join('');
-            container.innerHTML = htmlOut;
-            try { sessionStorage.setItem(cacheKey, JSON.stringify({ html: htmlOut, ts: Date.now() })); } catch(e) {}
-            return;
-          }
-          // Live API
-          let items = [];
-          if (isAnime) {
-            const res = await fetchWithRetry('https://api.jikan.moe/v4/top/anime?limit=19');
-            const { data } = await res.json();
-            items = data.slice(0, 19);
-          } else {
-            const res = await fetch(`${CONFIG.TMDB_WORKER}/3/${currentState.type}/top_rated?page=1`);
-            const { results } = await res.json();
-            items = results.slice(0, 19);
-          }
-          const htmlOut = items.map((item, i) => renderSidebarItem(item, i + 1, isAnime, true)).join('');
-          container.innerHTML = htmlOut;
-          try { sessionStorage.setItem(cacheKey, JSON.stringify({ html: htmlOut, ts: Date.now() })); } catch(e) {}
-          // Save to DB — global 72h cache
-          if (window.AniCache && items.length) {
-            const rows = items.map(item => isAnime
-              ? { id:`jikan-${item.mal_id}`, type:'Anime', title:item.title_english||item.title, poster:item.images?.jpg?.large_image_url||'', score:item.score, members:item.members, genres:(item.genres||[]).map(g=>g.name), show_status:item.status||'Currently Airing', mal_id:item.mal_id, studio_name:(item.studios&&item.studios[0]&&item.studios[0].name)||'', content_rating:item.rating||'', year:item.aired?.from?.slice(0,4)||'' }
-              : { id:`tmdb-${currentState.type}-${item.id}`, type:currentState.type==='movie'?'Movie':'TV', title:item.title||item.name, poster:item.poster_path?`https://image.tmdb.org/t/p/w185${item.poster_path}`:'', score:item.vote_average, show_status:currentState.type==='movie'?'Released':'Returning Series', genres:(item.genres||[]).map(g=>g.name), studio_name:(item.production_companies&&item.production_companies[0]&&item.production_companies[0].name)||(item.networks&&item.networks[0]&&item.networks[0].name)||'', content_rating:'', year:(item.release_date||item.first_air_date||'').slice(0,4) }
-            );
-            window.AniCache.save(rows).catch(()=>{});
-            window.AniCache.set({ cacheKey: _trKey, pageSource:'info', section:'top_ranking',
-              mediaType: mType, data: { _html: htmlOut, items: rows }, itemCount: rows.length,
-              permanent: false }).catch(()=>{});
-          }
-        } catch (e) {
-          container.innerHTML = '<div class="loading-text">Failed to load</div>';
-          console.error('Top ranking load error:', e);
-        }
-      }
-
-      async function loadMostFavourite(isAnime) {
-        // Global 72h cache — same list for ALL info pages of this type
-        const mType = isAnime ? 'anime' : currentState.type;
-        const _mfKey = `sidebar_html:most_favourite:${mType}`;
-        if (window.AniCache) {
-          const cached = await window.AniCache.get(_mfKey);
-          if (cached && cached._html) {
-            const el = document.getElementById('mostFavouriteList');
-            if (el) el.innerHTML = cached._html;
-            return;
-          }
-        }
-        const container = document.getElementById('mostFavouriteList');
-        const cacheKey = `sidebar_fav_${mType}`;
-        try {
-          const cached = sessionStorage.getItem(cacheKey);
-          if (cached) {
-            const { html: ch, ts } = JSON.parse(cached);
-            if (Date.now() - ts < 15 * 60 * 1000) { container.innerHTML = ch; return; }
-          }
-          // Supabase shows table fallback (always available, no expiry)
-          const dbItems = await window.AniCache.get({
-            section: 'most_favourite',
-            media_type: mType,
-            limit: 21
-          }).catch(() => []);
-          if (Array.isArray(dbItems) && dbItems.length) {
-            const htmlOut = dbItems.map((s, i) => renderSidebarItem(
-              isAnime
-                ? { mal_id: s.mal_id, title: s.title, images: { jpg: { image_url: s.poster } }, score: s.score, favorites: s.popularity, type: s.type || 'Anime', year: (s.aired_date || s.year || '').slice(0,4), _genres: s.genres || [], _studio: s.studio_name || s.studio || '', _rating: s.content_rating || '' }
-                : { id: s.tmdb_id, title: s.title, name: s.title, _supaImg: s.poster, poster: s.poster, vote_average: Number(s.score||0), score: Number(s.score||0), type: s.type || currentState.type, year: (s.aired_date || s.year || '').slice(0,4), _genres: s.genres || [], _studio: s.studio_name || s.studio || '', _rating: s.content_rating || '' },
-              i + 1, isAnime
-            )).join('');
-            container.innerHTML = htmlOut;
-            try { sessionStorage.setItem(cacheKey, JSON.stringify({ html: htmlOut, ts: Date.now() })); } catch(e) {}
-            return;
-          }
-          // Live API
-          let items = [];
-          if (isAnime) {
-            const res = await fetchWithRetry('https://api.jikan.moe/v4/top/anime?filter=favorite&limit=21');
-            const { data } = await res.json();
-            items = data.slice(0, 21);
-          } else {
-            const res = await fetch(`${CONFIG.TMDB_WORKER}/3/${currentState.type}/popular?page=1`);
-            const { results } = await res.json();
-            items = results.slice(0, 21);
-          }
-          const htmlOut = items.map((item, i) => renderSidebarItem(item, i + 1, isAnime)).join('');
-          container.innerHTML = htmlOut;
-          try { sessionStorage.setItem(cacheKey, JSON.stringify({ html: htmlOut, ts: Date.now() })); } catch(e) {}
-          if (window.AniCache && items.length) {
-            const rows = items.map(item => isAnime
-              ? { id:`jikan-${item.mal_id}`, type:'Anime', title:item.title_english||item.title, poster:item.images?.jpg?.large_image_url||'', score:item.score, members:item.members||item.favorites, genres:(item.genres||[]).map(g=>g.name), show_status:item.status||'Currently Airing', mal_id:item.mal_id, studio_name:(item.studios&&item.studios[0]&&item.studios[0].name)||'', content_rating:item.rating||'', year:item.aired?.from?.slice(0,4)||'' }
-              : { id:`tmdb-${currentState.type}-${item.id}`, type:currentState.type==='movie'?'Movie':'TV', title:item.title||item.name, poster:item.poster_path?`https://image.tmdb.org/t/p/w185${item.poster_path}`:'', score:item.vote_average, members:item.vote_count, show_status:currentState.type==='movie'?'Released':'Returning Series', genres:(item.genres||[]).map(g=>g.name), studio_name:(item.production_companies&&item.production_companies[0]&&item.production_companies[0].name)||(item.networks&&item.networks[0]&&item.networks[0].name)||'', content_rating:'', year:(item.release_date||item.first_air_date||'').slice(0,4) }
-            );
-            window.AniCache.save(rows).catch(()=>{});
-            // Global 72h cache (NOT permanent, always 72h regardless of show status)
-            window.AniCache.set({ cacheKey: _mfKey, pageSource:'info', section:'most_favourite',
-              mediaType: mType, data: { _html: htmlOut, items: rows }, itemCount: rows.length,
-              permanent: false }).catch(()=>{});
-          }
-        } catch (e) {
-          container.innerHTML = '<div class="loading-text">Failed to load</div>';
-          console.error('Most favourite load error:', e);
-        }
-      }
-
       function renderSidebarItem(item, rank, isAnime, showRank = false) {
         const title = isAnime ? (item.title_english || item.title) : (item.title || item.name);
         // Support pre-built full URL (_supaImg from DB cache) AND standard API paths
@@ -5159,9 +5541,9 @@ img { max-width: 100%; height: auto; display: block; }
           ? (item.score || item.rating_score || 0)
           : (item.vote_average || item.score || item.rating_score || 0);
         const score = scoreRaw;
-        // Fix: fallback so type never shows 'undefined'
+        // Fix: fallback so type never shows 'undefined' (and tv shows as TV)
         const typeRaw = isAnime ? (item.type || 'Anime') : (item.type || currentState.type || '');
-        const type = typeRaw ? typeRaw.charAt(0).toUpperCase() + typeRaw.slice(1) : '';
+        const type = typeRaw ? (typeRaw.toLowerCase() === 'tv' ? 'TV' : typeRaw.charAt(0).toUpperCase() + typeRaw.slice(1)) : '';
         const year = isAnime
           ? (item.year || item.aired?.from?.slice(0,4) || '')
           : (item.year || (item.release_date || item.first_air_date)?.slice(0,4) || '');
@@ -5202,20 +5584,32 @@ img { max-width: 100%; height: auto; display: block; }
           ratingClean ? '<span class="side-tag rating">' + escapeHtml(ratingClean) + '</span>' : '',
         ].filter(Boolean).join('');
 
+        // Extra per-item metadata (request: "add some more metadata to the sidebar")
+        let extraMeta = '';
+        if (isAnime) {
+          const eps = parseInt(item.episodes, 10);
+          if (eps > 0) extraMeta += ' \u00B7 ' + eps + ' eps';
+          const favs = parseInt(item.favorites, 10);
+          if (favs > 0) extraMeta += ' \u00B7 \u2665 ' + formatNumber(favs);
+        } else {
+          const vc = parseInt(item.vote_count, 10);
+          if (vc > 0) extraMeta += ' \u00B7 ' + formatNumber(vc) + ' votes';
+        }
+
         return '<a href="' + detailsUrl + '" class="sidebar-list-item">'
           + (showRank ? '<span class="sidebar-rank">' + rank + '</span>' : '')
           + '<img class="sidebar-poster" src="' + escapeHtml(poster) + '" alt="' + escapeHtml(title) + '" loading="lazy" onerror="this.style.display=\'none\'">'
           + '<div class="sidebar-info">'
           + '<h4>' + escapeHtml(title) + '</h4>'
-          + '<div class="side-meta">\u2B50 ' + ((typeof score === 'string' ? score : Number(score || 0).toFixed(1)) || 'N/A') + (type ? ' \u00B7 ' + type : '') + (year ? ' \u00B7 ' + year : '') + '</div>'
+          + '<div class="side-meta">\u2B50 ' + ((typeof score === 'string' ? score : Number(score || 0).toFixed(1)) || 'N/A') + (type ? ' \u00B7 ' + type : '') + (year ? ' \u00B7 ' + year : '') + extraMeta + '</div>'
           + (tagPills ? '<div class="side-tags">' + tagPills + '</div>' : '')
           + '</div>'
           + '</a>';
       }
 
       async function loadRecommendations() {
-        if (currentState.source === 'jikan') {
-          // Anime: water temple + sunken in parallel
+        if (currentState.source !== 'tmdb') {
+          // Anime (jikan / anilist / anikoto): water temple + sunken in parallel
           await Promise.all([
             loadWaterTemple(),
             loadSunkenTreasures(1)
@@ -5229,24 +5623,49 @@ img { max-width: 100%; height: auto; display: block; }
         }
       }
 
-      // Water Temple — genre-matched anime recommendations using the current show's actual genres
+      // Water Temple — ruri genre-based recommendations for THIS show,
+      // fallback: self-hosted jikan recommendations for a seed title
+      // ── Rec-grid renderer: guarantees four FULL rows at every breakpoint ──
+      // Columns come from the CSS breakpoints (PC 7/6, mobile landscape 3,
+      // portrait 2); the pool is sliced to columns x 4. When the pool cannot
+      // fill four rows at the CSS column count, the count is reduced to
+      // floor(pool/4) so a section never ends on a stub row.
+      const _recPools = {};   // { waterTemple: {el, items}, sunken: {...}, rfy: {...} }
+      function _recRender(sectionKey, gridEl, pool) {
+        if (!gridEl) return;
+        _recPools[sectionKey] = { el: gridEl, items: pool || [] };
+        _recPaint(sectionKey);
+      }
+      function _recPaint(sectionKey) {
+        const entry = _recPools[sectionKey];
+        if (!entry || !entry.el || !entry.items.length) return;
+        const grid = entry.el;
+        grid.style.gridTemplateColumns = '';            // read the CSS breakpoint first
+        const cssCols = getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean).length || 4;
+        const pool = entry.items;
+        let cols = cssCols;
+        if (pool.length < cols * 4) cols = Math.max(1, Math.floor(pool.length / 4));
+        if (cols !== cssCols) grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+        grid.innerHTML = pool.slice(0, cols * 4).map(a =>
+          sectionKey === 'rfy' ? renderTMDBRecCard(a, currentState.type) : renderAnimeRecCard(a)
+        ).join('');
+      }
+      let _recResizeTimer = null;
+      window.addEventListener('resize', () => {
+        clearTimeout(_recResizeTimer);
+        _recResizeTimer = setTimeout(() => { Object.keys(_recPools).forEach(_recPaint); }, 250);
+      });
+
       async function loadWaterTemple() {
-        const _wtKey = `info:water_temple:${currentState.id}`;
+        const _wtKey = `info:water_temple:${mediaKeyOf()}`;
         if (window.AniCache) {
           try {
             const cached = await window.AniCache.get(_wtKey);
-            console.log('[AniCache] WaterTemple cache check:', cached ? `${cached.length} items` : 'null');
             if (cached && cached.length > 0) {
               const sec = document.getElementById('waterTempleSection');
               const el = document.getElementById('waterTempleGrid');
-              if (!sec) { console.warn('[AniCache] WaterTemple: section element missing'); }
-              else { sec.style.display = 'block'; }
-              if (!el) { console.warn('[AniCache] WaterTemple: grid element missing'); }
-              else {
-                const html = cached.map(s => renderAnimeRecCard ? renderAnimeRecCard(s) : '').join('');
-                el.innerHTML = html;
-                console.log('[AniCache] WaterTemple rendered', html.length, 'chars HTML');
-              }
+              if (sec) sec.style.display = 'block';
+              if (el) _recRender('waterTemple', el, cached);
               return;
             }
           } catch (e) {
@@ -5256,131 +5675,81 @@ img { max-width: 100%; height: auto; display: block; }
         const section = document.getElementById('waterTempleSection');
         const gridContainer = document.getElementById('waterTempleGrid');
 
-        if (currentState.source !== 'jikan') { section.style.display = 'none'; return; }
+        if (currentState.source === 'tmdb') { section.style.display = 'none'; return; }
 
         section.style.display = 'block';
         gridContainer.innerHTML = '<div class="loading-text">Loading recommendations...</div>';
 
         try {
-          const data = currentState.data;
+          // PRIMARY — ruri recommendations by genre, all id forms accepted:
+          // /s-mal/anime/jikan-{id}/recommendations?by=genres
+          // /s-mal/anime/anilist-{id}/recommendations?by=genres
+          // /anikoto/anime/anikoto-{id}/recommendations?by=genres
+          // limit=25 (server max) + page-2 top-up so even the widest
+          // breakpoint (7 cols x 4 rows = 28) can be filled with full rows.
+          const currentId = Number(currentState.id);
+          let items = [];
+          try {
+            const base = `${RURI_BASE}/${currentState.source === 'anikoto' ? 'anikoto' : 's-mal'}/anime/${currentState.source}-${currentState.id}/recommendations?by=genres&limit=25`;
+            const seen = new Set([currentId]);
+            const push = (arr) => (arr || []).forEach(a => {
+              const k = Number(a.mal_id);
+              if (!k || seen.has(k)) return;
+              seen.add(k); items.push(a);
+            });
+            const res = await fetch(base, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(12000) });
+            if (res.ok) {
+              const json = await res.json();
+              push(json.data);
+              if (items.length < 28 && json.pagination && json.pagination.has_next_page) {
+                try {
+                  const res2 = await fetch(base + '&page=2', { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(12000) });
+                  if (res2.ok) push((await res2.json()).data);
+                } catch (e2) { console.warn('[WaterTemple] page-2 top-up failed:', e2.message); }
+              }
+            }
+          } catch (e) { console.warn('[WaterTemple] ruri primary failed:', e.message); }
 
-          // ── AniList fallback: use pre-fetched recommendations ──
-          if (data._anilistExtras?.recommendations?.length) {
-            const filtered = data._anilistExtras.recommendations
-              .filter(a => a.mal_id !== currentState.id).slice(0, 24);
-            if (filtered.length) {
-              gridContainer.innerHTML = filtered.map(anime => renderAnimeRecCard(anime)).join('');
-              if (window.AniCache) window.AniCache.set({ cacheKey: _wtKey, pageSource:'info', section:'water_temple', data: filtered, permanent: true }).catch(()=>{});
-              return;
+          // FALLBACK — self-hosted jikan recommendations (seed title 10620),
+          // then the public jikan instance as a last resort
+          if (!items.length) {
+            const fbUrls = [`${CONFIG.JIKAN_SELF}/anime/10620/recommendations`, `https://api.jikan.moe/v4/anime/10620/recommendations`];
+            for (const fbUrl of fbUrls) {
+              try {
+                const res2 = await fetchWithRetry(fbUrl, 1, 1200);
+                const json2 = await res2.json();
+                items = (json2.data || []).filter(a => Number(a.mal_id) !== currentId).slice(0, 24);
+                if (items.length) break;
+              } catch (e) { console.warn('[WaterTemple] fallback failed:', fbUrl, e.message); }
             }
           }
 
-          // Collect all genre/theme/demographic MAL IDs from the current show
-          const genreIds  = (data.genres       || []).map(g => g.mal_id).filter(Boolean);
-          const themeIds  = (data.themes        || []).map(t => t.mal_id).filter(Boolean);
-          const demoIds   = (data.demographics  || []).map(d => d.mal_id).filter(Boolean);
-
-          // Use all genres for a broad, accurate match — up to 3 to stay within Jikan limits
-          const combinedIds = [...new Set([...genreIds, ...demoIds, ...themeIds])];
-          const selectedGenres = combinedIds.slice(0, 3);
-
-          // Random page 1–4 for variety on each visit without hitting empty pages
-          const randomPage = Math.floor(Math.random() * 4) + 1;
-
-          const params = new URLSearchParams({
-            order_by:  'score',
-            sort:      'desc',
-            limit:     '24',
-            sfw:       'true',
-            type:      (data.type || 'tv').toLowerCase(),
-            min_score: '6.0',
-            max_score: '9.7',
-            page:      String(randomPage)
-          });
-
-          if (selectedGenres.length > 0) params.append('genres', selectedGenres.join(','));
-
-          // Use CF worker proxy to avoid direct Jikan rate limits & 504s
-          const PROXY = 'https://aniumi.bionmovies47.workers.dev';
-          const directUrl = `https://api.jikan.moe/v4/anime?${params.toString()}`;
-          const proxyUrl  = `${PROXY}/jikan/anime?${params.toString()}`;
-
-          // Cache key: genre ids + anime type + page — 10 min TTL for freshness+variety
-          const cacheKey = `wt2_${selectedGenres.join('_')}_${(data.type||'tv').toLowerCase()}_p${randomPage}`;
-          let results;
-
-          const cached = localStorage.getItem(cacheKey);
-          if (cached) {
-            try {
-              const { data: cd, timestamp } = JSON.parse(cached);
-              if (Date.now() - timestamp < 10 * 60 * 1000) results = cd;
-            } catch(e) {}
-          }
-
-          if (!results) {
-            // Try proxy first (cached at CF edge, less rate-limiting), then direct as fallback
-            let response;
-            try {
-              response = await fetchWithRetry(proxyUrl);
-            } catch(e) {
-              try { response = await fetchWithRetry(directUrl); } catch(e2) { throw e2; }
-            }
-            const apiData  = await response.json();
-            results = apiData.data || [];
-            try { localStorage.setItem(cacheKey, JSON.stringify({ data: results, timestamp: Date.now() })); } catch(e) {}
-          }
-
-          // Filter out the current show itself
-          const filtered = results.filter(a => a.mal_id !== currentState.id).slice(0, 24);
-
-          if (filtered.length > 0) {
-            gridContainer.innerHTML = filtered.map(anime => renderAnimeRecCard(anime)).join('');
-            // Cache the results in Supabase for other visitors
-            if (window.AniCache) window.AniCache.set({ cacheKey: _wtKey, pageSource:'info', section:'water_temple', data: filtered, permanent: true }).catch(()=>{});
+          if (items.length > 0) {
+            _recRender('waterTemple', gridContainer, items);
+            if (window.AniCache) window.AniCache.set({ cacheKey: _wtKey, pageSource:'info', section:'water_temple', data: items, permanent: true }).catch(()=>{});
           } else {
-            // Fallback: top-scored anime of same type, no genre filter
-            const fbParams = new URLSearchParams({ order_by: 'score', sort: 'desc', limit: '24', sfw: 'true', type: (data.type || 'tv').toLowerCase(), min_score: '7.5' });
-            let fbRes;
-            try {
-              fbRes = await fetchWithRetry(`${PROXY}/jikan/anime?${fbParams.toString()}`);
-            } catch(e) {
-              try { fbRes = await fetchWithRetry(`https://api.jikan.moe/v4/anime?${fbParams.toString()}`); } catch(e2) { throw e2; }
-            }
-            const fbData = await fbRes.json();
-            const fbFiltered = (fbData.data || []).filter(a => a.mal_id !== currentState.id).slice(0, 24);
-            gridContainer.innerHTML = fbFiltered.length
-              ? fbFiltered.map(anime => renderAnimeRecCard(anime)).join('')
-              : '<div class="loading-text">No recommendations found</div>';
-            // Cache fallback data too
-            if (fbFiltered.length && window.AniCache) {
-              window.AniCache.set({ cacheKey: _wtKey, pageSource:'info', section:'water_temple', data: fbFiltered, permanent: true }).catch(()=>{});
-            }
+            gridContainer.innerHTML = '<div class="loading-text">No recommendations found</div>';
           }
-
         } catch (error) {
           console.warn('Water Temple error:', error.message);
           gridContainer.innerHTML = '<div class="loading-text">Recommendations temporarily unavailable</div>';
         }
       }
 
-      // Recommend for You — TMDB movie/TV genre+popularity+score based recommendations
+      // Recommend for You — TMDB movie/TV pages. NO second details call:
+      // recommendations are extracted from the single mapple details payload
+      // (movie: recommendations + similar; tv: embedded list when present,
+      // with one lightweight fallback fetch only when the payload lacks it)
       async function loadRecommendForYou() {
-        const _rfyKey = `info:recommended_for_you:${currentState.id}`;
+        const _rfyKey = `info:recommended_for_you:${mediaKeyOf()}`;
         if (window.AniCache) {
           try {
             const cached = await window.AniCache.get(_rfyKey);
-            console.log('[AniCache] RecommendForYou cache check:', cached ? `${cached.length} items` : 'null');
             if (cached && cached.length > 0) {
               const el = document.getElementById('recommendForYouGrid');
               const sec = document.getElementById('recommendForYouSection');
-              if (!sec) { console.warn('[AniCache] RecommendForYou: section element missing'); }
-              else { sec.style.display = 'block'; }
-              if (!el) { console.warn('[AniCache] RecommendForYou: grid element missing'); }
-              else {
-                const html = cached.map(s => renderTMDBRecCard(s, currentState.type)).join('');
-                el.innerHTML = html;
-                console.log('[AniCache] RecommendForYou rendered', html.length, 'chars HTML');
-              }
+              if (sec) sec.style.display = 'block';
+              if (el) _recRender('rfy', el, cached);
               return;
             }
           } catch (e) {
@@ -5398,54 +5767,44 @@ img { max-width: 100%; height: auto; display: block; }
         try {
           const data = currentState.data;
           const mediaType = currentState.type; // 'movie' or 'tv'
-
-          // Extract genre IDs from current show
-          const genreIds = (data.genres || []).map(g => g.id).filter(Boolean);
-
-          // TMDB discover — match genres, filter by vote quality, sort by popularity+vote combo
-          // We try two strategies and merge: TMDB /recommendations (official) + /discover (filtered)
-          const [recsRes, discoverRes] = await Promise.all([
-            // Strategy 1: TMDB's own recommendation engine for this show
-            fetch(`${CONFIG.TMDB_WORKER}/3/${mediaType}/${currentState.id}/recommendations?page=1`),
-            // Strategy 2: Discover with matching genres + quality filter
-            (() => {
-              const p = new URLSearchParams({
-                sort_by:              'vote_average.desc',
-                'vote_count.gte':     mediaType === 'movie' ? '200' : '100',
-                'vote_average.gte':   '6.5',
-                with_genres:          genreIds.slice(0, 3).join(','),
-                without_genres:       '',   // no exclusions — keep broad
-                page:                 '1'
-              });
-              return fetch(`${CONFIG.TMDB_WORKER}/3/discover/${mediaType}?${p.toString()}`);
-            })()
-          ]);
-
-          const recsData    = recsRes.ok    ? await recsRes.json()    : { results: [] };
-          const discoverData = discoverRes.ok ? await discoverRes.json() : { results: [] };
-
-          // Merge, de-duplicate by id, remove current show, sort by vote_average desc
-          const seen = new Set([currentState.id]);
+          const seen = new Set([Number(currentState.id)]);
           const merged = [];
 
-          for (const item of [...(recsData.results || []), ...(discoverData.results || [])]) {
-            if (!item.id || seen.has(item.id)) continue;
-            seen.add(item.id);
-            merged.push(item);
+          const pushAll = (arr) => {
+            (arr || []).forEach(item => {
+              if (!item || !item.id || seen.has(Number(item.id))) return;
+              seen.add(Number(item.id));
+              merged.push(item);
+            });
+          };
+
+          // 1) recommendations embedded in the single details payload
+          pushAll(data.recommendations || []);
+          // 2) similar (movie payloads ship it too)
+          pushAll(data.similar || []);
+
+          // 3) tv payloads occasionally omit recommendations — one lightweight
+          //    sibling fetch only when the first call carried nothing
+          if (!merged.length) {
+            try {
+              const res = await fetch(`${CONFIG.MAPPLE_BASE}/tmdb/${mediaType}/${currentState.id}/recommendations?language=en-US&page=1`,
+                                      { signal: AbortSignal.timeout(10000) });
+              if (res.ok) pushAll((await res.json()).results || []);
+            } catch (e) { console.warn('[RFY] fallback fetch failed:', e.message); }
           }
 
-          // Sort: weighted score (vote_average × log10(vote_count+1)) for quality+popularity balance
+          // Sort: weighted score (vote_average × log10(vote_count+1))
           merged.sort((a, b) => {
             const scoreA = (a.vote_average || 0) * Math.log10((a.vote_count || 1) + 1);
             const scoreB = (b.vote_average || 0) * Math.log10((b.vote_count || 1) + 1);
             return scoreB - scoreA;
           });
 
-          const final = merged.slice(0, 24);
+          // cap at 32 — the 4-full-row renderer needs at most 7 cols x 4 = 28
+          const final = merged.slice(0, 32);
 
           if (final.length > 0) {
-            gridContainer.innerHTML = final.map(item => renderTMDBRecCard(item, mediaType)).join('');
-            // Cache recommendations to DB (permanent for ended, 8h for returning)
+            _recRender('rfy', gridContainer, final);
             if (window.AniCache) {
               window.AniCache.set({ cacheKey: _rfyKey, pageSource:'info',
                 section:'show_recs',
@@ -5454,20 +5813,7 @@ img { max-width: 100%; height: auto; display: block; }
               }).catch(()=>{});
             }
           } else {
-            // Fallback: popular content of same type
-            const fbRes  = await fetch(`${CONFIG.TMDB_WORKER}/3/${mediaType}/popular?page=1`);
-            const fbData = fbRes.ok ? await fbRes.json() : { results: [] };
-            const fbFinal = (fbData.results || []).filter(i => i.id !== currentState.id).slice(0, 24);
-            gridContainer.innerHTML = fbFinal.length
-              ? fbFinal.map(item => renderTMDBRecCard(item, mediaType)).join('')
-              : '<div class="loading-text">No recommendations found</div>';
-            // Cache fallback data too (permanent for ended/released)
-            if (fbFinal.length && window.AniCache) {
-              window.AniCache.set({ cacheKey: _rfyKey, pageSource:'info',
-                section:'show_recs', tmdbId: currentState.id, data: fbFinal, itemCount: fbFinal.length,
-                permanent: currentState.isPermanent,
-              }).catch(()=>{});
-            }
+            gridContainer.innerHTML = '<div class="loading-text">No recommendations found</div>';
           }
 
         } catch (error) {
@@ -5476,7 +5822,6 @@ img { max-width: 100%; height: auto; display: block; }
         }
       }
 
-      // TMDB rec card renderer — matches renderAnimeRecCard style
       function renderTMDBRecCard(item, mediaType) {
         const title = item.title || item.name || 'Unknown';
         const poster = item.poster_path
@@ -5510,245 +5855,174 @@ img { max-width: 100%; height: auto; display: block; }
       }
       // Bug fix: jikanRecLoading element was inside gridContainer and got destroyed by
       // gridContainer.innerHTML on first render, causing null-ref crash on page 2+.
-      // Now shows loading state by setting gridContainer HTML directly each time.
-// Tracks every mal_id shown across ALL Sunken Treasures pages this session
-// Persists across page navigations so the same anime never appears twice
-const _sunkenSeenIds = new Set();
+      // genres (priority list first), capped at 5 pages with auto-hide
+      // when there is not enough data to spread across them.
+      // Fallback: self-hosted jikan recommendations (seed 10620), paged client-side.
+      // ══════════════════════════════════════════════════════════════
+      let _sunkenPages = {};        // { [key]: { 1:[...], 2:[...] } }
+      let _sunkenTotalPages = {};   // { [key]: n }
 
-// In-memory store for all 7 pre-cached Sunken Treasure pages
-let _sunkenCachePages = {};   // { 1:[...], 2:[...], ... 7:[...] }
-let _sunkenCacheLoaded = false;
-
-async function loadSunkenTreasures(page = 1) {
-  const gridContainer = document.getElementById('sunkenTreasuresGrid');
-  const paginationContainer = document.getElementById('sunkenPagination');
-
-  // ── Supabase cache read (GLOBAL — same data for ALL info pages) ──
-  if (window.AniCache && !_sunkenCacheLoaded) {
-    const cached = await window.AniCache.get(`sunken_treasure:global`);
-    if (cached?.pages) {
-      _sunkenCachePages  = cached.pages;
-      _sunkenCacheLoaded = true;
-    }
-  }
-  if (_sunkenCacheLoaded && _sunkenCachePages[page]) {
-    const items = _sunkenCachePages[page];
-    gridContainer.style.opacity = '1';
-    gridContainer.innerHTML = items.map(a => renderAnimeRecCard(a)).join('');
-    renderSunkenPagination(page, SUNKEN_GENRE_COMBOS.length, paginationContainer);
-    return Promise.resolve();
-  }
-
-  // Show loading state
-  gridContainer.style.opacity = '0.5';
-  gridContainer.innerHTML = `<div class="loading-text" style="grid-column:1/-1;text-align:center;padding:40px 0;">Loading page ${page}...</div>`;
-  paginationContainer.classList.add('loading');
-
-  try {
-    const comboIndex = (page - 1) % SUNKEN_GENRE_COMBOS.length;
-    const [genreA, genreB] = SUNKEN_GENRE_COMBOS[comboIndex];
-
-    console.log(`🔗 Sunken Treasures - Page ${page}/${SUNKEN_GENRE_COMBOS.length}, Combo ${comboIndex + 1}: [${genreA},${genreB}]`);
-
-    // Try up to 3 Jikan pages for this genre combo to find enough unseen anime
-    // (genre combos overlap so popular titles appear in multiple combos)
-    let uniqueResults = [];
-    const maxJikanPages = 3;
-
-    for (let jPage = 1; jPage <= maxJikanPages && uniqueResults.length < 12; jPage++) {
-      const params = new URLSearchParams({
-        genres: `${genreA},${genreB}`,
-        type: 'tv',
-        min_score: '6.5',
-        order_by: 'popularity',
-        sort: 'asc',
-        limit: '25',
-        page: String(jPage),
-        sfw: 'true'
-      });
-
-      const cacheKey = `sunken_p${page}_g${genreA}_${genreB}_jp${jPage}`;
-      const cached = localStorage.getItem(cacheKey);
-      let raw = [];
-
-      if (cached) {
-        try {
-          const { results, timestamp } = JSON.parse(cached);
-          if (Date.now() - timestamp < 24 * 60 * 60 * 1000) {
-            raw = results;
+      function _sunkenGenreParam() {
+        const data = currentState.data || {};
+        const raw = (data.genres || [])
+          .map(g => (typeof g === 'string' ? g : (g && g.name) || ''));
+        // split compound names ("Sci-Fi & Fantasy" -> ["Sci-Fi","Fantasy"])
+        const names = [];
+        raw.forEach(g => String(g).split(/[,&/]+/).forEach(part => {
+          const p = part.trim();
+          if (p && !names.some(n => n.toLowerCase() === p.toLowerCase())) names.push(p);
+        }));
+        // canonical MAL genre vocabulary — ruri matches exact names
+        const CANON = { action: 'Action', thriller: 'Thriller', horror: 'Horror', adventure: 'Adventure', comedy: 'Comedy', fantasy: 'Fantasy', 'sci-fi': 'Sci-Fi', 'sci fi': 'Sci-Fi', school: 'School' };
+        // priority filter — Action, Thriller, Horror, Adventure, Comedy, Fantasy, Sci-Fi, School
+        const picked = [];
+        for (const p of SUNKEN_GENRE_PRIORITY) {
+          const hit = names.find(n => n.toLowerCase() === p || n.toLowerCase().includes(p));
+          if (hit) {
+            const canon = CANON[p];
+            if (canon && !picked.includes(canon)) picked.push(canon);
           }
-        } catch(e) {}
-      }
-
-      if (!raw.length) {
-        const apiUrl = `https://api.jikan.moe/v4/anime?${params.toString()}`;
-        try {
-          // Use rowana proxy (cached, rate-limit safe) with direct Jikan fallback
-          let res;
-          try {
-            res = await fetch(
-              `https://aniumi.bionmovies47.workers.dev/jikan/anime?${params.toString()}`,
-              { signal: AbortSignal.timeout(7000) }
-            );
-            if (!res.ok) throw new Error('proxy fail');
-          } catch(e) {
-            res = await fetch(apiUrl);
-          }
-          if (!res.ok) break;
-          const json = await res.json();
-          raw = json.data || [];
-          localStorage.setItem(cacheKey, JSON.stringify({ results: raw, timestamp: Date.now() }));
-        } catch(e) {
-          console.warn(`Jikan page ${jPage} failed:`, e.message);
-          break;
+          if (picked.length === 2) break;
         }
+        if (!picked.length) {
+          for (const n of names) {
+            const canon = CANON[n.toLowerCase()] || (n.charAt(0).toUpperCase() + n.slice(1));
+            if (!picked.includes(canon)) picked.push(canon);
+            if (picked.length === 2) break;
+          }
+        }
+        return picked.join(',');
       }
 
-      // Filter: remove current show + already-seen mal_ids (cross-page dedup)
-      const currentId = currentState.source === 'jikan' ? Number(currentState.id) : null;
-      for (const a of raw) {
-        const id = Number(a.mal_id);
-        if (currentId && id === currentId) continue;  // skip current show
-        if (_sunkenSeenIds.has(id)) continue;          // skip cross-page duplicate
-        // Within-page dedup (shouldn't happen but guard anyway)
-        if (uniqueResults.some(r => Number(r.mal_id) === id)) continue;
-        uniqueResults.push(a);
-        if (uniqueResults.length >= 24) break;
+      async function loadSunkenTreasures(page = 1) {
+        const gridContainer = document.getElementById('sunkenTreasuresGrid');
+        const paginationContainer = document.getElementById('sunkenPagination');
+        if (page > SUNKEN_MAX_PAGES) return;
+
+        const genres = _sunkenGenreParam() || 'Action,Comedy';
+        const key = `sunken:${genres.toLowerCase()}:tv`;
+        const cacheKey = `sunken:${key}:p${page}`;
+
+        // session cache (30 min) for instant back/forward
+        try {
+          const ss = sessionStorage.getItem(cacheKey);
+          if (ss) {
+            const { items, total } = JSON.parse(ss);
+            _sunkenPages[key] = _sunkenPages[key] || {};
+            _sunkenPages[key][page] = items;
+            _sunkenTotalPages[key] = total;
+            _recRender('sunken', gridContainer, items);
+            renderSunkenPagination(page, total, paginationContainer);
+            return;
+          }
+        } catch (e) { /* fall through */ }
+
+        gridContainer.style.opacity = '0.6';
+        gridContainer.innerHTML = `<div class="loading-text" style="grid-column:1/-1;text-align:center;padding:40px 0;">Loading page ${page}...</div>`;
+
+        const currentMal = currentState.source !== 'tmdb' ? jikanIdOf() : null;
+        let items = [];
+        let totalPages = 1;
+        let usedFallback = false;
+
+        try {
+          // PRIMARY — ruri genre search (server-side pages)
+          const params = `genres=${encodeURIComponent(genres)}&min_score=7&type=tv&sfw=true&page=${page}`;
+          const res = await fetch(`${RURI_BASE}/s-mal/anime?${params}`,
+                                  { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(12000) });
+          if (res.ok) {
+            const json = await res.json();
+            // keep the full server page (25 rows) — _recRender slices it to
+            // columns x 4 so PC never ends on a stub row
+            items = (json.data || []).filter(a => !currentMal || Number(a.mal_id) !== Number(currentMal));
+            const pg = json.pagination || {};
+            totalPages = Math.min(SUNKEN_MAX_PAGES, pg.last_visible_page || 1);
+          }
+        } catch (e) { console.warn('[Sunken] ruri primary failed:', e.message); }
+
+        // FALLBACK — jikan seed recommendations, paged client-side
+        if (!items.length) {
+          usedFallback = true;
+          try {
+            const res2 = await fetchWithRetry(`${CONFIG.JIKAN_SELF}/anime/10620/recommendations`);
+            const json2 = await res2.json();
+            const all = (json2.data || []).filter(a => !currentMal || Number(a.mal_id) !== Number(currentMal));
+            totalPages = Math.min(SUNKEN_MAX_PAGES, Math.ceil(all.length / 28) || 1);
+            items = all.slice((page - 1) * 28, page * 28);
+          } catch (e) { console.warn('[Sunken] fallback failed:', e.message); }
+        }
+
+        gridContainer.style.opacity = '1';
+        if (items.length) {
+          _recRender('sunken', gridContainer, items);
+        } else {
+          gridContainer.innerHTML = '<div class="loading-text" style="grid-column:1/-1;text-align:center;padding:40px 0;">No recommendations found for this page</div>';
+          totalPages = 1;
+        }
+
+        // persist in session (also cache the empty case so pagination hides)
+        try { sessionStorage.setItem(cacheKey, JSON.stringify({ items, total: totalPages, fb: usedFallback })); } catch (e) {}
+        renderSunkenPagination(page, totalPages, paginationContainer);
       }
 
-      // Small delay between Jikan pages to respect rate limit
-      if (jPage < maxJikanPages && uniqueResults.length < 12) {
-        await new Promise(r => setTimeout(r, 400));
+      // Pagination — Previous / counter / Next. Hidden entirely when the data
+      // cannot spread across more than one page (auto-hide).
+      function renderSunkenPagination(currentPage, totalPages, container) {
+        container.innerHTML = '';
+        container.className = 'pagination-nav';
+        if (!totalPages || totalPages <= 1) {
+          container.style.display = 'none';
+          return;
+        }
+        container.style.display = '';
+
+        const prevBtn = document.createElement('button');
+        prevBtn.type = 'button';
+        prevBtn.className = 'btn btn-soft btn-prev rounded-full';
+        prevBtn.innerHTML = '<span class="prev-text">Previous</span><span class="prev-chevron">\u2039</span>';
+        prevBtn.disabled = currentPage === 1;
+        prevBtn.onclick = (e) => {
+          e.preventDefault();
+          e.currentTarget.blur();
+          if (currentPage > 1) {
+            const savedY = window.scrollY;
+            loadSunkenTreasures(currentPage - 1).then(() => {
+              window.scrollTo({ top: savedY, behavior: 'instant' });
+            });
+          }
+        };
+        container.appendChild(prevBtn);
+
+        const pageCounter = document.createElement('div');
+        pageCounter.className = 'page-counter';
+        pageCounter.innerHTML = `<span class="current-page">${currentPage}</span> / <span class="total-pages">${totalPages}</span>`;
+        container.appendChild(pageCounter);
+
+        const nextBtn = document.createElement('button');
+        nextBtn.type = 'button';
+        nextBtn.className = 'btn btn-soft btn-next rounded-full';
+        nextBtn.innerHTML = '<span class="next-text">Next</span><span class="next-chevron">\u203A</span>';
+        nextBtn.disabled = currentPage === totalPages;
+        nextBtn.onclick = (e) => {
+          e.preventDefault();
+          e.currentTarget.blur();
+          if (currentPage < totalPages) {
+            const savedY = window.scrollY;
+            loadSunkenTreasures(currentPage + 1).then(() => {
+              window.scrollTo({ top: savedY, behavior: 'instant' });
+            });
+          }
+        };
+        container.appendChild(nextBtn);
       }
-    }
-
-    // Fallback: if still empty, grab from top anime (always unique enough)
-    if (uniqueResults.length === 0) {
-      console.warn('⚠️ No unseen results, using top anime fallback for page', page);
-      try {
-        const fbRes = await fetch(
-          `https://api.jikan.moe/v4/top/anime?type=tv&limit=25&page=${page}`
-        );
-        const fbData = await fbRes.json();
-        const currentId = currentState.source === 'jikan' ? Number(currentState.id) : null;
-        uniqueResults = (fbData.data || []).filter(a => {
-          const id = Number(a.mal_id);
-          if (currentId && id === currentId) return false;
-          if (_sunkenSeenIds.has(id)) return false;
-          return true;
-        }).slice(0, 24);
-      } catch(e) { /* ignore */ }
-    }
-
-    // Mark all rendered anime as seen so they won't appear on future pages
-    uniqueResults.slice(0, 24).forEach(a => _sunkenSeenIds.add(Number(a.mal_id)));
-    // Store page in memory cache
-    _sunkenCachePages[page] = uniqueResults.slice(0, 24);
-    // Save to Supabase — GLOBAL cache (same data for all info pages)
-    if (window.AniCache) {
-      const existing = await window.AniCache.get(`sunken_treasure:global`).catch(()=>null);
-      const mergedPages = { ...(existing?.pages || {}), ..._sunkenCachePages };
-      const pageCount = Object.keys(mergedPages).length;
-      const result = await window.AniCache.set({
-        cacheKey: `sunken_treasure:global`,
-        pageSource:'info', section:'sunken_treasure',
-        data: { pages: mergedPages, total: SUNKEN_GENRE_COMBOS.length },
-        itemCount: pageCount * 24,
-        permanent: false, // 8h TTL — global list changes as new anime air
-      });
-      if (result && pageCount >= 1 && !_sunkenCacheLoaded) {
-        _sunkenCacheLoaded = true;
-        console.log(`[Cache] Sunken Treasure ${pageCount} page(s) stored to Supabase`);
-      }
-    }
-
-    // Render
-    gridContainer.style.opacity = '1';
-
-    if (uniqueResults.length > 0) {
-      console.log(`🎨 Rendering ${Math.min(24, uniqueResults.length)} unique anime (${_sunkenSeenIds.size} seen total)`);
-      gridContainer.innerHTML = uniqueResults.slice(0, 24).map(anime => renderAnimeRecCard(anime)).join('');
-      renderSunkenPagination(page, SUNKEN_GENRE_COMBOS.length, paginationContainer);
-    } else {
-      gridContainer.innerHTML = '<div class="loading-text" style="grid-column:1/-1;text-align:center;padding:40px 0;">No new anime found — try a different page</div>';
-      renderSunkenPagination(page, SUNKEN_GENRE_COMBOS.length, paginationContainer);
-    }
-    
-  } catch (error) {
-    console.error('❌ Sunken Treasures error:', error);
-    gridContainer.style.opacity = '1';
-    gridContainer.innerHTML = `
-      <div style="grid-column:1/-1;text-align:center;padding:40px 20px;">
-        <i class="fa-solid fa-triangle-exclamation" style="font-size:2rem; color:var(--accent-gold); margin-bottom:10px; display:block;"></i>
-        <p>Failed to load recommendations</p>
-        <small style="color:var(--text-muted);">${error.message}</small>
-      </div>
-    `;
-    // Re-render pagination so user can retry other pages
-    renderSunkenPagination(page, SUNKEN_GENRE_COMBOS.length, paginationContainer);
-  } finally {
-    // Always restore interactivity
-    gridContainer.style.opacity = '1';
-    paginationContainer.classList.remove('loading');
-  }
-}
-
- // ✅ UPDATED: Matches index.html "Recently Completed" pagination style
-function renderSunkenPagination(currentPage, totalPages, container) {
-  container.innerHTML = '';
-  container.className = 'pagination-nav';
-  
-  // Previous button (chevron on mobile, text on desktop)
-  const prevBtn = document.createElement('button');
-  prevBtn.type = 'button';
-  prevBtn.className = 'btn btn-soft btn-prev rounded-full';
-  prevBtn.innerHTML = '<span class="prev-text">Previous</span><span class="prev-chevron">‹</span>';
-  prevBtn.disabled = currentPage === 1;
-  prevBtn.onclick = (e) => {
-    e.preventDefault();
-    e.currentTarget.blur(); // prevent browser auto-scroll to focused button
-    if (currentPage > 1) {
-      const savedY = window.scrollY;
-      loadSunkenTreasures(currentPage - 1).then(() => {
-        // Restore exact scroll position after DOM update
-        window.scrollTo({ top: savedY, behavior: 'instant' });
-      });
-    }
-  };
-  container.appendChild(prevBtn);
-  
-  // Page counter: "1 / 30"
-  const pageCounter = document.createElement('div');
-  pageCounter.className = 'page-counter';
-  pageCounter.innerHTML = `<span class="current-page">${currentPage}</span> / <span class="total-pages">${totalPages}</span>`;
-  container.appendChild(pageCounter);
-  
-  // Next button
-  const nextBtn = document.createElement('button');
-  nextBtn.type = 'button';
-  nextBtn.className = 'btn btn-soft btn-next rounded-full';
-  nextBtn.innerHTML = '<span class="next-text">Next</span><span class="next-chevron">›</span>';
-  nextBtn.disabled = currentPage === totalPages;
-  nextBtn.onclick = (e) => {
-    e.preventDefault();
-    e.currentTarget.blur(); // prevent browser auto-scroll to focused button
-    if (currentPage < totalPages) {
-      const savedY = window.scrollY;
-      loadSunkenTreasures(currentPage + 1).then(() => {
-        // Restore exact scroll position after DOM update
-        window.scrollTo({ top: savedY, behavior: 'instant' });
-      });
-    }
-  };
-  container.appendChild(nextBtn);
-}
-
       // Unified anime card renderer for both sections
       function renderAnimeRecCard(anime) {
         const title = anime.title_english || anime.title || 'Unknown';
         const poster = anime.images?.jpg?.image_url || anime.images?.webp?.image_url || '';
-        const score = anime.score;
-        const year = anime.aired?.from?.slice(0, 4) || 'N/A';
+        // score may arrive as number (jikan) or string (anikoto DB rows)
+        const scoreNum = parseFloat(anime.score);
+        const score = isNaN(scoreNum) ? null : scoreNum;
+        const year = anime.aired?.from?.slice(0, 4) || anime.year || 'N/A';
         const episodes = anime.episodes || '?';
         const type = anime.type || 'TV';
         const slug = slugify(title);
@@ -5863,9 +6137,26 @@ function renderSunkenPagination(currentPage, totalPages, container) {
               container.innerHTML = '<p class="loading-text">Cast data not available for this entry</p>';
               return;
             }
-            const res = await fetch(`https://api.jikan.moe/v4/anime/${jikanId}/characters`);
-            if (!res.ok) throw new Error(`Jikan characters error: ${res.status}`);
-            const { data: charsData } = await res.json();
+            // PRIMARY — self-hosted jikan /full carries characters + voice actors (memoised)
+            let charsData = null;
+            try {
+              const j = await jikanSelfFull(jikanId);
+              // self-hosted shape is flat — wrap it into the standard jikan /characters shape
+              charsData = ((j && j.characters) || []).map(c => ({
+                character: { mal_id: c.mal_id, name: c.name, images: { jpg: { image_url: c.image_url } } },
+                role: c.role,
+                favorites: 0,
+                voice_actors: (c.voice_actors || []).map(v => ({
+                  language: v.language,
+                  person: { mal_id: v.mal_id, name: v.name, images: { jpg: { image_url: v.image_url } } }
+                })),
+              }));
+            } catch (eSelf) {
+              // fallback — official jikan /characters endpoint
+              const res = await fetch(`https://api.jikan.moe/v4/anime/${jikanId}/characters`);
+              if (!res.ok) throw new Error(`Jikan characters error: ${res.status}`);
+              charsData = (await res.json()).data;
+            }
             const chars = (charsData || []).sort((a, b) => {
               // Main roles first, then by favorites
               if (a.role === 'Main' && b.role !== 'Main') return -1;
@@ -5931,8 +6222,8 @@ function renderSunkenPagination(currentPage, totalPages, container) {
             container.innerHTML = '<p class="loading-text">Failed to load cast</p>';
           }
         } else {
-          // TMDB cast — same row layout
-          const cast = data.credits?.cast || [];
+          // TMDB cast — mapple cast_crew (fallback: legacy credits shape)
+          const cast = (data.cast_crew && data.cast_crew.cast) || data.credits?.cast || [];
           if (!cast.length) {
             container.innerHTML = '<p class="loading-text">No cast data available</p>';
             return;
@@ -6011,81 +6302,103 @@ function renderSunkenPagination(currentPage, totalPages, container) {
         window.AniCache.saveDetails(_mid, {cast_crew: window._lastCastData}, { permanent: currentState.isPermanent }).catch(()=>{});
       }
 
+      // Artwork img fallback — step through the MAL CDN size variants
+      // (large ll.jpg 404s for many older entries; l.jpg / base still work)
+      // before the tile is finally hidden.
+      window._artImgError = function (el) {
+        const alts = (el.dataset.alts || '').split('|').filter(Boolean);
+        if (alts.length) {
+          el.src = alts.shift();
+          el.dataset.alts = alts.join('|');
+        } else {
+          el.closest('.artwork-item').style.display = 'none';
+        }
+      };
+
       async function loadArtworkData() {
         const container = document.getElementById('artworkGrid');
         const data = currentState.data;
         const isAnime = currentState.source !== 'tmdb';
-        
+
         container.innerHTML = '<p class="loading-text" style="grid-column:1/-1;padding:20px 0;">Loading artwork...</p>';
 
-        let images = []; // { type, url (full), thumb (display) }
+        let images = []; // { type, url (full), alts[] (fallback urls), thumb (display) }
+
+        // Dedupe helper — MAL/AniList serve the same artwork as .jpg/.webp
+        // and as l/ll size variants; collapse them so the masonry never
+        // repeats one artwork and never leaves whole columns empty.
+        const _seenArt = new Set();
+        const pushImg = (type, url, thumb, alts) => {
+          if (!url || typeof url !== 'string') return;
+          const key = url.trim()
+            .replace(/\.(jpg|jpeg|png|webp)(\?.*)?$/i, '')
+            .replace(/[l]{1,2}$/i, '');
+          if (_seenArt.has(key)) return;
+          _seenArt.add(key);
+          images.push({ type, url, alts: (alts || []).filter(Boolean).filter(a => a !== url), thumb: thumb || url });
+        };
+        // MAL CDN quirk: the ll.jpg / lt.jpg "large" variants 404 for many
+        // older entries while the l.jpg (image_url) and base paths still work.
+        // Every artwork img therefore gets a fallback chain that steps through
+        // the variants before the tile is finally hidden.
+        const malVariants = (j) => {
+          const list = [j.large_image_url, j.image_url, j.small_image_url].filter(Boolean);
+          const bases = list.map(u => u.replace(/[l]{1,2}t?\.(jpg|jpeg|png|webp)(\?.*)?$/i, '.$2'));
+          return [...new Set([...list, ...bases])];
+        };
 
         if (isAnime) {
-          // Add main images first
+          // ruri source-id endpoint image (poster) first
           const jpg = data.images?.jpg;
           const webp = data.images?.webp;
-          if (jpg?.large_image_url) images.push({ type: 'poster', url: jpg.large_image_url, thumb: jpg.large_image_url });
-          if (webp?.large_image_url && webp.large_image_url !== jpg?.large_image_url)
-            images.push({ type: 'poster', url: webp.large_image_url, thumb: webp.large_image_url });
+          pushImg('poster', jpg?.large_image_url || jpg?.image_url, null, malVariants(jpg || {}));
+          pushImg('poster', webp?.large_image_url, null, malVariants(webp || {}));
 
-          // Add AniList banner as backdrop if available (not present in Jikan)
-          if (data._anilistExtras?.bannerImage) {
-            images.push({ type: 'backdrop', url: data._anilistExtras.bannerImage, thumb: data._anilistExtras.bannerImage });
-          }
+          // banner array data — ruri rows may ship one {large,small} object,
+          // a bare string, or an array of any of these; accept every shape
+          const bannerList = Array.isArray(data.banner_image)
+            ? data.banner_image
+            : [data.banner_image];
+          bannerList.forEach(bi => {
+            const u = (bi && typeof bi === 'object') ? (bi.large || bi.small || '') : (typeof bi === 'string' ? bi : '');
+            pushImg('backdrop', u);
+          });
 
-          // Fetch /pictures for all extra images
+          // picture array data — self-hosted jikan /full ships the full
+          // gallery (memoised); capped so huge galleries stay snappy
           try {
             const jikanId = jikanIdOf();
-            const res = jikanId ? await fetch(`https://api.jikan.moe/v4/anime/${jikanId}/pictures`) : { ok: false };
-            if (res.ok) {
-              const { data: pics } = await res.json();
-              (pics || []).forEach(pic => {
-                const url = pic.jpg?.large_image_url || pic.jpg?.image_url
-                         || pic.webp?.large_image_url || pic.webp?.image_url;
-                // Use large_image_url for both thumb and full — avoids the blurry small thumbnails
-                const thumb = pic.jpg?.large_image_url || pic.webp?.large_image_url || url;
-                if (url && !images.some(i => i.url === url)) {
-                  images.push({ type: 'poster', url, thumb });
-                }
+            if (jikanId) {
+              const j = await jikanSelfFull(jikanId);
+              ((j && j.pictures) || []).slice(0, 26).forEach(pic => {
+                const pj = pic.images?.jpg || pic.jpg || {};
+                pushImg('poster', pj.large_image_url || pj.image_url, null, malVariants(pj));
               });
             }
-          } catch(e) { /* use what we have */ }
+          } catch (e) { /* use what we have */ }
 
         } else {
-          // TMDB — use w500 for poster thumbs, w780 for backdrop thumbs, w1280 for full
-          const tmdbImgs = data.images || {};
+          // TMDB — mapple pictures {posters, backdrops, logos}; legacy images fallback
+          const tmdbImgs = data.pictures || data.images || {};
 
-          // Fallback: if images weren't appended (old cache), build from main poster/backdrop
           if (!tmdbImgs.posters?.length && !tmdbImgs.backdrops?.length) {
-            if (data.poster_path) images.push({
-              type: 'poster',
-              url: `https://image.tmdb.org/t/p/original${data.poster_path}`,
-              thumb: `https://image.tmdb.org/t/p/w500${data.poster_path}`
-            });
-            if (data.backdrop_path) images.push({
-              type: 'backdrop',
-              url: `https://image.tmdb.org/t/p/original${data.backdrop_path}`,
-              thumb: `https://image.tmdb.org/t/p/w780${data.backdrop_path}`
-            });
+            pushImg('poster', data.poster_path ? `https://image.tmdb.org/t/p/original${data.poster_path}` : '',
+                    data.poster_path ? `https://image.tmdb.org/t/p/w500${data.poster_path}` : '');
+            pushImg('backdrop', data.backdrop_path ? `https://image.tmdb.org/t/p/original${data.backdrop_path}` : '',
+                    data.backdrop_path ? `https://image.tmdb.org/t/p/w780${data.backdrop_path}` : '');
           }
 
-          (tmdbImgs.posters || []).slice(0, 12).forEach(p => images.push({
-            type: 'poster',
-            url: `https://image.tmdb.org/t/p/original${p.file_path}`,
-            thumb: `https://image.tmdb.org/t/p/w500${p.file_path}`
-          }));
-          (tmdbImgs.backdrops || []).slice(0, 10).forEach(b => images.push({
-            type: 'backdrop',
-            url: `https://image.tmdb.org/t/p/original${b.file_path}`,
-            thumb: `https://image.tmdb.org/t/p/w780${b.file_path}`
-          }));
-          (tmdbImgs.logos || []).slice(0, 5).forEach(l => images.push({
-            type: 'logo',
-            url: `https://image.tmdb.org/t/p/original${l.file_path}`,
-            thumb: `https://image.tmdb.org/t/p/w500${l.file_path}`
-          }));
+          (tmdbImgs.posters || []).slice(0, 14).forEach(p => pushImg('poster',
+            `https://image.tmdb.org/t/p/original${p.file_path}`,
+            `https://image.tmdb.org/t/p/w500${p.file_path}`));
+          (tmdbImgs.backdrops || []).slice(0, 12).forEach(b => pushImg('backdrop',
+            `https://image.tmdb.org/t/p/original${b.file_path}`,
+            `https://image.tmdb.org/t/p/w780${b.file_path}`));
+          (tmdbImgs.logos || []).slice(0, 6).forEach(l => pushImg('logo',
+            `https://image.tmdb.org/t/p/original${l.file_path}`,
+            `https://image.tmdb.org/t/p/w500${l.file_path}`));
         }
-        
+
         if (!images.length) {
           container.innerHTML = '<p class="loading-text" style="grid-column:1/-1;">No artwork available</p>';
           return;
@@ -6093,15 +6406,19 @@ function renderSunkenPagination(currentPage, totalPages, container) {
 
         const typeLabel = { poster: 'Poster', backdrop: 'Backdrop', logo: 'Logo' };
         window._lastArtworkData = images.map(i => ({type:i.type, url:i.url, thumb:i.thumb}));
-        container.innerHTML = images.map(img => `
-          <div class="artwork-item artwork-item--${img.type}"
-               onclick="document.getElementById('lightboxImg').src='${escapeHtml(img.url)}';document.getElementById('artworkLightbox').classList.add('show')">
-            <img src="${escapeHtml(img.thumb)}" data-full="${escapeHtml(img.url)}"
+        // Pinterest-style masonry — natural aspect ratios (no forced crops),
+        // compact tiles handled by CSS columns
+        container.innerHTML = images.map(img => {
+          const alts = (img.alts || []).map(escapeHtml).join('|');
+          return `
+          <div class="artwork-item"
+               onclick="document.getElementById('lightboxImg').src=this.querySelector('img').src;document.getElementById('artworkLightbox').classList.add('show')">
+            <img src="${escapeHtml(img.thumb)}" data-full="${escapeHtml(img.url)}" data-alts="${alts}"
                  alt="${typeLabel[img.type] || 'Artwork'}" loading="lazy"
-                 onerror="this.closest('.artwork-item').style.display='none'">
+                 onerror="_artImgError(this)">
             <span class="artwork-type-badge">${typeLabel[img.type] || ''}</span>
-          </div>
-        `).join('');
+          </div>`;
+        }).join('');
       // AniCache: save artwork to show_details
       if (window.AniCache && window._lastArtworkData && window._lastArtworkData.length) {
         const _mid = mediaKeyOf();
@@ -6114,11 +6431,12 @@ function renderSunkenPagination(currentPage, totalPages, container) {
         const data = currentState.data;
         const isAnime = currentState.source !== 'tmdb';
         let trailerUrl = null;
-        
+
         if (isAnime) {
           trailerUrl = data.trailer?.embed_url || data.trailers?.youtube?.[0]?.url;
         } else {
-          const videos = data.videos?.results || [];
+          // mapple ships videos as a flat array; legacy shapes keep {results}
+          const videos = Array.isArray(data.videos) ? data.videos : (data.videos?.results || []);
           const trailer = videos.find(v => v.type === 'Trailer' && v.site === 'YouTube') || videos.find(v => v.site === 'YouTube');
           if (trailer) trailerUrl = `https://www.youtube.com/embed/${trailer.key}`;
         }
@@ -6248,17 +6566,55 @@ function renderSunkenPagination(currentPage, totalPages, container) {
         window.AniCache.saveDetails(_mid, {themes: window._lastThemesData}, { permanent: currentState.isPermanent }).catch(()=>{});
       }
 
+      // ════════════════════════════════════════════════════════════
+      // STATISTICS TAB — every graph is derived from REAL payload data:
+      //   anime : self-hosted jikan scores{} (votes per 1-10) + member
+      //           status counts (watching/completed/...) + rank/popularity/
+      //           members/favourites from the ruri row
+      //   tmdb  : deterministic distribution centred on the actual
+      //           vote_average, audience-score bar, popularity metrics
+      // (no random heights — the graph shape changes with the data)
+      // ════════════════════════════════════════════════════════════
       async function loadStatisticsData() {
-        renderHistogram(); 
-        renderSegmentedBar(); 
-        renderMetricCards();
+        const data = currentState.data;
+        const isAnime = currentState.source !== 'tmdb';
+        let stats = null;
+        if (isAnime) {
+          const malId = jikanIdOf();
+          if (malId) {
+            try {
+              // self-hosted jikan /full carries scores + status counts + members (memoised)
+              stats = await jikanSelfFull(malId);
+              currentState._jikanStats = stats;
+            } catch (e) { console.warn('[Stats] jikan-self failed:', e.message); }
+          }
+        }
+        renderHistogram(stats);
+        renderSegmentedBar(stats);
+        renderMetricCards(stats);
       }
 
-      function renderHistogram() {
+      function renderHistogram(jikanStats) {
         const container = document.getElementById('scoreHistogram');
         const data = currentState.data;
         const isAnime = currentState.source !== 'tmdb';
-        // AniList fallback: use REAL score distribution
+
+        // 1) REAL per-score votes (self-hosted jikan scores{"1".."10"})
+        if (isAnime && jikanStats && jikanStats.scores && typeof jikanStats.scores === 'object') {
+          const entries = [];
+          for (let s = 1; s <= 10; s++) {
+            const e = jikanStats.scores[String(s)] || jikanStats.scores[s];
+            entries.push({ score: s, votes: e ? (e.votes || 0) : 0, pct: e ? (e.percentage || 0) : 0 });
+          }
+          const maxPct = Math.max(...entries.map(e => e.pct), 0.1);
+          container.innerHTML = entries.map(e => {
+            const h = Math.max(3, (e.pct / maxPct) * 100);
+            return `<div class="hist-bar" style="height:${h}%" data-value="${e.score} (${e.votes.toLocaleString()} votes · ${e.pct}%)"></div>`;
+          }).join('');
+          return;
+        }
+
+        // 2) AniList fallback — real score distribution
         if (isAnime && data._anilistExtras?.scoreDistribution?.length) {
           const dist = data._anilistExtras.scoreDistribution;
           const maxAmt = Math.max(...dist.map(d=>d.amount),1);
@@ -6268,21 +6624,48 @@ function renderSunkenPagination(currentPage, totalPages, container) {
           }).join('');
           return;
         }
-        const avg = isAnime ? data.score : data.vote_average;
-        const bars = [];
-        for (let i = 1; i <= 10; i++) { 
-          const distance = Math.abs(i - (avg || 7)); 
-          const height = Math.max(5, 100 - distance * 15 + Math.random() * 10); 
-          bars.push({ value: i, height: Math.min(100, Math.max(10, height)) }); 
+
+        const avg = isAnime ? (Number(data.score) || Number(data.vote_average) || null) : (Number(data.vote_average) || null);
+        if (avg == null) {
+          container.innerHTML = '<div class="loading-text" style="grid-column:1/-1;">No score data</div>';
+          return;
         }
-        container.innerHTML = bars.map(b => `<div class="hist-bar" style="height: ${b.height}%" data-value="${b.value}"></div>`).join('');
+        // 3) Deterministic bell centred on the actual average — same input
+        //    always draws the same shape, and the shape follows the score
+        const sigma = 1.7;
+        const raw = [];
+        for (let i = 1; i <= 10; i++) raw.push(Math.exp(-Math.pow(i - avg, 2) / (2 * sigma * sigma)));
+        const maxRaw = Math.max(...raw);
+        container.innerHTML = raw.map((v, idx) => {
+          const h = Math.max(5, (v / maxRaw) * 100);
+          return `<div class="hist-bar" style="height:${h}%" data-value="${idx + 1}${idx + 1 === Math.round(avg) ? ' ← average ' + avg.toFixed(1) : ''}"></div>`;
+        }).join('');
       }
 
-      function renderSegmentedBar() {
+      function renderSegmentedBar(jikanStats) {
         const container = document.getElementById('statusBar');
         const data = currentState.data;
         const isAnime = currentState.source !== 'tmdb';
-        // AniList fallback: use REAL status distribution
+
+        // 1) REAL member status counts (self-hosted jikan)
+        if (isAnime && jikanStats && jikanStats.total) {
+          const segs = [
+            ['Watching',    jikanStats.watching    || 0],
+            ['Completed',   jikanStats.completed   || 0],
+            ['On Hold',     jikanStats.on_hold     || 0],
+            ['Dropped',     jikanStats.dropped     || 0],
+            ['Plan to Watch', jikanStats.plan_to_watch || 0],
+          ];
+          const total = segs.reduce((a, s) => a + s[1], 0) || jikanStats.total || 1;
+          const colors = { 'Watching': '#4299e1', 'Completed': '#48bb78', 'On Hold': '#ecc94b', 'Dropped': '#f56565', 'Plan to Watch': '#9f7aea' };
+          container.innerHTML = segs.map(([label, count]) => {
+            const w = (count / total) * 100;
+            return `<div class="status-segment" style="width:${w}%;background:${colors[label] || '#2b6cb0'};" title="${label}: ${count.toLocaleString()} (${w.toFixed(1)}%)">${w > 12 ? `<span style="font-size:0.62rem;">${label} ${w.toFixed(0)}%</span>` : ''}</div>`;
+          }).join('');
+          return;
+        }
+
+        // 2) AniList fallback — real status distribution
         if (isAnime && data._anilistExtras?.statusDistribution?.length) {
           const dist = data._anilistExtras.statusDistribution;
           const total = dist.reduce((a,d)=>a+d.amount,0) || 1;
@@ -6292,30 +6675,63 @@ function renderSunkenPagination(currentPage, totalPages, container) {
           }).join('');
           return;
         }
-        const distribution = { watching: 25, completed: 45, planning: 20, dropped: 10 };
-        const total = Object.values(distribution).reduce((a, b) => a + b, 0);
-        container.innerHTML = Object.entries(distribution).map(([status, count]) => { 
-          const width = (count / total) * 100; 
-          return `<div class="status-segment status-${status}" style="width: ${width}%" title="${status}: ${count}%">${width > 15 ? `${count}%` : ''}</div>`; 
-        }).join('');
+
+        if (isAnime) {
+          // 3) anime without any status counts — score composition from the row
+          const score = Number(data.score) || Number(data.vote_average) || 0;
+          const good = Math.round(score * 10);
+          container.innerHTML = `
+            <div class="status-segment" style="width:${good}%;background:#48bb78;" title="Score ${score.toFixed(1)} / 10">${good > 12 ? `Score ${score.toFixed(1)}` : ''}</div>
+            <div class="status-segment" style="width:${100 - good}%;background:rgba(255,255,255,0.12);" title="Remaining out of 10">${good < 88 ? `${(10 - score).toFixed(1)} left` : ''}</div>`;
+        } else {
+          // TMDB — audience score composition from the real vote_average
+          const stats = data.statistics || {};
+          const avg = Number(stats.vote_average || data.vote_average || 0);
+          const good = Math.round(Math.min(100, avg * 10));
+          const votes = stats.vote_count || data.vote_count || 0;
+          container.innerHTML = `
+            <div class="status-segment" style="width:${good}%;background:#01b4e4;" title="Audience score ${avg.toFixed(1)}/10 from ${votes.toLocaleString()} votes">${good > 12 ? `Audience Score ${avg.toFixed(1)}` : ''}</div>
+            <div class="status-segment" style="width:${100 - good}%;background:rgba(255,255,255,0.12);" title="Remaining">${good < 88 ? `${(10 - avg).toFixed(1)} left` : ''}</div>`;
+        }
       }
 
-      function renderMetricCards() {
+      function renderMetricCards(jikanStats) {
         const container = document.getElementById('metricCards');
         const data = currentState.data;
         const isAnime = currentState.source !== 'tmdb';
-        // AniList fallback: use real stats
-        const rank       = isAnime ? (data.rank       || null) : (data.popularity  || null);
-        const popularity = isAnime ? (data.popularity || null) : (data.vote_count   || null);
-        const members    = isAnime ? (data.members    || null) : (data.popularity   || null);
-        const favourites = isAnime ? (data.favourites || null) : null;
-        const meanScore  = isAnime ? (data._anilistExtras?.meanScore || null) : null;
-        container.innerHTML = `
-          <div class="metric-card"><div class="metric-value">${rank ? `#${rank}` : '—'}</div><div class="metric-label">Rank</div></div>
-          <div class="metric-card"><div class="metric-value">${formatNumber(popularity)}</div><div class="metric-label">Popularity</div></div>
-          <div class="metric-card"><div class="metric-value">${formatNumber(members)}</div><div class="metric-label">Members</div></div>
-          <div class="metric-card"><div class="metric-value">${favourites ? formatNumber(favourites) : (meanScore ? (meanScore/10).toFixed(1)+'★' : '—')}</div><div class="metric-label">Favourites</div></div>
-        `;
+        if (isAnime) {
+          const rank       = data.rank || null;
+          const popularity = data.popularity || (jikanStats && jikanStats.total) || null;
+          const members    = data.members || (jikanStats && jikanStats.total) || null;
+          const favourites = data.favorites || null;
+          const meanScore  = data._anilistExtras?.meanScore || null;
+          const scoredBy   = (jikanStats && jikanStats.scored_by) || data.scored_by || null;
+          container.innerHTML = `
+            <div class="metric-card"><div class="metric-value">${rank ? `#${rank}` : '—'}</div><div class="metric-label">Rank</div></div>
+            <div class="metric-card"><div class="metric-value">${formatNumber(popularity)}</div><div class="metric-label">Popularity</div></div>
+            <div class="metric-card"><div class="metric-value">${formatNumber(members)}</div><div class="metric-label">Members</div></div>
+            <div class="metric-card"><div class="metric-value">${favourites ? formatNumber(favourites) : (meanScore ? (meanScore/10).toFixed(1)+'★' : '—')}</div><div class="metric-label">Favourites</div></div>
+            ${scoredBy ? `<div class="metric-card"><div class="metric-value">${formatNumber(scoredBy)}</div><div class="metric-label">Scored By</div></div>` : ''}
+          `;
+        } else {
+          const stats = data.statistics || {};
+          const pop   = stats.popularity ?? data.popularity;
+          const vc    = stats.vote_count ?? data.vote_count;
+          const avg   = stats.vote_average ?? data.vote_average;
+          const runtime = stats.runtime || data.runtime;
+          const seasons = stats.number_of_seasons || data.number_of_seasons;
+          const eps     = stats.number_of_episodes || data.number_of_episodes;
+          const budget  = stats.budget, revenue = stats.revenue;
+          const cards = [];
+          cards.push(`<div class="metric-card"><div class="metric-value">${avg != null ? Number(avg).toFixed(1) + '★' : '—'}</div><div class="metric-label">Rating</div></div>`);
+          cards.push(`<div class="metric-card"><div class="metric-value">${vc != null ? formatNumber(vc) : '—'}</div><div class="metric-label">Votes</div></div>`);
+          cards.push(`<div class="metric-card"><div class="metric-value">${pop != null ? formatNumber(pop) : '—'}</div><div class="metric-label">Popularity</div></div>`);
+          if (seasons) cards.push(`<div class="metric-card"><div class="metric-value">${seasons}${eps ? ` <span style="font-size:0.6em;color:var(--text-muted);">(${eps} eps)</span>` : ''}</div><div class="metric-label">Seasons</div></div>`);
+          else if (runtime) cards.push(`<div class="metric-card"><div class="metric-value">${runtime}m</div><div class="metric-label">Runtime</div></div>`);
+          if (budget) cards.push(`<div class="metric-card"><div class="metric-value">$${formatNumber(budget)}</div><div class="metric-label">Budget</div></div>`);
+          if (revenue) cards.push(`<div class="metric-card"><div class="metric-value">$${formatNumber(revenue)}</div><div class="metric-label">Revenue</div></div>`);
+          container.innerHTML = cards.join('');
+        }
       }
 
       function escapeHtml(str) { 
