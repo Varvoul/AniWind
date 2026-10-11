@@ -3736,13 +3736,15 @@ img { max-width: 100%; height: auto; display: block; }
                     console.warn('[AniCache] info: background refresh failed:', e.message);
                   }
                 })();
-                return; // Don't fall through to live API — background refresh handles it
+                return true; // cached/sparse render done — still a successful load
               }
 
               // Full API data was found in cache and rendered above — done.
               // No need to re-fetch from live API regardless of stamp freshness.
+              // (must return true — the DOMContentLoaded init checks this value
+              // and skips initUI/sidebar/recs when it is falsy)
               console.log('[AniCache] info: served from full cache', _mediaId);
-              return;
+              return true;
             }
           }
 
