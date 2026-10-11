@@ -5846,8 +5846,10 @@ img { max-width: 100%; height: auto; display: block; }
       function renderAnimeRecCard(anime) {
         const title = anime.title_english || anime.title || 'Unknown';
         const poster = anime.images?.jpg?.image_url || anime.images?.webp?.image_url || '';
-        const score = anime.score;
-        const year = anime.aired?.from?.slice(0, 4) || 'N/A';
+        // score may arrive as number (jikan) or string (anikoto DB rows)
+        const scoreNum = parseFloat(anime.score);
+        const score = isNaN(scoreNum) ? null : scoreNum;
+        const year = anime.aired?.from?.slice(0, 4) || anime.year || 'N/A';
         const episodes = anime.episodes || '?';
         const type = anime.type || 'TV';
         const slug = slugify(title);
