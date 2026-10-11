@@ -3053,7 +3053,8 @@ img { max-width: 100%; height: auto; display: block; }
               loadSidebarContent(),
               loadRecommendations(),
               fetchAllAnimeData(currentState.data?.title),
-              fetchAnimeScheduleData()
+              fetchAnimeScheduleData(),
+              fetchRuriLanguageData()
             ]);
           } else if (currentState.source === 'tmdb') {
             await Promise.all([
@@ -4085,18 +4086,98 @@ img { max-width: 100%; height: auto; display: block; }
         }
       }
 
-      function updateEpisodeDetail(subCount, dubCount) {
-        const epEl = document.getElementById('episodeDetailValue');
-        if (!epEl) return;
-        const data = currentState.data;
+      // ── Episodes detail field: total | CC sub | mic dub ─────────────────
+      // Fill-only merge, counts beat labels. Sources: anikoto payload native
+      // is_sub/is_dub counters (definitive, 0 = not available); ruri s-mal
+      // profile language endpoint (/s-mal/anime?mal_ids={mal}&language=sub,dub
+      // -> has_sub/has_dub flags from the ruri_anime_data_lang view = availability
+      // in the streaming catalog); AnimeSchedule/AllAnime aired counts (existing
+      // flows keep their roles via the same updateEpisodeDetail entry point).
+      function applyEpisodeLanguage(patch) {
+        const cur = currentState.episodeLang || (currentState.episodeLang = {});
+        if (patch.subCount != null && !(cur.subCount > 0)) cur.subCount = patch.subCount;
+        if (patch.dubCount != null && !(cur.dubCount > 0)) cur.dubCount = patch.dubCount;
+        if (patch.hasSub !== undefined && cur.hasSub === undefined) cur.hasSub = patch.hasSub;
+        if (patch.hasDub !== undefined && cur.hasDub === undefined) cur.hasDub = patch.hasDub;
+        paintEpisodeDetailValue();
+      }
+
+      function _epLangPart(iconCls, title, count, flag, label) {
+        const sep = '<span style="color:var(--text-muted);font-size:0.8em;">|</span>';
+        if (count > 0) return `${sep} <i class="fa-solid ${iconCls}" style="color:#7ec8f7;" title="${title}"></i> ${count}`;
+        if (count === 0 || flag === false) return `${sep} <i class="fa-solid ${iconCls}" style="color:var(--text-muted);opacity:0.45;" title="${title}: not available"></i> <span style="color:var(--text-muted);">—</span>`;
+        if (flag === true) return `${sep} <i class="fa-solid ${iconCls}" style="color:#7ec8f7;" title="${title}"></i> ${label}`;
+        return '';
+      }
+
+      function buildEpisodeDetailHtml() {
+        const data = currentState.data || {};
         const total = data.episodes || '?';
+        const L = currentState.episodeLang || {};
         let html = `<span>${total}</span>`;
-        if (subCount > 0 || dubCount > 0) {
-          html = `<span>${total}</span>`;
-          if (subCount > 0) html += ` <span style="color:var(--text-muted);font-size:0.8em;">|</span> <i class="fa-solid fa-closed-captioning" style="color:#7ec8f7;" title="Subtitled"></i> ${subCount}`;
-          if (dubCount > 0) html += ` <span style="color:var(--text-muted);font-size:0.8em;">|</span> <i class="fa-solid fa-microphone" style="color:#7ec8f7;" title="Dubbed"></i> ${dubCount}`;
+        html += _epLangPart('fa-closed-captioning', 'Subtitled', L.subCount, L.hasSub, 'Sub');
+        html += _epLangPart('fa-microphone', 'Dubbed', L.dubCount, L.hasDub, 'Dub');
+        return html;
+      }
+
+      function paintEpisodeDetailValue() {
+        const epEl = document.getElementById('episodeDetailValue');
+        if (epEl) epEl.innerHTML = buildEpisodeDetailHtml();
+      }
+
+      function updateEpisodeDetail(subCount, dubCount) {
+        applyEpisodeLanguage({
+          subCount: (typeof subCount === 'number' && subCount > 0) ? subCount : null,
+          dubCount: (typeof dubCount === 'number' && dubCount > 0) ? dubCount : null
+        });
+      }
+
+      // Ruri s-mal profile language endpoint — sub/dub data for the Episodes
+      // detail field. anikoto payloads carry native is_sub/is_dub counters
+      // (no fetch needed); jikan-/anilist- pages read has_sub/has_dub flags
+      // from /s-mal/anime?mal_ids={mal_id}&language=sub,dub (the lang view
+      // matches the streaming catalog by mal_id).
+      async function fetchRuriLanguageData() {
+        if (currentState.source === 'tmdb') return;
+        const data = currentState.data || {};
+        // 1) anikoto native counters — definitive counts, no fetch required
+        if (typeof data.is_sub === 'number' || typeof data.is_dub === 'number') {
+          applyEpisodeLanguage({
+            subCount: typeof data.is_sub === 'number' ? data.is_sub : null,
+            dubCount: typeof data.is_dub === 'number' ? data.is_dub : null
+          });
+          return;
         }
-        epEl.innerHTML = html;
+        // 2) s-mal language endpoint via the row's MAL id (anilist pages: the
+        //    /full payload row already carries mal_id; jikan pages: the URL id)
+        const malId = parseInt(data.mal_id, 10) || (currentState.source === 'jikan' ? currentState.id : null);
+        if (!malId) return;
+        const _mid = mediaKeyOf();
+        const _cacheKey = `info:rurilang:${_mid}`;
+        const apply = (flags) => {
+          currentState.ruriLangData = flags;
+          applyEpisodeLanguage({ hasSub: flags.has_sub === true, hasDub: flags.has_dub === true });
+        };
+        if (window.AniCache) {
+          try {
+            const cached = await window.AniCache.get(_cacheKey);
+            if (cached && typeof cached === 'object' && ('has_sub' in cached)) { apply(cached); return; }
+          } catch (e) { /* cache read failed — live fetch below */ }
+        }
+        try {
+          const url = `${CONFIG.RURI_BASE}/s-mal/anime?mal_ids=${malId}&language=sub,dub&limit=1`;
+          const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+          if (!res.ok) { console.warn('[RuriLang] HTTP', res.status); return; }
+          const json = await res.json();
+          const row = Array.isArray(json && json.data) ? json.data[0] : null;
+          if (!row) return;
+          const flags = { has_sub: row.has_sub === true, has_dub: row.has_dub === true };
+          apply(flags);
+          if (window.AniCache) {
+            window.AniCache.set({ cacheKey: _cacheKey, pageSource: 'info', section: 'ruri_language',
+              showId: _mid, malId: String(malId), data: flags, permanent: false }).catch(() => {});
+          }
+        } catch (e) { console.warn('[RuriLang] fetch failed:', e.message); }
       }
 
       function renderHero() {
@@ -4480,20 +4561,11 @@ img { max-width: 100%; height: auto; display: block; }
         if (isAnime) {
           const episodes = data.episodes;
           if (episodes) {
-            // Build episode HTML with sub/dub counts if available
-            const allAnime = currentState.allAnimeData;
-            let episodeHtml = `<span>${episodes}</span>`;
-            if (allAnime) {
-              const { episodes_sub, episodes_dub } = allAnime;
-              if (episodes_sub > 0 || episodes_dub > 0) {
-                episodeHtml = `<span>${episodes}</span>`;
-                if (episodes_sub > 0) episodeHtml += ` <span style="color:var(--text-muted);font-size:0.8em;">|</span> <i class="fa-solid fa-closed-captioning" style="color:#7ec8f7;" title="Subtitled"></i> ${episodes_sub}`;
-                if (episodes_dub > 0) episodeHtml += ` <span style="color:var(--text-muted);font-size:0.8em;">|</span> <i class="fa-solid fa-microphone" style="color:#7ec8f7;" title="Dubbed"></i> ${episodes_dub}`;
-              }
-            }
+            // total | CC sub | mic dub — sources merged by applyEpisodeLanguage
+            // (ruri s-mal language flags / anikoto counters / schedule counts)
             details.push({
               label: 'Episodes',
-              value: `<span id="episodeDetailValue" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;justify-content:flex-end;">${episodeHtml}</span>`,
+              value: `<span id="episodeDetailValue" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;justify-content:flex-end;">${buildEpisodeDetailHtml()}</span>`,
               isHtml: true
             });
           } else {
