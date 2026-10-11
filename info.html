@@ -1613,20 +1613,6 @@ img { max-width: 100%; height: auto; display: block; }
   }
 }
 
-/* Water Temple + Sunken Treasures — owner spec: 3/4 columns on computers
-   (3 on laptops, 4 on wide monitors) instead of the generic 6/7. Portrait 2
-   and mobile-landscape 3 keep inheriting from .recs-grid above. */
-@media (min-width: 769px) and (max-width: 1200px) {
-  #waterTempleGrid, #sunkenTreasuresGrid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-@media (min-width: 1201px) {
-  #waterTempleGrid, #sunkenTreasuresGrid {
-    grid-template-columns: repeat(4, 1fr);
-  }
-}
 
 /* big phones in landscape (iPhone/Pixel ~769-934px wide but low height) —
    still 3 columns per spec; desktop windows of the same width keep 6.
@@ -5925,18 +5911,17 @@ img { max-width: 100%; height: auto; display: block; }
         _recPools[sectionKey] = { el: gridEl, items: pool || [] };
         _recPaint(sectionKey);
       }
-      // Row spec (owner): Water Temple and Sunken Treasures render up to 12
-      // FULL rows on phones (2-col portrait / 3-col landscape) and 4 rows on
-      // computers (3/4 desktop columns). Recommend For You keeps the legacy
-      // behaviour (4 rows, columns shrink to avoid a stub row). When the pool
-      // cannot fill the desired rows, rows shrink to floor(pool/cols) so a
-      // section never ends on a stub row — the CSS column spec always wins.
+      // Row spec (owner): on PHONES Water Temple, Sunken Treasures AND the
+      // TMDB Recommend-For-You render up to 12 FULL rows (2-col portrait /
+      // 3-col landscape). On COMPUTERS every section keeps the ORIGINAL
+      // legacy look: 6/7 CSS columns, 4 full rows, columns shrink to
+      // floor(pool/4) when the pool is short so a stub row never renders.
+      // When the pool cannot fill the desired rows on phones, rows shrink to
+      // floor(pool/cols) — the CSS column spec always wins.
       const _BIG_PHONE_LANDSCAPE = '(min-width: 769px) and (max-width: 934px) and (max-height: 500px) and (orientation: landscape)';
-      function _recRowsFor(sectionKey) {
-        if (sectionKey === 'rfy') return 4;
-        const isPhone = window.matchMedia('(max-width: 768px)').matches
-          || window.matchMedia(_BIG_PHONE_LANDSCAPE).matches;
-        return isPhone ? 12 : 4;
+      function _recIsPhone() {
+        return window.matchMedia('(max-width: 768px)').matches
+            || window.matchMedia(_BIG_PHONE_LANDSCAPE).matches;
       }
       function _recPlan(poolLen, cols, desiredRows) {
         let rows = desiredRows;
@@ -5950,16 +5935,21 @@ img { max-width: 100%; height: auto; display: block; }
         grid.style.gridTemplateColumns = '';            // read the CSS breakpoint first
         const cssCols = getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean).length || 4;
         const pool = entry.items;
-        if (sectionKey === 'rfy') {
-          // legacy: shrink columns to keep 4 full rows on every breakpoint
+        const renderCard = sectionKey === 'rfy'
+          ? (a => renderTMDBRecCard(a, currentState.type))
+          : (a => renderAnimeRecCard(a));
+        if (!_recIsPhone()) {
+          // computers — original legacy behaviour: 4 full rows, shrink the
+          // column count (inline) when the pool cannot fill them
           let cols = cssCols;
           if (pool.length < cols * 4) cols = Math.max(1, Math.floor(pool.length / 4));
           if (cols !== cssCols) grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-          grid.innerHTML = pool.slice(0, cols * 4).map(a => renderTMDBRecCard(a, currentState.type)).join('');
+          grid.innerHTML = pool.slice(0, cols * 4).map(renderCard).join('');
           return;
         }
-        const plan = _recPlan(pool.length, cssCols, _recRowsFor(sectionKey));
-        grid.innerHTML = pool.slice(0, plan.count).map(a => renderAnimeRecCard(a)).join('');
+        // phones — up to 12 full rows at the CSS column count
+        const plan = _recPlan(pool.length, cssCols, 12);
+        grid.innerHTML = pool.slice(0, plan.count).map(renderCard).join('');
       }
       let _recResizeTimer = null;
       window.addEventListener('resize', () => {
@@ -6012,7 +6002,10 @@ img { max-width: 100%; height: auto; display: block; }
             if (res.ok) {
               const json = await res.json();
               push(json.data);
-              if (items.length < 36 && json.pagination && json.pagination.has_next_page) {
+              // computers need 28 (7 cols x 4 rows, original behaviour);
+              // phones need 36 (3 cols x 12 rows in landscape)
+              const _wtNeed = _recIsPhone() ? 36 : 28;
+              if (items.length < _wtNeed && json.pagination && json.pagination.has_next_page) {
                 try {
                   const res2 = await fetch(base + '&page=2', { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(12000) });
                   if (res2.ok) push((await res2.json()).data);
@@ -6050,7 +6043,34 @@ img { max-width: 100%; height: auto; display: block; }
       // Recommend for You — TMDB movie/TV pages. NO second details call:
       // recommendations are extracted from the single mapple details payload
       // (movie: recommendations + similar; tv: embedded list when present,
-      // with one lightweight fallback fetch only when the payload lacks it)
+      // with one lightweight fallback fetch only when the payload lacks it).
+      // PHONES: 12 full rows need up to 36 items (3 cols x 12) — when the
+      // embedded pool is short, up to two lightweight /recommendations page
+      // fetches top it up (computers keep the original no-extra-call path).
+      const _RFY_CAP = 40;          // painter never needs more than 36
+      function _rfyScore(a) { return (a.vote_average || 0) * Math.log10((a.vote_count || 1) + 1); }
+      async function _rfyTopUp(base, mediaType) {
+        const seen = new Set(base.map(a => Number(a.id)));
+        seen.add(Number(currentState.id));
+        const out = base.slice();
+        for (const p of [1, 2]) {
+          if (out.length >= 36) break;
+          try {
+            const res = await fetch(`${CONFIG.MAPPLE_BASE}/tmdb/${mediaType}/${currentState.id}/recommendations?language=en-US&page=${p}`,
+                                    { signal: AbortSignal.timeout(10000) });
+            if (!res.ok) break;
+            const rows = (await res.json()).results || [];
+            if (!rows.length) break;               // endpoint exhausted
+            rows.forEach(item => {
+              if (!item || !item.id || seen.has(Number(item.id))) return;
+              seen.add(Number(item.id));
+              out.push(item);
+            });
+          } catch (e) { console.warn('[RFY] top-up page-' + p + ' failed:', e.message); break; }
+        }
+        out.sort((a, b) => _rfyScore(b) - _rfyScore(a));
+        return out;
+      }
       async function loadRecommendForYou() {
         const _rfyKey = `info:recommended_for_you:${mediaKeyOf()}`;
         if (window.AniCache) {
@@ -6060,7 +6080,25 @@ img { max-width: 100%; height: auto; display: block; }
               const el = document.getElementById('recommendForYouGrid');
               const sec = document.getElementById('recommendForYouSection');
               if (sec) sec.style.display = 'block';
-              if (el) _recRender('rfy', el, cached);
+              let pool = cached;
+              // phones: a cached pool saved on a desktop visit may be too
+              // short for 12 full rows — top it up once, re-cache, render
+              if (_recIsPhone() && pool.length < 36) {
+                try {
+                  const topped = await _rfyTopUp(pool, currentState.type);
+                  if (topped.length > pool.length) {
+                    pool = topped.slice(0, _RFY_CAP);
+                    _recRender('rfy', el, pool);
+                    if (window.AniCache) {
+                      window.AniCache.set({ cacheKey: _rfyKey, pageSource: 'info',
+                        section: 'show_recs', tmdbId: currentState.id, data: pool,
+                        itemCount: pool.length, permanent: currentState.isPermanent }).catch(() => {});
+                    }
+                    return;
+                  }
+                } catch (e2) { console.warn('[RFY] cached top-up failed:', e2.message); }
+              }
+              if (el) _recRender('rfy', el, pool);
               return;
             }
           } catch (e) {
@@ -6105,14 +6143,20 @@ img { max-width: 100%; height: auto; display: block; }
           }
 
           // Sort: weighted score (vote_average × log10(vote_count+1))
-          merged.sort((a, b) => {
-            const scoreA = (a.vote_average || 0) * Math.log10((a.vote_count || 1) + 1);
-            const scoreB = (b.vote_average || 0) * Math.log10((b.vote_count || 1) + 1);
-            return scoreB - scoreA;
-          });
+          merged.sort((a, b) => _rfyScore(b) - _rfyScore(a));
 
-          // cap at 32 — the 4-full-row renderer needs at most 7 cols x 4 = 28
-          const final = merged.slice(0, 32);
+          // phones need up to 36 (3 cols x 12 rows) — top up when the
+          // embedded pool is short; computers keep the original pool
+          let finalPool = merged;
+          if (_recIsPhone() && finalPool.length < 36) {
+            try {
+              const topped = await _rfyTopUp(merged, mediaType);
+              if (topped.length > finalPool.length) finalPool = topped;
+            } catch (e) { console.warn('[RFY] live top-up failed:', e.message); }
+          }
+
+          // cap at 40 — the painter needs at most 3 cols x 12 rows = 36
+          const final = finalPool.slice(0, _RFY_CAP);
 
           if (final.length > 0) {
             _recRender('rfy', gridContainer, final);

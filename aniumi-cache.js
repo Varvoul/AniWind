@@ -1,5 +1,5 @@
 /*!
- * aniumi-cache.js v1.0.0 — permanent browser cache for RuriStream info pages
+ * aniumi-cache.js v2.0.0 — permanent browser cache for RuriStream info pages
  * ---------------------------------------------------------------------------
  * localStorage-backed implementation of the AniCache API the info page was
  * written against. Data persists until the user clears browser/site data.
@@ -16,12 +16,18 @@
  *   AniCache.debug()                      -> {keys, bytes} for ops checks
  *
  * Storage layout (localStorage):
- *   aniumi:v1:lru                     -> LRU index [{k, sz, perm, ts}]
- *   aniumi:v1:cache:{cacheKey}        -> meta JSON {t, ttl, nc}  (ttl 0 = forever)
- *   aniumi:v1:cache:{cacheKey}#{i}    -> chunk i of JSON.stringify(data)
- *   aniumi:v1:det:{mediaId}           -> show_details blob (same meta/chunks)
- *   aniumi:v1:show:{mediaId}          -> shows row (small, no chunks)
- *   aniumi:v1:stamp:{name}            -> section stamp {t, n, perm}
+ *   aniumi:v2:lru                     -> LRU index [{k, sz, perm, ts}]
+ *   aniumi:v2:cache:{cacheKey}        -> meta JSON {t, ttl, nc}  (ttl 0 = forever)
+ *   aniumi:v2:cache:{cacheKey}#{i}    -> chunk i of JSON.stringify(data)
+ *   aniumi:v2:det:{mediaId}           -> show_details blob (same meta/chunks)
+ *   aniumi:v2:show:{mediaId}          -> shows row (small, no chunks)
+ *   aniumi:v2:stamp:{name}            -> section stamp {t, n, perm}
+ *
+ * v2 MIGRATION: on first load every legacy key is swept — anything under
+ * aniumi:v1:* (previous lib generation) plus bare "info:" / "sidebar_html:"
+ * keys (older raw-writing generations). Stale payloads from those eras can
+ * carry outdated markup/data shapes that render wrong under the current UI,
+ * so they are deleted once and rebuilt through live calls on next visit.
  *
  * TTL policy: permanent:true -> never expires; otherwise 24h default,
  * 72h for sidebar_* sections (pre-existing semantics). Expired entries are
@@ -33,7 +39,7 @@
 (function (root) {
   'use strict';
 
-  var PREFIX     = 'aniumi:v1:';
+  var PREFIX     = 'aniumi:v2:';
   var IDX_KEY    = PREFIX + 'lru';
   var CHUNK      = 380000;            // max chars per storage value
   var MAX_ENTRY  = 2000000;           // refuse single payloads above this
@@ -48,6 +54,27 @@
     ls.setItem(PREFIX + 'probe', '1');
     ls.removeItem(PREFIX + 'probe');
   } catch (e) { ls = null; }          // private mode / disabled — all no-ops
+
+  // ── one-time legacy sweep (v2 migration) ─────────────────────────────
+  // Removes every payload written by older cache generations: aniumi:v1:*
+  // (previous lib) and bare info:*/sidebar_html:* (older raw-key eras).
+  // shared.js keys (aniumi_last_activity / aniumi_pending_geo — no colon
+  // after "aniumi") and the current aniumi:v2:* namespace are untouched.
+  (function sweepLegacy() {
+    if (!ls) return;
+    var dead = [];
+    try {
+      for (var i = 0; i < ls.length; i++) {
+        var k = ls.key(i);
+        if (!k) continue;
+        if (k.indexOf('aniumi:') === 0 && k.indexOf(PREFIX) !== 0) dead.push(k);
+        else if (k.indexOf('info:') === 0 || k.indexOf('sidebar_html:') === 0) dead.push(k);
+      }
+    } catch (e) { return; }
+    for (var j = 0; j < dead.length; j++) {
+      try { ls.removeItem(dead[j]); } catch (e2) {}
+    }
+  })();
 
   function _now() { return Date.now(); }
 
