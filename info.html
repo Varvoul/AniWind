@@ -239,7 +239,9 @@ img { max-width: 100%; height: auto; display: block; }
   border-bottom: none;
 }
 
-.sidebar-section h4 {
+/* Scoped to the DIRECT section heading only — a plain descendant selector
+   also styled the card-title h4s inside the lists (put every title in a box) */
+.sidebar-section > h4 {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -860,12 +862,12 @@ img { max-width: 100%; height: auto; display: block; }
 }
 .season-number {
   font-weight: 700;
-  font-size: 0.9rem;
+  font-size: 0.72rem;
   color: #fff;
   text-align: center;
-  padding: 6px 20px;
+  padding: 3px 14px;
   background: rgba(43, 108, 176, 0.95);
-  border-radius: 20px;
+  border-radius: 14px;
   backdrop-filter: blur(4px);
   max-width: 90%;
   white-space: nowrap;
@@ -1580,37 +1582,28 @@ img { max-width: 100%; height: auto; display: block; }
 
 .recs-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(185px, 1fr));
+  grid-template-columns: repeat(2, 1fr); /* mobile portrait */
   gap: 16px;
 }
 
-@media (min-width: 768px) {
-  .recs-grid {
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  }
-}
-
-@media (min-width: 1201px) {
-  .recs-grid {
-    grid-template-columns: repeat(7, 1fr);
-  }
-}
-
-@media (max-width: 1200px) and (min-width: 769px) {
-  .recs-grid {
-    grid-template-columns: repeat(4, 1fr);
-  }
-}
-
+/* mobile landscape */
 @media (max-width: 768px) and (orientation: landscape) {
   .recs-grid {
     grid-template-columns: repeat(3, 1fr);
   }
 }
 
-@media (max-width: 480px) {
+/* PC: 6 or 7 columns by display size — JS tops sections up so every
+   page always shows four FULL rows (never a stub last row) */
+@media (min-width: 769px) and (max-width: 1200px) {
   .recs-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(6, 1fr);
+  }
+}
+
+@media (min-width: 1201px) {
+  .recs-grid {
+    grid-template-columns: repeat(7, 1fr);
   }
 }
 
@@ -2214,6 +2207,11 @@ img { max-width: 100%; height: auto; display: block; }
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
   }
+  /* compact fonts so text never dwarfs the low-height cards */
+  .season-number { font-size: 0.6rem; padding: 2px 9px; border-radius: 10px; }
+  .season-relation-tag { font-size: 0.48rem; padding: 1px 5px; }
+  .season-now-tag { font-size: 0.46rem; padding: 2px 5px; }
+  .season-info-overlay { padding: 4px 6px 6px; gap: 2px; }
 }
 
 /* Season card styling (original) */
@@ -2253,12 +2251,12 @@ img { max-width: 100%; height: auto; display: block; }
 
 .season-number {
   font-weight: 700;
-  font-size: 0.9rem;
+  font-size: 0.72rem;
   color: #fff;
   text-align: center;
-  padding: 6px 20px;
+  padding: 3px 14px;
   background: rgba(43, 108, 176, 0.95);
-  border-radius: 20px;
+  border-radius: 14px;
   backdrop-filter: blur(4px);
   max-width: 90%;
   white-space: nowrap;
@@ -2271,20 +2269,20 @@ img { max-width: 100%; height: auto; display: block; }
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 8px 12px 12px;
+  padding: 5px 10px 8px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   z-index: 2;
 }
 
 .season-relation-tag {
-  font-size: 0.65rem;
+  font-size: 0.52rem;
   font-weight: 700;
-  letter-spacing: 0.06em;
-  padding: 2px 8px;
-  border-radius: 20px;
+  letter-spacing: 0.05em;
+  padding: 1px 6px;
+  border-radius: 12px;
   background: rgba(236, 201, 75, 0.2);
   border: 1px solid rgba(236, 201, 75, 0.5);
   color: var(--accent-gold, #ecc94b);
@@ -2320,14 +2318,14 @@ img { max-width: 100%; height: auto; display: block; }
 }
 .season-card .season-now-tag {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: 6px;
+  right: 6px;
   z-index: 3;
-  font-size: 0.6rem;
+  font-size: 0.5rem;
   font-weight: 800;
-  letter-spacing: 0.06em;
-  padding: 3px 8px;
-  border-radius: 20px;
+  letter-spacing: 0.05em;
+  padding: 2px 6px;
+  border-radius: 12px;
   background: rgba(236, 201, 75, 0.92);
   color: #201a05;
   text-transform: uppercase;
@@ -3261,6 +3259,9 @@ img { max-width: 100%; height: auto; display: block; }
             const data = json && json.data;
             if (!data || !(data.title || data.title_english)) continue;
             _ruriApply(data, `${src}-${id}`);
+            // fill any displayed-but-missing metadata from the page-type's
+            // secondary source (self-hosted jikan / anilist proxy) before render
+            await enrichAnimeMetadata();
             return true;
           } catch (e) { console.warn('[Ruri] fetch failed:', url, e.message); }
         }
@@ -3281,6 +3282,121 @@ img { max-width: 100%; height: auto; display: block; }
         const data = json && json.data;
         if (!data || !(data.title || data.title_english)) throw new Error('ruri: row not found');
         _ruriApply(data, `jikan-${malId}`);
+        await enrichAnimeMetadata();
+      }
+
+      // ── Missing-metadata enrichment ─────────────────────────────────
+      // If any displayed field (poster+title, stats container, show details,
+      // backdrop) is missing from the ruri DB row, fetch it from the
+      // owner's secondary source for that page type and merge ONLY what is
+      // missing:   jikan-{id}/anikoto-{id} pages → self-hosted Jikan /full
+      //            anilist-{id} pages           → anilist-my-proxy /api/anilist/{id}/full
+      function _metaHas(v) {
+        return v !== null && v !== undefined && v !== '' &&
+               !(Array.isArray(v) && !v.length) &&
+               !(typeof v === 'object' && !Array.isArray(v) && !Object.keys(v).length);
+      }
+
+      function _missingMetaFields(d) {
+        const miss = [];
+        if (!d || typeof d !== 'object') return miss;
+        if (!_metaHas(d.title) && !_metaHas(d.title_english)) miss.push('title');
+        if (!_metaHas(d.images?.jpg?.large_image_url) && !_metaHas(d.images?.jpg?.image_url)) miss.push('images');
+        if (!_metaHas(d.banner_image)) miss.push('banner_image');
+        if (!_metaHas(d.synopsis)) miss.push('synopsis');
+        if (!_metaHas(d.score)) miss.push('score');
+        if (!_metaHas(d.scored_by)) miss.push('scored_by');
+        if (!_metaHas(d.rank)) miss.push('rank');
+        if (!_metaHas(d.popularity)) miss.push('popularity');
+        if (!_metaHas(d.members)) miss.push('members');
+        if (!_metaHas(d.favorites)) miss.push('favorites');
+        if (!_metaHas(d.episodes)) miss.push('episodes');
+        if (!_metaHas(d.status)) miss.push('status');
+        if (!_metaHas(d.aired)) miss.push('aired');
+        if (!_metaHas(d.season) && !_metaHas(d.year)) miss.push('season');
+        if (!_metaHas(d.duration)) miss.push('duration');
+        if (!_metaHas(d.rating)) miss.push('rating');
+        if (!_metaHas(d.studios)) miss.push('studios');
+        if (!_metaHas(d.producers)) miss.push('producers');
+        if (!_metaHas(d.licensors)) miss.push('licensors');
+        if (!_metaHas(d.genres)) miss.push('genres');
+        if (!_metaHas(d.title_japanese)) miss.push('title_japanese');
+        if (!_metaHas(d.title_synonyms)) miss.push('title_synonyms');
+        if (!_metaHas(d.background)) miss.push('background');
+        if (!_metaHas(d.broadcast)) miss.push('broadcast');
+        if (!_metaHas(d.source)) miss.push('source');
+        if (!_metaHas(d.external_links)) miss.push('external_links');
+        return miss;
+      }
+
+      async function enrichAnimeMetadata() {
+        const d = currentState.data;
+        if (!d || currentState.source === 'tmdb') return;
+        const miss = _missingMetaFields(d);
+        if (!miss.length) return;
+        console.log('[Enrich] missing fields:', miss.join(', '));
+
+        // secondary source chosen by the page's {source-id} pair
+        let url = null;
+        if (currentState.source === 'anilist') {
+          const aid = Number(d.anilist_id) || currentState.id;
+          if (aid) url = `https://anilist-my-proxy.vercel.app/api/anilist/${aid}/full`;
+        } else {
+          const mid = currentState.source === 'jikan'
+            ? currentState.id
+            : (parseInt(d.mal_id, 10) || jikanIdOf());
+          if (mid) url = `${CONFIG.JIKAN_SELF}/anime/${mid}/full`;
+        }
+        if (!url) return;
+
+        let fb = null;
+        for (let attempt = 0; attempt < 2 && !fb; attempt++) {
+          try {
+            const r = await fetch(url, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(20000) });
+            if (r.ok) fb = await r.json();
+          } catch (e) { console.warn('[Enrich] fetch failed:', e.message); }
+        }
+        if (!fb) return;
+        if (fb && typeof fb === 'object' && fb.data && typeof fb.data === 'object') fb = fb.data;
+        if (!fb || typeof fb !== 'object') return;
+
+        const filled = [];
+        for (const k of miss) {
+          if (k === 'images') {
+            const fbImg = (fb.images && (fb.images.jpg || fb.images.webp))
+              ? fb.images
+              : (fb.image_url ? { jpg: { image_url: fb.image_url, large_image_url: fb.image_url } } : null);
+            if (!fbImg) continue;
+            d.images = d.images || {};
+            ['jpg', 'webp'].forEach(fmt => {
+              const src = fbImg[fmt];
+              if (!src) return;
+              if (!_metaHas(d.images[fmt]?.large_image_url) && !_metaHas(d.images[fmt]?.image_url)) {
+                d.images[fmt] = src;
+                filled.push('images.' + fmt);
+              }
+            });
+            continue;
+          }
+          const v = fb[k];
+          if (!_metaHas(v)) continue;
+          // never overwrite a present value — fill-only semantics
+          d[k] = v;
+          filled.push(k);
+        }
+
+        if (filled.length) {
+          _normalizeAnimeData(d);
+          if (!currentState.title || currentState.title === 'Unknown') {
+            currentState.title = d.title_english || d.title || currentState.title;
+          }
+          console.log('[Enrich] filled:', filled.join(', '));
+          if (window.AniCache) {
+            window.AniCache.set({ cacheKey: `info:full_data:${mediaKeyOf()}`, pageSource: 'info',
+              section: 'info_full_data', showId: null, malId: d.mal_id ? String(d.mal_id) : null,
+              data: d, permanent: currentState.isPermanent }).catch(() => {});
+          }
+        }
       }
 
       async function initAuth() {
@@ -5500,6 +5616,37 @@ img { max-width: 100%; height: auto; display: block; }
 
       // Water Temple — ruri genre-based recommendations for THIS show,
       // fallback: self-hosted jikan recommendations for a seed title
+      // ── Rec-grid renderer: guarantees four FULL rows at every breakpoint ──
+      // Columns come from the CSS breakpoints (PC 7/6, mobile landscape 3,
+      // portrait 2); the pool is sliced to columns x 4. When the pool cannot
+      // fill four rows at the CSS column count, the count is reduced to
+      // floor(pool/4) so a section never ends on a stub row.
+      const _recPools = {};   // { waterTemple: {el, items}, sunken: {...}, rfy: {...} }
+      function _recRender(sectionKey, gridEl, pool) {
+        if (!gridEl) return;
+        _recPools[sectionKey] = { el: gridEl, items: pool || [] };
+        _recPaint(sectionKey);
+      }
+      function _recPaint(sectionKey) {
+        const entry = _recPools[sectionKey];
+        if (!entry || !entry.el || !entry.items.length) return;
+        const grid = entry.el;
+        grid.style.gridTemplateColumns = '';            // read the CSS breakpoint first
+        const cssCols = getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean).length || 4;
+        const pool = entry.items;
+        let cols = cssCols;
+        if (pool.length < cols * 4) cols = Math.max(1, Math.floor(pool.length / 4));
+        if (cols !== cssCols) grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+        grid.innerHTML = pool.slice(0, cols * 4).map(a =>
+          sectionKey === 'rfy' ? renderTMDBRecCard(a, currentState.type) : renderAnimeRecCard(a)
+        ).join('');
+      }
+      let _recResizeTimer = null;
+      window.addEventListener('resize', () => {
+        clearTimeout(_recResizeTimer);
+        _recResizeTimer = setTimeout(() => { Object.keys(_recPools).forEach(_recPaint); }, 250);
+      });
+
       async function loadWaterTemple() {
         const _wtKey = `info:water_temple:${mediaKeyOf()}`;
         if (window.AniCache) {
@@ -5509,7 +5656,7 @@ img { max-width: 100%; height: auto; display: block; }
               const sec = document.getElementById('waterTempleSection');
               const el = document.getElementById('waterTempleGrid');
               if (sec) sec.style.display = 'block';
-              if (el) el.innerHTML = cached.map(s => renderAnimeRecCard(s)).join('');
+              if (el) _recRender('waterTemple', el, cached);
               return;
             }
           } catch (e) {
@@ -5529,14 +5676,28 @@ img { max-width: 100%; height: auto; display: block; }
           // /s-mal/anime/jikan-{id}/recommendations?by=genres
           // /s-mal/anime/anilist-{id}/recommendations?by=genres
           // /anikoto/anime/anikoto-{id}/recommendations?by=genres
+          // limit=25 (server max) + page-2 top-up so even the widest
+          // breakpoint (7 cols x 4 rows = 28) can be filled with full rows.
           const currentId = Number(currentState.id);
           let items = [];
           try {
-            const res = await fetch(`${RURI_BASE}/${currentState.source === 'anikoto' ? 'anikoto' : 's-mal'}/anime/${currentState.source}-${currentState.id}/recommendations?by=genres`,
-                                    { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(12000) });
+            const base = `${RURI_BASE}/${currentState.source === 'anikoto' ? 'anikoto' : 's-mal'}/anime/${currentState.source}-${currentState.id}/recommendations?by=genres&limit=25`;
+            const seen = new Set([currentId]);
+            const push = (arr) => (arr || []).forEach(a => {
+              const k = Number(a.mal_id);
+              if (!k || seen.has(k)) return;
+              seen.add(k); items.push(a);
+            });
+            const res = await fetch(base, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(12000) });
             if (res.ok) {
               const json = await res.json();
-              items = (json.data || []).filter(a => Number(a.mal_id) !== currentId).slice(0, 24);
+              push(json.data);
+              if (items.length < 28 && json.pagination && json.pagination.has_next_page) {
+                try {
+                  const res2 = await fetch(base + '&page=2', { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(12000) });
+                  if (res2.ok) push((await res2.json()).data);
+                } catch (e2) { console.warn('[WaterTemple] page-2 top-up failed:', e2.message); }
+              }
             }
           } catch (e) { console.warn('[WaterTemple] ruri primary failed:', e.message); }
 
@@ -5555,7 +5716,7 @@ img { max-width: 100%; height: auto; display: block; }
           }
 
           if (items.length > 0) {
-            gridContainer.innerHTML = items.map(anime => renderAnimeRecCard(anime)).join('');
+            _recRender('waterTemple', gridContainer, items);
             if (window.AniCache) window.AniCache.set({ cacheKey: _wtKey, pageSource:'info', section:'water_temple', data: items, permanent: true }).catch(()=>{});
           } else {
             gridContainer.innerHTML = '<div class="loading-text">No recommendations found</div>';
@@ -5579,7 +5740,7 @@ img { max-width: 100%; height: auto; display: block; }
               const el = document.getElementById('recommendForYouGrid');
               const sec = document.getElementById('recommendForYouSection');
               if (sec) sec.style.display = 'block';
-              if (el) el.innerHTML = cached.map(s => renderTMDBRecCard(s, currentState.type)).join('');
+              if (el) _recRender('rfy', el, cached);
               return;
             }
           } catch (e) {
@@ -5630,10 +5791,11 @@ img { max-width: 100%; height: auto; display: block; }
             return scoreB - scoreA;
           });
 
-          const final = merged.slice(0, 24);
+          // cap at 32 — the 4-full-row renderer needs at most 7 cols x 4 = 28
+          const final = merged.slice(0, 32);
 
           if (final.length > 0) {
-            gridContainer.innerHTML = final.map(item => renderTMDBRecCard(item, mediaType)).join('');
+            _recRender('rfy', gridContainer, final);
             if (window.AniCache) {
               window.AniCache.set({ cacheKey: _rfyKey, pageSource:'info',
                 section:'show_recs',
@@ -5740,7 +5902,7 @@ img { max-width: 100%; height: auto; display: block; }
             _sunkenPages[key] = _sunkenPages[key] || {};
             _sunkenPages[key][page] = items;
             _sunkenTotalPages[key] = total;
-            gridContainer.innerHTML = items.map(a => renderAnimeRecCard(a)).join('');
+            _recRender('sunken', gridContainer, items);
             renderSunkenPagination(page, total, paginationContainer);
             return;
           }
@@ -5761,7 +5923,9 @@ img { max-width: 100%; height: auto; display: block; }
                                   { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(12000) });
           if (res.ok) {
             const json = await res.json();
-            items = (json.data || []).filter(a => !currentMal || Number(a.mal_id) !== Number(currentMal)).slice(0, 24);
+            // keep the full server page (25 rows) — _recRender slices it to
+            // columns x 4 so PC never ends on a stub row
+            items = (json.data || []).filter(a => !currentMal || Number(a.mal_id) !== Number(currentMal));
             const pg = json.pagination || {};
             totalPages = Math.min(SUNKEN_MAX_PAGES, pg.last_visible_page || 1);
           }
@@ -5774,14 +5938,14 @@ img { max-width: 100%; height: auto; display: block; }
             const res2 = await fetchWithRetry(`${CONFIG.JIKAN_SELF}/anime/10620/recommendations`);
             const json2 = await res2.json();
             const all = (json2.data || []).filter(a => !currentMal || Number(a.mal_id) !== Number(currentMal));
-            totalPages = Math.min(SUNKEN_MAX_PAGES, Math.ceil(all.length / 24) || 1);
-            items = all.slice((page - 1) * 24, page * 24);
+            totalPages = Math.min(SUNKEN_MAX_PAGES, Math.ceil(all.length / 28) || 1);
+            items = all.slice((page - 1) * 28, page * 28);
           } catch (e) { console.warn('[Sunken] fallback failed:', e.message); }
         }
 
         gridContainer.style.opacity = '1';
         if (items.length) {
-          gridContainer.innerHTML = items.map(a => renderAnimeRecCard(a)).join('');
+          _recRender('sunken', gridContainer, items);
         } else {
           gridContainer.innerHTML = '<div class="loading-text" style="grid-column:1/-1;text-align:center;padding:40px 0;">No recommendations found for this page</div>';
           totalPages = 1;
@@ -6138,31 +6302,47 @@ img { max-width: 100%; height: auto; display: block; }
 
         let images = []; // { type, url (full), thumb (display) }
 
+        // Dedupe helper — MAL/AniList serve the same artwork as .jpg/.webp
+        // and as l/ll size variants; collapse them so the masonry never
+        // repeats one artwork and never leaves whole columns empty.
+        const _seenArt = new Set();
+        const pushImg = (type, url, thumb) => {
+          if (!url || typeof url !== 'string') return;
+          const key = url.trim()
+            .replace(/\.(jpg|jpeg|png|webp)(\?.*)?$/i, '')
+            .replace(/[l]{1,2}$/i, '');
+          if (_seenArt.has(key)) return;
+          _seenArt.add(key);
+          images.push({ type, url, thumb: thumb || url });
+        };
+
         if (isAnime) {
-          // main poster first
+          // ruri source-id endpoint image (poster) first
           const jpg = data.images?.jpg;
           const webp = data.images?.webp;
-          if (jpg?.large_image_url) images.push({ type: 'poster', url: jpg.large_image_url, thumb: jpg.large_image_url });
-          if (webp?.large_image_url && webp.large_image_url !== jpg?.large_image_url)
-            images.push({ type: 'poster', url: webp.large_image_url, thumb: webp.large_image_url });
+          pushImg('poster', jpg?.large_image_url || jpg?.image_url);
+          pushImg('poster', webp?.large_image_url);
 
-          // banner as a landscape piece (ruri payloads carry banner_image {large, small})
-          const bi = data.banner_image;
-          const bannerUrl = (bi && typeof bi === 'object') ? (bi.large || bi.small || '') : (typeof bi === 'string' ? bi : '');
-          if (bannerUrl) images.push({ type: 'backdrop', url: bannerUrl, thumb: bannerUrl });
+          // banner array data — ruri rows may ship one {large,small} object,
+          // a bare string, or an array of any of these; accept every shape
+          const bannerList = Array.isArray(data.banner_image)
+            ? data.banner_image
+            : [data.banner_image];
+          bannerList.forEach(bi => {
+            const u = (bi && typeof bi === 'object') ? (bi.large || bi.small || '') : (typeof bi === 'string' ? bi : '');
+            pushImg('backdrop', u);
+          });
 
-          // extra pictures — self-hosted jikan /full ships the full gallery (memoised)
+          // picture array data — self-hosted jikan /full ships the full
+          // gallery (memoised); capped so huge galleries stay snappy
           try {
             const jikanId = jikanIdOf();
             if (jikanId) {
               const j = await jikanSelfFull(jikanId);
-              ((j && j.pictures) || []).forEach(pic => {
+              ((j && j.pictures) || []).slice(0, 26).forEach(pic => {
                 const url = pic.images?.jpg?.large_image_url || pic.images?.jpg?.image_url
                          || pic.jpg?.large_image_url || pic.jpg?.image_url;
-                const thumb = pic.images?.jpg?.large_image_url || pic.images?.jpg?.image_url || url;
-                if (url && !images.some(i => i.url === url)) {
-                  images.push({ type: 'poster', url, thumb });
-                }
+                pushImg('poster', url);
               });
             }
           } catch (e) { /* use what we have */ }
@@ -6172,33 +6352,21 @@ img { max-width: 100%; height: auto; display: block; }
           const tmdbImgs = data.pictures || data.images || {};
 
           if (!tmdbImgs.posters?.length && !tmdbImgs.backdrops?.length) {
-            if (data.poster_path) images.push({
-              type: 'poster',
-              url: `https://image.tmdb.org/t/p/original${data.poster_path}`,
-              thumb: `https://image.tmdb.org/t/p/w500${data.poster_path}`
-            });
-            if (data.backdrop_path) images.push({
-              type: 'backdrop',
-              url: `https://image.tmdb.org/t/p/original${data.backdrop_path}`,
-              thumb: `https://image.tmdb.org/t/p/w780${data.backdrop_path}`
-            });
+            pushImg('poster', data.poster_path ? `https://image.tmdb.org/t/p/original${data.poster_path}` : '',
+                    data.poster_path ? `https://image.tmdb.org/t/p/w500${data.poster_path}` : '');
+            pushImg('backdrop', data.backdrop_path ? `https://image.tmdb.org/t/p/original${data.backdrop_path}` : '',
+                    data.backdrop_path ? `https://image.tmdb.org/t/p/w780${data.backdrop_path}` : '');
           }
 
-          (tmdbImgs.posters || []).slice(0, 14).forEach(p => images.push({
-            type: 'poster',
-            url: `https://image.tmdb.org/t/p/original${p.file_path}`,
-            thumb: `https://image.tmdb.org/t/p/w500${p.file_path}`
-          }));
-          (tmdbImgs.backdrops || []).slice(0, 12).forEach(b => images.push({
-            type: 'backdrop',
-            url: `https://image.tmdb.org/t/p/original${b.file_path}`,
-            thumb: `https://image.tmdb.org/t/p/w780${b.file_path}`
-          }));
-          (tmdbImgs.logos || []).slice(0, 6).forEach(l => images.push({
-            type: 'logo',
-            url: `https://image.tmdb.org/t/p/original${l.file_path}`,
-            thumb: `https://image.tmdb.org/t/p/w500${l.file_path}`
-          }));
+          (tmdbImgs.posters || []).slice(0, 14).forEach(p => pushImg('poster',
+            `https://image.tmdb.org/t/p/original${p.file_path}`,
+            `https://image.tmdb.org/t/p/w500${p.file_path}`));
+          (tmdbImgs.backdrops || []).slice(0, 12).forEach(b => pushImg('backdrop',
+            `https://image.tmdb.org/t/p/original${b.file_path}`,
+            `https://image.tmdb.org/t/p/w780${b.file_path}`));
+          (tmdbImgs.logos || []).slice(0, 6).forEach(l => pushImg('logo',
+            `https://image.tmdb.org/t/p/original${l.file_path}`,
+            `https://image.tmdb.org/t/p/w500${l.file_path}`));
         }
 
         if (!images.length) {
