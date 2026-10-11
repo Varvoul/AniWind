@@ -1613,6 +1613,21 @@ img { max-width: 100%; height: auto; display: block; }
   }
 }
 
+/* Water Temple + Sunken Treasures — owner spec: 3/4 columns on computers
+   (3 on laptops, 4 on wide monitors) instead of the generic 6/7. Portrait 2
+   and mobile-landscape 3 keep inheriting from .recs-grid above. */
+@media (min-width: 769px) and (max-width: 1200px) {
+  #waterTempleGrid, #sunkenTreasuresGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 1201px) {
+  #waterTempleGrid, #sunkenTreasuresGrid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
 /* big phones in landscape (iPhone/Pixel ~769-934px wide but low height) —
    still 3 columns per spec; desktop windows of the same width keep 6.
    MUST come after the PC rules so the override wins on equal specificity. */
@@ -4087,6 +4102,20 @@ img { max-width: 100%; height: auto; display: block; }
 
       async function fetchAllAnimeData(query) {
         if (currentState.source === 'tmdb' || !query) return;
+        // permanent browser cache — sub/dub counters serve instantly on
+        // repeat visits (same convention as the AnimeSchedule cache)
+        const _aaKey = `info:allanime:${mediaKeyOf()}`;
+        if (window.AniCache) {
+          try {
+            const cached = await window.AniCache.get(_aaKey);
+            if (cached && (cached.episodes_sub != null || cached.episodes_dub != null)) {
+              currentState.allAnimeData = cached;
+              renderLanguageBadges(cached.episodes_sub, cached.episodes_dub);
+              updateEpisodeDetail(cached.episodes_sub, cached.episodes_dub);
+              return;
+            }
+          } catch (e) { /* fall through */ }
+        }
         try {
           // Use the English title or romaji title as search query
           const searchTitle = currentState.data?.title_english || query;
@@ -4113,6 +4142,10 @@ img { max-width: 100%; height: auto; display: block; }
             renderLanguageBadges(match.episodes_sub, match.episodes_dub);
             // Update episode display in details grid if already rendered
             updateEpisodeDetail(match.episodes_sub, match.episodes_dub);
+            if (window.AniCache) {
+              window.AniCache.set({ cacheKey: _aaKey, pageSource: 'info', section: 'allanime',
+                data: match, permanent: true }).catch(() => {});
+            }
           }
         } catch (e) { /* AllAnime often unreachable — silent */ }
       }
@@ -4439,9 +4472,31 @@ img { max-width: 100%; height: auto; display: block; }
         if (!currentState._jikanSelfCache) currentState._jikanSelfCache = {};
         const key = String(malId);
         if (!currentState._jikanSelfCache[key]) {
-          currentState._jikanSelfCache[key] = fetchWithRetry(`${CONFIG.JIKAN_SELF}/anime/${key}/full`)
-            .then(r => r.json())
-            .catch(e => { console.warn('[JikanSelf] failed:', e.message); return null; });
+          currentState._jikanSelfCache[key] = (async () => {
+            // feeds relations + score stats — cache permanently for finished
+            // shows, 24h for the rest; failures are NOT negative-cached
+            // (cold onrender starts are transient)
+            const _ck = `info:jikanself:${key}`;
+            try {
+              if (window.AniCache) {
+                const cached = await window.AniCache.get(_ck);
+                if (cached && typeof cached === 'object') {
+                  console.log('[AniCache] jikan-self served from cache', key);
+                  return cached;
+                }
+              }
+              const r = await fetchWithRetry(`${CONFIG.JIKAN_SELF}/anime/${key}/full`);
+              const j = await r.json();
+              if (window.AniCache && j && typeof j === 'object') {
+                window.AniCache.set({ cacheKey: _ck, pageSource: 'info', section: 'jikan_self',
+                  data: j, permanent: !!currentState.isPermanent }).catch(() => {});
+              }
+              return j;
+            } catch (e) {
+              console.warn('[JikanSelf] failed:', e.message);
+              return null;
+            }
+          })();
         }
         return currentState._jikanSelfCache[key];
       }
@@ -4873,10 +4928,23 @@ img { max-width: 100%; height: auto; display: block; }
         try {
           const ids = all.filter(s => !s.self).map(s => s.mal_id);
           if (ids.length) {
-            const res = await fetch(`${RURI_BASE}/s-mal/anime?mal_ids=${ids.join(',')}`,
-                                    { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(12000) });
-            if (res.ok) {
-              const rows = (await res.json()).data || [];
+            // banner rows are static catalog data — permanent browser cache
+            let rows = null;
+            if (window.AniCache) {
+              try { rows = await window.AniCache.get(`info:relbanners:${mediaKeyOf()}`); } catch (e) {}
+            }
+            if (!rows || !rows.length) {
+              const res = await fetch(`${RURI_BASE}/s-mal/anime?mal_ids=${ids.join(',')}`,
+                                      { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(12000) });
+              if (res.ok) {
+                rows = (await res.json()).data || [];
+                if (window.AniCache && rows.length) {
+                  window.AniCache.set({ cacheKey: `info:relbanners:${mediaKeyOf()}`, pageSource: 'info',
+                    section: 'season_banners', data: rows, permanent: true }).catch(() => {});
+                }
+              }
+            }
+            if (rows && rows.length) {
               const byMal = {};
               rows.forEach(r => { byMal[Number(r.mal_id)] = r; });
               all.forEach((s, idx) => {
@@ -5855,6 +5923,24 @@ img { max-width: 100%; height: auto; display: block; }
         _recPools[sectionKey] = { el: gridEl, items: pool || [] };
         _recPaint(sectionKey);
       }
+      // Row spec (owner): Water Temple and Sunken Treasures render up to 12
+      // FULL rows on phones (2-col portrait / 3-col landscape) and 4 rows on
+      // computers (3/4 desktop columns). Recommend For You keeps the legacy
+      // behaviour (4 rows, columns shrink to avoid a stub row). When the pool
+      // cannot fill the desired rows, rows shrink to floor(pool/cols) so a
+      // section never ends on a stub row — the CSS column spec always wins.
+      const _BIG_PHONE_LANDSCAPE = '(min-width: 769px) and (max-width: 934px) and (max-height: 500px) and (orientation: landscape)';
+      function _recRowsFor(sectionKey) {
+        if (sectionKey === 'rfy') return 4;
+        const isPhone = window.matchMedia('(max-width: 768px)').matches
+          || window.matchMedia(_BIG_PHONE_LANDSCAPE).matches;
+        return isPhone ? 12 : 4;
+      }
+      function _recPlan(poolLen, cols, desiredRows) {
+        let rows = desiredRows;
+        if (poolLen < cols * rows) rows = Math.max(1, Math.floor(poolLen / cols));
+        return { cols: cols, rows: rows, count: cols * rows };
+      }
       function _recPaint(sectionKey) {
         const entry = _recPools[sectionKey];
         if (!entry || !entry.el || !entry.items.length) return;
@@ -5862,12 +5948,16 @@ img { max-width: 100%; height: auto; display: block; }
         grid.style.gridTemplateColumns = '';            // read the CSS breakpoint first
         const cssCols = getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean).length || 4;
         const pool = entry.items;
-        let cols = cssCols;
-        if (pool.length < cols * 4) cols = Math.max(1, Math.floor(pool.length / 4));
-        if (cols !== cssCols) grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-        grid.innerHTML = pool.slice(0, cols * 4).map(a =>
-          sectionKey === 'rfy' ? renderTMDBRecCard(a, currentState.type) : renderAnimeRecCard(a)
-        ).join('');
+        if (sectionKey === 'rfy') {
+          // legacy: shrink columns to keep 4 full rows on every breakpoint
+          let cols = cssCols;
+          if (pool.length < cols * 4) cols = Math.max(1, Math.floor(pool.length / 4));
+          if (cols !== cssCols) grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+          grid.innerHTML = pool.slice(0, cols * 4).map(a => renderTMDBRecCard(a, currentState.type)).join('');
+          return;
+        }
+        const plan = _recPlan(pool.length, cssCols, _recRowsFor(sectionKey));
+        grid.innerHTML = pool.slice(0, plan.count).map(a => renderAnimeRecCard(a)).join('');
       }
       let _recResizeTimer = null;
       window.addEventListener('resize', () => {
@@ -5904,8 +5994,8 @@ img { max-width: 100%; height: auto; display: block; }
           // /s-mal/anime/jikan-{id}/recommendations?by=genres
           // /s-mal/anime/anilist-{id}/recommendations?by=genres
           // /anikoto/anime/anikoto-{id}/recommendations?by=genres
-          // limit=25 (server max) + page-2 top-up so even the widest
-          // breakpoint (7 cols x 4 rows = 28) can be filled with full rows.
+          // limit=25 (server max) + page-2 top-up so even the deepest need
+          // (mobile landscape: 3 cols x 12 rows = 36) is filled with full rows.
           const currentId = Number(currentState.id);
           let items = [];
           try {
@@ -5920,7 +6010,7 @@ img { max-width: 100%; height: auto; display: block; }
             if (res.ok) {
               const json = await res.json();
               push(json.data);
-              if (items.length < 28 && json.pagination && json.pagination.has_next_page) {
+              if (items.length < 36 && json.pagination && json.pagination.has_next_page) {
                 try {
                   const res2 = await fetch(base + '&page=2', { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(12000) });
                   if (res2.ok) push((await res2.json()).data);
@@ -6136,6 +6226,22 @@ img { max-width: 100%; height: auto; display: block; }
           }
         } catch (e) { /* fall through */ }
 
+        // permanent browser cache (localStorage) — from the second visit on,
+        // this section renders without touching ruri at all
+        try {
+          if (window.AniCache) {
+            const lsc = await window.AniCache.get(`info:sunken:${genres.toLowerCase()}:tv:p${page}`);
+            if (lsc && Array.isArray(lsc.items) && lsc.items.length) {
+              _sunkenPages[key] = _sunkenPages[key] || {};
+              _sunkenPages[key][page] = lsc.items;
+              _sunkenTotalPages[key] = lsc.total || 1;
+              _recRender('sunken', gridContainer, lsc.items);
+              renderSunkenPagination(page, lsc.total || 1, paginationContainer);
+              return;
+            }
+          }
+        } catch (e) { /* fall through to live */ }
+
         gridContainer.style.opacity = '0.6';
         gridContainer.innerHTML = `<div class="loading-text" style="grid-column:1/-1;text-align:center;padding:40px 0;">Loading page ${page}...</div>`;
 
@@ -6174,6 +6280,14 @@ img { max-width: 100%; height: auto; display: block; }
         gridContainer.style.opacity = '1';
         if (items.length) {
           _recRender('sunken', gridContainer, items);
+          // persist to the permanent browser cache for future visits
+          if (window.AniCache) {
+            window.AniCache.set({
+              cacheKey: `info:sunken:${genres.toLowerCase()}:tv:p${page}`,
+              pageSource: 'info', section: 'sunken_treasures',
+              data: { items: items, total: totalPages }, permanent: true
+            }).catch(() => {});
+          }
         } else {
           gridContainer.innerHTML = '<div class="loading-text" style="grid-column:1/-1;text-align:center;padding:40px 0;">No recommendations found for this page</div>';
           totalPages = 1;
