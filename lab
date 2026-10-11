@@ -1613,6 +1613,7 @@ img { max-width: 100%; height: auto; display: block; }
   }
 }
 
+
 /* big phones in landscape (iPhone/Pixel ~769-934px wide but low height) —
    still 3 columns per spec; desktop windows of the same width keep 6.
    MUST come after the PC rules so the override wins on equal specificity. */
@@ -3721,13 +3722,15 @@ img { max-width: 100%; height: auto; display: block; }
                     console.warn('[AniCache] info: background refresh failed:', e.message);
                   }
                 })();
-                return; // Don't fall through to live API — background refresh handles it
+                return true; // cached/sparse render done — still a successful load
               }
 
               // Full API data was found in cache and rendered above — done.
               // No need to re-fetch from live API regardless of stamp freshness.
+              // (must return true — the DOMContentLoaded init checks this value
+              // and skips initUI/sidebar/recs when it is falsy)
               console.log('[AniCache] info: served from full cache', _mediaId);
-              return;
+              return true;
             }
           }
 
@@ -4087,6 +4090,20 @@ img { max-width: 100%; height: auto; display: block; }
 
       async function fetchAllAnimeData(query) {
         if (currentState.source === 'tmdb' || !query) return;
+        // permanent browser cache — sub/dub counters serve instantly on
+        // repeat visits (same convention as the AnimeSchedule cache)
+        const _aaKey = `info:allanime:${mediaKeyOf()}`;
+        if (window.AniCache) {
+          try {
+            const cached = await window.AniCache.get(_aaKey);
+            if (cached && (cached.episodes_sub != null || cached.episodes_dub != null)) {
+              currentState.allAnimeData = cached;
+              renderLanguageBadges(cached.episodes_sub, cached.episodes_dub);
+              updateEpisodeDetail(cached.episodes_sub, cached.episodes_dub);
+              return;
+            }
+          } catch (e) { /* fall through */ }
+        }
         try {
           // Use the English title or romaji title as search query
           const searchTitle = currentState.data?.title_english || query;
@@ -4113,6 +4130,10 @@ img { max-width: 100%; height: auto; display: block; }
             renderLanguageBadges(match.episodes_sub, match.episodes_dub);
             // Update episode display in details grid if already rendered
             updateEpisodeDetail(match.episodes_sub, match.episodes_dub);
+            if (window.AniCache) {
+              window.AniCache.set({ cacheKey: _aaKey, pageSource: 'info', section: 'allanime',
+                data: match, permanent: true }).catch(() => {});
+            }
           }
         } catch (e) { /* AllAnime often unreachable — silent */ }
       }
@@ -4439,9 +4460,31 @@ img { max-width: 100%; height: auto; display: block; }
         if (!currentState._jikanSelfCache) currentState._jikanSelfCache = {};
         const key = String(malId);
         if (!currentState._jikanSelfCache[key]) {
-          currentState._jikanSelfCache[key] = fetchWithRetry(`${CONFIG.JIKAN_SELF}/anime/${key}/full`)
-            .then(r => r.json())
-            .catch(e => { console.warn('[JikanSelf] failed:', e.message); return null; });
+          currentState._jikanSelfCache[key] = (async () => {
+            // feeds relations + score stats — cache permanently for finished
+            // shows, 24h for the rest; failures are NOT negative-cached
+            // (cold onrender starts are transient)
+            const _ck = `info:jikanself:${key}`;
+            try {
+              if (window.AniCache) {
+                const cached = await window.AniCache.get(_ck);
+                if (cached && typeof cached === 'object') {
+                  console.log('[AniCache] jikan-self served from cache', key);
+                  return cached;
+                }
+              }
+              const r = await fetchWithRetry(`${CONFIG.JIKAN_SELF}/anime/${key}/full`);
+              const j = await r.json();
+              if (window.AniCache && j && typeof j === 'object') {
+                window.AniCache.set({ cacheKey: _ck, pageSource: 'info', section: 'jikan_self',
+                  data: j, permanent: !!currentState.isPermanent }).catch(() => {});
+              }
+              return j;
+            } catch (e) {
+              console.warn('[JikanSelf] failed:', e.message);
+              return null;
+            }
+          })();
         }
         return currentState._jikanSelfCache[key];
       }
@@ -4873,10 +4916,23 @@ img { max-width: 100%; height: auto; display: block; }
         try {
           const ids = all.filter(s => !s.self).map(s => s.mal_id);
           if (ids.length) {
-            const res = await fetch(`${RURI_BASE}/s-mal/anime?mal_ids=${ids.join(',')}`,
-                                    { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(12000) });
-            if (res.ok) {
-              const rows = (await res.json()).data || [];
+            // banner rows are static catalog data — permanent browser cache
+            let rows = null;
+            if (window.AniCache) {
+              try { rows = await window.AniCache.get(`info:relbanners:${mediaKeyOf()}`); } catch (e) {}
+            }
+            if (!rows || !rows.length) {
+              const res = await fetch(`${RURI_BASE}/s-mal/anime?mal_ids=${ids.join(',')}`,
+                                      { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(12000) });
+              if (res.ok) {
+                rows = (await res.json()).data || [];
+                if (window.AniCache && rows.length) {
+                  window.AniCache.set({ cacheKey: `info:relbanners:${mediaKeyOf()}`, pageSource: 'info',
+                    section: 'season_banners', data: rows, permanent: true }).catch(() => {});
+                }
+              }
+            }
+            if (rows && rows.length) {
               const byMal = {};
               rows.forEach(r => { byMal[Number(r.mal_id)] = r; });
               all.forEach((s, idx) => {
@@ -4941,16 +4997,19 @@ img { max-width: 100%; height: auto; display: block; }
           const dbDet = await window.AniCache.getDetails(_mid, { permanent: currentState.isPermanent }).catch(()=>null);
           if (dbDet) {
             console.log('[AniCache] show_details loaded from DB for', _mid);
-            if (dbDet.cast_crew)        _renderCastFromDB(dbDet.cast_crew);
-            if (dbDet.artwork)          _renderArtworkFromDB(dbDet.artwork);
+            // Each renderer returns true when it drew the tab from cache.
+            // Legacy-shaped blobs (pre-v2 artwork/themes, empty casts) return
+            // false so the live loader runs once and re-saves in v2 shape.
+            const _castOk = dbDet.cast_crew ? _renderCastFromDB(dbDet.cast_crew) : false;
+            const _artOk  = dbDet.artwork   ? _renderArtworkFromDB(dbDet.artwork)  : false;
             if (dbDet.trailers)         _renderTrailersFromDB(dbDet.trailers);
-            if (dbDet.themes && _isAnimePage) _renderThemesFromDB(dbDet.themes);
+            const _themesOk = (dbDet.themes && _isAnimePage) ? _renderThemesFromDB(dbDet.themes) : false;
             loadStatisticsData();
-            // Load only MISSING tabs from API — these will also save to DB
-            if (!dbDet.cast_crew)   loadCastData();
-            if (!dbDet.artwork)     loadArtworkData();
+            // Load only MISSING/legacy tabs from API — these also save v2 shapes
+            if (!_castOk)   loadCastData();
+            if (!_artOk)    loadArtworkData();
             if (!dbDet.trailers)    loadTrailerData();
-            if (!dbDet.themes && _isAnimePage) loadThemesData();
+            if (!_themesOk && _isAnimePage) loadThemesData();
             return;
           }
         }
@@ -4962,56 +5021,232 @@ img { max-width: 100%; height: auto; display: block; }
         loadStatisticsData();
       }
 
-      // ── DB render helpers ──────────────────────────────────────────────
-      function _renderCastFromDB(castArr) {
-        const container = document.getElementById('castList');
-        if (!container || !castArr || !castArr.length) return;
-        container.innerHTML = castArr.map(c => `
-          <div class="cast-pair">
-            <div class="cast-item">
-              <div class="cast-img-wrap"><img src="${c.char_img||''}" onerror="this.src='/placeholder.jpg'"></div>
-              <div class="cast-info"><div class="cast-name">${c.char_name||''}</div><div class="cast-role">${c.role||''}</div></div>
-            </div>
-            <div class="cast-item cast-right">
-              <div class="cast-info" style="text-align:right"><div class="cast-name">${c.va_name||''}</div><div class="cast-role">${c.va_lang||''}</div></div>
-              <div class="cast-img-wrap"><img src="${c.va_img||''}" onerror="this.src='/placeholder.jpg'"></div>
-            </div>
-          </div>`).join('');
+      // ── Shared tab builders ────────────────────────────────────────────
+      // These are the SINGLE source of truth for tab markup: the live loaders
+      // and the AniCache cached renderers below both emit through them, so a
+      // cached tab is pixel-identical to a live-fetched one by construction.
+
+      // Jikan/AniList store people as "Last, First" — the live cast rows have
+      // always displayed "First Last". TMDB actor names are already natural
+      // order and are only ever rendered through the TMDB branch (no reversal).
+      function _castDisplayTop(n) {
+        return String(n || '').replace(/,\s*/, ' ').split(' ').reverse().join(' ');
+      }
+      const _castImgFallback = "this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 60 90%22><rect fill=%22%231e2633%22 width=%2260%22 height=%2290%22/></svg>'";
+
+      function buildCastRowsHTML(list) {
+        return (list || []).map(c => {
+          if (!c) return '';
+          // TMDB rows — faithful v2 shape (fmt:2) renders as-is; legacy saves
+          // (role 'Actor', actor name/photo split across fields) are mapped
+          // into the same faithful layout so old blobs still render correctly.
+          if (c.fmt === 2 || c.role === 'Actor') {
+            const isLegacy = c.fmt !== 2;
+            const actorName = isLegacy ? (c.va_name || '') : (c.char_name || '');
+            const actorImg  = isLegacy ? (c.char_img || c.va_img || '') : (c.char_img || '');
+            const charName  = isLegacy ? (c.char_name || '') : (c.va_name || '');
+            return `
+              <div class="cast-row">
+                <div class="cast-char-side" style="cursor:default;">
+                  <img class="cast-portrait cast-char-portrait" src="${escapeHtml(actorImg)}" alt="${escapeHtml(actorName)}"
+                    loading="lazy"
+                    onerror="${_castImgFallback}">
+                  <div class="cast-char-info">
+                    <span class="cast-char-name">${escapeHtml(actorName)}</span>
+                    <span class="cast-role-badge role-supporting">ACTOR</span>
+                  </div>
+                </div>
+                <div class="cast-va-side">
+                  <div class="cast-va-info">
+                    <span class="cast-va-name">${escapeHtml(charName)}</span>
+                    <span class="cast-va-lang">Character</span>
+                  </div>
+                </div>
+              </div>
+            `;
+          }
+          // Anime rows — character left (portrait + name + role badge), voice
+          // actor right (name + language + portrait), optional English VA row
+          // below (AniList-sourced data), matching the live layout exactly.
+          const role = c.role || 'Supporting';
+          const charName = c.char_name || 'Unknown';
+          const hasVa = !!(c.va_name || c.va_img);
+          const enBlock = (c.en_va_name || c.en_va_img) ? `
+                  <div class="cast-va-side" style="border-left:none;border-top:1px solid var(--border-subtle);">
+                    <div class="cast-va-info">
+                      <span class="cast-va-name" style="font-size:0.8rem;">${escapeHtml(_castDisplayTop(c.en_va_name))}</span>
+                      <span class="cast-va-lang">English</span>
+                    </div>
+                    <img class="cast-portrait cast-va-portrait" src="${escapeHtml(c.en_va_img || '')}" alt="${escapeHtml(_castDisplayTop(c.en_va_name))}"
+                      loading="lazy"
+                      onerror="${_castImgFallback}">
+                  </div>` : '';
+          const charOpen  = c.char_mal_id ? `<a href="/character/${c.char_mal_id}/${slugify(charName)}" class="cast-char-side">`
+                                          : `<div class="cast-char-side" style="cursor:default;">`;
+          const vaOpen    = c.va_mal_id   ? `<a href="/person/${c.va_mal_id}/${slugify(_castDisplayTop(c.va_name))}" class="cast-va-side">`
+                                          : `<div class="cast-va-side">`;
+          return `
+                <div class="cast-row">
+                  ${charOpen}
+                    <img class="cast-portrait cast-char-portrait" src="${escapeHtml(c.char_img || '')}" alt="${escapeHtml(charName)}"
+                      loading="lazy"
+                      onerror="${_castImgFallback}">
+                    <div class="cast-char-info">
+                      <span class="cast-char-name">${escapeHtml(charName)}</span>
+                      <span class="cast-role-badge ${role === 'Main' ? 'role-main' : 'role-supporting'}">${role.toUpperCase()}</span>
+                    </div>
+                  ${c.char_mal_id ? '</a>' : '</div>'}
+                  ${hasVa ? `
+                  ${vaOpen}
+                    <div class="cast-va-info">
+                      <span class="cast-va-name">${escapeHtml(_castDisplayTop(c.va_name))}</span>
+                      <span class="cast-va-lang">${escapeHtml(c.va_lang || 'Japanese')}</span>
+                    </div>
+                    <img class="cast-portrait cast-va-portrait" src="${escapeHtml(c.va_img || '')}" alt="${escapeHtml(_castDisplayTop(c.va_name))}"
+                      loading="lazy"
+                      onerror="${_castImgFallback}">
+                  ${c.va_mal_id ? '</a>' : '</div>'}${enBlock}` : (enBlock || '<div class="cast-va-side cast-va-empty"></div>')}
+                </div>
+              `;
+        }).join('');
+      }
+      function castWarpHTML(rows) {
+        return `<div class="cast-warp-container"><div class="cast-list-grid">${rows}</div>`;
       }
 
-      function _renderArtworkFromDB(artArr) {
+      function buildArtworkHtml(items) {
+        const typeLabel = { poster: 'Poster', backdrop: 'Backdrop', logo: 'Logo' };
+        return (items || []).map(img => {
+          const alts = (img.alts || []).map(escapeHtml).join('|');
+          return `
+          <div class="artwork-item"
+               onclick="document.getElementById('lightboxImg').src=this.querySelector('img').src;document.getElementById('artworkLightbox').classList.add('show')">
+            <img src="${escapeHtml(img.thumb)}" data-full="${escapeHtml(img.url)}" data-alts="${alts}"
+                 alt="${typeLabel[img.type] || 'Artwork'}" loading="lazy"
+                 onerror="_artImgError(this)">
+            <span class="artwork-type-badge">${typeLabel[img.type] || ''}</span>
+          </div>`;
+        }).join('');
+      }
+
+      // Themes — consumes the flattened theme shape saved to show_details:
+      // { type:'OP'|'ED', num, title, artists, videos:[{version, episodes, link}] }
+      function buildThemeCards(list, sectionType) {
+        const posterImg = (typeof currentState !== 'undefined' && currentState.data?.images?.jpg?.image_url) || '';
+        return (list || []).map(theme => {
+          const seq      = theme.num || '';
+          const label    = `${sectionType}${seq}`;
+          const songTitle = theme.title || label;
+          const artists  = theme.artists || '';
+
+          const videoBlocks = (theme.videos || []).map(v => {
+            if (!v.link) return '';
+            const verTag  = v.version && v.version > 1 ? ` <span class="theme-ver-tag">v${v.version}</span>` : '';
+            const epRange = v.episodes ? `<span class="theme-ep-range">eps ${v.episodes}</span>` : '';
+            return `
+                  <div class="theme-video-entry">
+                    <div class="theme-video-meta">${verTag}${epRange}</div>
+                    <div class="video-wrapper">
+                      <video controls preload="none" ${posterImg ? `poster="${escapeHtml(posterImg)}"` : ''}>
+                        <source src="${escapeHtml(v.link)}" type="video/webm">
+                      </video>
+                    </div>
+                  </div>`;
+          }).join('');
+
+          if (!videoBlocks.trim()) return ''; // skip themes with no video
+
+          return `
+                <div class="theme-card">
+                  <div class="theme-card-header">
+                    <div class="theme-card-label">${escapeHtml(label)}</div>
+                    <div class="theme-card-titles">
+                      <span class="theme-song-title">${escapeHtml(songTitle)}</span>
+                      ${artists ? `<span class="theme-artist"><i class="fa-solid fa-music" style="font-size:0.65rem;opacity:0.7;"></i> ${escapeHtml(artists)}</span>` : ''}
+                    </div>
+                  </div>
+                  ${videoBlocks}
+                </div>`;
+        }).join('');
+      }
+      // Flatten the animethemes.moe payload into the shape saved to
+      // show_details AND consumed by buildThemeCards — one normalizer for the
+      // live path and the v2 cache blob, so both render identically.
+      function normalizeThemesForCache(allThemes) {
+        return (allThemes || [])
+          .map(t => ({
+            type:    t.type,
+            num:     t.sequence,
+            title:   t.song?.title || '',
+            artists: (t.song?.artists || []).map(a => a.name).join(', '),
+            videos:  (t.animethemeentries || []).map(e => ({
+                       version:  e.version,
+                       episodes: e.episodes || '',
+                       link:     e.videos?.[0]?.link || null,
+                     })).filter(v => v.link),
+          }))
+          .sort((a, b) => (a.num || 0) - (b.num || 0));
+      }
+      function buildThemesHtml(items) {
+        const ops = (items || []).filter(t => t.type === 'OP');
+        const eds = (items || []).filter(t => t.type === 'ED');
+        let html = '';
+        if (ops.length) {
+          html += `<div class="themes-section-heading"><i class="fa-solid fa-arrow-right-to-bracket" style="transform:rotate(-90deg);color:#7ec8f7;"></i> Opening Themes <span class="themes-count">${ops.length}</span></div>`;
+          html += buildThemeCards(ops, 'OP');
+        }
+        if (eds.length) {
+          html += `<div class="themes-section-heading" style="margin-top:20px;"><i class="fa-solid fa-arrow-right-from-bracket" style="transform:rotate(-90deg);color:#f6ad55;"></i> Ending Themes <span class="themes-count">${eds.length}</span></div>`;
+          html += buildThemeCards(eds, 'ED');
+        }
+        return html || '<p class="loading-text">No theme videos available</p>';
+      }
+
+      // ── DB (AniCache) render helpers — thin wrappers over the shared
+      // builders; each returns true when the tab was drawn from cache. ────
+      function _renderCastFromDB(castArr) {
+        const container = document.getElementById('castList');
+        if (!container || !Array.isArray(castArr) || !castArr.length) return false;
+        container.innerHTML = castWarpHTML(buildCastRowsHTML(castArr));
+        return true;
+      }
+
+      function _renderArtworkFromDB(artObj) {
         const container = document.getElementById('artworkGrid');
-        if (!container || !artArr || !artArr.length) return;
-        container.innerHTML = artArr.map(a => `
-          <div class="artwork-item" onclick="window.open('${a.url||a.thumb}','_blank')">
-            <img src="${a.thumb||a.url}" loading="lazy" onerror="this.parentElement.style.display='none'">
-            <div class="artwork-label">${(a.type||'').toUpperCase()}</div>
-          </div>`).join('');
+        if (!container) return false;
+        // Only v2 blobs ({ v:2, items:[{type,url,thumb,alts}] }) render from
+        // cache. Legacy saves were bare arrays — often PARTIAL (poster +
+        // backdrop only, when the pictures gallery fetch failed on their
+        // first visit) — so they return false and the live loader rebuilds
+        // the full gallery once, then re-saves in v2 shape.
+        const items = (artObj && artObj.v === 2 && Array.isArray(artObj.items)) ? artObj.items : null;
+        if (!items || !items.length) return false;
+        container.innerHTML = buildArtworkHtml(items);
+        return true;
       }
 
       function _renderTrailersFromDB(trailerArr) {
         const container = document.getElementById('trailerContainer');
-        if (!container || !trailerArr || !trailerArr.length) return;
+        if (!container || !trailerArr || !trailerArr.length) return false;
         // Use the same .video-wrapper structure as loadTrailerData() for consistent 16:9 responsive layout
         container.innerHTML = trailerArr.map(t => `
           <div class="video-title">${escapeHtml(t.name||t.title||currentState.title + ' - Trailer')}</div>
           <div class="video-wrapper">
             <iframe src="https://www.youtube.com/embed/${t.key||t.youtube_id}" allowfullscreen loading="lazy" title="Trailer"></iframe>
           </div>`).join('');
+        return true;
       }
 
-      function _renderThemesFromDB(themeArr) {
-        const opContainer = document.getElementById('openingThemesList');
-        const edContainer = document.getElementById('endingThemesList');
-        if (!opContainer && !edContainer) return;
-        const ops = (themeArr||[]).filter(t => t.type==='OP');
-        const eds = (themeArr||[]).filter(t => t.type==='ED');
-        if (opContainer) opContainer.innerHTML = ops.length ? ops.map(t => `
-          <div class="theme-item"><span class="theme-badge">OP${t.num||''}</span><span class="theme-title">${t.title||''}</span>
-          ${t.video_url ? `<video controls src="${t.video_url}"></video>` : ''}</div>`).join('') : '<p class="loading-text">No opening themes</p>';
-        if (edContainer) edContainer.innerHTML = eds.length ? eds.map(t => `
-          <div class="theme-item"><span class="theme-badge">ED${t.num||''}</span><span class="theme-title">${t.title||''}</span>
-          ${t.video_url ? `<video controls src="${t.video_url}"></video>` : ''}</div>`).join('') : '<p class="loading-text">No ending themes</p>';
+      function _renderThemesFromDB(themeObj) {
+        const container = document.getElementById('themesContainer');
+        if (!container) return false;
+        // v2 blobs are { v:2, items:[flattened theme rows] }; legacy saves were
+        // bare arrays without artists/versions and can't rebuild the live
+        // markup — return false so loadThemesData() refetches and re-saves v2.
+        const items = (themeObj && themeObj.v === 2 && Array.isArray(themeObj.items)) ? themeObj.items : null;
+        if (!items || !items.length) return false;
+        container.innerHTML = buildThemesHtml(items);
+        return true;
       }
 
       function initUI() {
@@ -5855,6 +6090,23 @@ img { max-width: 100%; height: auto; display: block; }
         _recPools[sectionKey] = { el: gridEl, items: pool || [] };
         _recPaint(sectionKey);
       }
+      // Row spec (owner): on PHONES Water Temple, Sunken Treasures AND the
+      // TMDB Recommend-For-You render up to 12 FULL rows (2-col portrait /
+      // 3-col landscape). On COMPUTERS every section keeps the ORIGINAL
+      // legacy look: 6/7 CSS columns, 4 full rows, columns shrink to
+      // floor(pool/4) when the pool is short so a stub row never renders.
+      // When the pool cannot fill the desired rows on phones, rows shrink to
+      // floor(pool/cols) — the CSS column spec always wins.
+      const _BIG_PHONE_LANDSCAPE = '(min-width: 769px) and (max-width: 934px) and (max-height: 500px) and (orientation: landscape)';
+      function _recIsPhone() {
+        return window.matchMedia('(max-width: 768px)').matches
+            || window.matchMedia(_BIG_PHONE_LANDSCAPE).matches;
+      }
+      function _recPlan(poolLen, cols, desiredRows) {
+        let rows = desiredRows;
+        if (poolLen < cols * rows) rows = Math.max(1, Math.floor(poolLen / cols));
+        return { cols: cols, rows: rows, count: cols * rows };
+      }
       function _recPaint(sectionKey) {
         const entry = _recPools[sectionKey];
         if (!entry || !entry.el || !entry.items.length) return;
@@ -5862,12 +6114,21 @@ img { max-width: 100%; height: auto; display: block; }
         grid.style.gridTemplateColumns = '';            // read the CSS breakpoint first
         const cssCols = getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean).length || 4;
         const pool = entry.items;
-        let cols = cssCols;
-        if (pool.length < cols * 4) cols = Math.max(1, Math.floor(pool.length / 4));
-        if (cols !== cssCols) grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-        grid.innerHTML = pool.slice(0, cols * 4).map(a =>
-          sectionKey === 'rfy' ? renderTMDBRecCard(a, currentState.type) : renderAnimeRecCard(a)
-        ).join('');
+        const renderCard = sectionKey === 'rfy'
+          ? (a => renderTMDBRecCard(a, currentState.type))
+          : (a => renderAnimeRecCard(a));
+        if (!_recIsPhone()) {
+          // computers — original legacy behaviour: 4 full rows, shrink the
+          // column count (inline) when the pool cannot fill them
+          let cols = cssCols;
+          if (pool.length < cols * 4) cols = Math.max(1, Math.floor(pool.length / 4));
+          if (cols !== cssCols) grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+          grid.innerHTML = pool.slice(0, cols * 4).map(renderCard).join('');
+          return;
+        }
+        // phones — up to 12 full rows at the CSS column count
+        const plan = _recPlan(pool.length, cssCols, 12);
+        grid.innerHTML = pool.slice(0, plan.count).map(renderCard).join('');
       }
       let _recResizeTimer = null;
       window.addEventListener('resize', () => {
@@ -5904,8 +6165,8 @@ img { max-width: 100%; height: auto; display: block; }
           // /s-mal/anime/jikan-{id}/recommendations?by=genres
           // /s-mal/anime/anilist-{id}/recommendations?by=genres
           // /anikoto/anime/anikoto-{id}/recommendations?by=genres
-          // limit=25 (server max) + page-2 top-up so even the widest
-          // breakpoint (7 cols x 4 rows = 28) can be filled with full rows.
+          // limit=25 (server max) + page-2 top-up so even the deepest need
+          // (mobile landscape: 3 cols x 12 rows = 36) is filled with full rows.
           const currentId = Number(currentState.id);
           let items = [];
           try {
@@ -5920,7 +6181,10 @@ img { max-width: 100%; height: auto; display: block; }
             if (res.ok) {
               const json = await res.json();
               push(json.data);
-              if (items.length < 28 && json.pagination && json.pagination.has_next_page) {
+              // computers need 28 (7 cols x 4 rows, original behaviour);
+              // phones need 36 (3 cols x 12 rows in landscape)
+              const _wtNeed = _recIsPhone() ? 36 : 28;
+              if (items.length < _wtNeed && json.pagination && json.pagination.has_next_page) {
                 try {
                   const res2 = await fetch(base + '&page=2', { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(12000) });
                   if (res2.ok) push((await res2.json()).data);
@@ -5958,7 +6222,34 @@ img { max-width: 100%; height: auto; display: block; }
       // Recommend for You — TMDB movie/TV pages. NO second details call:
       // recommendations are extracted from the single mapple details payload
       // (movie: recommendations + similar; tv: embedded list when present,
-      // with one lightweight fallback fetch only when the payload lacks it)
+      // with one lightweight fallback fetch only when the payload lacks it).
+      // PHONES: 12 full rows need up to 36 items (3 cols x 12) — when the
+      // embedded pool is short, up to two lightweight /recommendations page
+      // fetches top it up (computers keep the original no-extra-call path).
+      const _RFY_CAP = 40;          // painter never needs more than 36
+      function _rfyScore(a) { return (a.vote_average || 0) * Math.log10((a.vote_count || 1) + 1); }
+      async function _rfyTopUp(base, mediaType) {
+        const seen = new Set(base.map(a => Number(a.id)));
+        seen.add(Number(currentState.id));
+        const out = base.slice();
+        for (const p of [1, 2]) {
+          if (out.length >= 36) break;
+          try {
+            const res = await fetch(`${CONFIG.MAPPLE_BASE}/tmdb/${mediaType}/${currentState.id}/recommendations?language=en-US&page=${p}`,
+                                    { signal: AbortSignal.timeout(10000) });
+            if (!res.ok) break;
+            const rows = (await res.json()).results || [];
+            if (!rows.length) break;               // endpoint exhausted
+            rows.forEach(item => {
+              if (!item || !item.id || seen.has(Number(item.id))) return;
+              seen.add(Number(item.id));
+              out.push(item);
+            });
+          } catch (e) { console.warn('[RFY] top-up page-' + p + ' failed:', e.message); break; }
+        }
+        out.sort((a, b) => _rfyScore(b) - _rfyScore(a));
+        return out;
+      }
       async function loadRecommendForYou() {
         const _rfyKey = `info:recommended_for_you:${mediaKeyOf()}`;
         if (window.AniCache) {
@@ -5968,7 +6259,25 @@ img { max-width: 100%; height: auto; display: block; }
               const el = document.getElementById('recommendForYouGrid');
               const sec = document.getElementById('recommendForYouSection');
               if (sec) sec.style.display = 'block';
-              if (el) _recRender('rfy', el, cached);
+              let pool = cached;
+              // phones: a cached pool saved on a desktop visit may be too
+              // short for 12 full rows — top it up once, re-cache, render
+              if (_recIsPhone() && pool.length < 36) {
+                try {
+                  const topped = await _rfyTopUp(pool, currentState.type);
+                  if (topped.length > pool.length) {
+                    pool = topped.slice(0, _RFY_CAP);
+                    _recRender('rfy', el, pool);
+                    if (window.AniCache) {
+                      window.AniCache.set({ cacheKey: _rfyKey, pageSource: 'info',
+                        section: 'show_recs', tmdbId: currentState.id, data: pool,
+                        itemCount: pool.length, permanent: currentState.isPermanent }).catch(() => {});
+                    }
+                    return;
+                  }
+                } catch (e2) { console.warn('[RFY] cached top-up failed:', e2.message); }
+              }
+              if (el) _recRender('rfy', el, pool);
               return;
             }
           } catch (e) {
@@ -6013,14 +6322,20 @@ img { max-width: 100%; height: auto; display: block; }
           }
 
           // Sort: weighted score (vote_average × log10(vote_count+1))
-          merged.sort((a, b) => {
-            const scoreA = (a.vote_average || 0) * Math.log10((a.vote_count || 1) + 1);
-            const scoreB = (b.vote_average || 0) * Math.log10((b.vote_count || 1) + 1);
-            return scoreB - scoreA;
-          });
+          merged.sort((a, b) => _rfyScore(b) - _rfyScore(a));
 
-          // cap at 32 — the 4-full-row renderer needs at most 7 cols x 4 = 28
-          const final = merged.slice(0, 32);
+          // phones need up to 36 (3 cols x 12 rows) — top up when the
+          // embedded pool is short; computers keep the original pool
+          let finalPool = merged;
+          if (_recIsPhone() && finalPool.length < 36) {
+            try {
+              const topped = await _rfyTopUp(merged, mediaType);
+              if (topped.length > finalPool.length) finalPool = topped;
+            } catch (e) { console.warn('[RFY] live top-up failed:', e.message); }
+          }
+
+          // cap at 40 — the painter needs at most 3 cols x 12 rows = 36
+          const final = finalPool.slice(0, _RFY_CAP);
 
           if (final.length > 0) {
             _recRender('rfy', gridContainer, final);
@@ -6136,6 +6451,22 @@ img { max-width: 100%; height: auto; display: block; }
           }
         } catch (e) { /* fall through */ }
 
+        // permanent browser cache (localStorage) — from the second visit on,
+        // this section renders without touching ruri at all
+        try {
+          if (window.AniCache) {
+            const lsc = await window.AniCache.get(`info:sunken:${genres.toLowerCase()}:tv:p${page}`);
+            if (lsc && Array.isArray(lsc.items) && lsc.items.length) {
+              _sunkenPages[key] = _sunkenPages[key] || {};
+              _sunkenPages[key][page] = lsc.items;
+              _sunkenTotalPages[key] = lsc.total || 1;
+              _recRender('sunken', gridContainer, lsc.items);
+              renderSunkenPagination(page, lsc.total || 1, paginationContainer);
+              return;
+            }
+          }
+        } catch (e) { /* fall through to live */ }
+
         gridContainer.style.opacity = '0.6';
         gridContainer.innerHTML = `<div class="loading-text" style="grid-column:1/-1;text-align:center;padding:40px 0;">Loading page ${page}...</div>`;
 
@@ -6174,6 +6505,14 @@ img { max-width: 100%; height: auto; display: block; }
         gridContainer.style.opacity = '1';
         if (items.length) {
           _recRender('sunken', gridContainer, items);
+          // persist to the permanent browser cache for future visits
+          if (window.AniCache) {
+            window.AniCache.set({
+              cacheKey: `info:sunken:${genres.toLowerCase()}:tv:p${page}`,
+              pageSource: 'info', section: 'sunken_treasures',
+              data: { items: items, total: totalPages }, permanent: true
+            }).catch(() => {});
+          }
         } else {
           gridContainer.innerHTML = '<div class="loading-text" style="grid-column:1/-1;text-align:center;padding:40px 0;">No recommendations found for this page</div>';
           totalPages = 1;
@@ -6297,51 +6636,9 @@ img { max-width: 100%; height: auto; display: block; }
                 en_va_img:  enVa?.person?.images?.jpg?.image_url || '',
               };
             });
-            const castRows = chars.slice(0, 20).map(c => {
-              const character = c.character;
-              const charImg = character.images?.jpg?.image_url || '';
-              const charName = character.name || 'Unknown';
-              const role = c.role || 'Supporting';
-              const jpVa = (c.voice_actors||[]).find(v=>v.language==='Japanese');
-              const enVa = (c.voice_actors||[]).find(v=>v.language==='English');
-              const jpName = jpVa ? jpVa.person.name.replace(/,\s*/,' ').split(' ').reverse().join(' ') : '';
-              const jpImg = jpVa?.person?.images?.jpg?.image_url || '';
-              const enName = enVa ? enVa.person.name.replace(/,\s*/,' ').split(' ').reverse().join(' ') : '';
-              const enImg = enVa?.person?.images?.jpg?.image_url || '';
-              const enBlock = enName ? `
-                  <a href="#" class="cast-va-side" style="border-left:none;border-top:1px solid var(--border-subtle);">
-                    <div class="cast-va-info">
-                      <span class="cast-va-name" style="font-size:0.8rem;">${escapeHtml(enName)}</span>
-                      <span class="cast-va-lang">English</span>
-                    </div>
-                    <img class="cast-portrait cast-va-portrait" src="${escapeHtml(enImg)}" alt="${escapeHtml(enName)}"
-                      loading="lazy"
-                      onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 60 90%22><rect fill=%22%231e2633%22 width=%2260%22 height=%2290%22/></svg>'">
-                  </a>` : '';
-              return `
-                <div class="cast-row">
-                  <div class="cast-char-side" style="cursor:default;">
-                    <img class="cast-portrait cast-char-portrait" src="${escapeHtml(charImg)}" alt="${escapeHtml(charName)}"
-                      loading="lazy"
-                      onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 60 90%22><rect fill=%22%231e2633%22 width=%2260%22 height=%2290%22/></svg>'">
-                    <div class="cast-char-info">
-                      <span class="cast-char-name">${escapeHtml(charName)}</span>
-                      <span class="cast-role-badge ${role === 'Main' ? 'role-main' : 'role-supporting'}">${role.toUpperCase()}</span>
-                    </div>
-                  </div>
-                  ${jpVa ? `
-                  <div class="cast-va-side">
-                    <div class="cast-va-info">
-                      <span class="cast-va-name">${escapeHtml(jpName)}</span>
-                      <span class="cast-va-lang">Japanese</span>
-                    </div>
-                    <img class="cast-portrait cast-va-portrait" src="${escapeHtml(jpImg)}" alt="${escapeHtml(jpName)}"
-                      loading="lazy"
-                      onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 60 90%22><rect fill=%22%231e2633%22 width=%2260%22 height=%2290%22/></svg>'">
-                  </div>${enBlock}` : (enBlock || '<div class="cast-va-side cast-va-empty"></div>')}
-                </div>`;
-            }).join('');
-            container.innerHTML = `<div class="cast-warp-container"><div class="cast-list-grid">${castRows}</div>`;
+            // Render through the shared builder — identical markup to the
+            // cached render by construction
+            container.innerHTML = castWarpHTML(buildCastRowsHTML(window._lastCastData));
             // Save cast to DB
             if (window.AniCache && window._lastCastData?.length) {
               const _mid = mediaKeyOf();
@@ -6388,53 +6685,34 @@ img { max-width: 100%; height: auto; display: block; }
               return;
             }
             
-            // Build list layout matching image 3 style
-            // AniCache: capture cast for DB storage
-            window._lastCastData = chars.slice(0, 20).map(c => ({
-              char_name: c.character?.name || '',
-              char_img:  c.character?.images?.jpg?.image_url || '',
-              role:      c.role || 'Supporting',
-              va_name:   (c.voice_actors||[]).find(v=>v.language==='Japanese')?.person?.name || '',
-              va_img:    (c.voice_actors||[]).find(v=>v.language==='Japanese')?.person?.images?.jpg?.image_url || '',
-              va_lang:   'Japanese',
-            }));
-            const castRows = chars.slice(0, 20).map(c => {
+            // AniCache: capture cast for DB storage — same fields the live
+            // rows display (VA fallback-to-first, mal_ids for the /character/
+            // and /person/ links) so the cached render is identical
+            window._lastCastData = chars.slice(0, 20).map(c => {
               const character = c.character;
-              const charImg = character.images?.jpg?.image_url || character.images?.webp?.image_url || '';
-              const charName = character.name || 'Unknown';
-              const role = c.role || 'Supporting';
-              // Prefer Japanese VA, fallback to first
+              // Prefer Japanese VA, fallback to first (same as the live rows)
               const va = c.voice_actors?.find(v => v.language === 'Japanese') || c.voice_actors?.[0];
-              const vaName = va ? va.person.name.replace(/,\s*/, ' ').split(' ').reverse().join(' ') : 'Unknown';
-              const vaImg = va?.person?.images?.jpg?.image_url || '';
-              const vaLang = va?.language || '';
-
-              return `
-                <div class="cast-row">
-                  <a href="/character/${character.mal_id}/${slugify(charName)}" class="cast-char-side">
-                    <img class="cast-portrait cast-char-portrait" src="${escapeHtml(charImg)}" alt="${escapeHtml(charName)}"
-                      loading="lazy"
-                      onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 60 90%22><rect fill=%22%231e2633%22 width=%2260%22 height=%2290%22/></svg>'">
-                    <div class="cast-char-info">
-                      <span class="cast-char-name">${escapeHtml(charName)}</span>
-                      <span class="cast-role-badge ${role === 'Main' ? 'role-main' : 'role-supporting'}">${role.toUpperCase()}</span>
-                    </div>
-                  </a>
-                  ${va ? `
-                  <a href="/person/${va.person.mal_id}/${slugify(vaName)}" class="cast-va-side">
-                    <div class="cast-va-info">
-                      <span class="cast-va-name">${escapeHtml(vaName)}</span>
-                      <span class="cast-va-lang">${escapeHtml(vaLang)}</span>
-                    </div>
-                    <img class="cast-portrait cast-va-portrait" src="${escapeHtml(vaImg)}" alt="${escapeHtml(vaName)}"
-                      loading="lazy"
-                      onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 60 90%22><rect fill=%22%231e2633%22 width=%2260%22 height=%2290%22/></svg>'">
-                  </a>` : '<div class="cast-va-side cast-va-empty"></div>'}
-                </div>
-              `;
-            }).join('');
-            
-            container.innerHTML = `<div class="cast-warp-container"><div class="cast-list-grid">${castRows}</div>`;
+              return {
+                char_name:   character?.name || '',
+                char_img:    character?.images?.jpg?.image_url || character?.images?.webp?.image_url || '',
+                role:        c.role || 'Supporting',
+                char_mal_id: character?.mal_id || null,
+                va_name:     va?.person?.name || '',
+                va_img:      va?.person?.images?.jpg?.image_url || '',
+                va_lang:     va?.language || 'Japanese',
+                va_mal_id:   va?.person?.mal_id || null,
+              };
+            });
+            // Render through the shared builder — identical markup to the
+            // cached render by construction
+            container.innerHTML = castWarpHTML(buildCastRowsHTML(window._lastCastData));
+            // AniCache: save cast to show_details (the jikan path never
+            // persisted cast — derive-once here so repeat visits skip this
+            // builder entirely)
+            if (window.AniCache && window._lastCastData?.length) {
+              window.AniCache.saveDetails(mediaKeyOf(), { cast_crew: window._lastCastData },
+                { permanent: currentState.isPermanent }).catch(() => {});
+            }
             
           } catch (e) {
             console.error('Cast fetch error:', e);
@@ -6447,42 +6725,28 @@ img { max-width: 100%; height: auto; display: block; }
             container.innerHTML = '<p class="loading-text">No cast data available</p>';
             return;
           }
-          
-          // AniCache: capture TMDB cast for DB storage (same as anime branch)
+
+          // AniCache: capture TMDB cast for DB storage — faithful display shape
+          // (actor name/photo on the char side, character name on the va side,
+          // fmt:2 marks the shape for the cached renderer)
           window._lastCastData = cast.slice(0, 20).map(c => ({
-            char_name: c.character || '',
+            fmt:       2,
+            char_name: c.name || 'Unknown',
             char_img:  c.profile_path ? `https://image.tmdb.org/t/p/w185${c.profile_path}` : '',
             role:      'Actor',
-            va_name:   c.name || '',
-            va_img:    c.profile_path ? `https://image.tmdb.org/t/p/w185${c.profile_path}` : '',
-            va_lang:   'Actor',
+            va_name:   c.character || '',
+            va_img:    '',
+            va_lang:   'Character',
           }));
-          const castRows = cast.slice(0, 20).map(c => {
-            const actorImg = c.profile_path ? `https://image.tmdb.org/t/p/w185${c.profile_path}` : '';
-            const actorName = c.name || 'Unknown';
-            const character = c.character || '';
-            return `
-              <div class="cast-row">
-                <div class="cast-char-side" style="cursor:default;">
-                  <img class="cast-portrait cast-char-portrait" src="${escapeHtml(actorImg)}" alt="${escapeHtml(actorName)}"
-                    loading="lazy"
-                    onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 60 90%22><rect fill=%22%231e2633%22 width=%2260%22 height=%2290%22/></svg>'">
-                  <div class="cast-char-info">
-                    <span class="cast-char-name">${escapeHtml(actorName)}</span>
-                    <span class="cast-role-badge role-supporting">ACTOR</span>
-                  </div>
-                </div>
-                <div class="cast-va-side">
-                  <div class="cast-va-info">
-                    <span class="cast-va-name">${escapeHtml(character)}</span>
-                    <span class="cast-va-lang">Character</span>
-                  </div>
-                </div>
-              </div>
-            `;
-          }).join('');
-          
-          container.innerHTML = `<div class="cast-warp-container"><div class="cast-list-grid">${castRows}</div>`;
+          // Render through the shared builder — identical markup to the
+          // cached render by construction
+          container.innerHTML = castWarpHTML(buildCastRowsHTML(window._lastCastData));
+          // AniCache: save TMDB cast (this path never persisted before, so
+          // cached visits re-derived it from the payload every time)
+          if (window.AniCache && window._lastCastData?.length) {
+            window.AniCache.saveDetails(mediaKeyOf(), { cast_crew: window._lastCastData },
+              { permanent: currentState.isPermanent }).catch(() => {});
+          }
         }
       }
 
@@ -6515,12 +6779,6 @@ img { max-width: 100%; height: auto; display: block; }
           });
         });
       });
-      // AniCache: save cast to show_details
-      if (window.AniCache && window._lastCastData && window._lastCastData.length) {
-        const _mid = mediaKeyOf();
-        window.AniCache.saveDetails(_mid, {cast_crew: window._lastCastData}, { permanent: currentState.isPermanent }).catch(()=>{});
-      }
-
       // Artwork img fallback — step through the MAL CDN size variants
       // (large ll.jpg 404s for many older entries; l.jpg / base still work)
       // before the tile is finally hidden.
@@ -6623,26 +6881,21 @@ img { max-width: 100%; height: auto; display: block; }
           return;
         }
 
-        const typeLabel = { poster: 'Poster', backdrop: 'Backdrop', logo: 'Logo' };
-        window._lastArtworkData = images.map(i => ({type:i.type, url:i.url, thumb:i.thumb}));
+        // AniCache: capture artwork for DB storage — alts kept so the cached
+        // render gets the same MAL CDN fallback chain as the live one
+        window._lastArtworkData = images.map(i => ({ type:i.type, url:i.url, thumb:i.thumb, alts:(i.alts||[]).slice(0,4) }));
         // Pinterest-style masonry — natural aspect ratios (no forced crops),
-        // compact tiles handled by CSS columns
-        container.innerHTML = images.map(img => {
-          const alts = (img.alts || []).map(escapeHtml).join('|');
-          return `
-          <div class="artwork-item"
-               onclick="document.getElementById('lightboxImg').src=this.querySelector('img').src;document.getElementById('artworkLightbox').classList.add('show')">
-            <img src="${escapeHtml(img.thumb)}" data-full="${escapeHtml(img.url)}" data-alts="${alts}"
-                 alt="${typeLabel[img.type] || 'Artwork'}" loading="lazy"
-                 onerror="_artImgError(this)">
-            <span class="artwork-type-badge">${typeLabel[img.type] || ''}</span>
-          </div>`;
-        }).join('');
-      // AniCache: save artwork to show_details
-      if (window.AniCache && window._lastArtworkData && window._lastArtworkData.length) {
-        const _mid = mediaKeyOf();
-        window.AniCache.saveDetails(_mid, {artwork: window._lastArtworkData}, { permanent: currentState.isPermanent }).catch(()=>{});
-      }
+        // compact tiles handled by CSS columns. Rendered through the shared
+        // builder — identical markup to the cached render by construction.
+        container.innerHTML = buildArtworkHtml(images);
+        // AniCache: save artwork to show_details as a versioned blob — v2 lets
+        // the cached renderer detect legacy/partial arrays (e.g. poster +
+        // backdrop only, when the pictures gallery failed on an earlier visit)
+        // and rebuild them once through the live loader
+        if (window.AniCache && window._lastArtworkData && window._lastArtworkData.length) {
+          const _mid = mediaKeyOf();
+          window.AniCache.saveDetails(_mid, {artwork: { v: 2, items: window._lastArtworkData }}, { permanent: currentState.isPermanent }).catch(()=>{});
+        }
       }
 
       async function loadTrailerData() {
@@ -6706,85 +6959,27 @@ img { max-width: 100%; height: auto; display: block; }
           }
 
           const allThemes = animeEntry.animethemes;
-          // AniCache: flatten themes for DB storage
-          window._lastThemesData = allThemes.map(t => ({
-            type:      t.type,
-            num:       t.sequence || 1,
-            title:     t.song?.title || '',
-            video_url: t.animethemeentries?.[0]?.videos?.[0]?.link || null,
-          }));
-          const ops = allThemes.filter(t => t.type === 'OP').sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
-          const eds = allThemes.filter(t => t.type === 'ED').sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
-          const posterImg = currentState.data.images?.jpg?.image_url || '';
-
-          // Build a compact theme card: song title + artist row + collapsible video per version
-          function buildThemeCards(list, sectionType) {
-            return list.map(theme => {
-              const seq      = theme.sequence || '';
-              const label    = `${sectionType}${seq}`;
-              const songTitle = theme.song?.title || label;
-              // animethemes REST returns song.artists only when artists include is added;
-              // the endpoint above includes animethemes.song so artists may not be present —
-              // fall back gracefully
-              const artists  = (theme.song?.artists || []).map(a => a.name).join(', ');
-
-              // Collect all video entries across all versions
-              const entries = theme.animethemeentries || [];
-              const videoBlocks = entries.map(entry => {
-                const video = entry.videos?.[0];
-                if (!video?.link) return '';
-                const verTag  = entry.version && entry.version > 1 ? ` <span class="theme-ver-tag">v${entry.version}</span>` : '';
-                const epRange = entry.episodes ? `<span class="theme-ep-range">eps ${entry.episodes}</span>` : '';
-                return `
-                  <div class="theme-video-entry">
-                    <div class="theme-video-meta">${verTag}${epRange}</div>
-                    <div class="video-wrapper">
-                      <video controls preload="none" ${posterImg ? `poster="${escapeHtml(posterImg)}"` : ''}>
-                        <source src="${escapeHtml(video.link)}" type="video/webm">
-                      </video>
-                    </div>
-                  </div>`;
-              }).join('');
-
-              if (!videoBlocks.trim()) return ''; // skip themes with no video
-
-              return `
-                <div class="theme-card">
-                  <div class="theme-card-header">
-                    <div class="theme-card-label">${escapeHtml(label)}</div>
-                    <div class="theme-card-titles">
-                      <span class="theme-song-title">${escapeHtml(songTitle)}</span>
-                      ${artists ? `<span class="theme-artist"><i class="fa-solid fa-music" style="font-size:0.65rem;opacity:0.7;"></i> ${escapeHtml(artists)}</span>` : ''}
-                    </div>
-                  </div>
-                  ${videoBlocks}
-                </div>`;
-            }).join('');
+          // AniCache: flatten themes for DB storage (saved below once rendering
+          // is done — the save must live INSIDE this async flow: the previous
+          // top-level save block ran at script load, long before this fetch
+          // resolved, so themes were never actually persisted).
+          // The flattened rows carry EVERYTHING the card builder displays
+          // (artists, all video versions with ep ranges) so the cached render
+          // can rebuild the exact live markup through buildThemesHtml().
+          window._lastThemesData = normalizeThemesForCache(allThemes);
+          if (window.AniCache && window._lastThemesData.length) {
+            window.AniCache.saveDetails(mediaKeyOf(), { themes: { v: 2, items: window._lastThemesData } },
+              { permanent: currentState.isPermanent }).catch(() => {});
           }
-
-          let html = '';
-          if (ops.length) {
-            html += `<div class="themes-section-heading"><i class="fa-solid fa-arrow-right-to-bracket" style="transform:rotate(-90deg);color:#7ec8f7;"></i> Opening Themes <span class="themes-count">${ops.length}</span></div>`;
-            html += buildThemeCards(ops, 'OP');
-          }
-          if (eds.length) {
-            html += `<div class="themes-section-heading" style="margin-top:20px;"><i class="fa-solid fa-arrow-right-from-bracket" style="transform:rotate(-90deg);color:#f6ad55;"></i> Ending Themes <span class="themes-count">${eds.length}</span></div>`;
-            html += buildThemeCards(eds, 'ED');
-          }
-
-          container.innerHTML = html || '<p class="loading-text">No theme videos available</p>';
+          // Render through the shared builder — identical markup to the
+          // cached render by construction
+          container.innerHTML = buildThemesHtml(window._lastThemesData);
 
         } catch (e) {
           console.warn('AnimeThemes error:', e);
           container.innerHTML = '<p class="loading-text">Failed to load theme songs</p>';
         }
       }
-      // AniCache: save themes to show_details
-      if (window.AniCache && window._lastThemesData && window._lastThemesData.length) {
-        const _mid = mediaKeyOf();
-        window.AniCache.saveDetails(_mid, {themes: window._lastThemesData}, { permanent: currentState.isPermanent }).catch(()=>{});
-      }
-
       // ════════════════════════════════════════════════════════════
       // STATISTICS TAB — every graph is derived from REAL payload data:
       //   anime : self-hosted jikan scores{} (votes per 1-10) + member
