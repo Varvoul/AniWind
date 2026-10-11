@@ -6293,6 +6293,19 @@ img { max-width: 100%; height: auto; display: block; }
         window.AniCache.saveDetails(_mid, {cast_crew: window._lastCastData}, { permanent: currentState.isPermanent }).catch(()=>{});
       }
 
+      // Artwork img fallback — step through the MAL CDN size variants
+      // (large ll.jpg 404s for many older entries; l.jpg / base still work)
+      // before the tile is finally hidden.
+      window._artImgError = function (el) {
+        const alts = (el.dataset.alts || '').split('|').filter(Boolean);
+        if (alts.length) {
+          el.src = alts.shift();
+          el.dataset.alts = alts.join('|');
+        } else {
+          el.closest('.artwork-item').style.display = 'none';
+        }
+      };
+
       async function loadArtworkData() {
         const container = document.getElementById('artworkGrid');
         const data = currentState.data;
@@ -6300,28 +6313,37 @@ img { max-width: 100%; height: auto; display: block; }
 
         container.innerHTML = '<p class="loading-text" style="grid-column:1/-1;padding:20px 0;">Loading artwork...</p>';
 
-        let images = []; // { type, url (full), thumb (display) }
+        let images = []; // { type, url (full), alts[] (fallback urls), thumb (display) }
 
         // Dedupe helper — MAL/AniList serve the same artwork as .jpg/.webp
         // and as l/ll size variants; collapse them so the masonry never
         // repeats one artwork and never leaves whole columns empty.
         const _seenArt = new Set();
-        const pushImg = (type, url, thumb) => {
+        const pushImg = (type, url, thumb, alts) => {
           if (!url || typeof url !== 'string') return;
           const key = url.trim()
             .replace(/\.(jpg|jpeg|png|webp)(\?.*)?$/i, '')
             .replace(/[l]{1,2}$/i, '');
           if (_seenArt.has(key)) return;
           _seenArt.add(key);
-          images.push({ type, url, thumb: thumb || url });
+          images.push({ type, url, alts: (alts || []).filter(Boolean).filter(a => a !== url), thumb: thumb || url });
+        };
+        // MAL CDN quirk: the ll.jpg / lt.jpg "large" variants 404 for many
+        // older entries while the l.jpg (image_url) and base paths still work.
+        // Every artwork img therefore gets a fallback chain that steps through
+        // the variants before the tile is finally hidden.
+        const malVariants = (j) => {
+          const list = [j.large_image_url, j.image_url, j.small_image_url].filter(Boolean);
+          const bases = list.map(u => u.replace(/[l]{1,2}t?\.(jpg|jpeg|png|webp)(\?.*)?$/i, '.$2'));
+          return [...new Set([...list, ...bases])];
         };
 
         if (isAnime) {
           // ruri source-id endpoint image (poster) first
           const jpg = data.images?.jpg;
           const webp = data.images?.webp;
-          pushImg('poster', jpg?.large_image_url || jpg?.image_url);
-          pushImg('poster', webp?.large_image_url);
+          pushImg('poster', jpg?.large_image_url || jpg?.image_url, null, malVariants(jpg || {}));
+          pushImg('poster', webp?.large_image_url, null, malVariants(webp || {}));
 
           // banner array data — ruri rows may ship one {large,small} object,
           // a bare string, or an array of any of these; accept every shape
@@ -6340,9 +6362,8 @@ img { max-width: 100%; height: auto; display: block; }
             if (jikanId) {
               const j = await jikanSelfFull(jikanId);
               ((j && j.pictures) || []).slice(0, 26).forEach(pic => {
-                const url = pic.images?.jpg?.large_image_url || pic.images?.jpg?.image_url
-                         || pic.jpg?.large_image_url || pic.jpg?.image_url;
-                pushImg('poster', url);
+                const pj = pic.images?.jpg || pic.jpg || {};
+                pushImg('poster', pj.large_image_url || pj.image_url, null, malVariants(pj));
               });
             }
           } catch (e) { /* use what we have */ }
@@ -6378,15 +6399,17 @@ img { max-width: 100%; height: auto; display: block; }
         window._lastArtworkData = images.map(i => ({type:i.type, url:i.url, thumb:i.thumb}));
         // Pinterest-style masonry — natural aspect ratios (no forced crops),
         // compact tiles handled by CSS columns
-        container.innerHTML = images.map(img => `
+        container.innerHTML = images.map(img => {
+          const alts = (img.alts || []).map(escapeHtml).join('|');
+          return `
           <div class="artwork-item"
-               onclick="document.getElementById('lightboxImg').src='${escapeHtml(img.url)}';document.getElementById('artworkLightbox').classList.add('show')">
-            <img src="${escapeHtml(img.thumb)}" data-full="${escapeHtml(img.url)}"
+               onclick="document.getElementById('lightboxImg').src=this.querySelector('img').src;document.getElementById('artworkLightbox').classList.add('show')">
+            <img src="${escapeHtml(img.thumb)}" data-full="${escapeHtml(img.url)}" data-alts="${alts}"
                  alt="${typeLabel[img.type] || 'Artwork'}" loading="lazy"
-                 onerror="this.closest('.artwork-item').style.display='none'">
+                 onerror="_artImgError(this)">
             <span class="artwork-type-badge">${typeLabel[img.type] || ''}</span>
-          </div>
-        `).join('');
+          </div>`;
+        }).join('');
       // AniCache: save artwork to show_details
       if (window.AniCache && window._lastArtworkData && window._lastArtworkData.length) {
         const _mid = mediaKeyOf();
