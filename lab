@@ -3033,6 +3033,16 @@ img { max-width: 100%; height: auto; display: block; }
         // Inject skeletons immediately so user sees structure, not blank page
         injectInfoSkeletons();
 
+        // ── Anikoto id-shift guard ────────────────────────────────
+        // The anikoto provider re-syncs its numeric ids; stale links then
+        // resolve to a different show than the URL slug names. Verify the
+        // pairing against the live catalog BEFORE any cache read / render,
+        // and redirect to the stable row when they disagree.
+        if (currentState.source === 'anikoto' && currentState.slug) {
+          const shifted = await verifyAnikotoSlug();
+          if (shifted) { removeInfoSkeletons(); return; }
+        }
+
         // Auth
         if (typeof window.supabaseClient !== 'undefined') await initAuth();
 
@@ -3053,7 +3063,8 @@ img { max-width: 100%; height: auto; display: block; }
               loadSidebarContent(),
               loadRecommendations(),
               fetchAllAnimeData(currentState.data?.title),
-              fetchAnimeScheduleData()
+              fetchAnimeScheduleData(),
+              fetchRuriLanguageData()
             ]);
           } else if (currentState.source === 'tmdb') {
             await Promise.all([
@@ -3098,7 +3109,7 @@ img { max-width: 100%; height: auto; display: block; }
         let missing = [];
 
         // 1. Check full API data in media_cache
-        const fullData = await window.AniCache.get(`info:full_data:${_mid}`).catch(()=>null);
+        const fullData = await window.AniCache.get(fullDataCacheKey()).catch(()=>null);
         if (!fullData || !(fullData.title || fullData.name)) missing.push('full_data');
 
         // 2. Check show_details — skip on attempt 0 because renderTabs()
@@ -3209,11 +3220,70 @@ img { max-width: 100%; height: auto; display: block; }
           : `${currentState.source}-${currentState.id}`;
       }
 
+      function fullDataCacheKey() {
+        // v2 bump for anikoto pages ONLY: full_data payloads cached before the
+        // facts-repair carry provider-garbage aired/season values (e.g.
+        // "Jul 3, 2026 to Nov 30, 1899", season-less years) that fill-only
+        // enrichment would never overwrite — abandon those caches once and let
+        // every anikoto page rebuild through fetchRuriData + repairAnikotoFacts.
+        // Non-anikoto keys keep their original shape so their caches stay valid.
+        const mid = mediaKeyOf();
+        return currentState.source === 'anikoto'
+          ? `info:full_data:v2:${mid}`
+          : `info:full_data:${mid}`;
+      }
+
       function jikanIdOf() {
         // MAL id usable for jikan-self / animethemes calls on this page
         if (currentState.source === 'jikan') return currentState.id;
         const m = currentState.data && currentState.data.mal_id;
         return m ? (parseInt(m, 10) || null) : null;
+      }
+
+      // ── Anikoto id-shift guard ─────────────────────────────────────
+      // The anikoto provider re-syncs its numeric ids (e.g. the 2026-07
+      // re-sync moved every anikoto_id). Old links/bookmarks like
+      // /info/anime/anikoto-50/ah-my-goddess then resolve to a DIFFERENT
+      // show while the URL slug still names the original one — and the
+      // permanent AniCache would keep serving the stale pairing. Verify
+      // the id->slug pairing against the live catalog (ruri list endpoint,
+      // exact slug filter) and redirect to the stable row (jikan_ref
+      // preferred — MAL ids never shift) on mismatch. Fails open: any
+      // network/parse problem renders the page as requested.
+      async function verifyAnikotoSlug() {
+        const slug = String(currentState.slug || '').toLowerCase();
+        const id = currentState.id;
+        if (!slug || !/^[a-z0-9][a-z0-9_-]*$/.test(slug) || !id) return false;
+        // One check per browser session per media — repeat navigations skip it
+        const ssKey = `anikotoSlugOK:${mediaKeyOf()}`;
+        try { if (sessionStorage.getItem(ssKey) === '1') return false; } catch (e) { /* private mode */ }
+        try {
+          const res = await fetch(`${RURI_BASE}/anikoto/anime?slug=${encodeURIComponent(slug)}&limit=1`,
+                                  { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(6000) });
+          if (!res.ok) return false;                        // fail open
+          const json = await res.json();
+          const row = json && Array.isArray(json.data) ? json.data[0] : null;
+          if (!row || row.anikoto_id == null) return false; // slug unknown to the catalog -> nothing to correct
+          if (parseInt(row.anikoto_id, 10) === id) {
+            try { sessionStorage.setItem(ssKey, '1'); } catch (e) {}
+            return false;                                   // pairing intact — normal render
+          }
+          // Mismatch: the URL id now belongs to another show. Send the
+          // visitor to the row the slug actually names, on its stable source.
+          let target = null;
+          const jref = typeof row.jikan_ref === 'string' ? row.jikan_ref : '';
+          if (/^jikan-\d+$/.test(jref)) target = `/info/anime/${jref}/${slug}`;
+          else if (row.anikoto_id) target = `/info/anime/anikoto-${parseInt(row.anikoto_id, 10)}/${slug}`;
+          if (currentState.urlSeason) target += `/season/${currentState.urlSeason}`;
+          if (target && target !== window.location.pathname) {
+            console.warn(`[Anikoto] id shift: anikoto-${id} no longer maps to "${slug}" — redirecting to ${target}`);
+            location.replace(target + window.location.search);
+            return true;
+          }
+        } catch (e) {
+          console.warn('[Anikoto] slug verify skipped:', e && e.message);
+        }
+        return false;
       }
 
       function _ruriApply(data, cacheKey) {
@@ -3222,7 +3292,7 @@ img { max-width: 100%; height: auto; display: block; }
         currentState.title = data.title_english || data.title || 'Unknown';
         currentState.isPermanent = !!(window.AniCache && window.AniCache.isPermanentStatus(data.status));
         if (window.AniCache) {
-          window.AniCache.set({ cacheKey: `info:full_data:${cacheKey}`, pageSource: 'info',
+          window.AniCache.set({ cacheKey: fullDataCacheKey(), pageSource: 'info',
             section: 'info_full_data', showId: null, malId: data.mal_id ? String(data.mal_id) : null,
             data, permanent: currentState.isPermanent })
             .then(r => { if (!r) console.warn('[Ruri] Failed to save full data for', cacheKey); })
@@ -3294,8 +3364,11 @@ img { max-width: 100%; height: auto; display: block; }
             const data = json && json.data;
             if (!data || !(data.title || data.title_english)) continue;
             _ruriApply(data, `${src}-${id}`);
+            // anikoto rows carry unreliable provider dates/seasons — repair the
+            // publication facts from the owner's curated s-mal row first, then
             // fill any displayed-but-missing metadata from the page-type's
             // secondary source (self-hosted jikan / anilist proxy) before render
+            if (src === 'anikoto') await repairAnikotoFacts();
             await enrichAnimeMetadata();
             return true;
           } catch (e) { console.warn('[Ruri] fetch failed:', url, e.message); }
@@ -3427,10 +3500,59 @@ img { max-width: 100%; height: auto; display: block; }
           }
           console.log('[Enrich] filled:', filled.join(', '));
           if (window.AniCache) {
-            window.AniCache.set({ cacheKey: `info:full_data:${mediaKeyOf()}`, pageSource: 'info',
+            window.AniCache.set({ cacheKey: fullDataCacheKey(), pageSource: 'info',
               section: 'info_full_data', showId: null, malId: d.mal_id ? String(d.mal_id) : null,
               data: d, permanent: currentState.isPermanent }).catch(() => {});
           }
+        }
+      }
+
+      // ── Anikoto publication-facts repair ───────────────────────────
+      // The anikoto provider's date/season columns are unreliable (real case:
+      // anikoto-8904 aired.string "Jul 3, 2026 to Nov 30, 1899", season null,
+      // year 2026 -> Show Details rendered the garbage range and a season-less
+      // "2026" Premiered). The owner's own s-mal row for the same mal_id is
+      // the curated source for publication facts, so overwrite from it. This
+      // deliberately breaks the fill-only enrichment rule for these fields:
+      // the provider values are PRESENT but WRONG, so absence-detection can't
+      // catch them. Runs before render; fails open on any fetch problem.
+      async function repairAnikotoFacts() {
+        if (currentState.source !== 'anikoto') return;
+        const d = currentState.data;
+        const mid = d && parseInt(d.mal_id, 10);
+        if (!mid) return;
+        try {
+          const res = await fetch(`${RURI_BASE}/s-mal/anime/jikan-${mid}/full`,
+                                  { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(8000) });
+          if (!res.ok) return; // fail open — render the provider values as-is
+          const json = await res.json();
+          const row = json && json.data;
+          if (!row || typeof row !== 'object') return;
+
+          const repaired = [];
+          // aired: the s-mal row wins when it has parseable dates or any
+          // usable human-readable window (the provider's 1899 zero-dates and
+          // year-shifted ranges are exactly what we are repairing)
+          const smalAiredUsable = _metaHas(row.aired?.from) ||
+                                  (row.aired?.string && row.aired.string !== 'Not available');
+          if (smalAiredUsable) { d.aired = row.aired; repaired.push('aired'); }
+          if (_metaHas(row.season) && row.season !== d.season) { d.season = row.season; repaired.push('season'); }
+          if (_metaHas(row.year) && row.year !== d.year) { d.year = row.year; repaired.push('year'); }
+          if (_metaHas(row.season_year) && !_metaHas(d.season_year)) { d.season_year = row.season_year; repaired.push('season_year'); }
+          if (_metaHas(row.broadcast?.string)) { d.broadcast = row.broadcast; repaired.push('broadcast'); }
+          // duration is fill-only: rarely garbage, just often absent
+          if (!_metaHas(d.duration) && _metaHas(row.duration)) { d.duration = row.duration; repaired.push('duration'); }
+
+          if (repaired.length) {
+            console.log('[FactsRepair] anikoto publication facts corrected from s-mal row jikan-' + mid + ':', repaired.join(', '));
+            if (window.AniCache) {
+              window.AniCache.set({ cacheKey: fullDataCacheKey(), pageSource: 'info',
+                section: 'info_full_data', showId: null, malId: String(mid),
+                data: d, permanent: currentState.isPermanent }).catch(() => {});
+            }
+          }
+        } catch (e) {
+          console.warn('[FactsRepair] skipped:', e && e.message);
         }
       }
 
@@ -3472,7 +3594,7 @@ img { max-width: 100%; height: auto; display: block; }
 
               // Also try to load the FULL cached API response from media_cache
               // This contains fields not stored in shows table (relations, broadcast, themes, etc.)
-              const fullCacheKey = `info:full_data:${_mediaId}`;
+              const fullCacheKey = fullDataCacheKey();
               const fullData = await window.AniCache.get(fullCacheKey).catch(()=>null);
 
               currentState.data = currentState.data || {};
@@ -3677,7 +3799,7 @@ img { max-width: 100%; height: auto; display: block; }
           // Cache full Jikan response
           if (window.AniCache) {
             const sid = `jikan-${currentState.id}`;
-            const saveResult = await window.AniCache.set({ cacheKey:`info:full_data:${sid}`, pageSource:'info',
+            const saveResult = await window.AniCache.set({ cacheKey: fullDataCacheKey(), pageSource:'info',
               section:'info_full_data', showId:null,
               malId:currentState.id, data: currentState.data,
               permanent: currentState.isPermanent,
@@ -3761,7 +3883,7 @@ img { max-width: 100%; height: auto; display: block; }
           if (window.AniCache && (d.id || id)) {
             const sid = `tmdb-${endpoint}-${id}`;
             const trimmedData = window.AniCache.trimTMDBData(d);
-            const saveResult = await window.AniCache.set({ cacheKey:`info:full_data:${sid}`, pageSource:'info',
+            const saveResult = await window.AniCache.set({ cacheKey: fullDataCacheKey(), pageSource:'info',
               section:'info_full_data', showId:null,
               tmdbId:id, data: trimmedData,
               permanent: currentState.isPermanent,
@@ -3833,7 +3955,7 @@ img { max-width: 100%; height: auto; display: block; }
         // Cache permanently (keyed by the page's own media id, not the MAL id)
         if (window.AniCache) {
           const sid = mediaKeyOf();
-          await window.AniCache.set({ cacheKey:`info:full_data:${sid}`, pageSource:'info',
+          await window.AniCache.set({ cacheKey: fullDataCacheKey(), pageSource:'info',
             section:'info_full_data', showId:null, malId:malId, data,
             permanent: currentState.isPermanent,
           });
@@ -4085,18 +4207,98 @@ img { max-width: 100%; height: auto; display: block; }
         }
       }
 
-      function updateEpisodeDetail(subCount, dubCount) {
-        const epEl = document.getElementById('episodeDetailValue');
-        if (!epEl) return;
-        const data = currentState.data;
+      // ── Episodes detail field: total | CC sub | mic dub ─────────────────
+      // Fill-only merge, counts beat labels. Sources: anikoto payload native
+      // is_sub/is_dub counters (definitive, 0 = not available); ruri s-mal
+      // profile language endpoint (/s-mal/anime?mal_ids={mal}&language=sub,dub
+      // -> has_sub/has_dub flags from the ruri_anime_data_lang view = availability
+      // in the streaming catalog); AnimeSchedule/AllAnime aired counts (existing
+      // flows keep their roles via the same updateEpisodeDetail entry point).
+      function applyEpisodeLanguage(patch) {
+        const cur = currentState.episodeLang || (currentState.episodeLang = {});
+        if (patch.subCount != null && !(cur.subCount > 0)) cur.subCount = patch.subCount;
+        if (patch.dubCount != null && !(cur.dubCount > 0)) cur.dubCount = patch.dubCount;
+        if (patch.hasSub !== undefined && cur.hasSub === undefined) cur.hasSub = patch.hasSub;
+        if (patch.hasDub !== undefined && cur.hasDub === undefined) cur.hasDub = patch.hasDub;
+        paintEpisodeDetailValue();
+      }
+
+      function _epLangPart(iconCls, title, count, flag, label) {
+        const sep = '<span style="color:var(--text-muted);font-size:0.8em;">|</span>';
+        if (count > 0) return `${sep} <i class="fa-solid ${iconCls}" style="color:#7ec8f7;" title="${title}"></i> ${count}`;
+        if (count === 0 || flag === false) return `${sep} <i class="fa-solid ${iconCls}" style="color:var(--text-muted);opacity:0.45;" title="${title}: not available"></i> <span style="color:var(--text-muted);">—</span>`;
+        if (flag === true) return `${sep} <i class="fa-solid ${iconCls}" style="color:#7ec8f7;" title="${title}"></i> ${label}`;
+        return '';
+      }
+
+      function buildEpisodeDetailHtml() {
+        const data = currentState.data || {};
         const total = data.episodes || '?';
+        const L = currentState.episodeLang || {};
         let html = `<span>${total}</span>`;
-        if (subCount > 0 || dubCount > 0) {
-          html = `<span>${total}</span>`;
-          if (subCount > 0) html += ` <span style="color:var(--text-muted);font-size:0.8em;">|</span> <i class="fa-solid fa-closed-captioning" style="color:#7ec8f7;" title="Subtitled"></i> ${subCount}`;
-          if (dubCount > 0) html += ` <span style="color:var(--text-muted);font-size:0.8em;">|</span> <i class="fa-solid fa-microphone" style="color:#7ec8f7;" title="Dubbed"></i> ${dubCount}`;
+        html += _epLangPart('fa-closed-captioning', 'Subtitled', L.subCount, L.hasSub, 'Sub');
+        html += _epLangPart('fa-microphone', 'Dubbed', L.dubCount, L.hasDub, 'Dub');
+        return html;
+      }
+
+      function paintEpisodeDetailValue() {
+        const epEl = document.getElementById('episodeDetailValue');
+        if (epEl) epEl.innerHTML = buildEpisodeDetailHtml();
+      }
+
+      function updateEpisodeDetail(subCount, dubCount) {
+        applyEpisodeLanguage({
+          subCount: (typeof subCount === 'number' && subCount > 0) ? subCount : null,
+          dubCount: (typeof dubCount === 'number' && dubCount > 0) ? dubCount : null
+        });
+      }
+
+      // Ruri s-mal profile language endpoint — sub/dub data for the Episodes
+      // detail field. anikoto payloads carry native is_sub/is_dub counters
+      // (no fetch needed); jikan-/anilist- pages read has_sub/has_dub flags
+      // from /s-mal/anime?mal_ids={mal_id}&language=sub,dub (the lang view
+      // matches the streaming catalog by mal_id).
+      async function fetchRuriLanguageData() {
+        if (currentState.source === 'tmdb') return;
+        const data = currentState.data || {};
+        // 1) anikoto native counters — definitive counts, no fetch required
+        if (typeof data.is_sub === 'number' || typeof data.is_dub === 'number') {
+          applyEpisodeLanguage({
+            subCount: typeof data.is_sub === 'number' ? data.is_sub : null,
+            dubCount: typeof data.is_dub === 'number' ? data.is_dub : null
+          });
+          return;
         }
-        epEl.innerHTML = html;
+        // 2) s-mal language endpoint via the row's MAL id (anilist pages: the
+        //    /full payload row already carries mal_id; jikan pages: the URL id)
+        const malId = parseInt(data.mal_id, 10) || (currentState.source === 'jikan' ? currentState.id : null);
+        if (!malId) return;
+        const _mid = mediaKeyOf();
+        const _cacheKey = `info:rurilang:${_mid}`;
+        const apply = (flags) => {
+          currentState.ruriLangData = flags;
+          applyEpisodeLanguage({ hasSub: flags.has_sub === true, hasDub: flags.has_dub === true });
+        };
+        if (window.AniCache) {
+          try {
+            const cached = await window.AniCache.get(_cacheKey);
+            if (cached && typeof cached === 'object' && ('has_sub' in cached)) { apply(cached); return; }
+          } catch (e) { /* cache read failed — live fetch below */ }
+        }
+        try {
+          const url = `${CONFIG.RURI_BASE}/s-mal/anime?mal_ids=${malId}&language=sub,dub&limit=1`;
+          const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+          if (!res.ok) { console.warn('[RuriLang] HTTP', res.status); return; }
+          const json = await res.json();
+          const row = Array.isArray(json && json.data) ? json.data[0] : null;
+          if (!row) return;
+          const flags = { has_sub: row.has_sub === true, has_dub: row.has_dub === true };
+          apply(flags);
+          if (window.AniCache) {
+            window.AniCache.set({ cacheKey: _cacheKey, pageSource: 'info', section: 'ruri_language',
+              showId: _mid, malId: String(malId), data: flags, permanent: false }).catch(() => {});
+          }
+        } catch (e) { console.warn('[RuriLang] fetch failed:', e.message); }
       }
 
       function renderHero() {
@@ -4480,20 +4682,11 @@ img { max-width: 100%; height: auto; display: block; }
         if (isAnime) {
           const episodes = data.episodes;
           if (episodes) {
-            // Build episode HTML with sub/dub counts if available
-            const allAnime = currentState.allAnimeData;
-            let episodeHtml = `<span>${episodes}</span>`;
-            if (allAnime) {
-              const { episodes_sub, episodes_dub } = allAnime;
-              if (episodes_sub > 0 || episodes_dub > 0) {
-                episodeHtml = `<span>${episodes}</span>`;
-                if (episodes_sub > 0) episodeHtml += ` <span style="color:var(--text-muted);font-size:0.8em;">|</span> <i class="fa-solid fa-closed-captioning" style="color:#7ec8f7;" title="Subtitled"></i> ${episodes_sub}`;
-                if (episodes_dub > 0) episodeHtml += ` <span style="color:var(--text-muted);font-size:0.8em;">|</span> <i class="fa-solid fa-microphone" style="color:#7ec8f7;" title="Dubbed"></i> ${episodes_dub}`;
-              }
-            }
+            // total | CC sub | mic dub — sources merged by applyEpisodeLanguage
+            // (ruri s-mal language flags / anikoto counters / schedule counts)
             details.push({
               label: 'Episodes',
-              value: `<span id="episodeDetailValue" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;justify-content:flex-end;">${episodeHtml}</span>`,
+              value: `<span id="episodeDetailValue" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;justify-content:flex-end;">${buildEpisodeDetailHtml()}</span>`,
               isHtml: true
             });
           } else {
