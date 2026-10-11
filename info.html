@@ -5313,7 +5313,8 @@ img { max-width: 100%; height: auto; display: block; }
         const type = isAnime ? (currentState.sideType[section] || 'tv') : currentState.type;
         const container = document.getElementById(_sidebarListId(section));
         if (!container) return;
-        const cacheKey = `sidebar_html:${section}:${isAnime ? 'anime-' + type : currentState.type}`;
+        // v2 key — invalidates pre-polish cached sidebar HTML (Tv capitalization etc.)
+        const cacheKey = `sidebar_html:v2:${section}:${isAnime ? 'anime-' + type : currentState.type}`;
         if (!force) {
           if (window.AniCache) {
             try {
