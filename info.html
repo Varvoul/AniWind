@@ -4062,15 +4062,35 @@ img { max-width: 100%; height: auto; display: block; }
         }
       }
 
-      // ISO code -> full country name (dynamic, with tiny fallback map)
+      // ISO code -> full country name (dynamic, with tiny fallback map).
+      // Non-ISO values (ruri stores "japan" as a word) get title-cased.
       function regionName(iso) {
         if (!iso) return null;
-        try {
-          const dn = new Intl.DisplayNames(['en'], { type: 'region' });
-          const name = dn.of(String(iso).toUpperCase());
-          if (name && name !== String(iso).toUpperCase()) return name;
-        } catch (e) { /* Intl.DisplayNames unsupported */ }
-        return ISO_COUNTRY_FALLBACK[String(iso).toUpperCase()] || String(iso).toUpperCase();
+        const v = String(iso).trim();
+        if (!v) return null;
+        if (/^[A-Za-z]{2}$/.test(v)) {
+          try {
+            const dn = new Intl.DisplayNames(['en'], { type: 'region' });
+            const name = dn.of(v.toUpperCase());
+            if (name && name.toUpperCase() !== v.toUpperCase()) return name;
+          } catch (e) { /* Intl.DisplayNames unsupported */ }
+          return ISO_COUNTRY_FALLBACK[v.toUpperCase()] || v.toUpperCase();
+        }
+        return v.replace(/\b\w/g, c => c.toUpperCase());
+      }
+
+      // Memoised self-hosted jikan /full — relations, cast, artwork and
+      // statistics all reuse ONE fetch per page instead of hammering Render
+      function jikanSelfFull(malId) {
+        if (!malId) return Promise.resolve(null);
+        if (!currentState._jikanSelfCache) currentState._jikanSelfCache = {};
+        const key = String(malId);
+        if (!currentState._jikanSelfCache[key]) {
+          currentState._jikanSelfCache[key] = fetchWithRetry(`${CONFIG.JIKAN_SELF}/anime/${key}/full`)
+            .then(r => r.json())
+            .catch(e => { console.warn('[JikanSelf] failed:', e.message); return null; });
+        }
+        return currentState._jikanSelfCache[key];
       }
 
       function renderLanguageBadges(subCount, dubCount) {
@@ -4387,7 +4407,7 @@ img { max-width: 100%; height: auto; display: block; }
           extLinks.push(`<a href="https://www.themoviedb.org/${tmdbType}/${currentState.id}" target="_blank" class="ext-link-btn tmdb"><i class="fa-brands fa-mdb"></i> TMDB</a>`);
           // IMDb — icon rendered as the classic yellow badge; link only when the id exists
           const imdbId = data.external_ids?.imdb_id || null;
-          extLinks.push(`<a href="${imdbId ? 'https://www.imdb.com/title/' + imdbId + '/' : '#'}" target="_blank" class="ext-link-btn imdb" ${!imdbId ? 'style="display:none;"' : ''} title="View on IMDb"><svg width="30" height="15" viewBox="0 0 64 32" aria-hidden="true"><rect width="64" height="32" rx="6" fill="currentColor"/><text x="32" y="23" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-size="16" font-weight="900" fill="#0d1626" letter-spacing="0.5">IMDb</text></svg> IMDb</a>`);
+          extLinks.push(`<a href="${imdbId ? 'https://www.imdb.com/title/' + imdbId + '/' : '#'}" target="_blank" class="ext-link-btn imdb" ${!imdbId ? 'style="display:none;"' : ''} title="View on IMDb" aria-label="IMDb"><svg width="34" height="17" viewBox="0 0 64 32" aria-hidden="true"><rect width="64" height="32" rx="6" fill="currentColor"/><text x="32" y="23" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-size="16" font-weight="900" fill="#0d1626" letter-spacing="0.5">IMDb</text></svg></a>`);
         }
         if (extLinks.length) details.push({ label: 'External', value: `<div class="external-links">${extLinks.join('')}</div>`, isHtml: true });
         
@@ -4461,9 +4481,8 @@ img { max-width: 100%; height: auto; display: block; }
         let related = [];
         if (malId) {
           try {
-            const res = await fetchWithRetry(`${CONFIG.JIKAN_SELF}/anime/${malId}/full`);
-            const j = await res.json();
-            const rels = Array.isArray(j.relations) ? j.relations : [];
+            const j = await jikanSelfFull(malId);
+            const rels = Array.isArray(j && j.relations) ? j.relations : [];
             for (const rel of rels) {
               const relType = (rel.relation || '').toLowerCase();
               if (['prequel','sequel','side story','alternative version','alternative setting','spin-off'].includes(relType)) {
@@ -5396,9 +5415,9 @@ img { max-width: 100%; height: auto; display: block; }
           ? (item.score || item.rating_score || 0)
           : (item.vote_average || item.score || item.rating_score || 0);
         const score = scoreRaw;
-        // Fix: fallback so type never shows 'undefined'
+        // Fix: fallback so type never shows 'undefined' (and tv shows as TV)
         const typeRaw = isAnime ? (item.type || 'Anime') : (item.type || currentState.type || '');
-        const type = typeRaw ? typeRaw.charAt(0).toUpperCase() + typeRaw.slice(1) : '';
+        const type = typeRaw ? (typeRaw.toLowerCase() === 'tv' ? 'TV' : typeRaw.charAt(0).toUpperCase() + typeRaw.slice(1)) : '';
         const year = isAnime
           ? (item.year || item.aired?.from?.slice(0,4) || '')
           : (item.year || (item.release_date || item.first_air_date)?.slice(0,4) || '');
@@ -5520,13 +5539,18 @@ img { max-width: 100%; height: auto; display: block; }
             }
           } catch (e) { console.warn('[WaterTemple] ruri primary failed:', e.message); }
 
-          // FALLBACK — self-hosted jikan recommendations (seed title 10620)
+          // FALLBACK — self-hosted jikan recommendations (seed title 10620),
+          // then the public jikan instance as a last resort
           if (!items.length) {
-            try {
-              const res2 = await fetchWithRetry(`${CONFIG.JIKAN_SELF}/anime/10620/recommendations`);
-              const json2 = await res2.json();
-              items = (json2.data || []).filter(a => Number(a.mal_id) !== currentId).slice(0, 24);
-            } catch (e) { console.warn('[WaterTemple] jikan fallback failed:', e.message); }
+            const fbUrls = [`${CONFIG.JIKAN_SELF}/anime/10620/recommendations`, `https://api.jikan.moe/v4/anime/10620/recommendations`];
+            for (const fbUrl of fbUrls) {
+              try {
+                const res2 = await fetchWithRetry(fbUrl, 1, 1200);
+                const json2 = await res2.json();
+                items = (json2.data || []).filter(a => Number(a.mal_id) !== currentId).slice(0, 24);
+                if (items.length) break;
+              } catch (e) { console.warn('[WaterTemple] fallback failed:', fbUrl, e.message); }
+            }
           }
 
           if (items.length > 0) {
@@ -5668,18 +5692,33 @@ img { max-width: 100%; height: auto; display: block; }
 
       function _sunkenGenreParam() {
         const data = currentState.data || {};
-        const names = (data.genres || [])
-          .map(g => (typeof g === 'string' ? g : (g && g.name) || ''))
-          .map(s => String(s).trim())
-          .filter(Boolean);
+        const raw = (data.genres || [])
+          .map(g => (typeof g === 'string' ? g : (g && g.name) || ''));
+        // split compound names ("Sci-Fi & Fantasy" -> ["Sci-Fi","Fantasy"])
+        const names = [];
+        raw.forEach(g => String(g).split(/[,&/]+/).forEach(part => {
+          const p = part.trim();
+          if (p && !names.some(n => n.toLowerCase() === p.toLowerCase())) names.push(p);
+        }));
+        // canonical MAL genre vocabulary — ruri matches exact names
+        const CANON = { action: 'Action', thriller: 'Thriller', horror: 'Horror', adventure: 'Adventure', comedy: 'Comedy', fantasy: 'Fantasy', 'sci-fi': 'Sci-Fi', 'sci fi': 'Sci-Fi', school: 'School' };
         // priority filter — Action, Thriller, Horror, Adventure, Comedy, Fantasy, Sci-Fi, School
         const picked = [];
         for (const p of SUNKEN_GENRE_PRIORITY) {
           const hit = names.find(n => n.toLowerCase() === p || n.toLowerCase().includes(p));
-          if (hit && !picked.includes(hit)) picked.push(hit);
+          if (hit) {
+            const canon = CANON[p];
+            if (canon && !picked.includes(canon)) picked.push(canon);
+          }
           if (picked.length === 2) break;
         }
-        if (!picked.length) return names.slice(0, 2).join(',');
+        if (!picked.length) {
+          for (const n of names) {
+            const canon = CANON[n.toLowerCase()] || (n.charAt(0).toUpperCase() + n.slice(1));
+            if (!picked.includes(canon)) picked.push(canon);
+            if (picked.length === 2) break;
+          }
+        }
         return picked.join(',');
       }
 
@@ -5922,13 +5961,12 @@ img { max-width: 100%; height: auto; display: block; }
               container.innerHTML = '<p class="loading-text">Cast data not available for this entry</p>';
               return;
             }
-            // PRIMARY — self-hosted jikan /full carries characters + voice actors
+            // PRIMARY — self-hosted jikan /full carries characters + voice actors (memoised)
             let charsData = null;
             try {
-              const res = await fetchWithRetry(`${CONFIG.JIKAN_SELF}/anime/${jikanId}/full`);
-              const j = await res.json();
+              const j = await jikanSelfFull(jikanId);
               // self-hosted shape is flat — wrap it into the standard jikan /characters shape
-              charsData = (j.characters || []).map(c => ({
+              charsData = ((j && j.characters) || []).map(c => ({
                 character: { mal_id: c.mal_id, name: c.name, images: { jpg: { image_url: c.image_url } } },
                 role: c.role,
                 favorites: 0,
@@ -6110,13 +6148,12 @@ img { max-width: 100%; height: auto; display: block; }
           const bannerUrl = (bi && typeof bi === 'object') ? (bi.large || bi.small || '') : (typeof bi === 'string' ? bi : '');
           if (bannerUrl) images.push({ type: 'backdrop', url: bannerUrl, thumb: bannerUrl });
 
-          // extra pictures — self-hosted jikan /full ships the full gallery
+          // extra pictures — self-hosted jikan /full ships the full gallery (memoised)
           try {
             const jikanId = jikanIdOf();
             if (jikanId) {
-              const res = await fetchWithRetry(`${CONFIG.JIKAN_SELF}/anime/${jikanId}/full`);
-              const j = await res.json();
-              (j.pictures || []).forEach(pic => {
+              const j = await jikanSelfFull(jikanId);
+              ((j && j.pictures) || []).forEach(pic => {
                 const url = pic.images?.jpg?.large_image_url || pic.images?.jpg?.image_url
                          || pic.jpg?.large_image_url || pic.jpg?.image_url;
                 const thumb = pic.images?.jpg?.large_image_url || pic.images?.jpg?.image_url || url;
@@ -6343,9 +6380,8 @@ img { max-width: 100%; height: auto; display: block; }
           const malId = jikanIdOf();
           if (malId) {
             try {
-              // self-hosted jikan /full carries scores + status counts + members
-              const res = await fetchWithRetry(`${CONFIG.JIKAN_SELF}/anime/${malId}/full`);
-              stats = await res.json();
+              // self-hosted jikan /full carries scores + status counts + members (memoised)
+              stats = await jikanSelfFull(malId);
               currentState._jikanStats = stats;
             } catch (e) { console.warn('[Stats] jikan-self failed:', e.message); }
           }
