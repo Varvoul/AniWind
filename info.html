@@ -6549,6 +6549,13 @@ img { max-width: 100%; height: auto; display: block; }
             }).join('');
             
             container.innerHTML = `<div class="cast-warp-container"><div class="cast-list-grid">${castRows}</div>`;
+            // AniCache: save cast to show_details (the jikan path never
+            // persisted cast — derive-once here so repeat visits skip this
+            // builder entirely)
+            if (window.AniCache && window._lastCastData?.length) {
+              window.AniCache.saveDetails(mediaKeyOf(), { cast_crew: window._lastCastData },
+                { permanent: currentState.isPermanent }).catch(() => {});
+            }
             
           } catch (e) {
             console.error('Cast fetch error:', e);
@@ -6820,13 +6827,20 @@ img { max-width: 100%; height: auto; display: block; }
           }
 
           const allThemes = animeEntry.animethemes;
-          // AniCache: flatten themes for DB storage
+          // AniCache: flatten themes for DB storage (saved below once rendering
+          // is done — the save must live INSIDE this async flow: the previous
+          // top-level save block ran at script load, long before this fetch
+          // resolved, so themes were never actually persisted)
           window._lastThemesData = allThemes.map(t => ({
             type:      t.type,
             num:       t.sequence || 1,
             title:     t.song?.title || '',
             video_url: t.animethemeentries?.[0]?.videos?.[0]?.link || null,
           }));
+          if (window.AniCache && window._lastThemesData.length) {
+            window.AniCache.saveDetails(mediaKeyOf(), { themes: window._lastThemesData },
+              { permanent: currentState.isPermanent }).catch(() => {});
+          }
           const ops = allThemes.filter(t => t.type === 'OP').sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
           const eds = allThemes.filter(t => t.type === 'ED').sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
           const posterImg = currentState.data.images?.jpg?.image_url || '';
@@ -6893,12 +6907,6 @@ img { max-width: 100%; height: auto; display: block; }
           container.innerHTML = '<p class="loading-text">Failed to load theme songs</p>';
         }
       }
-      // AniCache: save themes to show_details
-      if (window.AniCache && window._lastThemesData && window._lastThemesData.length) {
-        const _mid = mediaKeyOf();
-        window.AniCache.saveDetails(_mid, {themes: window._lastThemesData}, { permanent: currentState.isPermanent }).catch(()=>{});
-      }
-
       // ════════════════════════════════════════════════════════════
       // STATISTICS TAB — every graph is derived from REAL payload data:
       //   anime : self-hosted jikan scores{} (votes per 1-10) + member
