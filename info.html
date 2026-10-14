@@ -599,13 +599,13 @@ img { max-width: 100%; height: auto; display: block; }
 }
 .dropdown-item.selected {
   background: rgba(43, 108, 176, 0.2);
-  color: #68d391;
+  color: #63b3ed;
 }
 .dropdown-item.selected:hover {
   background: rgba(43, 108, 176, 0.28);
 }
 .dropdown-item .bk-check-icon {
-  color: #48bb78;
+  color: #63b3ed;
   font-size: 0.8rem;
   flex-shrink: 0;
 }
@@ -4208,6 +4208,7 @@ img { max-width: 100%; height: auto; display: block; }
               currentState.allAnimeData = cached;
               renderLanguageBadges(cached.episodes_sub, cached.episodes_dub);
               updateEpisodeDetail(cached.episodes_sub, cached.episodes_dub);
+              syncBookmarkLangMeta();
               return;
             }
           } catch (e) { /* fall through */ }
@@ -4238,6 +4239,7 @@ img { max-width: 100%; height: auto; display: block; }
             renderLanguageBadges(match.episodes_sub, match.episodes_dub);
             // Update episode display in details grid if already rendered
             updateEpisodeDetail(match.episodes_sub, match.episodes_dub);
+            syncBookmarkLangMeta();
             if (window.AniCache) {
               window.AniCache.set({ cacheKey: _aaKey, pageSource: 'info', section: 'allanime',
                 data: match, permanent: true }).catch(() => {});
@@ -4306,6 +4308,7 @@ img { max-width: 100%; height: auto; display: block; }
           updateEpisodeDetail(subCount, dubCount);
           renderLanguageBadges(subCount, dubCount);
         }
+        syncBookmarkLangMeta();
         if (data.anilist?.url) {
           updateAnilistLink(data.anilist.url);
         }
@@ -5615,6 +5618,60 @@ img { max-width: 100%; height: auto; display: block; }
         return d.release_date || d.first_air_date || '';
       }
 
+      // ── Language (sub/dub) metadata — best of AllAnime + AnimeSchedule ──
+      function langMetaBest() {
+        if (currentState.source === 'tmdb') return { sub: null, dub: null, language: null };
+        const aa = currentState.allAnimeData || {};
+        const as = currentState.animeScheduleData || {};
+        const s1 = parseInt(aa.episodes_sub) || 0;
+        const s2 = parseInt(as.sub?.aired)   || 0;
+        const d1 = parseInt(aa.episodes_dub) || 0;
+        const d2 = parseInt(as.dub?.aired)   || 0;
+        const sub = Math.max(s1, s2) || null;
+        const dub = Math.max(d1, d2) || null;
+        // Sub AND dub flags present => the show carries dub episodes
+        const language = dub ? (sub ? 'sub,dub' : 'dub') : (sub ? 'sub' : null);
+        return { sub, dub, language };
+      }
+      function _langSig() {
+        const { sub, dub, language } = langMetaBest();
+        return `${sub}|${dub}|${language}`;
+      }
+      // Fill-only re-sync: language sources load async — if a bookmark was
+      // already saved before they landed, patch its language counters once
+      // (never nulls-out non-null data; guarded against redundant writes).
+      let _langSyncSig = null;
+      async function syncBookmarkLangMeta() {
+        try {
+          if (!currentState.currentUser || !currentState.bookmarkRowId) return;
+          if (currentState.source === 'tmdb') return;
+          const sig = _langSig();
+          if (!sig || sig === _langSyncSig) return;
+          const { sub, dub, language } = langMetaBest();
+          if (!sub && !dub) return;
+          // Read current row first — never overwrite better existing values
+          const { data: row, error: gErr } = await window.supabaseClient
+            .from('user_bookmarks')
+            .select('sub_epi_num, dub_epi_num, language')
+            .eq('id', currentState.bookmarkRowId)
+            .eq('user_id', currentState.currentUser.id)
+            .maybeSingle();
+          if (gErr || !row) return;
+          const patch = {};
+          if (dub && (!(row.dub_epi_num > 0) || dub > row.dub_epi_num)) patch.dub_epi_num = dub;
+          if (sub && (!(row.sub_epi_num > 0) || sub > row.sub_epi_num)) patch.sub_epi_num = sub;
+          if (language && (!row.language || language.length > row.language.length)) patch.language = language;
+          if (!Object.keys(patch).length) { _langSyncSig = sig; return; }
+          patch.updated_at = new Date().toISOString();
+          const { error } = await window.supabaseClient
+            .from('user_bookmarks')
+            .update(patch)
+            .eq('id', currentState.bookmarkRowId)
+            .eq('user_id', currentState.currentUser.id);
+          if (!error) { _langSyncSig = sig; console.log('[Bookmark] language metadata synced:', JSON.stringify(patch)); }
+        } catch (e) { /* silent — auxiliary metadata only */ }
+      }
+
       // ── Payload builders (exact column names from user_bookmarks DDL) ──
       function _buildMinimalPayload(statuses) {
         return {
@@ -5630,6 +5687,7 @@ img { max-width: 100%; height: auto; display: block; }
       function buildBookmarkPayloadFull(statuses) {
         const d       = currentState.data;
         const isAnime = currentState.source !== 'tmdb';
+        const _lang   = langMetaBest();
         const mal_id  = isAnime  ? (parseInt(d.mal_id  || currentState.id) || null) : null;
         const tmdb_id = !isAnime ? (parseInt(currentState.id)              || null) : null;
         const username = currentState.currentUser?.user_metadata?.username
@@ -5660,8 +5718,9 @@ img { max-width: 100%; height: auto; display: block; }
           studio_name:                           isAnime ? (d.studios || []).map(s => s.name).join(', ') : (d.production_companies || []).map(s => s.name).join(', '),
           producers_name:                        isAnime ? (d.producers || []).map(p => p.name).join(', ') : '',
           total_epi_num:                         isAnime ? (parseInt(d.episodes) || null) : (parseInt(d.number_of_episodes) || null),
-          dub_epi_num:                           parseInt(currentState.allAnimeData?.episodes_dub) || null,
-          sub_epi_num:                           parseInt(currentState.allAnimeData?.episodes_sub) || null,
+          dub_epi_num:                           _lang.dub,
+          sub_epi_num:                           _lang.sub,
+          language:                              _lang.language,
           format:                                isAnime ? (d.type || '') : (currentState.type || ''),
           synopsis_context:                      isAnime ? (d.synopsis || '') : '',
           overview_context:                      !isAnime ? (d.overview || '') : '',
@@ -5733,6 +5792,12 @@ img { max-width: 100%; height: auto; display: block; }
               if (error) throw error;
               currentState.bookmarkRowId = null;
             }
+            // Broadcast removal to other tabs (same key convention as save)
+            try {
+              const _mid = `${currentState.source}-${currentState.id}`;
+              localStorage.setItem(`bk_sync_${currentState.currentUser.id}_${_mid}`,
+                JSON.stringify({ statuses: [], ts: Date.now() }));
+            } catch(e) {}
             return;
           }
 
@@ -5755,6 +5820,7 @@ img { max-width: 100%; height: auto; display: block; }
           }
 
           if (data?.id) currentState.bookmarkRowId = data.id;
+          _langSyncSig = _langSig(); // what we just saved — resync guard baseline
 
           // Cross-tab sync via localStorage
           try {
@@ -5783,6 +5849,12 @@ img { max-width: 100%; height: auto; display: block; }
           currentState.bookmarkRowId = null;
           updateBookmarkUI();
           showBookmarkToast([]);
+          // Broadcast removal to other open tabs of the same show
+          try {
+            const _mid = `${currentState.source}-${currentState.id}`;
+            localStorage.setItem(`bk_sync_${currentState.currentUser.id}_${_mid}`,
+              JSON.stringify({ statuses: [], ts: Date.now() }));
+          } catch(e) {}
         } catch (e) { console.error('removeBookmark error:', e); }
       }
 
@@ -5853,7 +5925,7 @@ img { max-width: 100%; height: auto; display: block; }
 
         // Site-matching colors
         const bgMap = {
-          success: 'linear-gradient(135deg, #0d2f4f 0%, #1a3a5c 100%)',
+          success: 'linear-gradient(135deg, #0c2d52 0%, #1b4d85 100%)',
           error:   'linear-gradient(135deg, #4a1515 0%, #742a2a 100%)',
           info:    'linear-gradient(135deg, #1a2a3a 0%, #0d2137 100%)'
         };
@@ -5862,7 +5934,7 @@ img { max-width: 100%; height: auto; display: block; }
           error:   'fa-solid fa-circle-exclamation',
           info:    'fa-solid fa-circle-info'
         };
-        const iconColor = type === 'success' ? '#48bb78' : type === 'error' ? '#fc8181' : '#63b3ed';
+        const iconColor = type === 'success' ? '#63b3ed' : type === 'error' ? '#fc8181' : '#63b3ed';
 
         const toast = document.createElement('div');
         toast.style.cssText = `

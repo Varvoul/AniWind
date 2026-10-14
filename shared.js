@@ -3430,7 +3430,17 @@
         if (data.user) await recordLogin(data.user.id);
         closeModal();
       } catch { errEl.textContent = 'An error occurred. Try again.'; }
-      finally { btn.disabled = false; btn.textContent = 'Sign In'; resetHCaptcha(); }
+      finally {
+        btn.disabled = false; btn.textContent = 'Sign In';
+        const _hadErr = !!errEl.textContent;
+        resetHCaptcha();
+        // hCaptcha tokens are single-use: any failed submit consumed the token
+        // and the widget was just reset. Tell the user plainly, so they don't
+        // hit "complete the captcha" on the next submit out of nowhere.
+        if (_hadErr && errEl.textContent) {
+          errEl.textContent += ' For security the captcha was reset — please verify it again below.';
+        }
+      }
     });
 
     document.getElementById('btnGoogleLogin')?.addEventListener('click', async () => {
@@ -3549,7 +3559,14 @@
         closeModal();
         alert('Account created! Check your email to verify your account.');
       } catch { errEl.textContent = 'An error occurred. Try again.'; }
-      finally { btn.disabled = false; btn.textContent = 'Create Account'; resetHCaptcha(); }
+      finally {
+        btn.disabled = false; btn.textContent = 'Create Account';
+        const _hadErr = !!errEl.textContent;
+        resetHCaptcha();
+        if (_hadErr && errEl.textContent) {
+          errEl.textContent += ' For security the captcha was reset — please verify it again below.';
+        }
+      }
     });
 
     document.getElementById('btnReset')?.addEventListener('click', async () => {
@@ -3953,13 +3970,20 @@
   function resetHCaptcha() {
     hcaptchaToken = '';
     try {
-      // Reset all hCaptcha widgets on the page
-      if (window.hcaptcha) {
+      // No-arg reset() resets ALL widgets — the only form that works reliably
+      // across api.js versions. Passing DOM elements silently fails on some
+      // builds: the checkbox keeps its green check while the token is already
+      // consumed, so the next submit says "complete the captcha" even though
+      // it still LOOKS verified (the stuck-state users had to reload to fix).
+      if (window.hcaptcha) window.hcaptcha.reset();
+    } catch(e) {
+      // Fallback: legacy per-element reset
+      try {
         document.querySelectorAll('.h-captcha').forEach(el => {
-          try { window.hcaptcha.reset(el); } catch(e) {}
+          try { window.hcaptcha.reset(el); } catch(e2) {}
         });
-      }
-    } catch(e) {}
+      } catch(e3) {}
+    }
   }
 
   /* ═══════════════════════════════════════════════════════════
