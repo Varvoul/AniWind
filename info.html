@@ -4416,7 +4416,7 @@ img { max-width: 100%; height: auto; display: block; }
         if (window.AniCache) {
           try {
             const cached = await window.AniCache.get(_cacheKey);
-            if (cached && typeof cached === 'object' && ('has_sub' in cached)) { apply(cached); return; }
+            if (cached && typeof cached === 'object' && ('has_sub' in cached)) { apply(cached); fetchAnikotoCounts(malId); return; }
           } catch (e) { /* cache read failed — live fetch below */ }
         }
         try {
@@ -4428,11 +4428,30 @@ img { max-width: 100%; height: auto; display: block; }
           if (!row) return;
           const flags = { has_sub: row.has_sub === true, has_dub: row.has_dub === true };
           apply(flags);
+          // 3) exact per-language episode counts from the anikoto catalog
+          //    (matched by jikan_ref) — fire-and-forget, fills bookmark metadata
+          fetchAnikotoCounts(malId);
           if (window.AniCache) {
             window.AniCache.set({ cacheKey: _cacheKey, pageSource: 'info', section: 'ruri_language',
               showId: _mid, malId: String(malId), data: flags, permanent: false }).catch(() => {});
           }
         } catch (e) { console.warn('[RuriLang] fetch failed:', e.message); }
+      }
+
+      // Exact sub/dub episode counts from the site's anikoto catalog (edge-cached
+      // ruri call, matched by jikan_ref). Best-effort: feeds bookmark language
+      // metadata with real numbers when the catalog maps this MAL id.
+      async function fetchAnikotoCounts(malId) {
+        try {
+          const res = await fetch(`${CONFIG.RURI_BASE}/anikoto/anime/jikan-${malId}/full`, { signal: AbortSignal.timeout(8000) });
+          if (!res.ok) return;
+          const json = await res.json();
+          const d = json?.data || json;
+          if (d && (typeof d.is_sub === 'number' || typeof d.is_dub === 'number')) {
+            currentState.anikotoCounts = { sub: parseInt(d.is_sub) || 0, dub: parseInt(d.is_dub) || 0 };
+            syncBookmarkLangMeta();
+          }
+        } catch (e) { /* best-effort only */ }
       }
 
       function renderHero() {
@@ -5626,15 +5645,18 @@ img { max-width: 100%; height: auto; display: block; }
         const aa = currentState.allAnimeData || {};
         const as = currentState.animeScheduleData || {};
         const rl = currentState.ruriLangData || {};   // ruri language view: has_sub/has_dub flags
+        const ak = currentState.anikotoCounts || {};  // anikoto catalog: exact is_sub/is_dub counts
         const d0 = currentState.data || {};            // anikoto-source pages carry is_sub/is_dub counts
         const s1 = parseInt(aa.episodes_sub)    || 0;
         const s2 = parseInt(as.sub?.aired)      || 0;
         const s3 = typeof d0.is_sub === 'number' ? d0.is_sub : 0;
+        const s4 = parseInt(ak.sub)             || 0;
         const d1 = parseInt(aa.episodes_dub)    || 0;
         const d2 = parseInt(as.dub?.aired)      || 0;
         const d3 = typeof d0.is_dub === 'number' ? d0.is_dub : 0;
-        const sub = Math.max(s1, s2, s3) || null;
-        const dub = Math.max(d1, d2, d3) || null;
+        const d4 = parseInt(ak.dub)             || 0;
+        const sub = Math.max(s1, s2, s3, s4) || null;
+        const dub = Math.max(d1, d2, d3, d4) || null;
         const hasSub = rl.has_sub === true || !!sub;
         const hasDub = rl.has_dub === true || !!dub;
         // Sub AND dub flags present => the show carries dub episodes
