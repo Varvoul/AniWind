@@ -67,7 +67,9 @@ function serveHit(res, key, entry) {
 }
 
 function serveMiss(res, key) {
-  res.setHeader('Cache-Control', 'public, s-maxage=30, stale-while-revalidate=60');
+  // short window — a fresh POST must become visible quickly; a stale miss
+  // cached longer than this just makes extra visitors live-fetch (harmless)
+  res.setHeader('Cache-Control', 'public, s-maxage=10, stale-while-revalidate=30');
   res.status(404).json({ found: false, key });
 }
 

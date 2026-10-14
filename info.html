@@ -3292,7 +3292,19 @@ img { max-width: 100%; height: auto; display: block; }
           });
           if (!res.ok) return null;                    // 404 miss / cold CDN
           const j = await res.json();
-          return (j && j.found && j.data && typeof j.data === 'object') ? j.data : null;
+          if (!(j && j.found && j.data && typeof j.data === 'object')) return null;
+          // Completeness guard — a sparse/broken server payload (partial
+          // write, foreign POST, legacy row) must NOT block the real live
+          // fetch. Require the fields the page actually renders.
+          const d = j.data;
+          const hasTitle = !!(d.title || d.name || d.title_english);
+          const isTmdb = currentState.source === 'tmdb';
+          const complete = isTmdb
+            ? hasTitle && !!(d.poster_path || d.backdrop_path || d.overview || d.vote_average)
+            : hasTitle && !!d.status &&
+              !!(d.images && (d.images.jpg?.large_image_url || d.images.jpg?.image_url)) &&
+              !!(d.synopsis || (Array.isArray(d.genres) && d.genres.length));
+          return complete ? d : null;
         } catch (e) { return null; }                   // fail open → live fetch
       }
       async function infoServerPut(data) {
