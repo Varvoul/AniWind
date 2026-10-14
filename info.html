@@ -400,6 +400,21 @@ img { max-width: 100%; height: auto; display: block; }
 .side-tag.studio { background: rgba(128,90,213,0.13); border: 1px solid rgba(128,90,213,0.45); color: #c4b0f8; }
 .side-tag.rating { background: rgba(237,100,166,0.13); border: 1px solid rgba(237,100,166,0.45); color: #f9aed5; }
 
+/* PC only: roomier sidebar cards — 50×70 posters / 0.8rem text read small
+   inside the 32% column on a desktop display. Mobile keeps the base sizes
+   (checked at 390×844 portrait and 844×390 landscape: full-width stacked
+   sections read well, and landscape cards shrink anyway once 4-per-row). */
+@media (min-width: 1025px) {
+  .sidebar-list { padding: 10px; max-height: 340px; }
+  .sidebar-list-item { padding: 10px; gap: 12px; margin-bottom: 6px; }
+  .sidebar-poster { width: 64px; height: 90px; }
+  .sidebar-info h4 { font-size: 0.95rem; }
+  .side-meta { font-size: 0.8rem; }
+  .side-tag { font-size: 0.68rem; padding: 2px 8px; }
+  .sidebar-rank { font-size: 1.6rem; width: 34px; }
+  .sidebar-section > h4 { font-size: 0.88rem; padding: 12px 14px; }
+}
+
 /* Hero Section */
 .hero-section {
   display: grid;
@@ -1584,7 +1599,15 @@ img { max-width: 100%; height: auto; display: block; }
 
 /* Recommendations - MATCHING INDEX.HTML GRID LAYOUT */
 .recommendations-section { margin-bottom: 32px; }
-.recommendations-section h3 { margin-bottom: 16px; }
+/* Section names match index.html .section-title exactly: Archivo Black,
+   1.35rem, widget-title blue — consistent across both pages */
+.recommendations-section h3 {
+  margin-bottom: 16px;
+  font-family: var(--font-title);
+  font-size: 1.35rem;
+  font-weight: 400;
+  color: var(--text-widget-title);
+}
 
 .recs-grid {
   display: grid;
@@ -1592,10 +1615,10 @@ img { max-width: 100%; height: auto; display: block; }
   gap: 16px;
 }
 
-/* mobile landscape */
+/* mobile landscape — 4 per row (streaming-site density; was 3, too large) */
 @media (max-width: 768px) and (orientation: landscape) {
   .recs-grid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
   }
 }
 
@@ -1615,11 +1638,11 @@ img { max-width: 100%; height: auto; display: block; }
 
 
 /* big phones in landscape (iPhone/Pixel ~769-934px wide but low height) —
-   still 3 columns per spec; desktop windows of the same width keep 6.
+   still 4 columns per spec; desktop windows of the same width keep 6.
    MUST come after the PC rules so the override wins on equal specificity. */
 @media (min-width: 769px) and (max-width: 934px) and (max-height: 500px) and (orientation: landscape) {
   .recs-grid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
   }
 }
 
@@ -1921,14 +1944,20 @@ img { max-width: 100%; height: auto; display: block; }
     max-width: 100%;
     padding: 0;
   }
+  /* stretch, not shrink-to-fit: the base .sidebar has align-self:start,
+     which survived into mobile and shrank the whole sidebar to its
+     content width (537px on an 844px viewport) — the "empty space on the
+     right" in landscape. Full width + stacked sections fixes it. */
   .sidebar {
     position: static;
     max-height: none;
     overflow: visible;
+    align-self: stretch;
+    width: 100%;
   }
   .sidebar-combined {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    grid-template-columns: 1fr;
     gap: 20px;
     background: transparent;
     border: none;
@@ -1943,6 +1972,12 @@ img { max-width: 100%; height: auto; display: block; }
     max-height: none;
     overflow-y: visible;
   }
+}
+
+/* tablets 852-1024px: exactly 3 sections → 3 columns never leaves an
+   empty cell (auto-fit with 3 items holes out on 2-column fits) */
+@media (max-width: 1024px) and (min-width: 852px) {
+  .sidebar-combined { grid-template-columns: repeat(3, 1fr); }
 }
 
 @media (max-width: 768px) {
@@ -3109,8 +3144,11 @@ img { max-width: 100%; height: auto; display: block; }
         const perm = currentState.isPermanent;
         let missing = [];
 
-        // 1. Check full API data in media_cache
-        const fullData = await window.AniCache.get(fullDataCacheKey()).catch(()=>null);
+        // 1. Check full API data — localStorage for permanent shows, the
+        //    shared 3h server cache for airing/upcoming ones
+        const fullData = currentState.isPermanent
+          ? await window.AniCache.get(fullDataCacheKey()).catch(()=>null)
+          : await infoServerGet();
         if (!fullData || !(fullData.title || fullData.name)) missing.push('full_data');
 
         // 2. Check show_details — skip on attempt 0 because renderTabs()
@@ -3234,6 +3272,60 @@ img { max-width: 100%; height: auto; display: block; }
           : `info:full_data:${mid}`;
       }
 
+      // ── Server-side cache (3h shared TTL) for NON-permanent shows ─────
+      // Finished/released payloads live permanently in the visitor's
+      // localStorage (AniCache). Airing / not-yet-aired / upcoming shows
+      // change too often for that — their full page payload is stored on
+      // the server (/api/info-cache/<mediaId>) for 3 hours and served
+      // from there to EVERY visitor; after expiry the next visit fetches
+      // live and re-saves, restarting the 3-hour window. Nothing is
+      // written to localStorage for these shows (the small sparse shows
+      // row is still kept — it drives status detection and bookmarks).
+      function infoServerUrl() {
+        return `/api/info-cache/${encodeURIComponent(mediaKeyOf())}`;
+      }
+      async function infoServerGet() {
+        try {
+          const res = await fetch(infoServerUrl(), {
+            headers: { Accept: 'application/json' },
+            signal: AbortSignal.timeout(8000)
+          });
+          if (!res.ok) return null;                    // 404 miss / cold CDN
+          const j = await res.json();
+          return (j && j.found && j.data && typeof j.data === 'object') ? j.data : null;
+        } catch (e) { return null; }                   // fail open → live fetch
+      }
+      async function infoServerPut(data) {
+        try {
+          const payload = (currentState.source === 'tmdb' && window.AniCache)
+            ? window.AniCache.trimTMDBData(data) : data;
+          await fetch(infoServerUrl(), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data: payload }),
+            signal: AbortSignal.timeout(10000),
+            keepalive: true
+          });
+        } catch (e) { console.warn('[InfoCache] server save failed:', e && e.message); }
+      }
+      // Single save route for the full page payload: permanent status →
+      // browser localStorage forever; otherwise → shared server cache (3h).
+      function saveFullData(d) {
+        if (!window.AniCache || !d) return;
+        if (currentState.isPermanent) {
+          window.AniCache.set({
+            cacheKey: fullDataCacheKey(), pageSource: 'info', section: 'info_full_data',
+            showId: null,
+            malId: currentState.source !== 'tmdb' && d.mal_id ? String(d.mal_id) : null,
+            tmdbId: currentState.source === 'tmdb' ? currentState.id : null,
+            data: currentState.source === 'tmdb' ? window.AniCache.trimTMDBData(d) : d,
+            permanent: true
+          }).catch(() => {});
+        } else {
+          infoServerPut(d);
+        }
+      }
+
       function jikanIdOf() {
         // MAL id usable for jikan-self / animethemes calls on this page
         if (currentState.source === 'jikan') return currentState.id;
@@ -3292,13 +3384,8 @@ img { max-width: 100%; height: auto; display: block; }
         currentState.data = data;
         currentState.title = data.title_english || data.title || 'Unknown';
         currentState.isPermanent = !!(window.AniCache && window.AniCache.isPermanentStatus(data.status));
-        if (window.AniCache) {
-          window.AniCache.set({ cacheKey: fullDataCacheKey(), pageSource: 'info',
-            section: 'info_full_data', showId: null, malId: data.mal_id ? String(data.mal_id) : null,
-            data, permanent: currentState.isPermanent })
-            .then(r => { if (!r) console.warn('[Ruri] Failed to save full data for', cacheKey); })
-            .catch(() => {});
-        }
+        // permanent → localStorage forever; airing/upcoming → shared 3h server cache
+        saveFullData(data);
       }
 
       // Shape-tolerant normalizer: ruri DB rows, live Jikan v4 payloads and
@@ -3500,11 +3587,7 @@ img { max-width: 100%; height: auto; display: block; }
             currentState.title = d.title_english || d.title || currentState.title;
           }
           console.log('[Enrich] filled:', filled.join(', '));
-          if (window.AniCache) {
-            window.AniCache.set({ cacheKey: fullDataCacheKey(), pageSource: 'info',
-              section: 'info_full_data', showId: null, malId: d.mal_id ? String(d.mal_id) : null,
-              data: d, permanent: currentState.isPermanent }).catch(() => {});
-          }
+          saveFullData(d);
         }
       }
 
@@ -3546,11 +3629,7 @@ img { max-width: 100%; height: auto; display: block; }
 
           if (repaired.length) {
             console.log('[FactsRepair] anikoto publication facts corrected from s-mal row jikan-' + mid + ':', repaired.join(', '));
-            if (window.AniCache) {
-              window.AniCache.set({ cacheKey: fullDataCacheKey(), pageSource: 'info',
-                section: 'info_full_data', showId: null, malId: String(mid),
-                data: d, permanent: currentState.isPermanent }).catch(() => {});
-            }
+            saveFullData(d);
           }
         } catch (e) {
           console.warn('[FactsRepair] skipped:', e && e.message);
@@ -3588,25 +3667,38 @@ img { max-width: 100%; height: auto; display: block; }
           const _mediaId = mediaKeyOf();
 
           // 1. Try shows table first
+          let dbShow = null;
           if (window.AniCache) {
-            const dbShow = await window.AniCache.findShow(_mediaId).catch(()=>null);
+            dbShow = await window.AniCache.findShow(_mediaId).catch(()=>null);
             if (dbShow) {
               console.log('[AniCache] info: loaded from shows table', _mediaId);
 
-              // Also try to load the FULL cached API response from media_cache
-              // This contains fields not stored in shows table (relations, broadcast, themes, etc.)
+              // Set isPermanent from DB row status FIRST — it decides which
+              // store the full payload is read from (local vs server cache)
+              currentState.isPermanent = !!(window.AniCache && window.AniCache.isPermanentStatus(dbShow.show_status));
+
+              // Also try to load the FULL cached API response — localStorage for
+              // finished/released shows, the shared 3h server cache for
+              // airing/upcoming ones (a stale legacy local copy must not win).
               const fullCacheKey = fullDataCacheKey();
-              const fullData = await window.AniCache.get(fullCacheKey).catch(()=>null);
+              const fullData = currentState.isPermanent
+                ? await window.AniCache.get(fullCacheKey).catch(()=>null)
+                : await infoServerGet();
 
               currentState.data = currentState.data || {};
-
-              // Set isPermanent from DB row status (for all section cache saves)
-              currentState.isPermanent = !!(window.AniCache && window.AniCache.isPermanentStatus(dbShow.show_status));
 
               if (fullData && typeof fullData === 'object' && !Array.isArray(fullData)) {
                 // We have the full API response cached — use it directly for complete rendering
                 console.log('[AniCache] info: full API data found in cache', _mediaId);
                 currentState.data = { ...currentState.data, ...fullData };
+                // the server copy may carry a fresher status than the local
+                // shows row (e.g. the show finished airing since it was saved)
+                // → promote to the permanent browser cache for future visits
+                if (!currentState.isPermanent && window.AniCache &&
+                    window.AniCache.isPermanentStatus(fullData.status)) {
+                  currentState.isPermanent = true;
+                  saveFullData(fullData);
+                }
                 // Set page display title to English (for breadcrumb, tab, share, etc.)
                 // Do NOT overwrite data.title — for anime it holds the romaji title needed by renderDetails()
                 currentState.title = currentState.data.title_english || currentState.data.title || dbShow.eng_title || dbShow.default_title;
@@ -3734,6 +3826,27 @@ img { max-width: 100%; height: auto; display: block; }
             }
           }
 
+          // 1.5 No local shows row — try the shared server cache before going
+          // live. Covers airing/upcoming shows for first-time visitors and
+          // every visitor within the 3h window after someone else's live
+          // fetch saved the payload (that POST also happens below on miss).
+          if (!dbShow) {
+            const srv = await infoServerGet();
+            if (srv && (srv.title || srv.name || srv.title_english)) {
+              currentState.data = srv;
+              currentState.isPermanent = !!(window.AniCache && window.AniCache.isPermanentStatus(srv.status));
+              currentState.title = srv.title_english || srv.title || srv.name || 'Unknown';
+              document.title = `${currentState.title} - Aniocean`;
+              renderHero(); renderStats(); renderSynopsis(); renderDetails();
+              renderSeasons(); renderTabs();
+              // the cached copy's status now says finished/released → promote
+              // it to the permanent browser cache; the server copy expires alone
+              if (currentState.isPermanent) saveFullData(srv);
+              console.log('[AniCache] info: served from server cache (3h TTL)', _mediaId);
+              return true;
+            }
+          }
+
           // 2. Live API fetch
           if (_src === 'tmdb') await fetchTMDBData();
           else await fetchRuriData();
@@ -3799,16 +3912,8 @@ img { max-width: 100%; height: auto; display: block; }
           currentState.title = data.title_english || data.title || 'Unknown';
           // Determine permanent cache based on airing status
           currentState.isPermanent = !!(window.AniCache && window.AniCache.isPermanentStatus(data.status));
-          // Cache full Jikan response
-          if (window.AniCache) {
-            const sid = `jikan-${currentState.id}`;
-            const saveResult = await window.AniCache.set({ cacheKey: fullDataCacheKey(), pageSource:'info',
-              section:'info_full_data', showId:null,
-              malId:currentState.id, data: currentState.data,
-              permanent: currentState.isPermanent,
-            });
-            if (!saveResult) console.warn('[AniCache] Failed to save full Jikan data for', sid);
-          }
+          // Cache full Jikan response (permanent → local / airing → server)
+          saveFullData(currentState.data);
         } catch (jikanError) {
           console.warn('[Jikan] Failed, trying ruri DB fallback:', jikanError.message);
           try {
@@ -3882,17 +3987,8 @@ img { max-width: 100%; height: auto; display: block; }
           currentState.title = d.title || d.name || (d.metadata && (d.metadata.title || d.metadata.name)) || 'Unknown';
           // Determine permanent cache based on status (Ended/Released = permanent)
           currentState.isPermanent = !!(window.AniCache && window.AniCache.isPermanentStatus(d.status));
-          // Cache the full show info JSON — trim first to reduce payload size
-          if (window.AniCache && (d.id || id)) {
-            const sid = `tmdb-${endpoint}-${id}`;
-            const trimmedData = window.AniCache.trimTMDBData(d);
-            const saveResult = await window.AniCache.set({ cacheKey: fullDataCacheKey(), pageSource:'info',
-              section:'info_full_data', showId:null,
-              tmdbId:id, data: trimmedData,
-              permanent: currentState.isPermanent,
-            });
-            if (!saveResult) console.warn('[AniCache] Failed to save full TMDB data for', sid);
-          }
+          // Cache the full show info JSON (permanent → local / airing-upcoming → server)
+          if (d.id || id) saveFullData(d);
         } catch (error) {
           console.error('[TMDB] all tiers failed:', error.message);
           currentState.data = { title: currentState.title || 'Unknown', overview: '' };
@@ -6166,7 +6262,7 @@ img { max-width: 100%; height: auto; display: block; }
           // /s-mal/anime/anilist-{id}/recommendations?by=genres
           // /anikoto/anime/anikoto-{id}/recommendations?by=genres
           // limit=25 (server max) + page-2 top-up so even the deepest need
-          // (mobile landscape: 3 cols x 12 rows = 36) is filled with full rows.
+          // (mobile landscape: 4 cols x 12 rows = 48) is filled with full rows.
           const currentId = Number(currentState.id);
           let items = [];
           try {
@@ -6182,8 +6278,8 @@ img { max-width: 100%; height: auto; display: block; }
               const json = await res.json();
               push(json.data);
               // computers need 28 (7 cols x 4 rows, original behaviour);
-              // phones need 36 (3 cols x 12 rows in landscape)
-              const _wtNeed = _recIsPhone() ? 36 : 28;
+              // phones need 48 (4 cols x 12 rows in landscape)
+              const _wtNeed = _recIsPhone() ? 48 : 28;
               if (items.length < _wtNeed && json.pagination && json.pagination.has_next_page) {
                 try {
                   const res2 = await fetch(base + '&page=2', { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(12000) });
@@ -6192,6 +6288,34 @@ img { max-width: 100%; height: auto; display: block; }
               }
             }
           } catch (e) { console.warn('[WaterTemple] ruri primary failed:', e.message); }
+
+          // PER-GENRE FALLBACK — the combined first-two-genres query on the
+          // recommendations endpoint occasionally matches nothing (rare
+          // genre pairs, sanitized tokens, etc.). Retry EACH of this show's
+          // first two genres separately through the list API (OR-of-one per
+          // call) and merge, deduping by mal_id with the self row excluded.
+          if (!items.length) {
+            const garr = ((currentState.data && currentState.data.genres) || [])
+              .map(g => (typeof g === 'string' ? g : (g && g.name) || ''))
+              .filter(Boolean).slice(0, 2);
+            if (garr.length) {
+              console.log('[WaterTemple] combined genre query empty — per-genre retry:', garr.join(' | '));
+              const seenG = new Set([currentId]);
+              const pushG = (arr) => (arr || []).forEach(a => {
+                const k = Number(a.mal_id);
+                if (!k || seenG.has(k)) return;
+                seenG.add(k); items.push(a);
+              });
+              for (const g of garr) {
+                try {
+                  const gUrl = `${RURI_BASE}/${currentState.source === 'anikoto' ? 'anikoto' : 's-mal'}/anime?genres=${encodeURIComponent(g)}&min_score=7&sfw=true&order_by=score&sort=desc&limit=25`;
+                  const gRes = await fetch(gUrl, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(12000) });
+                  if (gRes.ok) pushG((await gRes.json()).data);
+                  if (items.length >= 25) break;   // one genre already filled the pool
+                } catch (e) { console.warn('[WaterTemple] per-genre fallback failed:', g, e.message); }
+              }
+            }
+          }
 
           // FALLBACK — self-hosted jikan recommendations (seed title 10620),
           // then the public jikan instance as a last resort
@@ -6223,17 +6347,17 @@ img { max-width: 100%; height: auto; display: block; }
       // recommendations are extracted from the single mapple details payload
       // (movie: recommendations + similar; tv: embedded list when present,
       // with one lightweight fallback fetch only when the payload lacks it).
-      // PHONES: 12 full rows need up to 36 items (3 cols x 12) — when the
-      // embedded pool is short, up to two lightweight /recommendations page
+      // PHONES: 12 full rows need up to 48 items (4 cols x 12) — when the
+      // embedded pool is short, up to three lightweight /recommendations page
       // fetches top it up (computers keep the original no-extra-call path).
-      const _RFY_CAP = 40;          // painter never needs more than 36
+      const _RFY_CAP = 50;          // painter never needs more than 48
       function _rfyScore(a) { return (a.vote_average || 0) * Math.log10((a.vote_count || 1) + 1); }
       async function _rfyTopUp(base, mediaType) {
         const seen = new Set(base.map(a => Number(a.id)));
         seen.add(Number(currentState.id));
         const out = base.slice();
-        for (const p of [1, 2]) {
-          if (out.length >= 36) break;
+        for (const p of [1, 2, 3]) {
+          if (out.length >= 48) break;
           try {
             const res = await fetch(`${CONFIG.MAPPLE_BASE}/tmdb/${mediaType}/${currentState.id}/recommendations?language=en-US&page=${p}`,
                                     { signal: AbortSignal.timeout(10000) });
@@ -6262,7 +6386,7 @@ img { max-width: 100%; height: auto; display: block; }
               let pool = cached;
               // phones: a cached pool saved on a desktop visit may be too
               // short for 12 full rows — top it up once, re-cache, render
-              if (_recIsPhone() && pool.length < 36) {
+              if (_recIsPhone() && pool.length < 48) {
                 try {
                   const topped = await _rfyTopUp(pool, currentState.type);
                   if (topped.length > pool.length) {
