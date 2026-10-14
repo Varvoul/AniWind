@@ -4399,6 +4399,7 @@ img { max-width: 100%; height: auto; display: block; }
             subCount: typeof data.is_sub === 'number' ? data.is_sub : null,
             dubCount: typeof data.is_dub === 'number' ? data.is_dub : null
           });
+          syncBookmarkLangMeta();
           return;
         }
         // 2) s-mal language endpoint via the row's MAL id (anilist pages: the
@@ -4410,6 +4411,7 @@ img { max-width: 100%; height: auto; display: block; }
         const apply = (flags) => {
           currentState.ruriLangData = flags;
           applyEpisodeLanguage({ hasSub: flags.has_sub === true, hasDub: flags.has_dub === true });
+          syncBookmarkLangMeta();
         };
         if (window.AniCache) {
           try {
@@ -5618,19 +5620,25 @@ img { max-width: 100%; height: auto; display: block; }
         return d.release_date || d.first_air_date || '';
       }
 
-      // ── Language (sub/dub) metadata — best of AllAnime + AnimeSchedule ──
+      // ── Language (sub/dub) metadata — best of AllAnime + AnimeSchedule + ruri ──
       function langMetaBest() {
         if (currentState.source === 'tmdb') return { sub: null, dub: null, language: null };
         const aa = currentState.allAnimeData || {};
         const as = currentState.animeScheduleData || {};
-        const s1 = parseInt(aa.episodes_sub) || 0;
-        const s2 = parseInt(as.sub?.aired)   || 0;
-        const d1 = parseInt(aa.episodes_dub) || 0;
-        const d2 = parseInt(as.dub?.aired)   || 0;
-        const sub = Math.max(s1, s2) || null;
-        const dub = Math.max(d1, d2) || null;
+        const rl = currentState.ruriLangData || {};   // ruri language view: has_sub/has_dub flags
+        const d0 = currentState.data || {};            // anikoto-source pages carry is_sub/is_dub counts
+        const s1 = parseInt(aa.episodes_sub)    || 0;
+        const s2 = parseInt(as.sub?.aired)      || 0;
+        const s3 = typeof d0.is_sub === 'number' ? d0.is_sub : 0;
+        const d1 = parseInt(aa.episodes_dub)    || 0;
+        const d2 = parseInt(as.dub?.aired)      || 0;
+        const d3 = typeof d0.is_dub === 'number' ? d0.is_dub : 0;
+        const sub = Math.max(s1, s2, s3) || null;
+        const dub = Math.max(d1, d2, d3) || null;
+        const hasSub = rl.has_sub === true || !!sub;
+        const hasDub = rl.has_dub === true || !!dub;
         // Sub AND dub flags present => the show carries dub episodes
-        const language = dub ? (sub ? 'sub,dub' : 'dub') : (sub ? 'sub' : null);
+        const language = hasDub ? (hasSub ? 'sub,dub' : 'dub') : (hasSub ? 'sub' : null);
         return { sub, dub, language };
       }
       function _langSig() {
