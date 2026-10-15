@@ -4474,12 +4474,18 @@ async function loadNewAniocean() {
       let heroData=[], currentSlide=0, _heroRendered=false, _heroInterval=null;
       
       // Dynamic date constants - always fresh, no hardcoded dates!
+      // OWNER DECISION (2026-10-15): 60 slides — "so more airing tv type
+      // animes can be display pure tv format airing animes". 45 TV-anime +
+      // 15 TMDB TV (mapple /tv/airing pool = pure recent-airing shows,
+      // 4-year window) merged alternately. Both serving paths are pool-
+      // sized for 60: fallback builder (api/_lib/fallback.js) ships a
+      // 100-anime + 119-TMDB pool; the Neon automation writes 100 + 40.
       const HERO_CONFIG = {
-        maxTotalSlides: 60,           // Increased from 40 to show more content
-        tmdbTargetCount: 15,          // Increased from 13
+        maxTotalSlides: 60,           // Final merged carousel length (owner: 60 slides so more airing TV anime fit)
+        tmdbTargetCount: 15,          // TMDB TV pool cap (merged alternately w/ anime; mapple airing pool = 119 items, all with backdrops)
         anilistPerPage: 50,           // Anilist results per page
         anilistMaxPages: 2,           // Fetch up to 2 pages of airing anime (100 total)
-        anilistTargetCount: 45,       // Target anime count (increased from 27)
+        anilistTargetCount: 45,       // Anime pool cap (phase 2 fills remaining slides)
         // Dynamic date windows (calculated fresh on every load!)
         get today() { return new Date(); },
         get daysAgo7() { 
@@ -5923,72 +5929,57 @@ titleEl.style.color = '#ffffff';
           }
           console.log(`[New Releases] 🎌 new-releases anime: ${anime.length}`);
 
-          // ── TV from /api/new-releases (page-based keys: '7', '8', etc.) ──
-          // V4.9.0 FIX: Database stores TMDB data by PAGE number, not country code!
-          // Keys are strings like '7', '8' (pagination from TMDB API)
-          // NOTE: dbNR was already fetched above (line 5476) - no need to re-fetch
+          // ── TV from /api/new-releases ─────────────────────────────────
+          // V4.9.4 FIX: the automation stores TMDB TV page-keyed
+          // ({"13": [...], "14": [...]}) and movies as a FLAT array — but the
+          // old Object.keys+Array.isArray loop silently dropped EVERY movie
+          // (each flat-array index became a "page" holding an object, not an
+          // array), so the Movies tab and the movie rows in All were empty and
+          // the All grid degenerated into an anime flood. flattenTmdbMap()
+          // handles flat arrays, page-keyed objects and raw page objects.
           const nrTvByPage = dbNR?.tmdb_tv || dbNR?.tmdbTV || {};
           const seenTv = new Set();
           const allTv = [];
-          
-          // Extract TV shows from ALL page keys
-          const tvPageKeys = Object.keys(nrTvByPage).filter(k => !isNaN(k));
-          console.log(`[New Releases] 📺 TV page keys found: ${tvPageKeys.join(', ')}`);
-          
-          for (const pageKey of tvPageKeys) {
-            const raw = nrTvByPage[pageKey];
-            const arr = Array.isArray(raw) ? raw : [];
-            for (const i of arr) {
-              if (!i.poster_path || seenTv.has(i.id)) continue;
-              seenTv.add(i.id);
-              allTv.push({
-                id: `tmdb-tv-${i.id}`,
-                tmdb_id: i.id,
-                title: i.name || i.original_name || 'Unknown',
-                poster: tmdbImg(i.poster_path),
-                type: 'TV',
-                score: (i.vote_average || 0).toFixed(1),
-                details: (i.first_air_date || '').slice(0, 4) || 'S?',
-                cert: 'PG-13',
-                quality: 'HD',
-                _source: 'new-releases'
-              });
-            }
+          for (const i of flattenTmdbMap(nrTvByPage)) {
+            if (!i.poster_path || seenTv.has(i.id)) continue;
+            seenTv.add(i.id);
+            allTv.push({
+              id: `tmdb-tv-${i.id}`,
+              tmdb_id: i.id,
+              title: i.name || i.original_name || 'Unknown',
+              poster: tmdbImg(i.poster_path),
+              type: 'TV',
+              score: (i.vote_average || 0).toFixed(1),
+              details: (i.first_air_date || '').slice(0, 4) || 'S?',
+              cert: 'PG-13',
+              quality: 'HD',
+              _source: 'new-releases'
+            });
           }
-          console.log(`[New Releases] 📺 Total TV from pages: ${allTv.length}`);
+          console.log(`[New Releases] 📺 Total TV from all pages: ${allTv.length}`);
 
-          // ── Movies from /api/new-releases (page-based keys: '1', '2', etc.) ──
-          // V4.9.0 FIX: Same as TV - database uses PAGE numbers, not countries!
+          // ── Movies from /api/new-releases (FLAT array from automation) ──
           const nrMovieByPage = dbNR?.tmdb_movie || dbNR?.tmdbMovie || {};
           const seenMv = new Set();
           const allMovies = [];
-          
-          // Extract movies from ALL page keys
-          const moviePageKeys = Object.keys(nrMovieByPage).filter(k => !isNaN(k));
-          console.log(`[New Releases] 🎬 Movie page keys found: ${moviePageKeys.join(', ')}`);
-          
-          for (const pageKey of moviePageKeys) {
-            const raw = nrMovieByPage[pageKey];
-            const arr = Array.isArray(raw) ? raw : [];
-            for (const i of arr) {
-              if (!i.poster_path || seenMv.has(i.id)) continue;
-              seenMv.add(i.id);
-              allMovies.push({
-                id: `tmdb-mv-${i.id}`,
-                tmdb_id: i.id,
-                title: i.title || i.original_title || 'Unknown',
-                poster: tmdbImg(i.poster_path),
-                type: 'Movie',
-                score: (i.vote_average || 0).toFixed(1),
-                details: '1h 45m',
-                cert: i.adult ? '18+' : 'PG-13',
-                quality: 'HD',
-                releaseDate: i.release_date || '',
-                _source: 'new-releases'
-              });
-            }
+          for (const i of flattenTmdbMap(nrMovieByPage)) {
+            if (!i.poster_path || seenMv.has(i.id)) continue;
+            seenMv.add(i.id);
+            allMovies.push({
+              id: `tmdb-mv-${i.id}`,
+              tmdb_id: i.id,
+              title: i.title || i.original_title || 'Unknown',
+              poster: tmdbImg(i.poster_path),
+              type: 'Movie',
+              score: (i.vote_average || 0).toFixed(1),
+              details: '1h 45m',
+              cert: i.adult ? '18+' : 'PG-13',
+              quality: 'HD',
+              releaseDate: i.release_date || '',
+              _source: 'new-releases'
+            });
           }
-          console.log(`[New Releases] 🎬 Total Movies from pages: ${allMovies.length}`);
+          console.log(`[New Releases] 🎬 Total Movies from all pages: ${allMovies.length}`);
 
           // ── ENSURE COMPLETE ROWS ──
           // Always pad to complete rows so the grid looks balanced.
@@ -6006,11 +5997,19 @@ titleEl.style.color = '#ffffff';
             return arr;
           };
 
-          // "All" tab: anime first, then TV, then movies.
-          // Other tabs reuse the same cached arrays — no extra fetch needed.
-          // Use ensureCompleteRows to guarantee full grid rows (no incomplete columns)
+          // "All" tab: ROW-BASED type rotation — full row of anime, then a
+          // full row of TV, then a full row of movies, repeating (V4.9.4).
+          // Previously it was [50 anime, then TV, then movies] which rendered
+          // the first ~5 rows as anime-only. Other tabs reuse the same cached
+          // arrays — no extra fetch needed.
+          // ensureCompleteRows guarantees full grid rows (no incomplete columns)
+          const nrCols = calcColsForGrid();
           allReleases = {
-            all:    ensureCompleteRows(dedupById([...anime, ...allTv, ...allMovies], 'id')),
+            all:    nrInterleaveRowsByType(
+                      dedupById(anime, 'id'),
+                      dedupById(allTv, 'id'),
+                      dedupById(allMovies, 'id'),
+                      nrCols),
             anime:  ensureCompleteRows(dedupById(anime, 'id')),
             movie:  ensureCompleteRows(dedupById(allMovies, 'id')),
             tv:     ensureCompleteRows(dedupById(allTv, 'id'))
@@ -6148,11 +6147,38 @@ titleEl.style.color = '#ffffff';
            desktop/landscape. Keep function as a no-op for any external callers. */
         return false;
       }
+      /* ROW-BASED TYPE ROTATION (V4.9.4): chunk each source into full rows of
+         `cols` items, then rotate rows anime → TV → movies → anime … until all
+         rows are consumed. Every rendered row is a single content type and the
+         three types alternate row by row, per the All-tab spec. Partial rows
+         (a source shorter than a full row) are appended in the same rotation. */
+      function nrInterleaveRowsByType(animeList, tvList, movieList, cols) {
+        const rows = arr => {
+          const out = [];
+          for (let i = 0; i < arr.length; i += cols) out.push(arr.slice(i, i + cols));
+          return out;
+        };
+        const aR = rows(animeList), tR = rows(tvList), mR = rows(movieList);
+        const combined = [];
+        const maxRows = Math.max(aR.length, tR.length, mR.length);
+        for (let r = 0; r < maxRows; r++) {
+          if (aR[r]) combined.push(...aR[r]);
+          if (tR[r]) combined.push(...tR[r]);
+          if (mR[r]) combined.push(...mR[r]);
+        }
+        return combined;
+      }
       function nrBuildVerticalList() {
-        /* For the vertical 3-row layout: interleave the three sources so each
-           visible "page" shows anime / TV / movie across the 3 rows. Same logic
-           as nrBuildHorizontalList — kept as a separate function so the two can
-           diverge if needed (e.g. different sort order). */
+        /* For the vertical 3-row layout. NOTE: that grid uses
+           grid-auto-flow: COLUMN (3 fixed rows, paged horizontally), so the
+           per-item [anime, tv, movie] interleave is what renders visual ROWS
+           grouped by type — row 1 anime, row 2 TV, row 3 movie, repeating.
+           (V4.9.4: this looked broken only because the flat-array movie bug
+           made `movie` empty, collapsing the interleave into an anime flood.
+           With movies restored, the original interleave is correct again.)
+           Row-chunked rotation would produce type-pure COLUMNS here — wrong
+           for this layout. Mobile keeps the row-chunked rotation via
+           allReleases.all (normal row-flow grid). */
         const animeList = allReleases.anime || [];
         const tvList = allReleases.tv || [];
         const movieList = allReleases.movie || [];
@@ -6162,6 +6188,10 @@ titleEl.style.color = '#ffffff';
           combined.push(animeList[i], tvList[i], movieList[i]);
         }
         combined.push(...animeList.slice(n), ...tvList.slice(n), ...movieList.slice(n));
+        // Column-flow grid: every 3 consecutive DOM items share one column.
+        // Trim to a whole column so a leftover tail (e.g. 2 extra anime) can't
+        // contaminate another type's visual row with an under-filled column.
+        combined.length -= combined.length % 3;
         return combined;
       }
       function nrBuildHorizontalList() {
@@ -7495,24 +7525,18 @@ titleEl.style.color = '#ffffff';
           a.poster && a.poster !== '' && a.poster !== 'null' && a.poster !== 'undefined'
         );
 
-        // ── Equal distribution of anime / TV / movies across pages 1 and 2 ──
-        // When using the DB endpoint (rcHasDb), split the combined pool so
-        // page 1 gets the FIRST half and page 2 gets the SECOND half. This
-        // spreads anime+TV+movies evenly across both pages instead of page 1
-        // holding everything and page 2 being nearly empty. Page 3+ keeps
-        // using the live API calls (which paginate naturally).
-        let poolAnime = anilistItemsFiltered;
-        let poolTv = tmdbTvItems;
-        let poolMovie = tmdbMovieItems;
-        if (rcHasDb && (page === 1 || page === 2)) {
-          const half = (arr) => {
-            const mid = Math.floor(arr.length / 2);
-            return page === 1 ? arr.slice(0, mid) : arr.slice(mid);
-          };
-          poolAnime = half(poolAnime);
-          poolTv = half(poolTv);
-          poolMovie = half(poolMovie);
-        }
+        // ── DB pool pages 1/2: continuous offset windows (V4.9.4) ──
+        // The DB row (endpoint) carries the automation's full pool — 50 anime
+        // + 2 TMDB TV pages + 2 TMDB movie pages ≈ 130 items. The old code
+        // HALVED each source (page 1 = first half), which left only ~45-65
+        // items per page → 6-8 complete rows instead of the 10 the section
+        // promises. Now: interleave the FULL pool once, then page N (1|2)
+        // takes the next TARGET_SHOWS window — page 1 renders exactly
+        // 10 complete rows whenever the pool has 10 rows' worth of data.
+        // Page 3+ keeps using the live API calls (which paginate naturally).
+        const poolAnime = anilistItemsFiltered;
+        const poolTv = tmdbTvItems;
+        const poolMovie = tmdbMovieItems;
         // Interleave in [Anime][TV][Movie] ratio, repeating.
         const interleaved = [];
         const maxLen = Math.max(poolAnime.length, poolTv.length, poolMovie.length);
@@ -7529,7 +7553,9 @@ titleEl.style.color = '#ffffff';
           return true;
         });
         // Cache the full pool so a resize can re-trim instantly without refetching.
-        _completedPool = dedupedInterleaved;
+        _completedPool = (rcHasDb && (page === 1 || page === 2))
+          ? dedupedInterleaved.slice((page - 1) * TARGET_SHOWS, page * TARGET_SHOWS)
+          : dedupedInterleaved;
         // Render exactly 10 complete rows (no incomplete last row, ever).
         const list = completedFullRows();
         document.getElementById('completedGrid').innerHTML = list.map(s => renderCompletedCard(s)).join('');
