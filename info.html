@@ -3311,12 +3311,17 @@ img { max-width: 100%; height: auto; display: block; }
         try {
           const payload = (currentState.source === 'tmdb' && window.AniCache)
             ? window.AniCache.trimTMDBData(data) : data;
+          const body = JSON.stringify({ data: payload });
+          // keepalive fetches are capped at 64KB by browsers — big shows
+          // (long-running/episode-rich payloads can be 200KB+) failed with
+          // "Failed to fetch" and never reached the server cache. This is a
+          // background save, not an unload beacon: keepalive must stay off.
+          if (body.length > 1800000) { console.warn('[InfoCache] payload too large for server save:', body.length); return; }
           await fetch(infoServerUrl(), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ data: payload }),
-            signal: AbortSignal.timeout(10000),
-            keepalive: true
+            body,
+            signal: AbortSignal.timeout(10000)
           });
         } catch (e) { console.warn('[InfoCache] server save failed:', e && e.message); }
       }
