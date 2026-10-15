@@ -1,5 +1,6 @@
 import { getSql } from './_lib/neon.js';
 import { memoize, setCacheHeaders, getCacheInfo } from './_lib/cache.js';
+import { buildFallback, getLastGoodFallback } from './_lib/fallback.js';
 
 // ─────────────────────────────────────────────────────────────────────────
 // One function serving every "/api/<column>" route (hero-slider, top-airing,
@@ -140,6 +141,55 @@ async function loadHiddenTab() {
   });
 }
 
+/** Columns this endpoint knows: standard queries + the two special ones. */
+const KNOWN_COLUMNS = new Set([
+  ...Object.keys(STANDARD_COLUMN_QUERIES),
+  'popular-anime',
+  'hidden-tab'
+]);
+
+/** Per-column last-good payload memory (any source). Emergency serve when
+ *  BOTH Neon and the upstream fallback fail — keeps the site rendering
+ *  with slightly stale data instead of empty sections. */
+const lastGoodAny = new Map(); // column -> payload
+
+function loadColumn(column) {
+  if (column === 'popular-anime') return loadPopularAnime();
+  if (column === 'hidden-tab') return loadHiddenTab();
+  if (STANDARD_COLUMN_QUERIES[column]) return loadStandardColumn(column);
+  return null; // unknown column
+}
+
+/**
+ * Resilient load chain (2026-10-15 Neon quota outage):
+ *   1. Neon (via memoize — 6h memory TTL inside)
+ *   2. upstream fallback builders (api/_lib/fallback.js — same sources
+ *      the automation uses; 30-min memory cache inside)
+ *   3. last good payload from memory (Neon OR fallback origin)
+ *   4. rethrow -> 500 JSON (only when we truly have nothing)
+ */
+async function loadWithFallback(column) {
+  let dbErr = null;
+  try {
+    const payload = await loadColumn(column);
+    if (payload) {
+      lastGoodAny.set(column, payload);
+      return { payload, source: payload._source || 'neon-db' };
+    }
+  } catch (e) { dbErr = e; }
+
+  // Neon down / empty -> upstream rebuild
+  const fb = await buildFallback(column);
+  if (fb) return { payload: fb, source: 'upstream-fallback' };
+
+  // both dead -> previous good copy (may be minutes-old Neon data)
+  const stale = lastGoodAny.get(column) || getLastGoodFallback(column);
+  if (stale) return { payload: stale, source: 'stale-memory' };
+
+  if (dbErr) throw dbErr;
+  return null; // genuinely no data anywhere
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed, use GET' });
@@ -150,41 +200,47 @@ export default async function handler(req, res) {
   try {
     let payload;
     let cacheInfo;
+    let source = 'neon-db';
     
-    if (column === 'popular-anime') {
-      payload = await loadPopularAnime();
-      cacheInfo = getCacheInfo('popular_anime');
-    } else if (column === 'hidden-tab') {
-      payload = await loadHiddenTab();
-      cacheInfo = getCacheInfo('hidden_tab');
-    } else if (STANDARD_COLUMN_QUERIES[column]) {
-      payload = await loadStandardColumn(column);
-      cacheInfo = getCacheInfo(column);
-    } else {
+    if (!KNOWN_COLUMNS.has(column)) {
       return res.status(404).json({ error: `Unknown endpoint /api/${column}` });
     }
 
-    if (!payload) {
-      return res.status(404).json({ error: `${column} has no row` });
+    const result = await loadWithFallback(column);
+    if (!result) {
+      return res.status(404).json({ error: `${column} has no data` });
     }
+    payload = result.payload;
+    source = result.source;
+    cacheInfo = getCacheInfo(column);
 
-    // Set CDN cache headers
-    setCacheHeaders(res);
+    // CDN cache headers:
+    //   neon-db          -> standard 6h edge window
+    //   upstream-fallback-> shorter 5-min window (fresh-ish data, Neon down)
+    //   stale-memory     -> 1-min window, just enough to ride out an outage
+    if (source === 'upstream-fallback') setCacheHeaders(res, 300);
+    else if (source === 'stale-memory') setCacheHeaders(res, 60);
+    else setCacheHeaders(res);
+    res.setHeader('X-Data-Source', source);
 
     // Cache info in every response
     const response = {
       ...payload,
       _cache: cacheInfo,
-      _version: '4.8.0',
+      _version: '4.8.1',
+      _data_source: source,
       _timestamp: new Date().toISOString()
     };
 
     return res.status(200).json(response);
   } catch (err) {
+    // Last-resort error: never cache it at the edge (a cached 500 would
+    // blank a section for the whole TTL window).
+    res.setHeader('Cache-Control', 'no-store');
     return res.status(500).json({
       error: 'DB fetch failed',
       message: err.message,
-      _version: '4.8.0',
+      _version: '4.8.1',
       _timestamp: new Date().toISOString()
     });
   }

@@ -152,10 +152,11 @@ export default async function handler(req, res) {
   }
 
   const setLongCacheHeaders = () => {
-    // 12h CDN cache + 12h stale-while-revalidate so the edge also serves
-    // cached responses globally without hitting the function.
-    res.setHeader('Cache-Control', `public, s-maxage=${TTL_SECONDS}, stale-while-revalidate=${TTL_SECONDS}`);
-    res.setHeader('Vercel-CDN-Cache-Control', `public, s-maxage=${TTL_SECONDS}`);
+    // 12h CDN cache + 12h stale-while-revalidate + 7-day stale-if-error
+    // so the edge also serves cached responses globally without hitting the
+    // function, and keeps serving the last good copy if the DB errors out.
+    res.setHeader('Cache-Control', `public, s-maxage=${TTL_SECONDS}, stale-while-revalidate=${TTL_SECONDS}, stale-if-error=604800`);
+    res.setHeader('Vercel-CDN-Cache-Control', `public, s-maxage=${TTL_SECONDS}, stale-if-error=604800`);
   };
 
   // In-memory cache (per warm function instance)

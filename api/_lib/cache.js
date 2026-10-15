@@ -42,13 +42,17 @@ export async function memoize(key, fetcher) {
   return data;
 }
 
-/** Sets the CDN-facing cache headers for a 6h TTL with a 24h
- *  stale-while-revalidate window (serves the stale copy instantly while
- *  quietly refetching in the background, instead of making a live visitor
- *  wait on a cold cache). */
-export function setCacheHeaders(res) {
-  res.setHeader('Cache-Control', `public, s-maxage=${TTL_SECONDS}, stale-while-revalidate=86400`);
-  res.setHeader('Vercel-CDN-Cache-Control', `public, s-maxage=${TTL_SECONDS}`);
+/** Sets the CDN-facing cache headers. Default: 6h fresh + 24h
+ *  stale-while-revalidate + 7-day stale-if-error.
+ *
+ *  stale-if-error is the "never again" layer (2026-10-15 Neon quota
+ *  outage): when the origin (Neon) starts erroring, Vercel's edge keeps
+ *  serving the last good cached copy for up to 7 days instead of letting
+ *  500s reach visitors. ttlSeconds lets callers request a shorter edge
+ *  window for fallback/stale payloads. */
+export function setCacheHeaders(res, ttlSeconds = TTL_SECONDS) {
+  res.setHeader('Cache-Control', `public, s-maxage=${ttlSeconds}, stale-while-revalidate=86400, stale-if-error=604800`);
+  res.setHeader('Vercel-CDN-Cache-Control', `public, s-maxage=${ttlSeconds}, stale-if-error=604800`);
 }
 
 /**
