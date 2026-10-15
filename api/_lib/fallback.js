@@ -91,33 +91,66 @@ async function getTmdbResults(path, params = {}) {
   return Array.isArray(page?.results) ? page.results : [];
 }
 
+/**
+ * Fetch a RANGE of TMDB pages in parallel, keyed by page number — mirrors the
+ * automation's pagination storage: results.tmdbTV[String(page)] = [...].
+ * V4.9.4: the automation deliberately assigns DIFFERENT on_the_air page
+ * ranges to different sections (hero 1-6, top_airing 7-12, new_releases
+ * 13-14) so the same 20 shows never repeat across sections. Single-page
+ * fallback builders broke that contract and every section showed identical
+ * TV. Ranges below match AUTOMATION_ENDPOINTS exactly.
+ */
+async function getTmdbPages(path, params = {}, startPage, endPage) {
+  const pages = {};
+  const tasks = [];
+  for (let p = startPage; p <= endPage; p++) {
+    tasks.push(getTmdbResults(path, { ...params, page: String(p) }).then(r => { pages[String(p)] = r; }));
+  }
+  await Promise.all(tasks);
+  // Drop empty pages so shape checks (Object.keys(...).length) stay honest.
+  for (const k of Object.keys(pages)) if (!pages[k].length) delete pages[k];
+  return pages;
+}
+
+/** Flat array across a page range (automation tmdbMovie storage shape). */
+async function getTmdbPagesFlat(path, params = {}, startPage, endPage) {
+  const pages = await getTmdbPages(path, params, startPage, endPage);
+  return Object.keys(pages).sort((a, b) => a - b).flatMap(k => pages[k]);
+}
+
 const stamp = () => new Date().toISOString();
 
 // ── Column builders (shapes = automation raw payload) ────────────────────
 const BUILDERS = {
+  // Automation: anilist currently-airing (50) + TMDB on_the_air pages 1-6.
   'hero-slider': async () => {
     const [ani, tv] = await Promise.all([
-      getAni('currently-airing', { perPage: '30' }),
-      getTmdbResults('/tv/on_the_air', { page: '1' })
+      getAni('currently-airing'),
+      getTmdbPages('/tv/on_the_air', {}, 1, 6)
     ]);
-    return { Anime: ani, tmdb_tv: Object.keys(tv).length || tv.length ? { '1': tv } : {}, tmdb_movie: [], updated_at: stamp() };
+    return { Anime: ani, tmdb_tv: tv, tmdb_movie: [], updated_at: stamp() };
   },
 
+  // Automation: anilist top-airing (50) + TMDB on_the_air pages 7-12
+  // (hero consumes 1-6, new_releases 13-14 — ranges never overlap).
   'top-airing': async () => {
     const [ani, tv] = await Promise.all([
       getAni('top-airing'),
-      getTmdbResults('/tv/on_the_air', { page: '1' })
+      getTmdbPages('/tv/on_the_air', {}, 7, 12)
     ]);
-    return { Anime: ani, tmdb_tv: tv.length ? { '1': tv } : {}, tmdb_movie: [], updated_at: stamp() };
+    return { Anime: ani, tmdb_tv: tv, tmdb_movie: [], updated_at: stamp() };
   },
 
+  // Automation: anilist currently-airing TV (50) + on_the_air pages 13-14
+  // (page-keyed) + now_playing movies pages 1-2 (FLAT array — matches the
+  // automation's tmdbMovie storage; index.html flattens both shapes).
   'new-releases': async () => {
     const [ani, movie, tv] = await Promise.all([
       getAni('currently-airing', { format: 'TV' }),
-      getTmdbResults('/movie/now_playing', { page: '1' }),
-      getTmdbResults('/tv/on_the_air', { page: '1' })
+      getTmdbPagesFlat('/movie/now_playing', {}, 1, 2),
+      getTmdbPages('/tv/on_the_air', {}, 13, 14)
     ]);
-    return { Anime: ani, tmdb_tv: tv.length ? { '1': tv } : {}, tmdb_movie: movie, updated_at: stamp() };
+    return { Anime: ani, tmdb_tv: tv, tmdb_movie: movie, updated_at: stamp() };
   },
 
   'new-on-ruri': async () => {
@@ -125,25 +158,32 @@ const BUILDERS = {
     return { Anime: ani, tmdb_tv: {}, tmdb_movie: [], updated_at: stamp() };
   },
 
+  // Automation: upcoming movies pages 1-10 (flat) + discover TV pages 1-2
+  // (page-keyed, popularity.desc, first_air_date >= today) + anilist upcoming.
   'upcoming-shows': async () => {
-    const [ani, movie, tvUp] = await Promise.all([
+    const [ani, movie, tv] = await Promise.all([
       getAni('upcoming'),
-      getTmdbResults('/movie/upcoming', { page: '1' }),
-      getTmdbPage('/discover/tv', { sort_by: 'popularity.desc', 'first_air_date.gte': new Date().toISOString().split('T')[0], page: '1' })
+      getTmdbPagesFlat('/movie/upcoming', {}, 1, 10),
+      getTmdbPages('/discover/tv', { sort_by: 'popularity.desc', 'first_air_date.gte': new Date().toISOString().split('T')[0] }, 1, 2)
     ]);
-    const tvArr = Array.isArray(tvUp?.results) ? tvUp.results : [];
-    return { Anime: ani, tmdb_tv: tvArr.length ? { '1': tvArr } : {}, tmdb_movie: movie, updated_at: stamp() };
+    return { Anime: ani, tmdb_tv: tv, tmdb_movie: movie, updated_at: stamp() };
   },
 
+  // Automation: discover TV (ended, last 6mo) pages 1-2 (page-keyed) +
+  // discover movies (release_type 2|3, last 6mo) pages 1-2 (flat) +
+  // anilist recently-completed TV (50). 2 pages each ≈ 130-item pool so the
+  // homepage renders its full 10 complete rows on grid page 1 (V4.9.4).
   'recently-completed': async () => {
     const sixMonthsAgo = (() => { const d = new Date(); d.setMonth(d.getMonth() - 6); return d.toISOString().split('T')[0]; })();
     const today = new Date().toISOString().split('T')[0];
+    const tvParams = { sort_by: 'first_air_date.desc', with_status: 'ended', 'first_air_date.gte': sixMonthsAgo, 'first_air_date.lte': today };
+    const mvParams = { sort_by: 'release_date.desc', with_release_type: '2|3', 'release_date.gte': sixMonthsAgo, 'release_date.lte': today };
     const [ani, tv, movie] = await Promise.all([
       getAni('recently-completed', { format: 'TV' }),
-      getTmdbResults('/discover/tv', { sort_by: 'first_air_date.desc', with_status: 'ended', 'first_air_date.gte': sixMonthsAgo, 'first_air_date.lte': today, page: '1' }),
-      getTmdbResults('/discover/movie', { sort_by: 'release_date.desc', with_release_type: '2|3', 'release_date.gte': sixMonthsAgo, 'release_date.lte': today, page: '1' })
+      getTmdbPages('/discover/tv', tvParams, 1, 2),
+      getTmdbPagesFlat('/discover/movie', mvParams, 1, 2)
     ]);
-    return { Anime: ani, tmdb_tv: tv.length ? { '1': tv } : {}, tmdb_movie: movie, updated_at: stamp() };
+    return { Anime: ani, tmdb_tv: tv, tmdb_movie: movie, updated_at: stamp() };
   },
 
   'trending-now': async () => {
