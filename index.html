@@ -6186,6 +6186,10 @@ titleEl.style.color = '#ffffff';
           combined.push(animeList[i], tvList[i], movieList[i]);
         }
         combined.push(...animeList.slice(n), ...tvList.slice(n), ...movieList.slice(n));
+        // Column-flow grid: every 3 consecutive DOM items share one column.
+        // Trim to a whole column so a leftover tail (e.g. 2 extra anime) can't
+        // contaminate another type's visual row with an under-filled column.
+        combined.length -= combined.length % 3;
         return combined;
       }
       function nrBuildHorizontalList() {
