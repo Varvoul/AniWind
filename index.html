@@ -6167,17 +6167,26 @@ titleEl.style.color = '#ffffff';
         return combined;
       }
       function nrBuildVerticalList() {
-        /* For the vertical 3-row layout: ROW-BASED type rotation (V4.9.4) so
-           each visible row is one type — anime row, TV row, movie row, … —
-           using the vertical grid's live column count. Rebuilt on every render
-           so resizes that cross a column breakpoint re-chunk correctly. */
-        const cols = nrCalcCols();
-        return nrInterleaveRowsByType(
-          allReleases.anime || [],
-          allReleases.tv || [],
-          allReleases.movie || [],
-          cols
-        );
+        /* For the vertical 3-row layout. NOTE: that grid uses
+           grid-auto-flow: COLUMN (3 fixed rows, paged horizontally), so the
+           per-item [anime, tv, movie] interleave is what renders visual ROWS
+           grouped by type — row 1 anime, row 2 TV, row 3 movie, repeating.
+           (V4.9.4: this looked broken only because the flat-array movie bug
+           made `movie` empty, collapsing the interleave into an anime flood.
+           With movies restored, the original interleave is correct again.)
+           Row-chunked rotation would produce type-pure COLUMNS here — wrong
+           for this layout. Mobile keeps the row-chunked rotation via
+           allReleases.all (normal row-flow grid). */
+        const animeList = allReleases.anime || [];
+        const tvList = allReleases.tv || [];
+        const movieList = allReleases.movie || [];
+        const n = Math.min(animeList.length, tvList.length, movieList.length);
+        const combined = [];
+        for (let i = 0; i < n; i++) {
+          combined.push(animeList[i], tvList[i], movieList[i]);
+        }
+        combined.push(...animeList.slice(n), ...tvList.slice(n), ...movieList.slice(n));
+        return combined;
       }
       function nrBuildHorizontalList() {
         // Kept for backward compat — delegates to the vertical list builder
