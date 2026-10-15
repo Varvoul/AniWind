@@ -4741,7 +4741,8 @@ img { max-width: 100%; height: auto; display: block; }
             const genreHtml = uniqueGenres.map(name => {
               const firstChar = name.charAt(0).toLowerCase();
               const colorAttr = GENRE_COLOR_MAP[firstChar] || '';
-              return `<a href="/genre/${name.toLowerCase().replace(/\s+/g, '-')}" class="genre-tag" ${colorAttr}>${name}</a>`;
+              // anime info pages: /anime/genre/ prefix (matches browse popup links)
+              return `<a href="/anime/genre/${name.toLowerCase().replace(/\s+/g, '-')}" class="genre-tag" ${colorAttr}>${name}</a>`;
             }).join('');
             details.push({ label: 'Genres', value: `<div class="genre-tags">${genreHtml}</div>`, isHtml: true });
           } else {
@@ -4835,11 +4836,11 @@ img { max-width: 100%; height: auto; display: block; }
         if (isAnime) {
           if (data.season && data.year) {
             const season = data.season.charAt(0).toUpperCase() + data.season.slice(1);
-            // Best-fit URL pattern: /season/{season_name}/year/{year_number}
+            // Best-fit URL pattern: /anime/season/{season_name}/year/{year_number}
             // — hierarchical, keyword-separated, unambiguous and SEO friendly
             details.push({
               label: 'Premiered',
-              value: `<a href="/season/${String(data.season).toLowerCase()}/year/${data.year}">${season} ${data.year}</a>`,
+              value: `<a href="/anime/season/${String(data.season).toLowerCase()}/year/${data.year}">${season} ${data.year}</a>`,
               isHtml: true
             });
           } else if (data.year) {
@@ -4885,9 +4886,11 @@ img { max-width: 100%; height: auto; display: block; }
         
         const studios = isAnime ? data.studios : data.production_companies || data.networks;
         if (studios?.length) {
+          // anime info pages use /anime/studio/ prefix; TV keeps /studio/
+          const studioBase = isAnime ? '/anime/studio/' : '/studio/';
           const studioLinks = studios.slice(0, 5).map(s => {
             const studioSlug = slugify(s.name);
-            return `<a href="/studio/${studioSlug}">${s.name}</a>`;
+            return `<a href="${studioBase}${studioSlug}">${s.name}</a>`;
           }).join(', ');
           details.push({ label: 'Studio' + (studios.length > 1 ? 's' : ''), value: studioLinks, isHtml: true });
         } else {
