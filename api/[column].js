@@ -1,6 +1,6 @@
 import { getSql } from './_lib/neon.js';
 import { memoize, setCacheHeaders, getCacheInfo } from './_lib/cache.js';
-import { buildFallback, getLastGoodFallback } from './_lib/fallback.js';
+import { buildFallback, getLastGoodFallback, getHeroTvPool } from './_lib/fallback.js';
 
 // ─────────────────────────────────────────────────────────────────────────
 // One function serving every "/api/<column>" route (hero-slider, top-airing,
@@ -161,6 +161,54 @@ function loadColumn(column) {
 }
 
 /**
+ * HERO TV purity (owner request 2026-10-15): the hero slider's TMDB TV pool
+ * must be the mapple airing pool — pure currently-airing TV whose
+ * first_air_date falls inside the dynamic 4-year window
+ * [Jan 1 of (currentYear-3) .. today UTC] — on EVERY serving path,
+ * INCLUDING when the anime pool comes from the Neon-recorded row.
+ * The automation's recorded tmdb_tv (t-umi on_the_air pages 1-2, mixed
+ * eras incl. decades-old long-runners) is treated as a DEGRADATION source
+ * only: even then it is window-filtered before serving.
+ *
+ * Ordering of sources for the hero TV pool:
+ *   1. mapple-airing        (owner custom endpoint, 30-min memo in fallback.js;
+ *                            empty/blocked answers self-heal via cache-bust retry)
+ *   2. on_the_air-chain     (t-umi pages 1-6, inside getHeroTvPages)
+ *   3. recorded-window-filtered (Neon/fallback pool minus out-of-window items)
+ *
+ * NOTE: returns a SHALLOW COPY — the payload object may be the memoized
+ * Neon cache entry (6h TTL); mutating it in place would corrupt the cache
+ * and the lastGoodAny emergency copy.
+ */
+export function windowFilterTmdbPool(tvObj) {
+  const start = `${new Date().getUTCFullYear() - 3}-01-01`;
+  const end = new Date().toISOString().split('T')[0];
+  const out = {};
+  for (const [k, arr] of Object.entries(tvObj || {})) {
+    if (!Array.isArray(arr)) continue;
+    const kept = arr.filter(it => {
+      if (!it || typeof it !== 'object') return false;
+      const d = it.first_air_date;
+      if (!d) return true; // undated: keep (cannot judge — matches "no hidden-gem filters")
+      return d >= start && d <= end;
+    });
+    if (kept.length) out[k] = kept;
+  }
+  return out;
+}
+
+export async function ensureMappleHeroTv(payload) {
+  if (!payload || payload._tv_source) return payload; // fallback builder already stamped its TV source
+  try {
+    const pool = await getHeroTvPool();
+    if (pool && pool.source !== 'unavailable' && Object.keys(pool.pages || {}).length) {
+      return { ...payload, tmdb_tv: pool.pages, _tv_source: pool.source };
+    }
+  } catch (e) { /* degrade to window-filtered recorded pool below */ }
+  return { ...payload, tmdb_tv: windowFilterTmdbPool(payload.tmdb_tv), _tv_source: 'recorded-window-filtered' };
+}
+
+/**
  * Resilient load chain (2026-10-15 Neon quota outage):
  *   1. Neon (via memoize — 6h memory TTL inside)
  *   2. upstream fallback builders (api/_lib/fallback.js — same sources
@@ -212,6 +260,7 @@ export default async function handler(req, res) {
     }
     payload = result.payload;
     source = result.source;
+    if (column === 'hero-slider') payload = await ensureMappleHeroTv(payload);
     cacheInfo = getCacheInfo(column);
 
     // CDN cache headers:
@@ -222,6 +271,7 @@ export default async function handler(req, res) {
     else if (source === 'stale-memory') setCacheHeaders(res, 60);
     else setCacheHeaders(res);
     res.setHeader('X-Data-Source', source);
+    if (payload._tv_source) res.setHeader('X-TV-Source', payload._tv_source);
 
     // Cache info in every response
     const response = {

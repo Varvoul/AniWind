@@ -144,14 +144,33 @@ async function getTmdbPagesFlat(path, params = {}, startPage, endPage) {
 // slides stay pure recent-airing shows. Server-side friendly (HTTP 200
 // even without a browser UA; Vercel cold start can take ~7s -> 12s cap).
 const MAPPLE_BASE = 'https://mapple-tmdb-proxy.vercel.app/api';
-const MAPPLE_TIMEOUT_MS = 12000;
+// Origin recompute scans up to 20 upstream pages (observed ~7s cold, can be
+// slower under TMDB rate pressure) -> 20s cap. Memoized 30-min downstream so
+// this never lands on the user path.
+const MAPPLE_TIMEOUT_MS = 20000;
 
-/** One mapple page -> results array ([] on failure, never throws). */
+/**
+ * One mapple page -> results array ([] on failure, never throws).
+ * GOTCHA (observed live 2026-10-15): the mapple app caches its response at
+ * ITS OWN Vercel edge for up to 6h (x-cache-ttl: 21600s) — a transiently
+ * failed upstream scan leaves a POISONED copy (HTTP 200, total_results: 0,
+ * results: []) cached while the origin has already recovered. When the
+ * first answer is empty or errors, force ONE origin recompute with a
+ * one-shot cache-buster before giving up; the pool builder then falls back
+ * to the t-umi on_the_air chain either way, so the hero never runs dry.
+ */
 async function getMappleResults(path, params = {}) {
+  const attempt = (extra = {}) => {
+    const qs = new URLSearchParams({ ...params, ...extra }).toString();
+    return fetchJson(`${MAPPLE_BASE}${path}${qs ? '?' + qs : ''}`, MAPPLE_TIMEOUT_MS);
+  };
   try {
-    const qs = new URLSearchParams(params).toString();
-    const j = await fetchJson(`${MAPPLE_BASE}${path}${qs ? '?' + qs : ''}`, MAPPLE_TIMEOUT_MS);
-    return Array.isArray(j?.results) ? j.results : [];
+    const first = await attempt();
+    if (Array.isArray(first?.results) && first.results.length) return first.results;
+  } catch (e) { /* fall through to the cache-busted retry */ }
+  try {
+    const retry = await attempt({ _cb: String(Date.now()) });
+    return Array.isArray(retry?.results) ? retry.results : [];
   } catch (e) { return []; }
 }
 
@@ -163,6 +182,9 @@ async function getMappleResults(path, params = {}) {
  * mapple endpoint yields fewer than one healthy page across the whole
  * range, fall back to the t-umi on_the_air chain for the same range so
  * the hero pool never runs dry.
+ * Returns { pages, source } so consumers can stamp an honest _tv_source:
+ *   'mapple-airing'    -> owner custom endpoint (pure recent-airing TV)
+ *   'on_the_air-chain' -> t-umi degradation (mixed-era on_the_air)
  */
 async function getHeroTvPages(startPage, endPage) {
   const pages = {};
@@ -173,9 +195,39 @@ async function getHeroTvPages(startPage, endPage) {
   const total = Object.values(pages).reduce((n, r) => n + r.length, 0);
   if (total >= 20) {
     for (const k of Object.keys(pages)) if (!pages[k].length) delete pages[k];
-    return pages;
+    return { pages, source: 'mapple-airing' };
   }
-  return getTmdbPages('/tv/on_the_air', {}, startPage, endPage);
+  return { pages: await getTmdbPages('/tv/on_the_air', {}, startPage, endPage), source: 'on_the_air-chain' };
+}
+
+/**
+ * Memoized hero TV pool shared by the fallback builder AND the Neon-path
+ * enrichment in api/[column].js. 30-min TTL (same rhythm as the builders);
+ * a totally-empty fetch is only cached 60s so an upstream blip retries
+ * quickly. Last good copy is retained for emergency serve.
+ */
+const heroTvMemo = new Map(); // 'pool' -> { value: {pages, source}, expiresAt }
+let heroTvLastGood = null;
+
+export async function getHeroTvPool() {
+  const now = Date.now();
+  const hit = heroTvMemo.get('pool');
+  if (hit && hit.expiresAt > now) return hit.value;
+  let value = heroTvLastGood;
+  let ttl = FALLBACK_TTL_MS;
+  try {
+    const fresh = await getHeroTvPages(1, 6);
+    const total = Object.values(fresh.pages).reduce((n, r) => n + r.length, 0);
+    if (total > 0) {
+      value = fresh;
+      heroTvLastGood = fresh;
+    } else {
+      ttl = 60 * 1000; // both sources dead -> retry within a minute
+    }
+  } catch (e) { ttl = 60 * 1000; }
+  if (!value) value = { pages: {}, source: 'unavailable' };
+  heroTvMemo.set('pool', { value, expiresAt: now + ttl });
+  return value;
 }
 
 const stamp = () => new Date().toISOString();
@@ -187,12 +239,14 @@ const BUILDERS = {
   // window; chain-fallback t-umi on_the_air 1-6 — see getHeroTvPages).
   // Pools sized so the frontend can ALWAYS render its full 60-slide
   // carousel (45 TV-anime + 15 TMDB after its image/type filters).
+  // _tv_source stamps WHERE the TV pool came from so the Neon-path
+  // enrichment in [column].js can skip re-fetching when this ran already.
   'hero-slider': async () => {
-    const [ani, tv] = await Promise.all([
+    const [ani, tvPool] = await Promise.all([
       getAniPages('currently-airing', 2),
-      getHeroTvPages(1, 6)
+      getHeroTvPool()
     ]);
-    return { Anime: ani, tmdb_tv: tv, tmdb_movie: [], updated_at: stamp() };
+    return { Anime: ani, tmdb_tv: tvPool.pages, _tv_source: tvPool.source, tmdb_movie: [], updated_at: stamp() };
   },
 
   // Automation: anilist top-airing (50) + TMDB on_the_air pages 7-12
