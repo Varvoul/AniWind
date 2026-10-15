@@ -14,9 +14,13 @@
 //          fallback https://anikoto.bionmovies47.workers.dev/recent-anime
 //   tmdb   https://t-umi.bionmovies47.workers.dev/<path>   -> raw TMDB page (proxy holds key)
 //          fallback https://t-umi.zeraf.workers.dev/<path>
-//   NOTE: mapplee.com / mapple.fun now answers 401 Unauthorized to
-//   server-side calls (browser-only) so it CANNOT be used here; the
-//   t-umi pair covers the TMDB fallback chain instead.
+//   mapple https://mapple-tmdb-proxy.vercel.app/api/tv/airing -> HERO TV pool
+//          (owner custom endpoint, server-side OK). It purely returns
+//          currently-airing TV whose first_air_date falls inside a dynamic
+//          4-year window [Jan 1 of (currentYear-3) .. today UTC]. NOTE:
+//          mapplee.com / mapple.fun themselves still answer 401 server-side
+//          (browser-only) and remain unusable; the t-umi pair covers
+//          every other TMDB path and is the hero chain-fallback.
 //
 // Output shapes mirror exactly what the automation stores and what
 // index.html consumers expect (V4.8.0 raw passthrough):
@@ -60,6 +64,19 @@ async function getAni(name, params = {}) {
     const arr = Array.isArray(j?.data) ? j.data : [];
     return arr.filter(Boolean);
   } catch (e) { return []; }
+}
+
+/** AniList proxy items across N pages in parallel (automation parity: pageParam=page). */
+async function getAniPages(name, pageCount = 2, params = {}) {
+  const out = [];
+  await Promise.all(Array.from({ length: pageCount }, (_, i) => (async () => {
+    try {
+      const qs = new URLSearchParams({ perPage: '50', page: String(i + 1), ...params }).toString();
+      const j = await fetchJson(`${ANILIST_PROXY}/${name}?${qs}`);
+      if (Array.isArray(j?.data)) out.push(...j.data.filter(Boolean));
+    } catch (e) { /* page lost; remaining pool still usable */ }
+  })()));
+  return out;
 }
 
 /** Anikoto recent items; primary -> CF fallback. */
@@ -118,15 +135,62 @@ async function getTmdbPagesFlat(path, params = {}, startPage, endPage) {
   return Object.keys(pages).sort((a, b) => a - b).flatMap(k => pages[k]);
 }
 
+// ── Mapple HERO TV source (owner custom endpoint, verified live 2026-10-15) ──
+// GET /tv/airing?sort_by=first_air_date.desc&page=N ->
+//   { page, per_page: 20, total_pages, total_results, results: [TMDB TV] }
+// Purely currently-airing TV whose first_air_date falls inside a dynamic
+// 4-year window: Jan 1 of (currentYear - 3) .. today (UTC). Unlike t-umi
+// on_the_air it EXCLUDES decades-old long-runners, so the hero's TMDB
+// slides stay pure recent-airing shows. Server-side friendly (HTTP 200
+// even without a browser UA; Vercel cold start can take ~7s -> 12s cap).
+const MAPPLE_BASE = 'https://mapple-tmdb-proxy.vercel.app/api';
+const MAPPLE_TIMEOUT_MS = 12000;
+
+/** One mapple page -> results array ([] on failure, never throws). */
+async function getMappleResults(path, params = {}) {
+  try {
+    const qs = new URLSearchParams(params).toString();
+    const j = await fetchJson(`${MAPPLE_BASE}${path}${qs ? '?' + qs : ''}`, MAPPLE_TIMEOUT_MS);
+    return Array.isArray(j?.results) ? j.results : [];
+  } catch (e) { return []; }
+}
+
+/**
+ * HERO TMDB TV pool: mapple /tv/airing pages startPage..endPage, stored
+ * page-keyed in the exact shape the automation uses ({"1": [...], ...}).
+ * Verified live 2026-10-15: 119 results / 6 pages / EVERY item carries
+ * backdrop_path (hero-eligible) and an in-window first_air_date. If the
+ * mapple endpoint yields fewer than one healthy page across the whole
+ * range, fall back to the t-umi on_the_air chain for the same range so
+ * the hero pool never runs dry.
+ */
+async function getHeroTvPages(startPage, endPage) {
+  const pages = {};
+  await Promise.all(Array.from({ length: endPage - startPage + 1 }, (_, i) => (async () => {
+    const p = startPage + i;
+    pages[String(p)] = await getMappleResults('/tv/airing', { sort_by: 'first_air_date.desc', page: String(p) });
+  })()));
+  const total = Object.values(pages).reduce((n, r) => n + r.length, 0);
+  if (total >= 20) {
+    for (const k of Object.keys(pages)) if (!pages[k].length) delete pages[k];
+    return pages;
+  }
+  return getTmdbPages('/tv/on_the_air', {}, startPage, endPage);
+}
+
 const stamp = () => new Date().toISOString();
 
 // ── Column builders (shapes = automation raw payload) ────────────────────
 const BUILDERS = {
-  // Automation: anilist currently-airing (50) + TMDB on_the_air pages 1-6.
+  // Automation: anilist currently-airing 2 pages (100-item pool parity) +
+  // HERO TV = mapple /tv/airing pages 1-6 (pure recent-airing TV, 4-year
+  // window; chain-fallback t-umi on_the_air 1-6 — see getHeroTvPages).
+  // Pools sized so the frontend can ALWAYS render its full 60-slide
+  // carousel (45 TV-anime + 15 TMDB after its image/type filters).
   'hero-slider': async () => {
     const [ani, tv] = await Promise.all([
-      getAni('currently-airing'),
-      getTmdbPages('/tv/on_the_air', {}, 1, 6)
+      getAniPages('currently-airing', 2),
+      getHeroTvPages(1, 6)
     ]);
     return { Anime: ani, tmdb_tv: tv, tmdb_movie: [], updated_at: stamp() };
   },

@@ -4474,13 +4474,15 @@ async function loadNewAniocean() {
       let heroData=[], currentSlide=0, _heroRendered=false, _heroInterval=null;
       
       // Dynamic date constants - always fresh, no hardcoded dates!
-      // V4.9.4: hero trimmed to a curated 20-slide carousel (12 anime + 8 TMDB).
-      // 60 slides meant a 6-minute auto-advance loop (6s each) — visitors saw
-      // ~3% of the content per session and 60 slide nodes + accent extraction
-      // ran needlessly. Pools stay large; only the FINAL merge is capped.
+      // OWNER DECISION (2026-10-15): 60 slides — "so more airing tv type
+      // animes can be display pure tv format airing animes". 45 TV-anime +
+      // 15 TMDB TV (mapple /tv/airing pool = pure recent-airing shows,
+      // 4-year window) merged alternately. Both serving paths are pool-
+      // sized for 60: fallback builder (api/_lib/fallback.js) ships a
+      // 100-anime + 119-TMDB pool; the Neon automation writes 100 + 40.
       const HERO_CONFIG = {
-        maxTotalSlides: 20,           // Final merged carousel length (was 60)
-        tmdbTargetCount: 8,           // TMDB TV pool cap (merged alternately w/ anime)
+        maxTotalSlides: 60,           // Final merged carousel length (owner: 60 slides so more airing TV anime fit)
+        tmdbTargetCount: 15,          // TMDB TV pool cap (merged alternately w/ anime; mapple airing pool = 119 items, all with backdrops)
         anilistPerPage: 50,           // Anilist results per page
         anilistMaxPages: 2,           // Fetch up to 2 pages of airing anime (100 total)
         anilistTargetCount: 45,       // Anime pool cap (phase 2 fills remaining slides)
