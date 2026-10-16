@@ -2818,13 +2818,17 @@ img { max-width: 100%; height: auto; display: block; }
       'use strict';
 
       const CONFIG = {
-        TMDB_WORKER: 'https://aniocen.bionmovies47.workers.dev',
+        TMDB_WORKER: 'https://aniocen.bionmovies47.workers.dev', // DEAD (CF 1042, script removed) — kept only as historical reference
+        TMDB_TUMI: 'https://t-umi.bionmovies47.workers.dev',     // CF TMDB proxy — prepends /3 itself, NEVER add /3 to paths here
+        TMDB_TUMI_FB: 'https://t-umi.zeraf.workers.dev',         // same worker, second domain
+        TMDB_DIRECT: 'https://api.themoviedb.org/3',
+        TMDB_TOKEN: 'eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI0Yjc0YzE4NjlkZGQxMWEzNTM1MDFlNGI0MjY4MzA3YyIsIm5iZiI6MTc2NDM5Mzg3MS4yNTEwMDAyLCJzdWIiOiI2OTJhODM4ZjNkNTVkM2Y1NzJiOGVlYjIiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.qN331VqKQ5rfgvkadaRLYG6fNXp4t_lOee3K15f4gCo',
         ALLANIME_API: 'https://allanime-api.shashankbhake.codes',
         ANIMETHEMES_API: 'https://api.animethemes.moe/graphql',
         ANIMETHEMES_VIDEO: 'https://v.animethemes.moe',
         RURI_BASE: 'https://ruri.bionmovies47.workers.dev',
         JIKAN_SELF: 'https://jikan-api-bohb.onrender.com/v4',
-        MAPPLE_BASE: 'https://mapple-tmdb-proxy.vercel.app/api',
+        MAPPLE_BASE: 'https://mapple-tmdb-proxy.vercel.app/api', // upstream discovery currently failing (503 "No mapple domain available") — every mapple consumer here carries a t-umi/direct-TMDB fallback chain
         DEBOUNCE_MS: 300,
         BOOKMARK_AUTO_CLOSE_MS: 5000,
         ALERT_AUTO_CLOSE_MS: 3000
@@ -3948,15 +3952,21 @@ img { max-width: 100%; height: auto; display: block; }
         // PRIMARY: mapple-tmdb-proxy combined detail endpoint — ONE call returns
         // metadata + cast/crew + pictures + external ids + statistics +
         // recommendations + similar + videos + watch providers + keywords +
-        // reviews + translations for both movie and tv
+        // reviews + translations for both movie and tv.
+        // FALLBACK TIERS (2026-10-16: mapple upstream discovery outage +
+        // aniocen worker deleted CF-1042): t-umi CF worker (no /3 prefix —
+        // the worker prepends it) -> t-umi.zeraf (same worker, 2nd domain)
+        // -> direct TMDB API with read token. append_to_response now also
+        // carries recommendations+similar so tier2/tier3 payloads match the
+        // mapple combined shape for the Recommend-for-You renderer.
         const endpoint = currentState.type;   // "movie" or "tv"
         const id        = currentState.id;
         const primary   = `${CONFIG.MAPPLE_BASE}/details/${endpoint}/${id}`;
         // Backup tiers (standard TMDB shapes — renderers are shape-tolerant)
-        const appendQs  = 'append_to_response=credits,videos,external_ids,images,content_ratings,release_dates&include_image_language=en,null';
-        const TMDB_TOK  = 'eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI0Yjc0YzE4NjlkZGQxMWEzNTM1MDFlNGI0MjY4MzA3YyIsIm5iZiI6MTc2NDM5Mzg3MS4yNTEwMDAyLCJzdWIiOiI2OTJhODM4ZjNkNTVkM2Y1NzJiOGVlYjIiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.qN331VqKQ5rfgvkadaRLYG6fNXp4t_lOee3K15f4gCo';
-        const tier2 = `${CONFIG.TMDB_WORKER}/3/${endpoint}/${id}?${appendQs}`;
-        const tier3 = `https://api.themoviedb.org/3/${endpoint}/${id}?${appendQs}`;
+        const appendQs  = 'append_to_response=credits,videos,external_ids,images,content_ratings,release_dates,recommendations,similar&include_image_language=en,null';
+        const tier2  = `${CONFIG.TMDB_TUMI}/${endpoint}/${id}?${appendQs}`;
+        const tier2b = `${CONFIG.TMDB_TUMI_FB}/${endpoint}/${id}?${appendQs}`;
+        const tier3  = `${CONFIG.TMDB_DIRECT}/${endpoint}/${id}?${appendQs}`;
 
         async function tryUrl(url, headers={}) {
           const res = await fetch(url, {
@@ -3979,11 +3989,17 @@ img { max-width: 100%; height: auto; display: block; }
             console.warn('[TMDB] mapple failed:', e1.message);
             try {
               data = await tryUrl(tier2);
-              console.log('[TMDB] ✅ aniocen proxy fallback');
+              console.log('[TMDB] ✅ t-umi proxy fallback');
             } catch(e2) {
-              console.warn('[TMDB] aniocen failed:', e2.message);
-              data = await tryUrl(tier3, { Authorization: `Bearer ${TMDB_TOK}` });
-              console.log('[TMDB] ✅ direct API fallback');
+              console.warn('[TMDB] t-umi failed:', e2.message);
+              try {
+                data = await tryUrl(tier2b);
+                console.log('[TMDB] ✅ t-umi.zeraf fallback');
+              } catch(e2b) {
+                console.warn('[TMDB] t-umi.zeraf failed:', e2b.message);
+                data = await tryUrl(tier3, { Authorization: `Bearer ${CONFIG.TMDB_TOKEN}` });
+                console.log('[TMDB] ✅ direct API fallback');
+              }
             }
           }
 
@@ -4001,6 +4017,11 @@ img { max-width: 100%; height: auto; display: block; }
             currentState.data = data;
           }
           const d = currentState.data;
+          // TMDB append_to_response wraps recommendations/similar as {results:[]};
+          // mapple ships them flat. Normalise to flat arrays (mapple parity) so
+          // loadRecommendForYou + the saveFullData server cache see ONE shape.
+          if (d.recommendations && !Array.isArray(d.recommendations) && Array.isArray(d.recommendations.results)) d.recommendations = d.recommendations.results;
+          if (d.similar && !Array.isArray(d.similar) && Array.isArray(d.similar.results)) d.similar = d.similar.results;
           currentState.title = d.title || d.name || (d.metadata && (d.metadata.title || d.metadata.name)) || 'Unknown';
           // Determine permanent cache based on status (Ended/Released = permanent)
           currentState.isPermanent = !!(window.AniCache && window.AniCache.isPermanentStatus(d.status));
@@ -6106,6 +6127,42 @@ img { max-width: 100%; height: auto; display: block; }
         return `${CONFIG.MAPPLE_BASE}/tmdb/${type}/popular?language=en-US&page=1`;
       }
 
+      // FALLBACK for TMDB pages — t-umi CF worker mirrors mapple's three sidebar
+      // sources. Hidden-gem filter replicates mapple's documented /hidden-gems
+      // spec (min_rating 7, min_vote_count 50, max_popularity 50). No /3 prefix:
+      // the worker prepends it (adding one made every call 404 upstream).
+      function _sidebarTumiUrl(section, type, base) {
+        if (section === 'hiddenGem')
+          return `${base}/discover/${type}?vote_average.gte=7&vote_count.gte=50&popularity.lte=50&sort_by=popularity.asc&page=1`;
+        if (section === 'topRanking')
+          return `${base}/${type}/top_rated?language=en-US&page=1`;
+        return `${base}/${type}/popular?language=en-US&page=1`;
+      }
+
+      // Ordered source chain for one sidebar section. Anime pages: ruri only
+      // (unchanged). TMDB pages: mapple -> t-umi -> t-umi.zeraf -> direct TMDB.
+      function _sidebarChain(section, isAnime, type) {
+        const urls = [_sidebarUrl(section, isAnime, type)];
+        if (!isAnime) {
+          urls.push(_sidebarTumiUrl(section, type, CONFIG.TMDB_TUMI));
+          urls.push(_sidebarTumiUrl(section, type, CONFIG.TMDB_TUMI_FB));
+          urls.push(_sidebarTumiUrl(section, type, CONFIG.TMDB_DIRECT));
+        }
+        return urls;
+      }
+
+      // One sidebar fetch + non-empty validation. Direct-TMDB tier carries the
+      // Bearer read token. Throws when a source returns an empty list so the
+      // caller can move to the next source in the chain.
+      async function _sidebarFetchJson(url) {
+        const headers = { Accept: 'application/json' };
+        if (url.startsWith(CONFIG.TMDB_DIRECT)) headers.Authorization = `Bearer ${CONFIG.TMDB_TOKEN}`;
+        const res = await fetchWithRetry(url, 1, 800, headers);
+        const json = await res.json();
+        if (!((json.data || json.results || []).length)) throw new Error(`empty list from ${new URL(url).host}`);
+        return json;
+      }
+
       async function _loadSidebarSection(section, isAnime, force = false) {
         const type = isAnime ? (currentState.sideType[section] || 'tv') : currentState.type;
         const container = document.getElementById(_sidebarListId(section));
@@ -6129,8 +6186,15 @@ img { max-width: 100%; height: auto; display: block; }
         }
         container.innerHTML = skItems(8);
         try {
-          const res = await fetchWithRetry(_sidebarUrl(section, isAnime, type));
-          const json = await res.json();
+          // Walk the source chain (anime: ruri only; TMDB: mapple -> t-umi ->
+          // t-umi.zeraf -> direct TMDB). A source that errors OR returns an
+          // empty list is skipped in favour of the next one.
+          let json = null, lastErr = null;
+          for (const u of _sidebarChain(section, isAnime, type)) {
+            try { json = await _sidebarFetchJson(u); break; }
+            catch (e) { lastErr = e; console.warn(`[Sidebar] ${section} source failed:`, e.message); }
+          }
+          if (!json) throw (lastErr || new Error('all sidebar sources failed'));
           const cap = section === 'topRanking' ? 19 : section === 'mostFavourite' ? 21 : 17;
           let items = (json.data || json.results || []).slice(0, cap);
           if (!items.length) throw new Error('empty list');
@@ -6182,11 +6246,13 @@ img { max-width: 100%; height: auto; display: block; }
       async function loadTopRanking(isAnime)   { return _loadSidebarSection('topRanking', isAnime); }
       async function loadMostFavourite(isAnime){ return _loadSidebarSection('mostFavourite', isAnime); }
 
-      // Fetch with automatic retry on 429/504 rate-limit/timeout responses
-      async function fetchWithRetry(url, maxRetries = 2, baseDelay = 1500) {
+      // Fetch with automatic retry on 429/504 rate-limit/timeout responses.
+      // extraHeaders: optional per-call headers (used by the direct-TMDB chain
+      // tier which needs the Bearer read token).
+      async function fetchWithRetry(url, maxRetries = 2, baseDelay = 1500, extraHeaders = {}) {
         for (let attempt = 0; attempt <= maxRetries; attempt++) {
           try {
-            const res = await fetch(url, { signal: AbortSignal.timeout(12000) });
+            const res = await fetch(url, { headers: { Accept: 'application/json', ...extraHeaders }, signal: AbortSignal.timeout(12000) });
             if (res.status === 429 || res.status === 504) {
               if (attempt < maxRetries) {
                 await new Promise(r => setTimeout(r, baseDelay * (attempt + 1)));
@@ -6474,24 +6540,42 @@ img { max-width: 100%; height: auto; display: block; }
       // fetches top it up (computers keep the original no-extra-call path).
       const _RFY_CAP = 50;          // painter never needs more than 48
       function _rfyScore(a) { return (a.vote_average || 0) * Math.log10((a.vote_count || 1) + 1); }
+      // Recommendations source chain — mapple -> t-umi -> t-umi.zeraf -> direct
+      // TMDB. Returns the first non-empty results[] (TMDB append shape and
+      // mapple shape both expose .results on list endpoints). Empty array when
+      // every source fails or is exhausted.
+      async function _rfyFetchRecs(mediaType, page, timeoutMs = 10000) {
+        const q = `language=en-US&page=${page}`;
+        const chain = [
+          { url: `${CONFIG.MAPPLE_BASE}/tmdb/${mediaType}/${currentState.id}/recommendations?${q}` },
+          { url: `${CONFIG.TMDB_TUMI}/${mediaType}/${currentState.id}/recommendations?${q}` },
+          { url: `${CONFIG.TMDB_TUMI_FB}/${mediaType}/${currentState.id}/recommendations?${q}` },
+          { url: `${CONFIG.TMDB_DIRECT}/${mediaType}/${currentState.id}/recommendations?${q}`,
+            headers: { Authorization: `Bearer ${CONFIG.TMDB_TOKEN}` } }
+        ];
+        for (const src of chain) {
+          try {
+            const res = await fetch(src.url, { headers: { Accept: 'application/json', ...(src.headers || {}) }, signal: AbortSignal.timeout(timeoutMs) });
+            if (!res.ok) continue;
+            const rows = (await res.json()).results || [];
+            if (rows.length) return rows;
+          } catch (e) { console.warn('[RFY] recs source failed:', new URL(src.url).host, e.message); }
+        }
+        return [];
+      }
       async function _rfyTopUp(base, mediaType) {
         const seen = new Set(base.map(a => Number(a.id)));
         seen.add(Number(currentState.id));
         const out = base.slice();
         for (const p of [1, 2, 3]) {
           if (out.length >= 48) break;
-          try {
-            const res = await fetch(`${CONFIG.MAPPLE_BASE}/tmdb/${mediaType}/${currentState.id}/recommendations?language=en-US&page=${p}`,
-                                    { signal: AbortSignal.timeout(10000) });
-            if (!res.ok) break;
-            const rows = (await res.json()).results || [];
-            if (!rows.length) break;               // endpoint exhausted
-            rows.forEach(item => {
-              if (!item || !item.id || seen.has(Number(item.id))) return;
-              seen.add(Number(item.id));
-              out.push(item);
-            });
-          } catch (e) { console.warn('[RFY] top-up page-' + p + ' failed:', e.message); break; }
+          const rows = await _rfyFetchRecs(mediaType, p);
+          if (!rows.length) break;               // endpoint exhausted / sources down
+          rows.forEach(item => {
+            if (!item || !item.id || seen.has(Number(item.id))) return;
+            seen.add(Number(item.id));
+            out.push(item);
+          });
         }
         out.sort((a, b) => _rfyScore(b) - _rfyScore(a));
         return out;
@@ -6545,6 +6629,10 @@ img { max-width: 100%; height: auto; display: block; }
           const merged = [];
 
           const pushAll = (arr) => {
+            // shape-tolerant: mapple ships flat arrays, TMDB append_to_response
+            // wraps the same rows as {results:[...]} (e.g. payloads restored
+            // from older server caches)
+            if (arr && !Array.isArray(arr) && Array.isArray(arr.results)) arr = arr.results;
             (arr || []).forEach(item => {
               if (!item || !item.id || seen.has(Number(item.id))) return;
               seen.add(Number(item.id));
@@ -6559,12 +6647,10 @@ img { max-width: 100%; height: auto; display: block; }
 
           // 3) tv payloads occasionally omit recommendations — one lightweight
           //    sibling fetch only when the first call carried nothing
+          //    (chain: mapple -> t-umi -> t-umi.zeraf -> direct TMDB)
           if (!merged.length) {
-            try {
-              const res = await fetch(`${CONFIG.MAPPLE_BASE}/tmdb/${mediaType}/${currentState.id}/recommendations?language=en-US&page=1`,
-                                      { signal: AbortSignal.timeout(10000) });
-              if (res.ok) pushAll((await res.json()).results || []);
-            } catch (e) { console.warn('[RFY] fallback fetch failed:', e.message); }
+            try { pushAll(await _rfyFetchRecs(mediaType, 1)); }
+            catch (e) { console.warn('[RFY] fallback fetch failed:', e.message); }
           }
 
           // Sort: weighted score (vote_average × log10(vote_count+1))
