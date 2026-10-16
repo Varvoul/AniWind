@@ -170,11 +170,15 @@ function loadColumn(column) {
  * eras incl. decades-old long-runners) is treated as a DEGRADATION source
  * only: even then it is window-filtered before serving.
  *
- * Ordering of sources for the hero TV pool:
- *   1. mapple-airing        (owner custom endpoint, 30-min memo in fallback.js;
- *                            empty/blocked answers self-heal via cache-bust retry)
- *   2. on_the_air-chain     (t-umi pages 1-6, inside getHeroTvPages)
- *   3. recorded-window-filtered (Neon/fallback pool minus out-of-window items)
+ * Ordering of sources for the hero TV pool (owner instruction 2026-10-16):
+ *   1. t-umi-airing         (owner CF endpoints bionmovies+zeraf, 12h pool
+ *                            cache in the worker — PRIMARY)
+ *   2. mapple-airing        (owner Vercel proxy, 30-min memo in fallback.js;
+ *                            upstream discovery currently failing + poisoned
+ *                            empty edge caches; empty answers self-heal via
+ *                            cache-bust retry)
+ *   3. on_the_air-chain     (t-umi on_the_air pages 1-6, mixed-era degradation)
+ *   4. recorded-window-filtered (Neon/fallback pool minus out-of-window items)
  *
  * NOTE: returns a SHALLOW COPY — the payload object may be the memoized
  * Neon cache entry (6h TTL); mutating it in place would corrupt the cache

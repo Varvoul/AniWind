@@ -148,6 +148,31 @@ const MAPPLE_BASE = 'https://mapple-tmdb-proxy.vercel.app/api';
 // slower under TMDB rate pressure) -> 20s cap. Memoized 30-min downstream so
 // this never lands on the user path.
 const MAPPLE_TIMEOUT_MS = 20000;
+// t-umi /tv/airing — owner's own CF workers (2026-10-16) implement the SAME
+// mapple-compatible endpoint (pure airing TV, dynamic 4-year window,
+// 20-page on_the_air scan, 12h in-isolate pool cache, page/language/sort_by
+// params, stale-if-error). PRIMARY hero source per owner instruction:
+// t-umi-airing -> mapple-airing -> on_the_air-chain -> neon-recorded.
+const TUMI_AIRING_BASES = [
+  'https://t-umi.bionmovies47.workers.dev',
+  'https://t-umi.zeraf.workers.dev'
+];
+const TUMI_AIRING_TIMEOUT_MS = 25000; // first hit after isolate cold start scans 20 upstream pages
+
+/**
+ * One t-umi /tv/airing page -> results array ([] on failure, never throws).
+ * Tries bionmovies then zeraf (same worker, 2nd domain). The endpoint's own
+ * 12h pool cache makes every call after the first in a 12h window instant.
+ */
+async function getTumiAiringResults(page) {
+  for (const base of TUMI_AIRING_BASES) {
+    try {
+      const j = await fetchJson(`${base}/tv/airing?page=${page}&sort_by=first_air_date.desc`, TUMI_AIRING_TIMEOUT_MS);
+      if (Array.isArray(j?.results) && j.results.length) return j.results;
+    } catch (e) { /* try the next domain */ }
+  }
+  return [];
+}
 
 /**
  * One mapple page -> results array ([] on failure, never throws).
@@ -175,25 +200,34 @@ async function getMappleResults(path, params = {}) {
 }
 
 /**
- * HERO TMDB TV pool: mapple /tv/airing pages startPage..endPage, stored
- * page-keyed in the exact shape the automation uses ({"1": [...], ...}).
- * Verified live 2026-10-15: 119 results / 6 pages / EVERY item carries
- * backdrop_path (hero-eligible) and an in-window first_air_date. If the
- * mapple endpoint yields fewer than one healthy page across the whole
- * range, fall back to the t-umi on_the_air chain for the same range so
- * the hero pool never runs dry.
- * Returns { pages, source } so consumers can stamp an honest _tv_source:
- *   'mapple-airing'    -> owner custom endpoint (pure recent-airing TV)
- *   'on_the_air-chain' -> t-umi degradation (mixed-era on_the_air)
+ * HERO TMDB TV pool, tiered per owner instruction (2026-10-16):
+ *   1. t-umi-airing    (owner CF endpoint, 12h pool cache — PRIMARY)
+ *   2. mapple-airing   (owner Vercel proxy; upstream discovery currently
+ *                      failing + 12h poisoned empty edge caches)
+ *   3. on_the_air-chain (t-umi on_the_air pages, mixed-era degradation)
+ * Pages stored page-keyed in the exact shape the automation uses
+ * ({"1": [...], ...}). Returns { pages, source } so consumers stamp an
+ * honest _tv_source: 't-umi-airing' | 'mapple-airing' | 'on_the_air-chain'.
  */
 async function getHeroTvPages(startPage, endPage) {
   const pages = {};
   await Promise.all(Array.from({ length: endPage - startPage + 1 }, (_, i) => (async () => {
     const p = startPage + i;
+    pages[String(p)] = await getTumiAiringResults(p);
+  })()));
+  const totalTumi = Object.values(pages).reduce((n, r) => n + r.length, 0);
+  if (totalTumi >= 20) {
+    for (const k of Object.keys(pages)) if (!pages[k].length) delete pages[k];
+    return { pages, source: 't-umi-airing' };
+  }
+  // Tier 2 — mapple airing pool (retries with one-shot cache-buster inside)
+  await Promise.all(Array.from({ length: endPage - startPage + 1 }, (_, i) => (async () => {
+    const p = startPage + i;
+    if (pages[String(p)]?.length) return;
     pages[String(p)] = await getMappleResults('/tv/airing', { sort_by: 'first_air_date.desc', page: String(p) });
   })()));
-  const total = Object.values(pages).reduce((n, r) => n + r.length, 0);
-  if (total >= 20) {
+  const totalAll = Object.values(pages).reduce((n, r) => n + r.length, 0);
+  if (totalAll >= 20) {
     for (const k of Object.keys(pages)) if (!pages[k].length) delete pages[k];
     return { pages, source: 'mapple-airing' };
   }
