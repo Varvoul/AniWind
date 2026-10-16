@@ -5114,7 +5114,10 @@ img { max-width: 100%; height: auto; display: block; }
         
         if (isAnime) {
           const episodes = data.episodes;
-          if (episodes) {
+          // episodes === 0 is legitimate catalog data (ongoing shows like One Piece
+          // have no known total on MAL) — still render the row so the sub/dub
+          // language detail (ruri s-mal flags / anikoto counters) is visible.
+          if (episodes || episodes === 0) {
             // total | CC sub | mic dub — sources merged by applyEpisodeLanguage
             // (ruri s-mal language flags / anikoto counters / schedule counts)
             details.push({
@@ -5314,14 +5317,18 @@ img { max-width: 100%; height: auto; display: block; }
               try { rows = await window.AniCache.get(`info:relbanners:${mediaKeyOf()}`); } catch (e) {}
             }
             if (!rows || !rows.length) {
-              const res = await fetch(`${RURI_BASE}/s-mal/anime?mal_ids=${ids.join(',')}`,
-                                      { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(12000) });
-              if (res.ok) {
-                rows = (await res.json()).data || [];
-                if (window.AniCache && rows.length) {
-                  window.AniCache.set({ cacheKey: `info:relbanners:${mediaKeyOf()}`, pageSource: 'info',
-                    section: 'season_banners', data: rows, permanent: true }).catch(() => {});
-                }
+              // worker caps mal_ids at 25 per request (400 otherwise) — chunk and merge
+              const chunks = [];
+              for (let i = 0; i < ids.length; i += 25) chunks.push(ids.slice(i, i + 25));
+              const results = await Promise.allSettled(chunks.map(chunk =>
+                fetch(`${RURI_BASE}/s-mal/anime?mal_ids=${chunk.join(',')}`,
+                      { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(12000) })
+                  .then(r => r.ok ? r.json() : { data: [] })
+              ));
+              rows = results.flatMap(x => (x.status === 'fulfilled' && Array.isArray(x.value?.data)) ? x.value.data : []);
+              if (rows.length && window.AniCache) {
+                window.AniCache.set({ cacheKey: `info:relbanners:${mediaKeyOf()}`, pageSource: 'info',
+                  section: 'season_banners', data: rows, permanent: true }).catch(() => {});
               }
             }
             if (rows && rows.length) {
