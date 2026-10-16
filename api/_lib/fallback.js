@@ -248,7 +248,10 @@ export async function getHeroTvPool() {
   const hit = heroTvMemo.get('pool');
   if (hit && hit.expiresAt > now) return hit.value;
   let value = heroTvLastGood;
-  let ttl = FALLBACK_TTL_MS;
+  // 6h memo (owner request 2026-10-16): upstream pool sources carry their
+  // own long caches (t-umi /tv/airing = 12h in-worker pool; mapple 6-12h),
+  // so re-scanning more often than 6h only burns function invocations.
+  let ttl = 6 * 60 * 60 * 1000;
   try {
     const fresh = await getHeroTvPages(1, 6);
     const total = Object.values(fresh.pages).reduce((n, r) => n + r.length, 0);
@@ -256,7 +259,7 @@ export async function getHeroTvPool() {
       value = fresh;
       heroTvLastGood = fresh;
     } else {
-      ttl = 60 * 1000; // both sources dead -> retry within a minute
+      ttl = 60 * 1000; // all sources dead -> retry within a minute
     }
   } catch (e) { ttl = 60 * 1000; }
   if (!value) value = { pages: {}, source: 'unavailable' };
