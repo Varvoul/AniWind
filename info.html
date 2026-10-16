@@ -7379,6 +7379,10 @@ img { max-width: 100%; height: auto; display: block; }
               const res = await fetch(`https://api.jikan.moe/v4/anime/${jikanId}/characters`);
               if (!res.ok) throw new Error(`Jikan characters error: ${res.status}`);
               charsData = (await res.json()).data;
+              // empty public answers are usually rate-limit artifacts, not
+              // truth — treat them as failures so the retryable error state
+              // renders instead of a misleading "no cast" empty state
+              if (!Array.isArray(charsData) || !charsData.length) throw new Error('public jikan returned empty cast');
             }
             const chars = (charsData || []).sort((a, b) => {
               // Main roles first, then by favorites
