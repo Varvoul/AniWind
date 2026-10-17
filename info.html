@@ -3122,7 +3122,6 @@ img { max-width: 100%; height: auto; display: block; }
         if (currentState.source !== 'tmdb') {
           Promise.allSettled([
             fetchAllAnimeData(currentState.data && currentState.data.title),
-            fetchAnimeScheduleData(),
             fetchRuriLanguageData()
           ]).catch(() => {});
         }
@@ -4450,7 +4449,7 @@ img { max-width: 100%; height: auto; display: block; }
       async function fetchAllAnimeData(query) {
         if (currentState.source === 'tmdb' || !query) return;
         // permanent browser cache — sub/dub counters serve instantly on
-        // repeat visits (same convention as the AnimeSchedule cache)
+        // repeat visits (same convention as the other info caches)
         const _aaKey = `info:allanime:${mediaKeyOf()}`;
         if (window.AniCache) {
           try {
@@ -4499,104 +4498,22 @@ img { max-width: 100%; height: auto; display: block; }
         } catch (e) { /* AllAnime often unreachable — silent */ }
       }
 
-      // Fetch sub/dub episode counts + anilist info from AnimeSchedule proxy
-      // Caching: uses media_cache table. Finished Airing → permanent. Currently Airing → permanent (episode data stable).
-      async function fetchAnimeScheduleData() {
-        if (currentState.source === 'tmdb') return;
-        const _mid = mediaKeyOf();
-        const _cacheKey = `info:animeschedule:${_mid}`;
-
-        // ── Step 1: Check DB cache first ──
-        if (window.AniCache) {
-          try {
-            const cached = await window.AniCache.get(_cacheKey);
-            if (cached) {
-              console.log('[AnimeSchedule] served from DB cache for', _mid);
-              currentState.animeScheduleData = cached;
-              applyAnimeScheduleData(cached);
-              return; // done — no API call needed
-            }
-          } catch (e) { /* cache read failed — fall through to API */ }
-        }
-
-        // ── Step 2: Fetch from API ──
-        try {
-          const searchTitle = currentState.data?.title || currentState.data?.title_english || currentState.title;
-          if (!searchTitle) return;
-          const encoded = encodeURIComponent(searchTitle);
-          const url = `https://animeschedule-proxy.bionmovies47.workers.dev/anime?q=${encoded}`;
-          console.log('[AnimeSchedule] fetching:', url);
-          const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
-          if (!res.ok) { console.warn('[AnimeSchedule] HTTP', res.status); return; }
-          const json = await res.json();
-          if (!json || !json.title) { console.warn('[AnimeSchedule] no match found'); return; }
-          console.log('[AnimeSchedule] got data:', json.title, 'sub:', json.sub?.aired, 'dub:', json.dub?.aired, 'anilist:', json.anilist?.url);
-
-          // Store in memory
-          currentState.animeScheduleData = json;
-          applyAnimeScheduleData(json);
-
-          // ── Step 3: Save to DB permanently ──
-          if (window.AniCache) {
-            window.AniCache.set({
-              cacheKey: _cacheKey,
-              pageSource: 'info',
-              section: 'animeschedule',
-              showId: _mid,
-              malId: currentState.id,
-              data: json,
-              permanent: true, // permanent for both Finished & Currently Airing
-            }).catch(() => {});
-          }
-        } catch (e) { console.warn('[AnimeSchedule] fetch failed:', e.message); }
-      }
-
-      // Apply AnimeSchedule data to the UI (episodes + anilist link)
-      function applyAnimeScheduleData(data) {
-        const subCount = data.sub?.aired || 0;
-        const dubCount = data.dub?.aired || 0;
-        if (subCount > 0 || dubCount > 0) {
-          updateEpisodeDetail(subCount, dubCount);
-          renderLanguageBadges(subCount, dubCount);
-        }
-        syncBookmarkLangMeta();
-        if (data.anilist?.url) {
-          updateAnilistLink(data.anilist.url);
-        }
-      }
-
-      function updateAnilistLink(anilistUrl) {
-        // Find existing anilist button and update it, or add new one if not present
-        const existingBtn = document.querySelector('.ext-link-btn.anilist');
-        if (existingBtn) {
-          existingBtn.href = anilistUrl;
-          existingBtn.style.display = 'flex';
-          return;
-        }
-        // Find the external links container and add Anilist button
-        const extContainer = document.querySelector('.external-links');
-        if (!extContainer) return;
-        const anilistBtn = document.createElement('a');
-        anilistBtn.href = anilistUrl;
-        anilistBtn.target = '_blank';
-        anilistBtn.className = 'ext-link-btn anilist';
-        anilistBtn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M6.361 2.943 0 21.056h4.942l1.077-3.133H11.4l1.052 3.133H22.9c.71 0 1.1-.392 1.1-1.101V17.53c0-.71-.39-1.101-1.1-1.101h-6.483V4.045c0-.71-.392-1.102-1.101-1.102h-2.422c-.71 0-1.101.392-1.101 1.102v1.064l-.758-2.166zm2.324 5.948 1.688 5.018H7.144z"/></svg> AniList`;
-        // Insert after MAL button if exists, otherwise at the end
-        const malBtn = extContainer.querySelector('.ext-link-btn.mal');
-        if (malBtn && malBtn.nextSibling) {
-          extContainer.insertBefore(anilistBtn, malBtn.nextSibling);
-        } else {
-          extContainer.appendChild(anilistBtn);
-        }
-      }
+      // 108-S (owner request): AnimeSchedule widget REMOVED. The
+      // animeschedule-proxy worker now answers 404 on every /anime lookup, so
+      // this flow only produced console noise and dead DB-cache writes.
+      // Everything it fed has independent sources: the AniList button renders
+      // from the DB anilist_link column (primary) / AniList GraphQL extras
+      // (fallback), and sub/dub counters come from the anikoto payload
+      // (native is_sub/is_dub), AllAnime, and the ruri language flags.
 
       // ── Episodes detail field: total | CC sub | mic dub ─────────────────
       // Fill-only merge, counts beat labels. Sources: anikoto payload native
       // is_sub/is_dub counters (definitive, 0 = not available); ruri s-mal
       // profile language endpoint (/s-mal/anime?mal_ids={mal}&language=sub,dub
       // -> has_sub/has_dub flags from the ruri_anime_data_lang view = availability
-      // in the streaming catalog); AnimeSchedule/AllAnime aired counts (existing
-      // flows keep their roles via the same updateEpisodeDetail entry point).
+      // in the streaming catalog); AllAnime aired counts (existing flow keeps
+      // its role via the same updateEpisodeDetail entry point). 108-S: the
+      // AnimeSchedule contributor was removed with its dead proxy.
       function applyEpisodeLanguage(patch) {
         const cur = currentState.episodeLang || (currentState.episodeLang = {});
         if (patch.subCount != null && !(cur.subCount > 0)) cur.subCount = patch.subCount;
@@ -5175,10 +5092,10 @@ img { max-width: 100%; height: auto; display: block; }
           extLinks.push(`<a href="https://myanimelist.net/anime/${data.mal_id}" target="_blank" class="ext-link-btn mal"><svg width="26" height="26" viewBox="0 0 1024 1024"><circle cx="512" cy="512" r="512" style="fill:#2e51a2"/><path d="M432.49 410.61V590.3l-44.86-.06V479l-43.31 51.29-42.43-52.44-.43 112.75H256V410.65h47l39.79 54.29 43-54.31zm184.06 44.14.53 135.15h-50.45l-.17-61.25h-59.73c1.49 10.65 4.48 27 8.9 38 3.31 8.13 6.36 16 12.44 24.06l-36.37 24c-7.45-13.57-13.27-28.52-18.73-44.42a198.31 198.31 0 0 1-10.82-46.49c-1.81-16-2.07-31.38 2.28-47.19a83.37 83.37 0 0 1 24.77-39.81c6.68-6.25 16-10.67 23.47-14.66s15.85-5.63 23.62-7.66a158 158 0 0 1 25.41-3.9c8.49-.73 23.62-1.41 51-.6l11.63 37.31h-58.78c-12.65.17-18.73 0-28.61 4.46a47.7 47.7 0 0 0-27.26 41l56.81.7.81-38.61h49.26zM701.72 410v141.35L768 552l-9.17 37.87H656.28V409.33z" style="fill:#fff"/></svg> MyAnimeList</a>`);
         }
         // Add Anilist button — DB anilist_link first (synchronous, already in the /full
-        // payload for ~15.8k rows), then AnimeSchedule proxy, then AniList GraphQL rescue path.
+        // payload for ~15.8k rows), then AniList GraphQL rescue path (108-S:
+        // the AnimeSchedule middle source was removed with its dead proxy).
         // Only render the link when the URL is a real anilist.co URL.
         const anilistRaw = currentState.data?.anilist_link
-          || currentState.animeScheduleData?.anilist?.url
           || currentState.data?._anilistExtras?.anilistUrl || '';
         const anilistUrl = /^https:\/\/anilist\.co\//.test(anilistRaw) ? anilistRaw : '';
         if (isAnime) {
@@ -5961,24 +5878,22 @@ img { max-width: 100%; height: auto; display: block; }
         return d.release_date || d.first_air_date || '';
       }
 
-      // ── Language (sub/dub) metadata — best of AllAnime + AnimeSchedule + ruri ──
+      // ── Language (sub/dub) metadata — best of AllAnime + anikoto + ruri ──
+      // (108-S: the AnimeSchedule contributor was removed with its dead proxy)
       function langMetaBest() {
         if (currentState.source === 'tmdb') return { sub: null, dub: null, language: null };
         const aa = currentState.allAnimeData || {};
-        const as = currentState.animeScheduleData || {};
         const rl = currentState.ruriLangData || {};   // ruri language view: has_sub/has_dub flags
         const ak = currentState.anikotoCounts || {};  // anikoto catalog: exact is_sub/is_dub counts
         const d0 = currentState.data || {};            // anikoto-source pages carry is_sub/is_dub counts
         const s1 = parseInt(aa.episodes_sub)    || 0;
-        const s2 = parseInt(as.sub?.aired)      || 0;
         const s3 = typeof d0.is_sub === 'number' ? d0.is_sub : 0;
         const s4 = parseInt(ak.sub)             || 0;
         const d1 = parseInt(aa.episodes_dub)    || 0;
-        const d2 = parseInt(as.dub?.aired)      || 0;
         const d3 = typeof d0.is_dub === 'number' ? d0.is_dub : 0;
         const d4 = parseInt(ak.dub)             || 0;
-        const sub = Math.max(s1, s2, s3, s4) || null;
-        const dub = Math.max(d1, d2, d3, d4) || null;
+        const sub = Math.max(s1, s3, s4) || null;
+        const dub = Math.max(d1, d3, d4) || null;
         const hasSub = rl.has_sub === true || !!sub;
         const hasDub = rl.has_dub === true || !!dub;
         // Sub AND dub flags present => the show carries dub episodes
@@ -6516,9 +6431,10 @@ img { max-width: 100%; height: auto; display: block; }
         container.innerHTML = skItems(8);
         try {
           // TIER 0 — shared server-side cache (/api/sidebar-cache): ONE copy
-          // shared by ALL visitors, 7-day TTL, both tv/movie toggles cached
-          // separately, refresh guarded (corrupted upstream answers never
-          // replace good data). Removes the per-visit upstream storm.
+          // shared by ALL visitors, 12-hour TTL (owner spec 108-S), both
+          // tv/movie toggles cached separately, refresh guarded (corrupted
+          // upstream answers never replace good data). Removes the per-visit
+          // upstream storm.
           let json = null, lastErr = null, usedSrc = 'server-cache';
           try {
             const scType = isAnime ? `anime-${type}` : type;
