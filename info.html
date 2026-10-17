@@ -6432,14 +6432,40 @@ img { max-width: 100%; height: auto; display: block; }
         return `${base}/${type}/popular?language=en-US&page=1`;
       }
 
-      // Ordered source chain for one sidebar section. Anime pages: ruri only
-      // (unchanged). TMDB pages: mapple -> t-umi -> t-umi.zeraf -> direct TMDB.
+      // 108-R — anime-page fallback tiers (previously ruri-only, no fallback):
+      // Top Ranking -> /api/top-rated (all-time SCORE_DESC), Most Favourite ->
+      // /api/most-favourite (FAVOURITES_DESC), Hidden Gem -> recommendations
+      // listing (minScore 75, format-filtered) as the closest AniList
+      // approximation of "well-scored, low-exposure".
+      function _sidebarAnilistUrl(section, type) {
+        const fmt = type === 'movie' ? 'MOVIE' : 'TV';
+        if (section === 'topRanking')    return `${CONFIG.ANILIST_MY_PROXY}/top-rated?perPage=25`;
+        if (section === 'mostFavourite') return `${CONFIG.ANILIST_MY_PROXY}/most-favourite?perPage=25`;
+        return `${CONFIG.ANILIST_MY_PROXY}/anime/recommendations?minScore=75&format=${fmt}&sort=SCORE_DESC&perPage=25&isAdult=false`;
+      }
+      // Jikan tiers: self-hosted first (Render, may cold-start), public jikan as
+      // the last resort. Hidden Gem = high score with ascending member count.
+      function _sidebarJikanUrl(section, type, self) {
+        const t = type === 'movie' ? 'movie' : 'tv';
+        const base = self ? CONFIG.JIKAN_SELF : 'https://api.jikan.moe/v4';
+        if (section === 'topRanking')    return `${base}/top/anime?type=${t}&limit=25`;
+        if (section === 'mostFavourite') return `${base}/top/anime?type=${t}&filter=favorite&limit=25`;
+        return `${base}/anime?min_score=7.5&order_by=members&sort=asc&type=${t}&sfw=true&limit=25&page=1`;
+      }
+
+      // Ordered source chain for one sidebar section. Anime pages (108-R):
+      // ruri -> anilist-my-proxy -> self-hosted jikan -> public jikan.
+      // TMDB pages: mapple -> t-umi -> t-umi.zeraf -> direct TMDB.
       function _sidebarChain(section, isAnime, type) {
         const urls = [_sidebarUrl(section, isAnime, type)];
         if (!isAnime) {
           urls.push(_sidebarTumiUrl(section, type, CONFIG.TMDB_TUMI));
           urls.push(_sidebarTumiUrl(section, type, CONFIG.TMDB_TUMI_FB));
           urls.push(_sidebarTumiUrl(section, type, CONFIG.TMDB_DIRECT));
+        } else {
+          urls.push(_sidebarAnilistUrl(section, type));
+          urls.push(_sidebarJikanUrl(section, type, true));
+          urls.push(_sidebarJikanUrl(section, type, false));
         }
         return urls;
       }
@@ -6452,6 +6478,14 @@ img { max-width: 100%; height: auto; display: block; }
         if (url.startsWith(CONFIG.TMDB_DIRECT)) headers.Authorization = `Bearer ${CONFIG.TMDB_TOKEN}`;
         const res = await fetchWithRetry(url, 1, 800, headers);
         const json = await res.json();
+        // 108-R: anilist-my-proxy tiers return AniList Media rows — normalize
+        // to jikan-shaped items (via the shared Water Temple mapper) so
+        // renderSidebarItem can consume them.
+        if (url.startsWith(CONFIG.ANILIST_MY_PROXY)) {
+          const mapped = (json.data || json.results || []).map(_anilistMediaToListItem).filter(Boolean);
+          if (!mapped.length) throw new Error(`empty list from ${new URL(url).host}`);
+          return { data: mapped };
+        }
         if (!((json.data || json.results || []).length)) throw new Error(`empty list from ${new URL(url).host}`);
         return json;
       }
@@ -6483,7 +6517,7 @@ img { max-width: 100%; height: auto; display: block; }
           // shared by ALL visitors, 7-day TTL, both tv/movie toggles cached
           // separately, refresh guarded (corrupted upstream answers never
           // replace good data). Removes the per-visit upstream storm.
-          let json = null, lastErr = null;
+          let json = null, lastErr = null, usedSrc = 'server-cache';
           try {
             const scType = isAnime ? `anime-${type}` : type;
             const sres = await fetch(`/api/sidebar-cache?section=${section}&type=${scType}`,
@@ -6496,12 +6530,13 @@ img { max-width: 100%; height: auto; display: block; }
               }
             }
           } catch (e0) { console.warn(`[Sidebar] ${section} shared cache missed:`, e0.message); }
-          // Direct chain (anime: ruri only; TMDB: mapple -> t-umi ->
+          // Direct chain (anime 108-R: ruri -> anilist-my-proxy -> jikan-self
+          // -> jikan-public; TMDB: mapple -> t-umi ->
           // t-umi.zeraf -> direct TMDB). A source that errors OR returns an
           // empty list is skipped in favour of the next one.
           if (!json) {
             for (const u of _sidebarChain(section, isAnime, type)) {
-              try { json = await _sidebarFetchJson(u); break; }
+              try { json = await _sidebarFetchJson(u); usedSrc = new URL(u).host; break; }
               catch (e) { lastErr = e; console.warn(`[Sidebar] ${section} source failed:`, e.message); }
             }
           }
@@ -6515,6 +6550,7 @@ img { max-width: 100%; height: auto; display: block; }
           }
           const htmlOut = items.map((item, i) => renderSidebarItem(item, i + 1, isAnime, section === 'topRanking')).join('');
           container.innerHTML = htmlOut;
+          container.dataset.src = usedSrc;   // 108-R: records which tier served (E2E verification)
           try { sessionStorage.setItem(cacheKey, JSON.stringify({ html: htmlOut, ts: Date.now() })); } catch (e) {}
           // Global 72h cache (section name drives the TTL inside AniCache)
           if (window.AniCache) {
@@ -6750,6 +6786,7 @@ img { max-width: 100%; height: auto; display: block; }
           year: m.seasonYear || (m.startDate && m.startDate.year) || null,
           type: m.format === 'MOVIE' ? 'Movie' : (m.format === 'TV' ? 'TV' : (m.format || 'TV')),
           genres: m.genres || undefined,
+          favorites: m.favourites || undefined,
         };
       }
 
