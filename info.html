@@ -6476,7 +6476,9 @@ img { max-width: 100%; height: auto; display: block; }
       async function _sidebarFetchJson(url) {
         const headers = { Accept: 'application/json' };
         if (url.startsWith(CONFIG.TMDB_DIRECT)) headers.Authorization = `Bearer ${CONFIG.TMDB_TOKEN}`;
-        const res = await fetchWithRetry(url, 1, 800, headers);
+        // 108-R: jikan tiers (self-hosted Render may cold-start) get a 25s budget
+        const tmo = url.includes('jikan') ? 25000 : 12000;
+        const res = await fetchWithRetry(url, 1, 800, headers, tmo);
         const json = await res.json();
         // 108-R: anilist-my-proxy tiers return AniList Media rows — normalize
         // to jikan-shaped items (via the shared Water Temple mapper) so
@@ -6595,11 +6597,13 @@ img { max-width: 100%; height: auto; display: block; }
 
       // Fetch with automatic retry on 429/504 rate-limit/timeout responses.
       // extraHeaders: optional per-call headers (used by the direct-TMDB chain
-      // tier which needs the Bearer read token).
-      async function fetchWithRetry(url, maxRetries = 2, baseDelay = 1500, extraHeaders = {}) {
+      // tier which needs the Bearer read token). timeoutMs: per-call override —
+      // jikan tiers need 25s (self-hosted Render cold starts routinely exceed
+      // the default 12s budget; 108-R forced-fallback test proved it).
+      async function fetchWithRetry(url, maxRetries = 2, baseDelay = 1500, extraHeaders = {}, timeoutMs = 12000) {
         for (let attempt = 0; attempt <= maxRetries; attempt++) {
           try {
-            const res = await fetch(url, { headers: { Accept: 'application/json', ...extraHeaders }, signal: AbortSignal.timeout(12000) });
+            const res = await fetch(url, { headers: { Accept: 'application/json', ...extraHeaders }, signal: AbortSignal.timeout(timeoutMs) });
             if (res.status === 429 || res.status === 504) {
               if (attempt < maxRetries) {
                 await new Promise(r => setTimeout(r, baseDelay * (attempt + 1)));
