@@ -3,6 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <link rel="icon" type="image/png" href="https://i.postimg.cc/BvwTjXgv/image-359e594e.png">
+  <!-- Priority preconnects — data + image origins used by stage-1 rendering -->
+  <link rel="preconnect" href="https://ruri.bionmovies47.workers.dev" crossorigin>
+  <link rel="preconnect" href="https://t-umi.bionmovies47.workers.dev" crossorigin>
+  <link rel="dns-prefetch" href="https://anilist-my-proxy.vercel.app">
+  <link rel="dns-prefetch" href="https://api.themoviedb.org">
+  <link rel="preconnect" href="https://image.tmdb.org" crossorigin>
+  <link rel="preconnect" href="https://cdn.myanimelist.net" crossorigin>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
   <!-- Minimal fallback title (enhanced by shared.js MetadataManager with dynamic show info) -->
@@ -187,6 +194,15 @@ img { max-width: 100%; height: auto; display: block; }
 .backdrop-img.backdrop-soft {
   filter: blur(5px) brightness(0.92) saturate(1.05);
   transform: scale(1.07);
+}
+/* Poster-as-backdrop (portrait image stretched landscape, e.g. self-hosted
+   jikan /full has no banner): lighter blur than .backdrop-soft so the art
+   stays recognizable — a wider scale crop + gentle darkening instead of a
+   heavy smear. */
+.backdrop-img.backdrop-poster {
+  filter: blur(2.5px) brightness(0.88) saturate(1.08);
+  transform: scale(1.14);
+  object-position: center 22%;
 }
 
 /* Main grid layout - MATCHED TO INDEX.HTML */
@@ -975,6 +991,26 @@ img { max-width: 100%; height: auto; display: block; }
   scrollbar-width: none;
 }
 .tabs-mobile-only::-webkit-scrollbar { display: none; }
+/* ══ Tab empty/error states — anime-character empty states (centered) ══ */
+.tab-empty-state {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; gap: 10px; padding: 48px 20px; min-height: 240px;
+  grid-column: 1 / -1;
+}
+.tab-empty-state svg {
+  width: 112px; height: 112px; opacity: 0.96;
+  filter: drop-shadow(0 6px 14px rgba(0,0,0,0.35));
+  animation: tesFloat 3.2s ease-in-out infinite;
+}
+@keyframes tesFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+.tab-empty-state .tes-title { color: var(--text-primary); font-weight: 600; font-size: 1rem; }
+.tab-empty-state .tes-sub { color: var(--text-muted); font-size: 0.85rem; max-width: 340px; line-height: 1.55; }
+.tab-empty-state .tes-retry {
+  margin-top: 6px; background: var(--btn-primary); color: #fff; border: none;
+  border-radius: 20px; padding: 8px 24px; font-size: 0.85rem; cursor: pointer;
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.tab-empty-state .tes-retry:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(59,130,246,.25); }
 .tab-btn {
   padding: 10px 18px;
   border-radius: 50px;
@@ -2818,13 +2854,20 @@ img { max-width: 100%; height: auto; display: block; }
       'use strict';
 
       const CONFIG = {
-        TMDB_WORKER: 'https://aniocen.bionmovies47.workers.dev',
+        TMDB_WORKER: 'https://aniocen.bionmovies47.workers.dev', // DEAD (CF 1042, script removed) — kept only as historical reference
+        TMDB_TUMI: 'https://t-umi.bionmovies47.workers.dev',     // CF TMDB proxy — prepends /3 itself, NEVER add /3 to paths here
+        TMDB_TUMI_FB: 'https://t-umi.zeraf.workers.dev',         // same worker, second domain
+        TMDB_DIRECT: 'https://api.themoviedb.org/3',
+        TMDB_TOKEN: 'eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI0Yjc0YzE4NjlkZGQxMWEzNTM1MDFlNGI0MjY4MzA3YyIsIm5iZiI6MTc2NDM5Mzg3MS4yNTEwMDAyLCJzdWIiOiI2OTJhODM4ZjNkNTVkM2Y1NzJiOGVlYjIiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.qN331VqKQ5rfgvkadaRLYG6fNXp4t_lOee3K15f4gCo',
         ALLANIME_API: 'https://allanime-api.shashankbhake.codes',
         ANIMETHEMES_API: 'https://api.animethemes.moe/graphql',
         ANIMETHEMES_VIDEO: 'https://v.animethemes.moe',
         RURI_BASE: 'https://ruri.bionmovies47.workers.dev',
         JIKAN_SELF: 'https://jikan-api-bohb.onrender.com/v4',
-        MAPPLE_BASE: 'https://mapple-tmdb-proxy.vercel.app/api',
+        ANILIST_MY_PROXY: 'https://anilist-my-proxy.vercel.app/api',      // owner proxy: /mal/{id}/full, /anilist/{id}/full, /anime/recommendations (4h exact-URL cache)
+        ANILIST_KOTO: 'https://anilist-koto-graphql.vercel.app/api/anilist', // owner proxy: POST GraphQL passthrough
+        ANIKOTO_WORKER: 'https://anikoto.bionmovies47.workers.dev',       // owner CF mirror of the anikoto catalog (CORS: allows this origin; anikotoapi.site serves NO CORS headers - verified 2026-10-16, not fixable client-side)
+        MAPPLE_BASE: 'https://mapple-tmdb-proxy.vercel.app/api', // upstream discovery currently failing (503 "No mapple domain available") — every mapple consumer here carries a t-umi/direct-TMDB fallback chain
         DEBOUNCE_MS: 300,
         BOOKMARK_AUTO_CLOSE_MS: 5000,
         ALERT_AUTO_CLOSE_MS: 3000
@@ -3054,6 +3097,76 @@ img { max-width: 100%; height: auto; display: block; }
         ].forEach(el => { if (el) el.style.position = ''; });
       }
 
+      // ═══════════════════════════════════════════════════════════════
+      // STAGED LOADING (owner spec 2026-10-16, YouTube-style priority):
+      //   stage 1 (immediate)   : backdrop → poster+title+meta → stats →
+      //                           overview → show details → seasons (initUI)
+      //   stage 2 (on scroll)   : toggle tabs {cast_crew/artwork/trailer/
+      //                           themes/statistics} + Water Temple/RFY/Sunken
+      //   stage 2.5 (after 2)   : badge/label enrichers (patch rendered meta)
+      //   stage 3 (idle/scroll) : right sidebar (cache-heavy, last)
+      // Each stage runs once. Timers guarantee nothing is missed even when
+      // the visitor never scrolls; IntersectionObservers fire the moment the
+      // section approaches the viewport so scrolling users get instant fills.
+      // ═══════════════════════════════════════════════════════════════
+      let _stage2Queued = false, _stage2Done = false, _stage3Done = false;
+      let _stage2Timer = null, _stage3Timer = null, _stage2Observer = null, _stage3Observer = null;
+      function _runStage2() {
+        if (_stage2Done) return;
+        _stage2Done = true;
+        clearTimeout(_stage2Timer);
+        if (_stage2Observer) { _stage2Observer.disconnect(); _stage2Observer = null; }
+        try { renderTabs(); } catch (e) { console.warn('[Stage2] tabs failed:', e.message); }
+        try { loadRecommendations(); } catch (e) { console.warn('[Stage2] recs failed:', e.message); }
+        // stage 2.5 — badge/label enrichers (patch already-rendered metadata)
+        if (currentState.source !== 'tmdb') {
+          Promise.allSettled([
+            fetchAllAnimeData(currentState.data && currentState.data.title),
+            fetchRuriLanguageData()
+          ]).catch(() => {});
+        }
+        // stage 3 armed with a short delay so stage-2 fetches win the race
+        _stage3Arm(1500);
+      }
+      function _runStage3() {
+        if (_stage3Done) return;
+        _stage3Done = true;
+        clearTimeout(_stage3Timer);
+        if (_stage3Observer) { _stage3Observer.disconnect(); _stage3Observer = null; }
+        try { loadSidebarContent(); } catch (e) { console.warn('[Stage3] sidebar failed:', e.message); }
+      }
+      function _stage3Arm(minDelay) {
+        if (_stage3Done) return;
+        const aside = document.getElementById('sidebar');
+        if (aside && 'IntersectionObserver' in window) {
+          _stage3Observer = new IntersectionObserver((entries) => {
+            if (entries.some(en => en.isIntersecting)) _runStage3();
+          }, { rootMargin: '700px 0px' });
+          _stage3Observer.observe(aside);
+        }
+        _stage3Timer = setTimeout(_runStage3, Math.max(0, minDelay || 0) + 3200);
+      }
+      function _queueStage2() {
+        if (_stage2Queued) return;
+        _stage2Queued = true;
+        // eager users: clicking a tab before scrolling must still fill it
+        document.addEventListener('click', (e) => {
+          if (e.target && e.target.closest && e.target.closest('.tab-btn, .tab-radio-label')) _runStage2();
+        });
+        requestAnimationFrame(() => {
+          const firstPanel = document.querySelector('.tab-content');
+          const anchor = firstPanel && firstPanel.parentElement;
+          if (anchor && 'IntersectionObserver' in window) {
+            _stage2Observer = new IntersectionObserver((entries) => {
+              if (entries.some(en => en.isIntersecting)) _runStage2();
+            }, { rootMargin: '500px 0px' });
+            _stage2Observer.observe(anchor);
+          }
+          // fallback: short pages / never scrolls → still load everything
+          _stage2Timer = setTimeout(_runStage2, 2200);
+        });
+      }
+
       document.addEventListener('DOMContentLoaded', async () => {
         // Remove hash so browser doesn't anchor-scroll to any element
         if (window.location.hash) {
@@ -3094,20 +3207,11 @@ img { max-width: 100%; height: auto; display: block; }
           initSidebarToggles();
           await fetchUserBookmarks();
 
-          if (currentState.source !== 'tmdb') {
-            await Promise.all([
-              loadSidebarContent(),
-              loadRecommendations(),
-              fetchAllAnimeData(currentState.data?.title),
-              fetchAnimeScheduleData(),
-              fetchRuriLanguageData()
-            ]);
-          } else if (currentState.source === 'tmdb') {
-            await Promise.all([
-              loadSidebarContent(),
-              loadRecommendations()
-            ]);
-          }
+          // STAGED loading — stage 2 (tabs + recs) and stage 3 (sidebar) are
+          // armed here but fire on scroll/idle so stage-1 content paints fast.
+          // (fetchShowData's cache paths arm stage 2 themselves via
+          // _queueStage2; this call is the live-fetch path's guarantee.)
+          _queueStage2();
           // Ensure any remaining skeleton nodes in lists are cleaned up
           document.querySelectorAll('.' + SK_CLASS).forEach(el => el.remove());
         } else {
@@ -3326,7 +3430,11 @@ img { max-width: 100%; height: auto; display: block; }
         } catch (e) { console.warn('[InfoCache] server save failed:', e && e.message); }
       }
       // Single save route for the full page payload: permanent status →
-      // browser localStorage forever; otherwise → shared server cache (3h).
+      // browser localStorage forever AND a short-TTL shared server cache
+      // (owner request 2026-10-16: finished shows should also be served to
+      // every visitor from the shared cache for a short window, not only
+      // from each browser's own localStorage); otherwise → shared server
+      // cache (3h). The server endpoint caps payloads itself.
       function saveFullData(d) {
         if (!window.AniCache || !d) return;
         if (currentState.isPermanent) {
@@ -3338,6 +3446,8 @@ img { max-width: 100%; height: auto; display: block; }
             data: currentState.source === 'tmdb' ? window.AniCache.trimTMDBData(d) : d,
             permanent: true
           }).catch(() => {});
+          // short-TTL shared copy for ALL visitors (info-cache TTL = 3h)
+          infoServerPut(d);
         } else {
           infoServerPut(d);
         }
@@ -3478,12 +3588,100 @@ img { max-width: 100%; height: auto; display: block; }
             return true;
           } catch (e) { console.warn('[Ruri] fetch failed:', url, e.message); }
         }
-        // ruri unavailable → legacy live-source chain
+        // ruri unavailable → tiered live-source chain (owner spec 2026-10-16):
+        //   jikan pages  : self-hosted jikan /full → anilist-my-proxy /api/mal/{id}/full
+        //                  → public jikan → AniList GraphQL (inside fetchJikanData)
+        //   anilist pages: anilist-my-proxy /api/anilist/{id}/full → anilist-koto
+        //                  GraphQL POST → direct AniList GraphQL (fetchAnilistChain)
+        //   anikoto pages: owner CF mirror /series/{id} (anikotoapi.site sends no
+        //                  CORS headers — verified 2026-10-16, unfixable client-side)
         try {
           if (src === 'jikan') { await fetchJikanData(); return true; }
-          if (src === 'anilist') { await fetchAnilistData(null, id); return true; }
+          if (src === 'anilist') { await fetchAnilistChain(id); return true; }
+          if (src === 'anikoto') { await fetchAnikotoMirror(id); return true; }
         } catch (e) { console.warn('[Fallback] chain failed for', src, id, e.message); }
         throw new Error(`ruri: no data for ${src}-${id}`);
+      }
+
+      // ── anilist-{id} live chain (ruri down) ─────────────────────────
+      // 1) anilist-my-proxy /api/anilist/{id}/full — jikan-shaped, 4h cache
+      // 2) anilist-koto-graphql POST (owner proxy) — AniList-native shape via
+      //    the same transformer the direct fallback uses
+      // 3) direct graphql.anilist.co (fetchAnilistData default)
+      async function fetchAnilistChain(anilistId) {
+        // tier 1 — owner proxy, jikan-shaped (feeds the normal render path)
+        try {
+          const res = await fetch(`${CONFIG.ANILIST_MY_PROXY}/anilist/${anilistId}/full`,
+                                  { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(15000) });
+          if (res.ok) {
+            const json = await res.json();
+            const data = json && (json.data || json);
+            if (data && (data.title || data.title_english)) {
+              currentState.data = _normalizeAnimeData(data);
+              currentState.title = data.title_english || data.title || 'Unknown';
+              currentState.isPermanent = !!(window.AniCache && window.AniCache.isPermanentStatus(data.status));
+              saveFullData(currentState.data);
+              await enrichAnimeMetadata();
+              console.log('[AniList] ✅ anilist-my-proxy /full');
+              return;
+            }
+          }
+        } catch (e) { console.warn('[AniList] my-proxy full failed:', e.message); }
+        // tier 2 — owner koto GraphQL proxy, then tier 3 — direct AniList
+        try {
+          await fetchAnilistData(null, anilistId, CONFIG.ANILIST_KOTO);
+          console.log('[AniList] ✅ anilist-koto-graphql POST');
+        } catch (eKoto) {
+          console.warn('[AniList] koto failed:', eKoto.message, '— direct AniList');
+          await fetchAnilistData(null, anilistId);
+        }
+      }
+
+      // ── anikoto-{id} live chain (ruri down) ─────────────────────────
+      // Owner CF mirror (CORS-verified for this origin). The /series payload
+      // {ok, data:{anime, episodes}} is mapped to the jikan-v4 shape the page
+      // renders, then the standard repair/enrich passes fill curated facts.
+      function _anikotoSeriesToJikan(a) {
+        if (!a || !a.title) return null;
+        const poster = a.poster || '';
+        const season = a.season && !/^(\s|&nbsp;?)*$/i.test(String(a.season)) ? String(a.season).trim() : null;
+        return {
+          mal_id: parseInt(a.mal_id, 10) || null,
+          anikoto_id: a.id,
+          anilist_id: a.ani_id ? parseInt(a.ani_id, 10) || null : null,
+          title: a.title,
+          title_english: a.alternative || a.title,
+          title_japanese: a.native || null,
+          titles: a.titles ? String(a.titles).split(';').map(s => s.trim()).filter(Boolean) : undefined,
+          images: poster ? { jpg: { image_url: poster, large_image_url: poster } } : undefined,
+          synopsis: a.description || '',
+          score: a.score != null && Number(a.score) > 0 ? Math.round(Number(a.score) * 10) / 10 : null,
+          episodes: a.episodes != null ? parseInt(a.episodes, 10) || null : null,
+          status: a.status || null,
+          aired: { string: (a.aired && a.aired !== 'N/A') ? a.aired : null, from: null, to: null },
+          season,
+          year: a.year ? parseInt(a.year, 10) || null : null,
+          rating: (a.rating && a.rating !== 'N/A') ? a.rating : null,
+          type: 'TV',
+          background_image: a.background_image || null,
+          is_sub: typeof a.is_sub === 'number' ? a.is_sub : null,
+          is_dub: typeof a.is_dub === 'number' ? a.is_dub : null,
+        };
+      }
+      async function fetchAnikotoMirror(anikotoId) {
+        const res = await fetch(`${CONFIG.ANIKOTO_WORKER}/series/${anikotoId}`,
+                                { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(15000) });
+        if (!res.ok) throw new Error(`anikoto mirror HTTP ${res.status}`);
+        const json = await res.json();
+        const mapped = _anikotoSeriesToJikan(json && json.data && json.data.anime);
+        if (!mapped) throw new Error('anikoto mirror: empty anime payload');
+        currentState.data = _normalizeAnimeData(mapped);
+        currentState.title = mapped.title_english || mapped.title || 'Unknown';
+        currentState.isPermanent = !!(window.AniCache && window.AniCache.isPermanentStatus(mapped.status));
+        saveFullData(currentState.data);
+        await repairAnikotoFacts();
+        await enrichAnimeMetadata();
+        console.log('[Anikoto] ✅ CF mirror /series/' + anikotoId);
       }
 
       async function fetchRuriJikanFallback(malId) {
@@ -3777,7 +3975,7 @@ img { max-width: 100%; height: auto; display: block; }
 
               document.title = `${currentState.title} - Aniocean`;
               renderHero(); renderStats(); renderSynopsis(); renderDetails();
-              renderSeasons(); renderTabs();
+              renderSeasons(); _queueStage2();
 
               // If we only had sparse data, do a background API fetch to get complete data
               // (relations, broadcast, producers, synonyms, etc.) and re-render when ready
@@ -3855,7 +4053,7 @@ img { max-width: 100%; height: auto; display: block; }
               currentState.title = srv.title_english || srv.title || srv.name || 'Unknown';
               document.title = `${currentState.title} - Aniocean`;
               renderHero(); renderStats(); renderSynopsis(); renderDetails();
-              renderSeasons(); renderTabs();
+              renderSeasons(); _queueStage2();
               // the cached copy's status now says finished/released → promote
               // it to the permanent browser cache; the server copy expires alone
               if (currentState.isPermanent) saveFullData(srv);
@@ -3870,7 +4068,7 @@ img { max-width: 100%; height: auto; display: block; }
 
           document.title = `${currentState.title} - Aniocean`;
           renderHero(); renderStats(); renderSynopsis(); renderDetails();
-          renderSeasons(); renderTabs();
+          renderSeasons(); _queueStage2();
 
           // 3. Save to Supabase after API fetch (dedup handled inside AniCache.save)
           if (window.AniCache && currentState.data) {
@@ -3918,45 +4116,79 @@ img { max-width: 100%; height: auto; display: block; }
       }
 
       async function fetchJikanData() {
-        try {
-          // 12s timeout: Jikan can HANG on MAL ids whose entry was deleted
-          // (observed live for 42496) — without it the page never falls back
-          const res = await fetch(`https://api.jikan.moe/v4/anime/${currentState.id}/full`,
-                                  { signal: AbortSignal.timeout(12000) });
-          if (!res.ok) throw new Error(`Jikan API error: ${res.status}`);
-          const { data } = await res.json();
+        // Tiered live chain (owner spec 2026-10-16):
+        //   1. self-hosted jikan /full (15s cap — Render free tier can sleep)
+        //   2. anilist-my-proxy /api/mal/{id}/full (jikan-shaped, 4h cache)
+        //   3. public api.jikan.moe (previous primary)
+        //   then ruri DB row → AniList GraphQL (unchanged last resort)
+        // NOTE: self-hosted /full has NO banner/backdrop image — the page
+        // falls back to the poster with the light poster-stretch treatment.
+        const tryTier = async (url, headers = {}, timeout = 15000) => {
+          const res = await fetch(url, { headers: { Accept: 'application/json', ...headers }, signal: AbortSignal.timeout(timeout) });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const json = await res.json();
+          const data = json && json.data ? json.data : json;
+          if (!data || !(data.title || data.title_english)) throw new Error('empty payload');
+          return data;
+        };
+        const applyJikan = (data) => {
           currentState.data = _normalizeAnimeData(data);
           currentState.title = data.title_english || data.title || 'Unknown';
-          // Determine permanent cache based on airing status
           currentState.isPermanent = !!(window.AniCache && window.AniCache.isPermanentStatus(data.status));
-          // Cache full Jikan response (permanent → local / airing → server)
           saveFullData(currentState.data);
-        } catch (jikanError) {
-          console.warn('[Jikan] Failed, trying ruri DB fallback:', jikanError.message);
-          try {
-            await fetchRuriJikanFallback(currentState.id);
+        };
+        let data = null;
+        // 1 — self-hosted
+        try {
+          data = await tryTier(`${CONFIG.JIKAN_SELF}/anime/${currentState.id}/full`);
+          if (data) { applyJikan(data); console.log('[Jikan] ✅ self-hosted /full'); return; }
+        } catch (e1) { console.warn('[Jikan] self-hosted failed:', e1.message); }
+        // 2 — anilist-my-proxy mal full (jikan-shaped)
+        try {
+          data = await tryTier(`${CONFIG.ANILIST_MY_PROXY}/mal/${currentState.id}/full`, {}, 15000);
+          if (data) {
+            applyJikan(data);
+            console.log('[Jikan] ✅ anilist-my-proxy /mal/full');
+            await enrichAnimeMetadata();
             return;
-          } catch (ruriError) {
-            console.warn('[Ruri] DB fallback failed:', ruriError.message);
           }
-          console.warn('[Ruri] falling back to AniList GraphQL');
-          await fetchAnilistData(currentState.id);
+        } catch (e2) { console.warn('[Jikan] my-proxy failed:', e2.message); }
+        // 3 — public jikan (previous primary; 12s — it can HANG on deleted MAL ids)
+        try {
+          data = await tryTier(`https://api.jikan.moe/v4/anime/${currentState.id}/full`, {}, 12000);
+          if (data) { applyJikan(data); console.log('[Jikan] ✅ public jikan.moe'); return; }
+        } catch (e3) { console.warn('[Jikan] public failed:', e3.message); }
+
+        // last resorts — ruri DB row, then AniList GraphQL
+        try {
+          await fetchRuriJikanFallback(currentState.id);
+          return;
+        } catch (ruriError) {
+          console.warn('[Ruri] DB fallback failed:', ruriError.message);
         }
+        console.warn('[Ruri] falling back to AniList GraphQL');
+        await fetchAnilistData(currentState.id);
       }
 
       async function fetchTMDBData() {
         // PRIMARY: mapple-tmdb-proxy combined detail endpoint — ONE call returns
         // metadata + cast/crew + pictures + external ids + statistics +
         // recommendations + similar + videos + watch providers + keywords +
-        // reviews + translations for both movie and tv
+        // reviews + translations for both movie and tv.
+        // FALLBACK TIERS (2026-10-16: mapple upstream discovery outage +
+        // aniocen worker deleted CF-1042): t-umi CF worker (no /3 prefix —
+        // the worker prepends it) -> t-umi.zeraf (same worker, 2nd domain)
+        // -> direct TMDB API with read token. append_to_response now also
+        // carries recommendations+similar so tier2/tier3 payloads match the
+        // mapple combined shape for the Recommend-for-You renderer.
         const endpoint = currentState.type;   // "movie" or "tv"
         const id        = currentState.id;
         const primary   = `${CONFIG.MAPPLE_BASE}/details/${endpoint}/${id}`;
         // Backup tiers (standard TMDB shapes — renderers are shape-tolerant)
-        const appendQs  = 'append_to_response=credits,videos,external_ids,images,content_ratings,release_dates&include_image_language=en,null';
-        const TMDB_TOK  = 'eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI0Yjc0YzE4NjlkZGQxMWEzNTM1MDFlNGI0MjY4MzA3YyIsIm5iZiI6MTc2NDM5Mzg3MS4yNTEwMDAyLCJzdWIiOiI2OTJhODM4ZjNkNTVkM2Y1NzJiOGVlYjIiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.qN331VqKQ5rfgvkadaRLYG6fNXp4t_lOee3K15f4gCo';
-        const tier2 = `${CONFIG.TMDB_WORKER}/3/${endpoint}/${id}?${appendQs}`;
-        const tier3 = `https://api.themoviedb.org/3/${endpoint}/${id}?${appendQs}`;
+        const appendQs  = 'append_to_response=credits,videos,external_ids,images,content_ratings,release_dates,recommendations,similar&include_image_language=en,null';
+        const tier2  = `${CONFIG.TMDB_TUMI}/${endpoint}/${id}?${appendQs}`;
+        const tier2b = `${CONFIG.TMDB_TUMI_FB}/${endpoint}/${id}?${appendQs}`;
+        const tier3  = `${CONFIG.TMDB_DIRECT}/${endpoint}/${id}?${appendQs}`;
 
         async function tryUrl(url, headers={}) {
           const res = await fetch(url, {
@@ -3979,11 +4211,17 @@ img { max-width: 100%; height: auto; display: block; }
             console.warn('[TMDB] mapple failed:', e1.message);
             try {
               data = await tryUrl(tier2);
-              console.log('[TMDB] ✅ aniocen proxy fallback');
+              console.log('[TMDB] ✅ t-umi proxy fallback');
             } catch(e2) {
-              console.warn('[TMDB] aniocen failed:', e2.message);
-              data = await tryUrl(tier3, { Authorization: `Bearer ${TMDB_TOK}` });
-              console.log('[TMDB] ✅ direct API fallback');
+              console.warn('[TMDB] t-umi failed:', e2.message);
+              try {
+                data = await tryUrl(tier2b);
+                console.log('[TMDB] ✅ t-umi.zeraf fallback');
+              } catch(e2b) {
+                console.warn('[TMDB] t-umi.zeraf failed:', e2b.message);
+                data = await tryUrl(tier3, { Authorization: `Bearer ${CONFIG.TMDB_TOKEN}` });
+                console.log('[TMDB] ✅ direct API fallback');
+              }
             }
           }
 
@@ -4001,6 +4239,11 @@ img { max-width: 100%; height: auto; display: block; }
             currentState.data = data;
           }
           const d = currentState.data;
+          // TMDB append_to_response wraps recommendations/similar as {results:[]};
+          // mapple ships them flat. Normalise to flat arrays (mapple parity) so
+          // loadRecommendForYou + the saveFullData server cache see ONE shape.
+          if (d.recommendations && !Array.isArray(d.recommendations) && Array.isArray(d.recommendations.results)) d.recommendations = d.recommendations.results;
+          if (d.similar && !Array.isArray(d.similar) && Array.isArray(d.similar.results)) d.similar = d.similar.results;
           currentState.title = d.title || d.name || (d.metadata && (d.metadata.title || d.metadata.name)) || 'Unknown';
           // Determine permanent cache based on status (Ended/Released = permanent)
           currentState.isPermanent = !!(window.AniCache && window.AniCache.isPermanentStatus(d.status));
@@ -4024,7 +4267,9 @@ img { max-width: 100%; height: auto; display: block; }
       const AL_SEASON_MAP = { WINTER:'Winter', SPRING:'Spring', SUMMER:'Summer', FALL:'Fall' };
       const AL_GENRE_TO_MAL = { Action:1, Adventure:2, Comedy:4, Drama:8, Fantasy:10, Horror:14, Mystery:7, Romance:22, 'Sci-Fi':24, Sports:30, Supernatural:37, Suspense:41, 'Award Winning':46, 'Slice of Life':36, Ecchi:9, Mecha:18, Music:19, Military:38, School:23, Shounen:27, Seinen:42, Josei:43, Isekai:62, 'Boys Love':28, 'Girls Love':26, Gourmet:47, 'Idols & Celebrities':76, Medical:104, Mythology:81, 'Reverse Harem':91 };
 
-      async function fetchAnilistData(malId, anilistId = null) {
+      async function fetchAnilistData(malId, anilistId = null, baseUrl = ANILIST_URL) {
+        // baseUrl: default direct AniList; the anilist-{id} chain passes the
+        // owner's anilist-koto-graphql POST proxy first (same query shapes).
         console.log('[AniList] Fetching via GraphQL for', malId ? 'MAL ID ' + malId : 'AniList ID ' + anilistId);
 
         // Lookup by MAL id or by AniList id (anilist-{id} info pages)
@@ -4037,7 +4282,7 @@ img { max-width: 100%; height: auto; display: block; }
         const engVaQuery = `query(${varDecl}){${mediaSel}{characters(sort:ROLE,page:1,perPage:25){edges{role node{id name{full}}voiceActors(language:ENGLISH){id name{full}languageV2 image{large medium}}}}}`;
 
         // Fetch main data + Japanese VAs
-        const mainRes = await fetch(ANILIST_URL, {
+        const mainRes = await fetch(baseUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
           body: JSON.stringify({ query: mainQuery, variables }),
@@ -4051,7 +4296,7 @@ img { max-width: 100%; height: auto; display: block; }
         // Fetch English VAs in parallel
         let engVaEdges = null;
         try {
-          const engRes = await fetch(ANILIST_URL, {
+          const engRes = await fetch(baseUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
             body: JSON.stringify({ query: engVaQuery, variables }),
@@ -4204,7 +4449,7 @@ img { max-width: 100%; height: auto; display: block; }
       async function fetchAllAnimeData(query) {
         if (currentState.source === 'tmdb' || !query) return;
         // permanent browser cache — sub/dub counters serve instantly on
-        // repeat visits (same convention as the AnimeSchedule cache)
+        // repeat visits (same convention as the other info caches)
         const _aaKey = `info:allanime:${mediaKeyOf()}`;
         if (window.AniCache) {
           try {
@@ -4253,104 +4498,22 @@ img { max-width: 100%; height: auto; display: block; }
         } catch (e) { /* AllAnime often unreachable — silent */ }
       }
 
-      // Fetch sub/dub episode counts + anilist info from AnimeSchedule proxy
-      // Caching: uses media_cache table. Finished Airing → permanent. Currently Airing → permanent (episode data stable).
-      async function fetchAnimeScheduleData() {
-        if (currentState.source === 'tmdb') return;
-        const _mid = mediaKeyOf();
-        const _cacheKey = `info:animeschedule:${_mid}`;
-
-        // ── Step 1: Check DB cache first ──
-        if (window.AniCache) {
-          try {
-            const cached = await window.AniCache.get(_cacheKey);
-            if (cached) {
-              console.log('[AnimeSchedule] served from DB cache for', _mid);
-              currentState.animeScheduleData = cached;
-              applyAnimeScheduleData(cached);
-              return; // done — no API call needed
-            }
-          } catch (e) { /* cache read failed — fall through to API */ }
-        }
-
-        // ── Step 2: Fetch from API ──
-        try {
-          const searchTitle = currentState.data?.title || currentState.data?.title_english || currentState.title;
-          if (!searchTitle) return;
-          const encoded = encodeURIComponent(searchTitle);
-          const url = `https://animeschedule-proxy.bionmovies47.workers.dev/anime?q=${encoded}`;
-          console.log('[AnimeSchedule] fetching:', url);
-          const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
-          if (!res.ok) { console.warn('[AnimeSchedule] HTTP', res.status); return; }
-          const json = await res.json();
-          if (!json || !json.title) { console.warn('[AnimeSchedule] no match found'); return; }
-          console.log('[AnimeSchedule] got data:', json.title, 'sub:', json.sub?.aired, 'dub:', json.dub?.aired, 'anilist:', json.anilist?.url);
-
-          // Store in memory
-          currentState.animeScheduleData = json;
-          applyAnimeScheduleData(json);
-
-          // ── Step 3: Save to DB permanently ──
-          if (window.AniCache) {
-            window.AniCache.set({
-              cacheKey: _cacheKey,
-              pageSource: 'info',
-              section: 'animeschedule',
-              showId: _mid,
-              malId: currentState.id,
-              data: json,
-              permanent: true, // permanent for both Finished & Currently Airing
-            }).catch(() => {});
-          }
-        } catch (e) { console.warn('[AnimeSchedule] fetch failed:', e.message); }
-      }
-
-      // Apply AnimeSchedule data to the UI (episodes + anilist link)
-      function applyAnimeScheduleData(data) {
-        const subCount = data.sub?.aired || 0;
-        const dubCount = data.dub?.aired || 0;
-        if (subCount > 0 || dubCount > 0) {
-          updateEpisodeDetail(subCount, dubCount);
-          renderLanguageBadges(subCount, dubCount);
-        }
-        syncBookmarkLangMeta();
-        if (data.anilist?.url) {
-          updateAnilistLink(data.anilist.url);
-        }
-      }
-
-      function updateAnilistLink(anilistUrl) {
-        // Find existing anilist button and update it, or add new one if not present
-        const existingBtn = document.querySelector('.ext-link-btn.anilist');
-        if (existingBtn) {
-          existingBtn.href = anilistUrl;
-          existingBtn.style.display = 'flex';
-          return;
-        }
-        // Find the external links container and add Anilist button
-        const extContainer = document.querySelector('.external-links');
-        if (!extContainer) return;
-        const anilistBtn = document.createElement('a');
-        anilistBtn.href = anilistUrl;
-        anilistBtn.target = '_blank';
-        anilistBtn.className = 'ext-link-btn anilist';
-        anilistBtn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M6.361 2.943 0 21.056h4.942l1.077-3.133H11.4l1.052 3.133H22.9c.71 0 1.1-.392 1.1-1.101V17.53c0-.71-.39-1.101-1.1-1.101h-6.483V4.045c0-.71-.392-1.102-1.101-1.102h-2.422c-.71 0-1.101.392-1.101 1.102v1.064l-.758-2.166zm2.324 5.948 1.688 5.018H7.144z"/></svg> AniList`;
-        // Insert after MAL button if exists, otherwise at the end
-        const malBtn = extContainer.querySelector('.ext-link-btn.mal');
-        if (malBtn && malBtn.nextSibling) {
-          extContainer.insertBefore(anilistBtn, malBtn.nextSibling);
-        } else {
-          extContainer.appendChild(anilistBtn);
-        }
-      }
+      // 108-S (owner request): AnimeSchedule widget REMOVED. The
+      // animeschedule-proxy worker now answers 404 on every /anime lookup, so
+      // this flow only produced console noise and dead DB-cache writes.
+      // Everything it fed has independent sources: the AniList button renders
+      // from the DB anilist_link column (primary) / AniList GraphQL extras
+      // (fallback), and sub/dub counters come from the anikoto payload
+      // (native is_sub/is_dub), AllAnime, and the ruri language flags.
 
       // ── Episodes detail field: total | CC sub | mic dub ─────────────────
       // Fill-only merge, counts beat labels. Sources: anikoto payload native
       // is_sub/is_dub counters (definitive, 0 = not available); ruri s-mal
       // profile language endpoint (/s-mal/anime?mal_ids={mal}&language=sub,dub
       // -> has_sub/has_dub flags from the ruri_anime_data_lang view = availability
-      // in the streaming catalog); AnimeSchedule/AllAnime aired counts (existing
-      // flows keep their roles via the same updateEpisodeDetail entry point).
+      // in the streaming catalog); AllAnime aired counts (existing flow keeps
+      // its role via the same updateEpisodeDetail entry point). 108-S: the
+      // AnimeSchedule contributor was removed with its dead proxy.
       function applyEpisodeLanguage(patch) {
         const cur = currentState.episodeLang || (currentState.episodeLang = {});
         if (patch.subCount != null && !(cur.subCount > 0)) cur.subCount = patch.subCount;
@@ -4489,15 +4652,21 @@ img { max-width: 100%; height: auto; display: block; }
         }
         const bdEl = document.getElementById('backdropImg');
         bdEl.classList.remove('backdrop-soft');
+        bdEl.classList.remove('backdrop-poster');
         const bdContainer = bdEl.closest('.backdrop-container');
         if (bdContainer) bdContainer.classList.toggle('anime-backdrop', isAnime);
         if (isAnime && backdrop) {
           // Banner smaller than viewport gets upscaled → soften with an intentional
-          // blur so the artifact reads as a design choice instead of a glitch
+          // blur so the artifact reads as a design choice instead of a glitch.
+          // POSTER-fallback (portrait image stretched to landscape — e.g. the
+          // self-hosted jikan /full payload carries no banner) gets a LIGHTER
+          // treatment (backdrop-poster) so the art stays recognizable.
           try {
             const probe = new Image();
             probe.onload = () => {
-              if (probe.naturalWidth && probe.naturalWidth < Math.max(1280, window.innerWidth * 0.9)) {
+              if (probe.naturalHeight > probe.naturalWidth * 1.15) {
+                bdEl.classList.add('backdrop-poster');   // portrait source = stretched poster
+              } else if (probe.naturalWidth && probe.naturalWidth < Math.max(1280, window.innerWidth * 0.9)) {
                 bdEl.classList.add('backdrop-soft');
               }
             };
@@ -4862,7 +5031,10 @@ img { max-width: 100%; height: auto; display: block; }
         
         if (isAnime) {
           const episodes = data.episodes;
-          if (episodes) {
+          // episodes === 0 is legitimate catalog data (ongoing shows like One Piece
+          // have no known total on MAL) — still render the row so the sub/dub
+          // language detail (ruri s-mal flags / anikoto counters) is visible.
+          if (episodes || episodes === 0) {
             // total | CC sub | mic dub — sources merged by applyEpisodeLanguage
             // (ruri s-mal language flags / anikoto counters / schedule counts)
             details.push({
@@ -4920,10 +5092,10 @@ img { max-width: 100%; height: auto; display: block; }
           extLinks.push(`<a href="https://myanimelist.net/anime/${data.mal_id}" target="_blank" class="ext-link-btn mal"><svg width="26" height="26" viewBox="0 0 1024 1024"><circle cx="512" cy="512" r="512" style="fill:#2e51a2"/><path d="M432.49 410.61V590.3l-44.86-.06V479l-43.31 51.29-42.43-52.44-.43 112.75H256V410.65h47l39.79 54.29 43-54.31zm184.06 44.14.53 135.15h-50.45l-.17-61.25h-59.73c1.49 10.65 4.48 27 8.9 38 3.31 8.13 6.36 16 12.44 24.06l-36.37 24c-7.45-13.57-13.27-28.52-18.73-44.42a198.31 198.31 0 0 1-10.82-46.49c-1.81-16-2.07-31.38 2.28-47.19a83.37 83.37 0 0 1 24.77-39.81c6.68-6.25 16-10.67 23.47-14.66s15.85-5.63 23.62-7.66a158 158 0 0 1 25.41-3.9c8.49-.73 23.62-1.41 51-.6l11.63 37.31h-58.78c-12.65.17-18.73 0-28.61 4.46a47.7 47.7 0 0 0-27.26 41l56.81.7.81-38.61h49.26zM701.72 410v141.35L768 552l-9.17 37.87H656.28V409.33z" style="fill:#fff"/></svg> MyAnimeList</a>`);
         }
         // Add Anilist button — DB anilist_link first (synchronous, already in the /full
-        // payload for ~15.8k rows), then AnimeSchedule proxy, then AniList GraphQL rescue path.
+        // payload for ~15.8k rows), then AniList GraphQL rescue path (108-S:
+        // the AnimeSchedule middle source was removed with its dead proxy).
         // Only render the link when the URL is a real anilist.co URL.
         const anilistRaw = currentState.data?.anilist_link
-          || currentState.animeScheduleData?.anilist?.url
           || currentState.data?._anilistExtras?.anilistUrl || '';
         const anilistUrl = /^https:\/\/anilist\.co\//.test(anilistRaw) ? anilistRaw : '';
         if (isAnime) {
@@ -5062,14 +5234,18 @@ img { max-width: 100%; height: auto; display: block; }
               try { rows = await window.AniCache.get(`info:relbanners:${mediaKeyOf()}`); } catch (e) {}
             }
             if (!rows || !rows.length) {
-              const res = await fetch(`${RURI_BASE}/s-mal/anime?mal_ids=${ids.join(',')}`,
-                                      { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(12000) });
-              if (res.ok) {
-                rows = (await res.json()).data || [];
-                if (window.AniCache && rows.length) {
-                  window.AniCache.set({ cacheKey: `info:relbanners:${mediaKeyOf()}`, pageSource: 'info',
-                    section: 'season_banners', data: rows, permanent: true }).catch(() => {});
-                }
+              // worker caps mal_ids at 25 per request (400 otherwise) — chunk and merge
+              const chunks = [];
+              for (let i = 0; i < ids.length; i += 25) chunks.push(ids.slice(i, i + 25));
+              const results = await Promise.allSettled(chunks.map(chunk =>
+                fetch(`${RURI_BASE}/s-mal/anime?mal_ids=${chunk.join(',')}`,
+                      { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(12000) })
+                  .then(r => r.ok ? r.json() : { data: [] })
+              ));
+              rows = results.flatMap(x => (x.status === 'fulfilled' && Array.isArray(x.value?.data)) ? x.value.data : []);
+              if (rows.length && window.AniCache) {
+                window.AniCache.set({ cacheKey: `info:relbanners:${mediaKeyOf()}`, pageSource: 'info',
+                  section: 'season_banners', data: rows, permanent: true }).catch(() => {});
               }
             }
             if (rows && rows.length) {
@@ -5117,6 +5293,61 @@ img { max-width: 100%; height: auto; display: block; }
           if (imgEl) { imgEl.src = imgUrl; imgEl.style.display = ''; }
           if (phEl) phEl.style.display = 'none';
         }
+      }
+
+      // ════════════════════════════════════════════════════════════
+      // TAB EMPTY/ERROR STATES — professional streaming-site look with an
+      // anime character whose face matches the message (centered, gentle
+      // float animation): 'error' = surprised/shrugging chibi (fetch failed,
+      // retry offered); 'sleep' = napping chibi (no data exists upstream).
+      // ════════════════════════════════════════════════════════════
+      function _tabChibiSvg(kind) {
+        if (kind === 'sleep') {
+          return `<svg viewBox="0 0 120 120" aria-hidden="true" focusable="false">
+            <ellipse cx="60" cy="64" rx="35" ry="32" fill="#26374d" stroke="#3d5a7a" stroke-width="2.5"/>
+            <path d="M28 50 Q42 26 60 28 Q78 26 92 50 Q80 36 60 37 Q40 36 28 50Z" fill="#31465f"/>
+            <path d="M42 62 q8 6 16 0" stroke="#0e1726" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+            <path d="M66 62 q8 6 16 0" stroke="#0e1726" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+            <path d="M54 77 q6 4.5 12 0" stroke="#0e1726" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+            <ellipse cx="41" cy="72" rx="5.5" ry="3" fill="#4a6d8c" opacity="0.55"/>
+            <ellipse cx="79" cy="72" rx="5.5" ry="3" fill="#4a6d8c" opacity="0.55"/>
+            <text x="84" y="44" font-size="11" fill="#7fa6cf" font-weight="700" font-family="inherit">z</text>
+            <text x="93" y="33" font-size="15" fill="#93b9e2" font-weight="700" font-family="inherit">z</text>
+            <text x="102" y="21" font-size="20" fill="#b3d2f0" font-weight="700" font-family="inherit">Z</text>
+          </svg>`;
+        }
+        return `<svg viewBox="0 0 120 120" aria-hidden="true" focusable="false">
+          <ellipse cx="58" cy="66" rx="35" ry="32" fill="#26374d" stroke="#3d5a7a" stroke-width="2.5"/>
+          <path d="M26 52 Q40 28 58 30 Q76 28 90 52 Q78 38 58 39 Q38 38 26 52Z" fill="#31465f"/>
+          <circle cx="46" cy="63" r="7.5" fill="#0e1726"/><circle cx="48.5" cy="60.5" r="2.4" fill="#dce7f5"/>
+          <circle cx="70" cy="63" r="7.5" fill="#0e1726"/><circle cx="72.5" cy="60.5" r="2.4" fill="#dce7f5"/>
+          <ellipse cx="58" cy="80" rx="4.6" ry="5.6" fill="#0e1726"/>
+          <ellipse cx="38" cy="73" rx="5.5" ry="3" fill="#4a6d8c" opacity="0.55"/>
+          <ellipse cx="78" cy="73" rx="5.5" ry="3" fill="#4a6d8c" opacity="0.55"/>
+          <path d="M90 40 q4.5 7.5 0 11 q-4.5 -3.5 0 -11Z" fill="#7fb3e3"/>
+          <path d="M97 26 q6 8 0 12 M97 26 v4" stroke="#8fb3d9" stroke-width="3" fill="none" stroke-linecap="round"/>
+          <circle cx="97" cy="46" r="2.6" fill="#8fb3d9"/>
+        </svg>`;
+      }
+      function _tabEmptyHTML(kind, title, sub, withRetry) {
+        return `<div class="tab-empty-state">${_tabChibiSvg(kind)}
+            <div class="tes-title">${escapeHtml(title)}</div>
+            ${sub ? `<div class="tes-sub">${escapeHtml(sub)}</div>` : ''}
+            ${withRetry ? `<button class="tes-retry" type="button">Try again</button>` : ''}
+          </div>`;
+      }
+      // Renders the state into a container and wires the retry button.
+      // The button only renders when a retryFn is supplied (all error states
+      // pass their own loader; "no data" states intentionally have none).
+      function showTabState(containerId, kind, title, sub, retryFn) {
+        const el = document.getElementById(containerId);
+        if (!el) return;
+        el.innerHTML = _tabEmptyHTML(kind, title, sub, !!retryFn);
+        const btn = el.querySelector('.tes-retry');
+        if (btn && retryFn) btn.addEventListener('click', () => {
+          el.innerHTML = skCastCards(8);
+          retryFn();
+        });
       }
 
       async function renderTabs() {
@@ -5647,24 +5878,22 @@ img { max-width: 100%; height: auto; display: block; }
         return d.release_date || d.first_air_date || '';
       }
 
-      // ── Language (sub/dub) metadata — best of AllAnime + AnimeSchedule + ruri ──
+      // ── Language (sub/dub) metadata — best of AllAnime + anikoto + ruri ──
+      // (108-S: the AnimeSchedule contributor was removed with its dead proxy)
       function langMetaBest() {
         if (currentState.source === 'tmdb') return { sub: null, dub: null, language: null };
         const aa = currentState.allAnimeData || {};
-        const as = currentState.animeScheduleData || {};
         const rl = currentState.ruriLangData || {};   // ruri language view: has_sub/has_dub flags
         const ak = currentState.anikotoCounts || {};  // anikoto catalog: exact is_sub/is_dub counts
         const d0 = currentState.data || {};            // anikoto-source pages carry is_sub/is_dub counts
         const s1 = parseInt(aa.episodes_sub)    || 0;
-        const s2 = parseInt(as.sub?.aired)      || 0;
         const s3 = typeof d0.is_sub === 'number' ? d0.is_sub : 0;
         const s4 = parseInt(ak.sub)             || 0;
         const d1 = parseInt(aa.episodes_dub)    || 0;
-        const d2 = parseInt(as.dub?.aired)      || 0;
         const d3 = typeof d0.is_dub === 'number' ? d0.is_dub : 0;
         const d4 = parseInt(ak.dub)             || 0;
-        const sub = Math.max(s1, s2, s3, s4) || null;
-        const dub = Math.max(d1, d2, d3, d4) || null;
+        const sub = Math.max(s1, s3, s4) || null;
+        const dub = Math.max(d1, d3, d4) || null;
         const hasSub = rl.has_sub === true || !!sub;
         const hasDub = rl.has_dub === true || !!dub;
         // Sub AND dub flags present => the show carries dub episodes
@@ -6106,6 +6335,78 @@ img { max-width: 100%; height: auto; display: block; }
         return `${CONFIG.MAPPLE_BASE}/tmdb/${type}/popular?language=en-US&page=1`;
       }
 
+      // FALLBACK for TMDB pages — t-umi CF worker mirrors mapple's three sidebar
+      // sources. Hidden-gem filter replicates mapple's documented /hidden-gems
+      // spec (min_rating 7, min_vote_count 50, max_popularity 50). No /3 prefix:
+      // the worker prepends it (adding one made every call 404 upstream).
+      function _sidebarTumiUrl(section, type, base) {
+        if (section === 'hiddenGem')
+          return `${base}/discover/${type}?vote_average.gte=7&vote_count.gte=50&popularity.lte=50&sort_by=popularity.asc&page=1`;
+        if (section === 'topRanking')
+          return `${base}/${type}/top_rated?language=en-US&page=1`;
+        return `${base}/${type}/popular?language=en-US&page=1`;
+      }
+
+      // 108-R — anime-page fallback tiers (previously ruri-only, no fallback):
+      // Top Ranking -> /api/top-rated (all-time SCORE_DESC), Most Favourite ->
+      // /api/most-favourite (FAVOURITES_DESC), Hidden Gem -> recommendations
+      // listing (minScore 75, format-filtered) as the closest AniList
+      // approximation of "well-scored, low-exposure".
+      function _sidebarAnilistUrl(section, type) {
+        const fmt = type === 'movie' ? 'MOVIE' : 'TV';
+        if (section === 'topRanking')    return `${CONFIG.ANILIST_MY_PROXY}/top-rated?perPage=25`;
+        if (section === 'mostFavourite') return `${CONFIG.ANILIST_MY_PROXY}/most-favourite?perPage=25`;
+        return `${CONFIG.ANILIST_MY_PROXY}/anime/recommendations?minScore=75&format=${fmt}&sort=SCORE_DESC&perPage=25&isAdult=false`;
+      }
+      // Jikan tiers: self-hosted first (Render, may cold-start), public jikan as
+      // the last resort. Hidden Gem = high score with ascending member count.
+      function _sidebarJikanUrl(section, type, self) {
+        const t = type === 'movie' ? 'movie' : 'tv';
+        const base = self ? CONFIG.JIKAN_SELF : 'https://api.jikan.moe/v4';
+        if (section === 'topRanking')    return `${base}/top/anime?type=${t}&limit=25`;
+        if (section === 'mostFavourite') return `${base}/top/anime?type=${t}&filter=favorite&limit=25`;
+        return `${base}/anime?min_score=7.5&order_by=members&sort=asc&type=${t}&sfw=true&limit=25&page=1`;
+      }
+
+      // Ordered source chain for one sidebar section. Anime pages (108-R):
+      // ruri -> anilist-my-proxy -> self-hosted jikan -> public jikan.
+      // TMDB pages: mapple -> t-umi -> t-umi.zeraf -> direct TMDB.
+      function _sidebarChain(section, isAnime, type) {
+        const urls = [_sidebarUrl(section, isAnime, type)];
+        if (!isAnime) {
+          urls.push(_sidebarTumiUrl(section, type, CONFIG.TMDB_TUMI));
+          urls.push(_sidebarTumiUrl(section, type, CONFIG.TMDB_TUMI_FB));
+          urls.push(_sidebarTumiUrl(section, type, CONFIG.TMDB_DIRECT));
+        } else {
+          urls.push(_sidebarAnilistUrl(section, type));
+          urls.push(_sidebarJikanUrl(section, type, true));
+          urls.push(_sidebarJikanUrl(section, type, false));
+        }
+        return urls;
+      }
+
+      // One sidebar fetch + non-empty validation. Direct-TMDB tier carries the
+      // Bearer read token. Throws when a source returns an empty list so the
+      // caller can move to the next source in the chain.
+      async function _sidebarFetchJson(url) {
+        const headers = { Accept: 'application/json' };
+        if (url.startsWith(CONFIG.TMDB_DIRECT)) headers.Authorization = `Bearer ${CONFIG.TMDB_TOKEN}`;
+        // 108-R: jikan tiers (self-hosted Render may cold-start) get a 25s budget
+        const tmo = url.includes('jikan') ? 25000 : 12000;
+        const res = await fetchWithRetry(url, 1, 800, headers, tmo);
+        const json = await res.json();
+        // 108-R: anilist-my-proxy tiers return AniList Media rows — normalize
+        // to jikan-shaped items (via the shared Water Temple mapper) so
+        // renderSidebarItem can consume them.
+        if (url.startsWith(CONFIG.ANILIST_MY_PROXY)) {
+          const mapped = (json.data || json.results || []).map(_anilistMediaToListItem).filter(Boolean);
+          if (!mapped.length) throw new Error(`empty list from ${new URL(url).host}`);
+          return { data: mapped };
+        }
+        if (!((json.data || json.results || []).length)) throw new Error(`empty list from ${new URL(url).host}`);
+        return json;
+      }
+
       async function _loadSidebarSection(section, isAnime, force = false) {
         const type = isAnime ? (currentState.sideType[section] || 'tv') : currentState.type;
         const container = document.getElementById(_sidebarListId(section));
@@ -6129,8 +6430,35 @@ img { max-width: 100%; height: auto; display: block; }
         }
         container.innerHTML = skItems(8);
         try {
-          const res = await fetchWithRetry(_sidebarUrl(section, isAnime, type));
-          const json = await res.json();
+          // TIER 0 — shared server-side cache (/api/sidebar-cache): ONE copy
+          // shared by ALL visitors, 12-hour TTL (owner spec 108-S), both
+          // tv/movie toggles cached separately, refresh guarded (corrupted
+          // upstream answers never replace good data). Removes the per-visit
+          // upstream storm.
+          let json = null, lastErr = null, usedSrc = 'server-cache';
+          try {
+            const scType = isAnime ? `anime-${type}` : type;
+            const sres = await fetch(`/api/sidebar-cache?section=${section}&type=${scType}`,
+                                     { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(15000) });
+            if (sres.ok) {
+              const sj = await sres.json();
+              if (sj.ok && Array.isArray(sj.data) && sj.data.length) {
+                json = { results: sj.data, _serverCache: true };
+                console.log(`[Sidebar] ${section} ✅ shared server cache (${sj.source}, age ${Math.round((sj.age_seconds || 0) / 60)}m)`);
+              }
+            }
+          } catch (e0) { console.warn(`[Sidebar] ${section} shared cache missed:`, e0.message); }
+          // Direct chain (anime 108-R: ruri -> anilist-my-proxy -> jikan-self
+          // -> jikan-public; TMDB: mapple -> t-umi ->
+          // t-umi.zeraf -> direct TMDB). A source that errors OR returns an
+          // empty list is skipped in favour of the next one.
+          if (!json) {
+            for (const u of _sidebarChain(section, isAnime, type)) {
+              try { json = await _sidebarFetchJson(u); usedSrc = new URL(u).host; break; }
+              catch (e) { lastErr = e; console.warn(`[Sidebar] ${section} source failed:`, e.message); }
+            }
+          }
+          if (!json) throw (lastErr || new Error('all sidebar sources failed'));
           const cap = section === 'topRanking' ? 19 : section === 'mostFavourite' ? 21 : 17;
           let items = (json.data || json.results || []).slice(0, cap);
           if (!items.length) throw new Error('empty list');
@@ -6140,6 +6468,7 @@ img { max-width: 100%; height: auto; display: block; }
           }
           const htmlOut = items.map((item, i) => renderSidebarItem(item, i + 1, isAnime, section === 'topRanking')).join('');
           container.innerHTML = htmlOut;
+          container.dataset.src = usedSrc;   // 108-R: records which tier served (E2E verification)
           try { sessionStorage.setItem(cacheKey, JSON.stringify({ html: htmlOut, ts: Date.now() })); } catch (e) {}
           // Global 72h cache (section name drives the TTL inside AniCache)
           if (window.AniCache) {
@@ -6182,11 +6511,15 @@ img { max-width: 100%; height: auto; display: block; }
       async function loadTopRanking(isAnime)   { return _loadSidebarSection('topRanking', isAnime); }
       async function loadMostFavourite(isAnime){ return _loadSidebarSection('mostFavourite', isAnime); }
 
-      // Fetch with automatic retry on 429/504 rate-limit/timeout responses
-      async function fetchWithRetry(url, maxRetries = 2, baseDelay = 1500) {
+      // Fetch with automatic retry on 429/504 rate-limit/timeout responses.
+      // extraHeaders: optional per-call headers (used by the direct-TMDB chain
+      // tier which needs the Bearer read token). timeoutMs: per-call override —
+      // jikan tiers need 25s (self-hosted Render cold starts routinely exceed
+      // the default 12s budget; 108-R forced-fallback test proved it).
+      async function fetchWithRetry(url, maxRetries = 2, baseDelay = 1500, extraHeaders = {}, timeoutMs = 12000) {
         for (let attempt = 0; attempt <= maxRetries; attempt++) {
           try {
-            const res = await fetch(url, { signal: AbortSignal.timeout(12000) });
+            const res = await fetch(url, { headers: { Accept: 'application/json', ...extraHeaders }, signal: AbortSignal.timeout(timeoutMs) });
             if (res.status === 429 || res.status === 504) {
               if (attempt < maxRetries) {
                 await new Promise(r => setTimeout(r, baseDelay * (attempt + 1)));
@@ -6354,6 +6687,29 @@ img { max-width: 100%; height: auto; display: block; }
         _recResizeTimer = setTimeout(() => { Object.keys(_recPools).forEach(_recPaint); }, 250);
       });
 
+      // AniList Media (list node) → jikan-shaped list item the rec renderers
+      // consume. Used by the Water Temple / Sunken fallback tiers served from
+      // anilist-my-proxy /api/anime/recommendations.
+      function _anilistMediaToListItem(m) {
+        if (!m || !m.id) return null;
+        const cov = m.coverImage || {};
+        const st = m.status;
+        return {
+          mal_id: m.idMal || null,
+          anilist_id: m.id,
+          title: (m.title && (m.title.romaji || m.title.english)) || 'Unknown',
+          title_english: (m.title && (m.title.english || m.title.romaji)) || 'Unknown',
+          images: { jpg: { image_url: cov.large || cov.extraLarge || '', large_image_url: cov.extraLarge || cov.large || '' } },
+          score: m.averageScore ? Math.round(m.averageScore) / 10 : null,
+          episodes: m.episodes || null,
+          status: st === 'RELEASING' ? 'Currently Airing' : st === 'FINISHED' ? 'Finished Airing' : st === 'NOT_YET_RELEASED' ? 'Not yet aired' : (st || null),
+          year: m.seasonYear || (m.startDate && m.startDate.year) || null,
+          type: m.format === 'MOVIE' ? 'Movie' : (m.format === 'TV' ? 'TV' : (m.format || 'TV')),
+          genres: m.genres || undefined,
+          favorites: m.favourites || undefined,
+        };
+      }
+
       async function loadWaterTemple() {
         const _wtKey = `info:water_temple:${mediaKeyOf()}`;
         if (window.AniCache) {
@@ -6439,6 +6795,34 @@ img { max-width: 100%; height: auto; display: block; }
             }
           }
 
+          // FALLBACK — owner anilist-my-proxy per-show recommendations
+          // (for_anilist_id / for_mal_id; 4h exact-URL cache server-side)
+          if (!items.length) {
+            try {
+              const aid = currentState.source === 'anilist'
+                ? currentState.id
+                : (parseInt(currentState.data && currentState.data.anilist_id, 10) || null);
+              const mid = parseInt(currentState.data && currentState.data.mal_id, 10) || jikanIdOf();
+              const q = aid ? `for_anilist_id=${aid}` : (mid ? `for_mal_id=${mid}` : null);
+              if (q) {
+                const rres = await fetch(`${CONFIG.ANILIST_MY_PROXY}/anime/recommendations?${q}&perPage=25`,
+                                         { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(15000) });
+                if (rres.ok) {
+                  const rjson = await rres.json();
+                  const seenR = new Set([currentId]);
+                  (rjson.data || []).forEach(m => {
+                    const j = _anilistMediaToListItem(m);
+                    if (!j) return;
+                    const k = Number(j.mal_id) || ('al' + j.anilist_id);
+                    if (seenR.has(k)) return;
+                    seenR.add(k); items.push(j);
+                  });
+                  if (items.length) console.log('[WaterTemple] ✅ anilist-my-proxy for-media recs:', items.length);
+                }
+              }
+            } catch (e) { console.warn('[WaterTemple] anilist-my-proxy fallback failed:', e.message); }
+          }
+
           // FALLBACK — self-hosted jikan recommendations (seed title 10620),
           // then the public jikan instance as a last resort
           if (!items.length) {
@@ -6474,24 +6858,42 @@ img { max-width: 100%; height: auto; display: block; }
       // fetches top it up (computers keep the original no-extra-call path).
       const _RFY_CAP = 50;          // painter never needs more than 48
       function _rfyScore(a) { return (a.vote_average || 0) * Math.log10((a.vote_count || 1) + 1); }
+      // Recommendations source chain — mapple -> t-umi -> t-umi.zeraf -> direct
+      // TMDB. Returns the first non-empty results[] (TMDB append shape and
+      // mapple shape both expose .results on list endpoints). Empty array when
+      // every source fails or is exhausted.
+      async function _rfyFetchRecs(mediaType, page, timeoutMs = 10000) {
+        const q = `language=en-US&page=${page}`;
+        const chain = [
+          { url: `${CONFIG.MAPPLE_BASE}/tmdb/${mediaType}/${currentState.id}/recommendations?${q}` },
+          { url: `${CONFIG.TMDB_TUMI}/${mediaType}/${currentState.id}/recommendations?${q}` },
+          { url: `${CONFIG.TMDB_TUMI_FB}/${mediaType}/${currentState.id}/recommendations?${q}` },
+          { url: `${CONFIG.TMDB_DIRECT}/${mediaType}/${currentState.id}/recommendations?${q}`,
+            headers: { Authorization: `Bearer ${CONFIG.TMDB_TOKEN}` } }
+        ];
+        for (const src of chain) {
+          try {
+            const res = await fetch(src.url, { headers: { Accept: 'application/json', ...(src.headers || {}) }, signal: AbortSignal.timeout(timeoutMs) });
+            if (!res.ok) continue;
+            const rows = (await res.json()).results || [];
+            if (rows.length) return rows;
+          } catch (e) { console.warn('[RFY] recs source failed:', new URL(src.url).host, e.message); }
+        }
+        return [];
+      }
       async function _rfyTopUp(base, mediaType) {
         const seen = new Set(base.map(a => Number(a.id)));
         seen.add(Number(currentState.id));
         const out = base.slice();
         for (const p of [1, 2, 3]) {
           if (out.length >= 48) break;
-          try {
-            const res = await fetch(`${CONFIG.MAPPLE_BASE}/tmdb/${mediaType}/${currentState.id}/recommendations?language=en-US&page=${p}`,
-                                    { signal: AbortSignal.timeout(10000) });
-            if (!res.ok) break;
-            const rows = (await res.json()).results || [];
-            if (!rows.length) break;               // endpoint exhausted
-            rows.forEach(item => {
-              if (!item || !item.id || seen.has(Number(item.id))) return;
-              seen.add(Number(item.id));
-              out.push(item);
-            });
-          } catch (e) { console.warn('[RFY] top-up page-' + p + ' failed:', e.message); break; }
+          const rows = await _rfyFetchRecs(mediaType, p);
+          if (!rows.length) break;               // endpoint exhausted / sources down
+          rows.forEach(item => {
+            if (!item || !item.id || seen.has(Number(item.id))) return;
+            seen.add(Number(item.id));
+            out.push(item);
+          });
         }
         out.sort((a, b) => _rfyScore(b) - _rfyScore(a));
         return out;
@@ -6545,6 +6947,10 @@ img { max-width: 100%; height: auto; display: block; }
           const merged = [];
 
           const pushAll = (arr) => {
+            // shape-tolerant: mapple ships flat arrays, TMDB append_to_response
+            // wraps the same rows as {results:[...]} (e.g. payloads restored
+            // from older server caches)
+            if (arr && !Array.isArray(arr) && Array.isArray(arr.results)) arr = arr.results;
             (arr || []).forEach(item => {
               if (!item || !item.id || seen.has(Number(item.id))) return;
               seen.add(Number(item.id));
@@ -6559,12 +6965,10 @@ img { max-width: 100%; height: auto; display: block; }
 
           // 3) tv payloads occasionally omit recommendations — one lightweight
           //    sibling fetch only when the first call carried nothing
+          //    (chain: mapple -> t-umi -> t-umi.zeraf -> direct TMDB)
           if (!merged.length) {
-            try {
-              const res = await fetch(`${CONFIG.MAPPLE_BASE}/tmdb/${mediaType}/${currentState.id}/recommendations?language=en-US&page=1`,
-                                      { signal: AbortSignal.timeout(10000) });
-              if (res.ok) pushAll((await res.json()).results || []);
-            } catch (e) { console.warn('[RFY] fallback fetch failed:', e.message); }
+            try { pushAll(await _rfyFetchRecs(mediaType, 1)); }
+            catch (e) { console.warn('[RFY] fallback fetch failed:', e.message); }
           }
 
           // Sort: weighted score (vote_average × log10(vote_count+1))
@@ -6736,6 +7140,27 @@ img { max-width: 100%; height: auto; display: block; }
           }
         } catch (e) { console.warn('[Sunken] ruri primary failed:', e.message); }
 
+        // FALLBACK — owner anilist-my-proxy recommendation feed (genre
+        // listing, famous-first; 4h exact-URL cache) before the jikan seed
+        if (!items.length) {
+          try {
+            const g = encodeURIComponent(_sunkenGenreParam() || 'Action,Comedy');
+            const sres = await fetch(`${CONFIG.ANILIST_MY_PROXY}/anime/recommendations?genre=${g}&format=TV&minScore=70&perPage=25`,
+                                     { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(15000) });
+            if (sres.ok) {
+              const sjson = await sres.json();
+              const arr = (sjson.data || []).map(_anilistMediaToListItem).filter(Boolean)
+                .filter(a => !currentMal || Number(a.mal_id) !== Number(currentMal));
+              if (arr.length) {
+                usedFallback = true;
+                totalPages = Math.min(SUNKEN_MAX_PAGES, Math.ceil(arr.length / 28) || 1);
+                items = arr.slice(0, 28);
+                console.log('[Sunken] ✅ anilist-my-proxy genre listing:', arr.length);
+              }
+            }
+          } catch (e) { console.warn('[Sunken] anilist-my-proxy fallback failed:', e.message); }
+        }
+
         // FALLBACK — jikan seed recommendations, paged client-side
         if (!items.length) {
           usedFallback = true;
@@ -6865,7 +7290,7 @@ img { max-width: 100%; height: auto; display: block; }
           if (data._anilistExtras?.characters) {
             const chars = data._anilistExtras.characters;
             if (!chars.length) {
-              container.innerHTML = '<p class="loading-text">No cast data available</p>';
+              showTabState('castList', 'sleep', 'No cast data available', 'No cast or crew information is registered for this show yet.');
               return;
             }
             window._lastCastData = chars.slice(0, 20).map(c => {
@@ -6918,6 +7343,10 @@ img { max-width: 100%; height: auto; display: block; }
               const res = await fetch(`https://api.jikan.moe/v4/anime/${jikanId}/characters`);
               if (!res.ok) throw new Error(`Jikan characters error: ${res.status}`);
               charsData = (await res.json()).data;
+              // empty public answers are usually rate-limit artifacts, not
+              // truth — treat them as failures so the retryable error state
+              // renders instead of a misleading "no cast" empty state
+              if (!Array.isArray(charsData) || !charsData.length) throw new Error('public jikan returned empty cast');
             }
             const chars = (charsData || []).sort((a, b) => {
               // Main roles first, then by favorites
@@ -6927,7 +7356,7 @@ img { max-width: 100%; height: auto; display: block; }
             });
             
             if (!chars.length) {
-              container.innerHTML = '<p class="loading-text">No cast data available</p>';
+              showTabState('castList', 'sleep', 'No cast data available', 'No cast or crew information is registered for this show yet.');
               return;
             }
             
@@ -6962,13 +7391,13 @@ img { max-width: 100%; height: auto; display: block; }
             
           } catch (e) {
             console.error('Cast fetch error:', e);
-            container.innerHTML = '<p class="loading-text">Failed to load cast</p>';
+            showTabState('castList', 'error', 'Cast & crew could not be loaded', 'The cast server did not respond right now — this is usually temporary.', loadCastData);
           }
         } else {
           // TMDB cast — mapple cast_crew (fallback: legacy credits shape)
           const cast = (data.cast_crew && data.cast_crew.cast) || data.credits?.cast || [];
           if (!cast.length) {
-            container.innerHTML = '<p class="loading-text">No cast data available</p>';
+            showTabState('castList', 'sleep', 'No cast data available', 'No cast or crew information is registered for this show yet.');
             return;
           }
 
@@ -7123,7 +7552,7 @@ img { max-width: 100%; height: auto; display: block; }
         }
 
         if (!images.length) {
-          container.innerHTML = '<p class="loading-text" style="grid-column:1/-1;">No artwork available</p>';
+          showTabState('artworkGrid', 'sleep', 'No artwork available', 'No posters, backdrops or logos are registered for this show yet.');
           return;
         }
 
@@ -7167,7 +7596,7 @@ img { max-width: 100%; height: auto; display: block; }
             </div>
           `;
         } else {
-          container.innerHTML = '<p class="loading-text">No trailer available</p>';
+          showTabState('trailerContainer', 'sleep', 'No trailer available', 'No trailer video is registered for this show yet.');
         }
         // AniCache: save trailer to show_details
         if (window.AniCache && trailerUrl) {
@@ -7200,7 +7629,7 @@ img { max-width: 100%; height: auto; display: block; }
           const animeEntry = (json.anime || [])[0];
 
           if (!animeEntry?.animethemes?.length) {
-            container.innerHTML = '<p class="loading-text">No theme songs found for this anime</p>';
+            showTabState('themesContainer', 'sleep', 'No theme songs found', 'This anime has no opening/ending themes registered on AnimeThemes yet.');
             return;
           }
 
@@ -7223,7 +7652,7 @@ img { max-width: 100%; height: auto; display: block; }
 
         } catch (e) {
           console.warn('AnimeThemes error:', e);
-          container.innerHTML = '<p class="loading-text">Failed to load theme songs</p>';
+          showTabState('themesContainer', 'error', 'Theme songs could not be loaded', 'AnimeThemes did not respond — try again in a moment.', loadThemesData);
         }
       }
       // ════════════════════════════════════════════════════════════
