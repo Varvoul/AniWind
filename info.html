@@ -8,6 +8,10 @@
   <link rel="preconnect" href="https://t-umi.bionmovies47.workers.dev" crossorigin>
   <link rel="dns-prefetch" href="https://anilist-my-proxy.vercel.app">
   <link rel="dns-prefetch" href="https://api.themoviedb.org">
+  <!-- t113: mapple is the PRIMARY data origin for tmdb-tv/movie pages; self-jikan
+         is the first live tier for anime pages — both were missing here -->
+  <link rel="preconnect" href="https://mapple-tmdb-proxy.vercel.app" crossorigin>
+  <link rel="dns-prefetch" href="https://jikan-api-bohb.onrender.com">
   <link rel="preconnect" href="https://image.tmdb.org" crossorigin>
   <link rel="preconnect" href="https://cdn.myanimelist.net" crossorigin>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -3314,7 +3318,10 @@ img { max-width: 100%; height: auto; display: block; }
           initUI();
           initSidebarToggles();
           initSidebarTabs();
-          await fetchUserBookmarks();
+          // t113 — bookmarks only patch button states when they resolve;
+          // awaiting them delayed _queueStage2 (tabs+recs arming) by a full
+          // Supabase round-trip for logged-in visitors. Fire-and-forget.
+          fetchUserBookmarks().catch(() => {});
 
           // STAGED loading — stage 2 (tabs + recs) and stage 3 (sidebar) are
           // armed here but fire on scroll/idle so stage-1 content paints fast.
@@ -3499,14 +3506,14 @@ img { max-width: 100%; height: auto; display: block; }
       }
       async function infoServerGet() {
         try {
-          // t110 — hard 1.3s ceiling on RESPONSE ARRIVAL only: a warm hit
-          // answers well under this, while a cold function instance or a
-          // sick backend (e.g. the Neon quota outage) must not hold stage-1
-          // hostage — timing out falls through to the live fetch exactly
-          // like a miss does. The body read is NOT raced: a slow-but-valid
-          // warm hit still wins once headers arrive.
+          // t113 — ceiling cut 1300ms → 650ms. Measured on prod: with the Neon
+          // outage the shared cache answers >1.3s (cold lambda + dead DB) and
+          // EVERY cold page load burned the full ceiling before falling
+          // through to the live fetch — a flat +1.3s tax on stage 1. A warm
+          // hit (memory / revived Neon / edge s-maxage) answers well under
+          // 650ms, so healthy hits still win; sick backends waste half as long.
           const ctrl = new AbortController();
-          const slow = new Promise((_, rej) => setTimeout(() => { ctrl.abort(); rej(new Error('info-cache slower than 1300ms')); }, 1300));
+          const slow = new Promise((_, rej) => setTimeout(() => { ctrl.abort(); rej(new Error('info-cache slower than 650ms')); }, 650));
           const res = await Promise.race([
             fetch(infoServerUrl(), {
               headers: { Accept: 'application/json' },
@@ -4222,8 +4229,12 @@ img { max-width: 100%; height: auto; display: block; }
               popularity:     d.popularity || d.members || null,
               rank:           d.rank || null,
             };
-            await window.AniCache.save([saveRow]);
-            await window.AniCache.stampSection(`info_${_mediaId}`, 1, { permanent: currentState.isPermanent });
+            // t113 — cache-warming writes no longer gate stage 1: they ran
+            // before initUI/sidebar and delayed first paint by their full
+            // round-trip. ensureCompleteCache (+8s) verifies completeness
+            // anyway, so a background write that lands late is still counted.
+            window.AniCache.save([saveRow]).catch(() => {});
+            window.AniCache.stampSection(`info_${_mediaId}`, 1, { permanent: currentState.isPermanent }).catch(() => {});
           }
 
           return true; // success
@@ -7012,7 +7023,7 @@ img { max-width: 100%; height: auto; display: block; }
               if (!k || seen.has(k)) return;
               seen.add(k); items.push(a);
             });
-            const res = await fetch(base, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(6500) });   // t110 — 504s arrive ~8s; 6.5s cap reaches the fallback chain sooner
+            const res = await fetch(base, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(3000) });   // t113 — cap cut 6.5s→3s: prod measured 6.5s primary timeouts before the per-genre fallback (which answers in ~0.6s from ruri's own DB); a healthy ruri still answers <2s so hits are unaffected
             if (res.ok) {
               const json = await res.json();
               push(json.data);
