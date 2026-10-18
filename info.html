@@ -246,6 +246,11 @@ img { max-width: 100%; height: auto; display: block; }
   flex-direction: column;
 }
 
+/* t112-b — PC tab bar: hidden by default (mobile keeps its stacked sections
+   with in-place headers). On PC initSidebarTabs() moves the three section
+   headers into this bar and they become the tabs. */
+.side-tab-bar { display: none; }
+
 .sidebar-section {
   margin: 0;
   border-bottom: 1px solid var(--border-subtle);
@@ -442,19 +447,44 @@ img { max-width: 100%; height: auto; display: block; }
 .side-tag.studio { background: rgba(128,90,213,0.13); border: 1px solid rgba(128,90,213,0.45); color: #c4b0f8; }
 .side-tag.rating { background: rgba(237,100,166,0.13); border: 1px solid rgba(237,100,166,0.45); color: #f9aed5; }
 
-/* PC only: roomier sidebar cards — 50×70 posters / 0.8rem text read small
-   inside the 32% column on a desktop display. Mobile keeps the base sizes
-   (checked at 390×844 portrait and 844×390 landscape: full-width stacked
-   sections read well, and landscape cards shrink anyway once 4-per-row). */
+/* PC only (t112-b, owner pick): sidebar = ONE card with 3 instant tabs
+   (Tab Panel), Top-10 rows per tab, compact 50×70 posters — replaces the old
+   3-separate-scrollboxes layout. Mobile/tablet (<1025px) keep today's stacked
+   full sections at natural height — untouched. */
 @media (min-width: 1025px) {
-  .sidebar-list { padding: 10px; max-height: 340px; }
-  .sidebar-list-item { padding: 10px; gap: 12px; margin-bottom: 6px; }
-  .sidebar-poster { width: 64px; height: 90px; }
-  .sidebar-info h4 { font-size: 0.95rem; }
-  .side-meta { font-size: 0.8rem; }
-  .side-tag { font-size: 0.68rem; padding: 2px 8px; }
-  .sidebar-rank { font-size: 1.6rem; width: 34px; }
-  .sidebar-section > h4 { font-size: 0.88rem; padding: 12px 14px; }
+  .sidebar-combined.side-tabs-on .side-tab-bar {
+    display: flex;
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .sidebar-combined.side-tabs-on .side-tab-bar h4 {
+    flex: 1 1 auto;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 11px 8px; margin: 0;
+    font-size: 0.75rem; font-weight: 700; color: var(--text-secondary);
+    background: transparent; border-bottom: 2px solid transparent;
+    cursor: pointer; user-select: none; min-width: 0; white-space: nowrap;
+    transition: color .18s ease, border-color .18s ease, background .18s ease;
+  }
+  .sidebar-combined.side-tabs-on .side-tab-bar h4:hover { color: #fff; }
+  .sidebar-combined.side-tabs-on .side-tab-bar h4.side-tab-active {
+    color: #fff;
+    border-bottom-color: var(--btn-primary, #2b6cb0);
+    background: rgba(0, 0, 0, 0.18);
+  }
+  /* TV|Movie toggle rides in the ACTIVE tab only (anime pages) */
+  .sidebar-combined.side-tabs-on .side-tab-bar h4 .side-type-toggle { display: none; }
+  .sidebar-combined.side-tabs-on .side-tab-bar h4.side-tab-active .side-type-toggle { display: flex; }
+  /* one section visible at a time — the three inner scrollboxes are gone */
+  .sidebar-combined.side-tabs-on .sidebar-section { display: none; }
+  .sidebar-combined.side-tabs-on .sidebar-section.side-active { display: block; }
+  .sidebar-combined.side-tabs-on .sidebar-section.side-active .sidebar-list {
+    padding: 10px; max-height: none; overflow-y: visible;
+  }
+  /* Top 10 per tab (owner pick) — the full 17-21 rows stay in the DOM (mobile uses them) */
+  .sidebar-combined.side-tabs-on .sidebar-section.side-active .sidebar-list-item:nth-child(n+11) { display: none; }
+  /* compact density (owner pick): keep the BASE sizes on PC — the old roomy
+     64×90 / 0.95rem bumps are intentionally NOT re-applied */
 }
 
 /* Hero Section */
@@ -2824,8 +2854,8 @@ img { max-width: 100%; height: auto; display: block; }
       <!-- Right Sidebar (32%) - COMBINED CONTAINER -->
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-combined">
-    <div class="sidebar-section">
-      <h4><i class="fa-solid fa-gem"></i> Hidden Gem
+    <div class="sidebar-section" data-section="hiddenGem">
+      <h4 data-section="hiddenGem"><i class="fa-solid fa-gem"></i> Hidden Gem
         <span class="side-type-toggle" data-section="hiddenGem">
           <span class="side-toggle-thumb"></span>
           <button type="button" class="side-type-btn active" data-type="tv">TV</button>
@@ -2834,8 +2864,8 @@ img { max-width: 100%; height: auto; display: block; }
       </h4>
       <div class="sidebar-list" id="hiddenGemList"></div>
     </div>
-    <div class="sidebar-section">
-      <h4><i class="fa-solid fa-star"></i> Top Ranking
+    <div class="sidebar-section" data-section="topRanking">
+      <h4 data-section="topRanking"><i class="fa-solid fa-star"></i> Top Ranking
         <span class="side-type-toggle" data-section="topRanking">
           <span class="side-toggle-thumb"></span>
           <button type="button" class="side-type-btn active" data-type="tv">TV</button>
@@ -2844,8 +2874,8 @@ img { max-width: 100%; height: auto; display: block; }
       </h4>
       <div class="sidebar-list" id="topRankingList"></div>
     </div>
-    <div class="sidebar-section">
-      <h4><i class="fa-solid fa-heart"></i> Most Favourite
+    <div class="sidebar-section" data-section="mostFavourite">
+      <h4 data-section="mostFavourite"><i class="fa-solid fa-heart"></i> Most Favourite
         <span class="side-type-toggle" data-section="mostFavourite">
           <span class="side-toggle-thumb"></span>
           <button type="button" class="side-type-btn active" data-type="tv">TV</button>
@@ -3265,6 +3295,7 @@ img { max-width: 100%; height: auto; display: block; }
           removeInfoSkeletons(); // Remove overlays — real elements now populated
           initUI();
           initSidebarToggles();
+          initSidebarTabs();
           await fetchUserBookmarks();
 
           // STAGED loading — stage 2 (tabs + recs) and stage 3 (sidebar) are
@@ -6642,6 +6673,64 @@ img { max-width: 100%; height: auto; display: block; }
             _loadSidebarSection(section, true, true);
           });
         });
+      }
+
+      // t112-b — PC sidebar TAB PANEL (owner pick): one card, 3 instant tabs,
+      // Top-10 rows per tab, compact 50×70 posters. The three section headers
+      // physically MOVE into .side-tab-bar on PC (their TV|Movie toggles come
+      // along — only the active tab shows its toggle) and move back under
+      // 1025px, so mobile/tablet keep today's stacked sections untouched.
+      // Row data/loading/caching are untouched — tabs only switch visibility.
+      function initSidebarTabs() {
+        const combined = document.querySelector('.sidebar-combined');
+        if (!combined || combined.dataset.tabsInit) return;
+        combined.dataset.tabsInit = '1';
+        const mq = window.matchMedia('(min-width: 1025px)');
+        const sections = [...combined.querySelectorAll(':scope > .sidebar-section')];
+        if (!sections.length) return;
+        let bar = combined.querySelector(':scope > .side-tab-bar');
+        if (!bar) {
+          bar = document.createElement('div');
+          bar.className = 'side-tab-bar';
+          combined.prepend(bar);
+        }
+        let active = 'hiddenGem';
+        const headerFor = (sec) =>
+          sec.querySelector(':scope > h4') || bar.querySelector(`h4[data-section="${sec.dataset.section}"]`);
+        const activate = (name) => {
+          active = name;
+          sections.forEach(sec => {
+            const on = sec.dataset.section === name;
+            sec.classList.toggle('side-active', on);
+            const h = headerFor(sec);
+            if (h) h.classList.toggle('side-tab-active', on);
+          });
+        };
+        const place = () => {
+          if (mq.matches) {
+            combined.classList.add('side-tabs-on');
+            sections.forEach(sec => {
+              const h = sec.querySelector(':scope > h4');
+              if (h) bar.appendChild(h);   // relocate header (toggle travels with it)
+            });
+            activate(active);
+          } else {
+            combined.classList.remove('side-tabs-on');
+            sections.forEach(sec => {
+              const h = headerFor(sec);
+              if (h && h.parentElement !== sec) sec.prepend(h);
+            });
+          }
+        };
+        // header click = activate (PC only; on mobile the bar is display:none)
+        bar.addEventListener('click', (e) => {
+          if (!mq.matches) return;
+          const h = e.target.closest('h4[data-section]');
+          if (h && h.dataset.section) activate(h.dataset.section);
+        });
+        if (mq.addEventListener) mq.addEventListener('change', place);
+        else if (mq.addListener) mq.addListener(place);
+        place();
       }
 
       // Thin wrappers kept for the existing call sites
