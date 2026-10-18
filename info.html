@@ -37,8 +37,10 @@
 :root {
   /* Layout - MATCHED TO index.html (68% main, 32% sidebar) */
   --max-width: 100%;
-  --main-width: 68%;
-  --sidebar-width: 32%;
+  /* t113 (owner feedback): sidebar felt too wide on PC — 32% → 29% (main 68% → 71%).
+     Mobile/tablet unaffected: they override to stacked layouts below 1025px. */
+  --main-width: 71%;
+  --sidebar-width: 29%;
   --gutter: 16px;
   --content-padding: 16px;
   
@@ -223,7 +225,7 @@ img { max-width: 100%; height: auto; display: block; }
   min-width: 0;
 }
 
-/* Sidebar - 32% like index.html */
+/* Sidebar - width via --sidebar-width (t113: 29% on PC, was 32%) */
 .sidebar {
   flex: 0 0 var(--sidebar-width);
   max-width: var(--sidebar-width);
@@ -240,7 +242,12 @@ img { max-width: 100%; height: auto; display: block; }
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
+  /* t113: clip instead of hidden — overflow:hidden would trap position:sticky
+     (it creates a scroll container, so the tab bar could never stick to the
+     .sidebar scrollport). clip clips identically but is NOT a scroll container.
+     Browsers without clip support keep hidden and simply lose tab stickiness. */
   overflow: hidden;
+  overflow: clip;
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -456,6 +463,14 @@ img { max-width: 100%; height: auto; display: block; }
     display: flex;
     background: var(--bg-surface);
     border-bottom: 1px solid var(--border-subtle);
+    /* t113 (owner): keep tabs reachable while scrolling the sidebar data —
+       the bar pins to the top of the .sidebar scrollport instead of
+       scrolling away with the card. Rounded corners keep the card silhouette. */
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    box-shadow: 0 6px 14px -10px rgba(0, 0, 0, 0.6);
   }
   .sidebar-combined.side-tabs-on .side-tab-bar h4 {
     flex: 1 1 auto;
@@ -465,7 +480,10 @@ img { max-width: 100%; height: auto; display: block; }
     background: transparent; border-bottom: 2px solid transparent;
     cursor: pointer; user-select: none; min-width: 0; white-space: nowrap;
     transition: color .18s ease, border-color .18s ease, background .18s ease;
+    /* the ACTIVE tab hosts the TV|Movie toggle (anime pages) — extra
+       flex-grow below so the toggle never overflows at the narrower 29% sidebar */
   }
+  .sidebar-combined.side-tabs-on .side-tab-bar h4.side-tab-active { flex-grow: 1.55; }
   .sidebar-combined.side-tabs-on .side-tab-bar h4:hover { color: #fff; }
   .sidebar-combined.side-tabs-on .side-tab-bar h4.side-tab-active {
     color: #fff;
