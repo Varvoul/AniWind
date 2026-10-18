@@ -37,8 +37,10 @@
 :root {
   /* Layout - MATCHED TO index.html (68% main, 32% sidebar) */
   --max-width: 100%;
-  --main-width: 68%;
-  --sidebar-width: 32%;
+  /* t113 (owner feedback): sidebar felt too wide on PC — 32% → 29% (main 68% → 71%).
+     Mobile/tablet unaffected: they override to stacked layouts below 1025px. */
+  --main-width: 71%;
+  --sidebar-width: 29%;
   --gutter: 16px;
   --content-padding: 16px;
   
@@ -223,7 +225,7 @@ img { max-width: 100%; height: auto; display: block; }
   min-width: 0;
 }
 
-/* Sidebar - 32% like index.html */
+/* Sidebar - width via --sidebar-width (t113: 29% on PC, was 32%) */
 .sidebar {
   flex: 0 0 var(--sidebar-width);
   max-width: var(--sidebar-width);
@@ -240,11 +242,21 @@ img { max-width: 100%; height: auto; display: block; }
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
+  /* t113: clip instead of hidden — overflow:hidden would trap position:sticky
+     (it creates a scroll container, so the tab bar could never stick to the
+     .sidebar scrollport). clip clips identically but is NOT a scroll container.
+     Browsers without clip support keep hidden and simply lose tab stickiness. */
   overflow: hidden;
+  overflow: clip;
   height: 100%;
   display: flex;
   flex-direction: column;
 }
+
+/* t112-b — PC tab bar: hidden by default (mobile keeps its stacked sections
+   with in-place headers). On PC initSidebarTabs() moves the three section
+   headers into this bar and they become the tabs. */
+.side-tab-bar { display: none; }
 
 .sidebar-section {
   margin: 0;
@@ -377,6 +389,32 @@ img { max-width: 100%; height: auto; display: block; }
   background: var(--bg-card);
 }
 
+/* ── "No Image" placeholder (t112) — identical look to index.html
+   .card-poster.no-image: slate gradient + stacked NO / IMAGE text.
+   Applies to RFY rec cards AND sidebar poster boxes, build-time missing
+   poster or runtime-broken img (renderer swaps the img for this div). */
+.sidebar-poster.no-image {
+  position: relative;
+  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+}
+.rec-poster.no-image {
+  /* !important: wins over the inline background-image of a card whose
+     poster URL was valid at build time but failed to load at runtime */
+  background: linear-gradient(135deg, #1e293b 0%, #334155 100%) !important;
+}
+.sidebar-poster.no-image::before,
+.rec-poster.no-image::before {
+  content: 'No'; position: absolute; top: 40%; left: 50%; transform: translate(-50%,-50%);
+  color: #94a3b8; font-size: 0.75rem; font-weight: 600; letter-spacing: 2px;
+  text-transform: uppercase; z-index: 1; user-select: none;
+}
+.sidebar-poster.no-image::after,
+.rec-poster.no-image::after {
+  content: 'Image'; position: absolute; top: 55%; left: 50%; transform: translate(-50%,-50%);
+  color: #94a3b8; font-size: 0.7rem; font-weight: 600; letter-spacing: 1px;
+  text-transform: uppercase; z-index: 1; user-select: none;
+}
+
 .sidebar-info h4 {
   font-size: 0.8rem;
   font-weight: 600;
@@ -416,19 +454,55 @@ img { max-width: 100%; height: auto; display: block; }
 .side-tag.studio { background: rgba(128,90,213,0.13); border: 1px solid rgba(128,90,213,0.45); color: #c4b0f8; }
 .side-tag.rating { background: rgba(237,100,166,0.13); border: 1px solid rgba(237,100,166,0.45); color: #f9aed5; }
 
-/* PC only: roomier sidebar cards — 50×70 posters / 0.8rem text read small
-   inside the 32% column on a desktop display. Mobile keeps the base sizes
-   (checked at 390×844 portrait and 844×390 landscape: full-width stacked
-   sections read well, and landscape cards shrink anyway once 4-per-row). */
+/* PC only (t112-b, owner pick): sidebar = ONE card with 3 instant tabs
+   (Tab Panel), Top-10 rows per tab, compact 50×70 posters — replaces the old
+   3-separate-scrollboxes layout. Mobile/tablet (<1025px) keep today's stacked
+   full sections at natural height — untouched. */
 @media (min-width: 1025px) {
-  .sidebar-list { padding: 10px; max-height: 340px; }
-  .sidebar-list-item { padding: 10px; gap: 12px; margin-bottom: 6px; }
-  .sidebar-poster { width: 64px; height: 90px; }
-  .sidebar-info h4 { font-size: 0.95rem; }
-  .side-meta { font-size: 0.8rem; }
-  .side-tag { font-size: 0.68rem; padding: 2px 8px; }
-  .sidebar-rank { font-size: 1.6rem; width: 34px; }
-  .sidebar-section > h4 { font-size: 0.88rem; padding: 12px 14px; }
+  .sidebar-combined.side-tabs-on .side-tab-bar {
+    display: flex;
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border-subtle);
+    /* t113 (owner): keep tabs reachable while scrolling the sidebar data —
+       the bar pins to the top of the .sidebar scrollport instead of
+       scrolling away with the card. Rounded corners keep the card silhouette. */
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    box-shadow: 0 6px 14px -10px rgba(0, 0, 0, 0.6);
+  }
+  .sidebar-combined.side-tabs-on .side-tab-bar h4 {
+    flex: 1 1 auto;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 11px 8px; margin: 0;
+    font-size: 0.75rem; font-weight: 700; color: var(--text-secondary);
+    background: transparent; border-bottom: 2px solid transparent;
+    cursor: pointer; user-select: none; min-width: 0; white-space: nowrap;
+    transition: color .18s ease, border-color .18s ease, background .18s ease;
+    /* the ACTIVE tab hosts the TV|Movie toggle (anime pages) — extra
+       flex-grow below so the toggle never overflows at the narrower 29% sidebar */
+  }
+  .sidebar-combined.side-tabs-on .side-tab-bar h4.side-tab-active { flex-grow: 1.55; }
+  .sidebar-combined.side-tabs-on .side-tab-bar h4:hover { color: #fff; }
+  .sidebar-combined.side-tabs-on .side-tab-bar h4.side-tab-active {
+    color: #fff;
+    border-bottom-color: var(--btn-primary, #2b6cb0);
+    background: rgba(0, 0, 0, 0.18);
+  }
+  /* TV|Movie toggle rides in the ACTIVE tab only (anime pages) */
+  .sidebar-combined.side-tabs-on .side-tab-bar h4 .side-type-toggle { display: none; }
+  .sidebar-combined.side-tabs-on .side-tab-bar h4.side-tab-active .side-type-toggle { display: flex; }
+  /* one section visible at a time — the three inner scrollboxes are gone */
+  .sidebar-combined.side-tabs-on .sidebar-section { display: none; }
+  .sidebar-combined.side-tabs-on .sidebar-section.side-active { display: block; }
+  .sidebar-combined.side-tabs-on .sidebar-section.side-active .sidebar-list {
+    padding: 10px; max-height: none; overflow-y: visible;
+  }
+  /* Top 10 per tab (owner pick) — the full 17-21 rows stay in the DOM (mobile uses them) */
+  .sidebar-combined.side-tabs-on .sidebar-section.side-active .sidebar-list-item:nth-child(n+11) { display: none; }
+  /* compact density (owner pick): keep the BASE sizes on PC — the old roomy
+     64×90 / 0.95rem bumps are intentionally NOT re-applied */
 }
 
 /* Hero Section */
@@ -2798,8 +2872,8 @@ img { max-width: 100%; height: auto; display: block; }
       <!-- Right Sidebar (32%) - COMBINED CONTAINER -->
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-combined">
-    <div class="sidebar-section">
-      <h4><i class="fa-solid fa-gem"></i> Hidden Gem
+    <div class="sidebar-section" data-section="hiddenGem">
+      <h4 data-section="hiddenGem"><i class="fa-solid fa-gem"></i> Hidden Gem
         <span class="side-type-toggle" data-section="hiddenGem">
           <span class="side-toggle-thumb"></span>
           <button type="button" class="side-type-btn active" data-type="tv">TV</button>
@@ -2808,8 +2882,8 @@ img { max-width: 100%; height: auto; display: block; }
       </h4>
       <div class="sidebar-list" id="hiddenGemList"></div>
     </div>
-    <div class="sidebar-section">
-      <h4><i class="fa-solid fa-star"></i> Top Ranking
+    <div class="sidebar-section" data-section="topRanking">
+      <h4 data-section="topRanking"><i class="fa-solid fa-star"></i> Top Ranking
         <span class="side-type-toggle" data-section="topRanking">
           <span class="side-toggle-thumb"></span>
           <button type="button" class="side-type-btn active" data-type="tv">TV</button>
@@ -2818,8 +2892,8 @@ img { max-width: 100%; height: auto; display: block; }
       </h4>
       <div class="sidebar-list" id="topRankingList"></div>
     </div>
-    <div class="sidebar-section">
-      <h4><i class="fa-solid fa-heart"></i> Most Favourite
+    <div class="sidebar-section" data-section="mostFavourite">
+      <h4 data-section="mostFavourite"><i class="fa-solid fa-heart"></i> Most Favourite
         <span class="side-type-toggle" data-section="mostFavourite">
           <span class="side-toggle-thumb"></span>
           <button type="button" class="side-type-btn active" data-type="tv">TV</button>
@@ -3111,22 +3185,48 @@ img { max-width: 100%; height: auto; display: block; }
       // ═══════════════════════════════════════════════════════════════
       let _stage2Queued = false, _stage2Done = false, _stage3Done = false;
       let _stage2Timer = null, _stage3Timer = null, _stage2Observer = null, _stage3Observer = null;
+      // t110 — stage-2 in-flight tracker: every stage-2 fetch promise lands
+      // here so stage 3 can start the moment the real work settles instead
+      // of waiting out the fixed 4.7s ceiling timer.
+      const _stage2Inflight = new Set();
+      function _track2(p) {
+        if (p && typeof p.then === 'function') {
+          _stage2Inflight.add(p);
+          p.then(() => _stage2Inflight.delete(p), () => _stage2Inflight.delete(p));
+        }
+        return p;
+      }
       function _runStage2() {
         if (_stage2Done) return;
         _stage2Done = true;
+        const _t0 = Date.now();
         clearTimeout(_stage2Timer);
         if (_stage2Observer) { _stage2Observer.disconnect(); _stage2Observer = null; }
-        try { renderTabs(); } catch (e) { console.warn('[Stage2] tabs failed:', e.message); }
-        try { loadRecommendations(); } catch (e) { console.warn('[Stage2] recs failed:', e.message); }
-        // stage 2.5 — badge/label enrichers (patch already-rendered metadata)
+        const _anchors = [];
+        try { _anchors.push(_track2(renderTabs())); } catch (e) { console.warn('[Stage2] tabs failed:', e.message); }
+        try { _anchors.push(_track2(loadRecommendations())); } catch (e) { console.warn('[Stage2] recs failed:', e.message); }
+        // stage 2.5 — badge/label enrichers (patch already-rendered metadata).
+        // Tracked but NOT stage-3 gating: they are cosmetic patches and may
+        // legally take longer than the sidebar arm.
         if (currentState.source !== 'tmdb') {
-          Promise.allSettled([
+          _track2(Promise.allSettled([
             fetchAllAnimeData(currentState.data && currentState.data.title),
             fetchRuriLanguageData()
-          ]).catch(() => {});
+          ]).then(() => {}).catch(() => {}));
         }
         // stage 3 armed with a short delay so stage-2 fetches win the race
         _stage3Arm(1500);
+        // t110 — completion-driven fast path: the 4.7s ceiling above stays as
+        // the hard cap, but the sidebar now starts as soon as stage-2's real
+        // fetches settle (+350ms paint grace; 900ms floor so ultra-fast cache
+        // renders still let stage-2 paint land first). Same order, same
+        // content — only the dead waiting is removed.
+        const _armFast = () => {
+          if (_stage3Done) return;
+          const wait = Math.max(0, 900 - (Date.now() - _t0)) + 350;
+          setTimeout(_runStage3, wait);
+        };
+        Promise.allSettled(_anchors).then(_armFast).catch(_armFast);
       }
       function _runStage3() {
         if (_stage3Done) return;
@@ -3146,7 +3246,7 @@ img { max-width: 100%; height: auto; display: block; }
         }
         _stage3Timer = setTimeout(_runStage3, Math.max(0, minDelay || 0) + 3200);
       }
-      function _queueStage2() {
+      function _queueStage2(quick) {
         if (_stage2Queued) return;
         _stage2Queued = true;
         // eager users: clicking a tab before scrolling must still fill it
@@ -3162,9 +3262,17 @@ img { max-width: 100%; height: auto; display: block; }
             }, { rootMargin: '500px 0px' });
             _stage2Observer.observe(anchor);
           }
-          // fallback: short pages / never scrolls → still load everything
-          _stage2Timer = setTimeout(_runStage2, 2200);
+          // fallback: short pages / never scrolls → still load everything.
+          // t110 — adaptive timer: cache-rendered pages are already painted
+          // and interactive at this point, so stage 2 starts sooner (800ms);
+          // the live-fetch path keeps the original 2200ms bandwidth head start.
+          _stage2Timer = setTimeout(_runStage2, quick ? 800 : 2200);
         });
+        // t110 — sidebar prefetch (data only, NO rendering): the three shared
+        // sidebar JSONs are small and edge-served; starting them here overlaps
+        // the server-side build (1-6s when the shared cache is cold) with
+        // stage 2, so stage 3 paints from an already-settled answer.
+        _prefetchSidebarData();
       }
 
       document.addEventListener('DOMContentLoaded', async () => {
@@ -3205,6 +3313,7 @@ img { max-width: 100%; height: auto; display: block; }
           removeInfoSkeletons(); // Remove overlays — real elements now populated
           initUI();
           initSidebarToggles();
+          initSidebarTabs();
           await fetchUserBookmarks();
 
           // STAGED loading — stage 2 (tabs + recs) and stage 3 (sidebar) are
@@ -3390,10 +3499,21 @@ img { max-width: 100%; height: auto; display: block; }
       }
       async function infoServerGet() {
         try {
-          const res = await fetch(infoServerUrl(), {
-            headers: { Accept: 'application/json' },
-            signal: AbortSignal.timeout(8000)
-          });
+          // t110 — hard 1.3s ceiling on RESPONSE ARRIVAL only: a warm hit
+          // answers well under this, while a cold function instance or a
+          // sick backend (e.g. the Neon quota outage) must not hold stage-1
+          // hostage — timing out falls through to the live fetch exactly
+          // like a miss does. The body read is NOT raced: a slow-but-valid
+          // warm hit still wins once headers arrive.
+          const ctrl = new AbortController();
+          const slow = new Promise((_, rej) => setTimeout(() => { ctrl.abort(); rej(new Error('info-cache slower than 1300ms')); }, 1300));
+          const res = await Promise.race([
+            fetch(infoServerUrl(), {
+              headers: { Accept: 'application/json' },
+              signal: ctrl.signal
+            }),
+            slow
+          ]);
           if (!res.ok) return null;                    // 404 miss / cold CDN
           const j = await res.json();
           if (!(j && j.found && j.data && typeof j.data === 'object')) return null;
@@ -3975,8 +4095,7 @@ img { max-width: 100%; height: auto; display: block; }
 
               document.title = `${currentState.title} - Aniocean`;
               renderHero(); renderStats(); renderSynopsis(); renderDetails();
-              renderSeasons(); _queueStage2();
-
+              renderSeasons(); _queueStage2(true);   // t110 — cache-rendered page: stage 2 starts sooner
               // If we only had sparse data, do a background API fetch to get complete data
               // (relations, broadcast, producers, synonyms, etc.) and re-render when ready
               if (!fullData) {
@@ -4053,7 +4172,7 @@ img { max-width: 100%; height: auto; display: block; }
               currentState.title = srv.title_english || srv.title || srv.name || 'Unknown';
               document.title = `${currentState.title} - Aniocean`;
               renderHero(); renderStats(); renderSynopsis(); renderDetails();
-              renderSeasons(); _queueStage2();
+              renderSeasons(); _queueStage2(true);   // t110 — server-cache hit: page already painted
               // the cached copy's status now says finished/released → promote
               // it to the permanent browser cache; the server copy expires alone
               if (currentState.isPermanent) saveFullData(srv);
@@ -5375,21 +5494,27 @@ img { max-width: 100%; height: auto; display: block; }
             const _artOk  = dbDet.artwork   ? _renderArtworkFromDB(dbDet.artwork)  : false;
             if (dbDet.trailers)         _renderTrailersFromDB(dbDet.trailers);
             const _themesOk = (dbDet.themes && _isAnimePage) ? _renderThemesFromDB(dbDet.themes) : false;
-            loadStatisticsData();
-            // Load only MISSING/legacy tabs from API — these also save v2 shapes
-            if (!_castOk)   loadCastData();
-            if (!_artOk)    loadArtworkData();
-            if (!dbDet.trailers)    loadTrailerData();
-            if (!_themesOk && _isAnimePage) loadThemesData();
+            // t110 — loaders are collected and awaited so the stage-2
+            // completion signal (stage-3 fast arm) covers the real fetches;
+            // they still paint their own containers the moment each lands.
+            const _tabLoaders = [loadStatisticsData()];
+            if (!_castOk)                   _tabLoaders.push(loadCastData());
+            if (!_artOk)                    _tabLoaders.push(loadArtworkData());
+            if (!dbDet.trailers)            _tabLoaders.push(loadTrailerData());
+            if (!_themesOk && _isAnimePage) _tabLoaders.push(loadThemesData());
+            await Promise.allSettled(_tabLoaders);
             return;
           }
         }
-        // No DB data — load everything from API
-        loadCastData();
-        loadArtworkData();
-        loadTrailerData();
-        if (_isAnimePage) loadThemesData();
-        loadStatisticsData();
+        // No DB data — load everything from API (t110: awaited so the
+        // stage-2 completion signal covers the real fetches)
+        await Promise.allSettled([
+          loadCastData(),
+          loadArtworkData(),
+          loadTrailerData(),
+          _isAnimePage ? loadThemesData() : Promise.resolve(),
+          loadStatisticsData()
+        ]);
       }
 
       // ── Shared tab builders ────────────────────────────────────────────
@@ -6294,6 +6419,19 @@ img { max-width: 100%; height: auto; display: block; }
 
       async function loadSidebarContent() {
         const isAnime = currentState.source !== 'tmdb';
+        const sections = ['hiddenGem', 'topRanking', 'mostFavourite'];
+        // t110 — when the stage-1-time prefetch already settled for ALL three
+        // sections (the common case), no upstream calls remain: the politeness
+        // staggering between anime sections was pure dead time then.
+        const _pfAllSettled = !!_sidebarPrefetch && sections.every(s => {
+          const pf = _sidebarPrefetch[s];
+          const want = isAnime ? (currentState.sideType[s] || 'tv') : currentState.type;
+          return pf && pf.type === want && pf._settled && pf._data;
+        });
+        if (_pfAllSettled) {
+          await Promise.all(sections.map(s => _loadSidebarSection(s, isAnime)));
+          return;
+        }
         if (isAnime) {
           // Stagger the three ruri calls — edge-cached, but stay polite on cold colos
           await _loadSidebarSection('hiddenGem', isAnime);
@@ -6407,12 +6545,46 @@ img { max-width: 100%; height: auto; display: block; }
         return json;
       }
 
+      // ═══ t110 — sidebar data-only prefetch ═══════════════════════
+      // Fired by _queueStage2 the moment stage-1 finishes rendering. Fetches
+      // the three /api/sidebar-cache JSONs WITHOUT rendering so their
+      // server-side build (1-6s on a cold shared cache) overlaps stage 2.
+      // _loadSidebarSection consumes the stash; the TV|Movie toggle changes
+      // the section type, which simply stops matching the stash (that
+      // section then fetches as before). Rendering order, the direct
+      // fallback chain and all browser caches are untouched — only the
+      // WAIT moves earlier.
+      let _sidebarPrefetch = null;
+      function _prefetchSidebarData() {
+        if (_sidebarPrefetch) return;
+        _sidebarPrefetch = {};
+        const isAnime = currentState.source !== 'tmdb';
+        ['hiddenGem', 'topRanking', 'mostFavourite'].forEach(section => {
+          const type = isAnime ? (currentState.sideType[section] || 'tv') : currentState.type;
+          const scType = isAnime ? `anime-${type}` : type;
+          const entry = { type: type, _settled: false, _data: null };
+          entry.promise = (async () => {
+            try {
+              const r = await fetch(`/api/sidebar-cache?section=${section}&type=${scType}`,
+                                    { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(15000) });
+              const sj = r.ok ? await r.json() : null;
+              entry._data = (sj && sj.ok && Array.isArray(sj.data) && sj.data.length) ? sj : null;
+            } catch (e) { entry._data = null; }
+            entry._settled = true;
+            return entry._data;
+          })();
+          _sidebarPrefetch[section] = entry;
+        });
+      }
+
       async function _loadSidebarSection(section, isAnime, force = false) {
         const type = isAnime ? (currentState.sideType[section] || 'tv') : currentState.type;
         const container = document.getElementById(_sidebarListId(section));
         if (!container) return;
-        // v2 key — invalidates pre-polish cached sidebar HTML (Tv capitalization etc.)
-        const cacheKey = `sidebar_html:v2:${section}:${isAnime ? 'anime-' + type : currentState.type}`;
+        // v3 key — invalidates pre-t112 cached sidebar HTML (rendered before
+        // the "No Image" poster placeholder existed, so cached copies would
+        // never show it). v2 invalidates pre-polish HTML (Tv caps etc.).
+        const cacheKey = `sidebar_html:v3:${section}:${isAnime ? 'anime-' + type : currentState.type}`;
         if (!force) {
           if (window.AniCache) {
             try {
@@ -6436,7 +6608,22 @@ img { max-width: 100%; height: auto; display: block; }
           // upstream answers never replace good data). Removes the per-visit
           // upstream storm.
           let json = null, lastErr = null, usedSrc = 'server-cache';
-          try {
+          // t110 — consume the data-only prefetch (started at stage-1
+          // completion by _queueStage2). In the common case it settled during
+          // stage 2, so this is instant; if still in flight we await the SAME
+          // request instead of starting a duplicate. Empty answer / the other
+          // toggle type / force refresh all fall through to the live TIER 0.
+          if (!force && _sidebarPrefetch && _sidebarPrefetch[section] &&
+              _sidebarPrefetch[section].type === type) {
+            try {
+              const pj = await _sidebarPrefetch[section].promise;
+              if (pj && Array.isArray(pj.data) && pj.data.length) {
+                json = { results: pj.data, _serverCache: true };
+                console.log(`[Sidebar] ${section} ✅ prefetched server cache (${pj.source}, age ${Math.round((pj.age_seconds || 0) / 60)}m)`);
+              }
+            } catch (eP) { /* fall through to the live tiers */ }
+          }
+          if (!json) try {
             const scType = isAnime ? `anime-${type}` : type;
             const sres = await fetch(`/api/sidebar-cache?section=${section}&type=${scType}`,
                                      { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(15000) });
@@ -6506,6 +6693,64 @@ img { max-width: 100%; height: auto; display: block; }
         });
       }
 
+      // t112-b — PC sidebar TAB PANEL (owner pick): one card, 3 instant tabs,
+      // Top-10 rows per tab, compact 50×70 posters. The three section headers
+      // physically MOVE into .side-tab-bar on PC (their TV|Movie toggles come
+      // along — only the active tab shows its toggle) and move back under
+      // 1025px, so mobile/tablet keep today's stacked sections untouched.
+      // Row data/loading/caching are untouched — tabs only switch visibility.
+      function initSidebarTabs() {
+        const combined = document.querySelector('.sidebar-combined');
+        if (!combined || combined.dataset.tabsInit) return;
+        combined.dataset.tabsInit = '1';
+        const mq = window.matchMedia('(min-width: 1025px)');
+        const sections = [...combined.querySelectorAll(':scope > .sidebar-section')];
+        if (!sections.length) return;
+        let bar = combined.querySelector(':scope > .side-tab-bar');
+        if (!bar) {
+          bar = document.createElement('div');
+          bar.className = 'side-tab-bar';
+          combined.prepend(bar);
+        }
+        let active = 'hiddenGem';
+        const headerFor = (sec) =>
+          sec.querySelector(':scope > h4') || bar.querySelector(`h4[data-section="${sec.dataset.section}"]`);
+        const activate = (name) => {
+          active = name;
+          sections.forEach(sec => {
+            const on = sec.dataset.section === name;
+            sec.classList.toggle('side-active', on);
+            const h = headerFor(sec);
+            if (h) h.classList.toggle('side-tab-active', on);
+          });
+        };
+        const place = () => {
+          if (mq.matches) {
+            combined.classList.add('side-tabs-on');
+            sections.forEach(sec => {
+              const h = sec.querySelector(':scope > h4');
+              if (h) bar.appendChild(h);   // relocate header (toggle travels with it)
+            });
+            activate(active);
+          } else {
+            combined.classList.remove('side-tabs-on');
+            sections.forEach(sec => {
+              const h = headerFor(sec);
+              if (h && h.parentElement !== sec) sec.prepend(h);
+            });
+          }
+        };
+        // header click = activate (PC only; on mobile the bar is display:none)
+        bar.addEventListener('click', (e) => {
+          if (!mq.matches) return;
+          const h = e.target.closest('h4[data-section]');
+          if (h && h.dataset.section) activate(h.dataset.section);
+        });
+        if (mq.addEventListener) mq.addEventListener('change', place);
+        else if (mq.addListener) mq.addListener(place);
+        place();
+      }
+
       // Thin wrappers kept for the existing call sites
       async function loadHiddenGems(isAnime)   { return _loadSidebarSection('hiddenGem', isAnime); }
       async function loadTopRanking(isAnime)   { return _loadSidebarSection('topRanking', isAnime); }
@@ -6535,6 +6780,20 @@ img { max-width: 100%; height: auto; display: block; }
           }
         }
       }
+
+      // t112 — "No Image" swap (index.html look): a sidebar poster img whose
+      // URL fails at runtime is replaced by the stacked No/Image placeholder
+      // div. Global (window.*) because it is called from inline onerror attrs.
+      window._noImgSwap = function (el) {
+        try {
+          if (!el || !el.parentNode) return;
+          const ph = document.createElement('div');
+          ph.className = 'sidebar-poster no-image';
+          ph.setAttribute('role', 'img');
+          ph.setAttribute('aria-label', 'No Image');
+          el.replaceWith(ph);
+        } catch (e) { /* leave the original img on any failure */ }
+      };
 
       function renderSidebarItem(item, rank, isAnime, showRank = false) {
         const title = isAnime ? (item.title_english || item.title) : (item.title || item.name);
@@ -6603,7 +6862,9 @@ img { max-width: 100%; height: auto; display: block; }
 
         return '<a href="' + detailsUrl + '" class="sidebar-list-item">'
           + (showRank ? '<span class="sidebar-rank">' + rank + '</span>' : '')
-          + '<img class="sidebar-poster" src="' + escapeHtml(poster) + '" alt="' + escapeHtml(title) + '" loading="lazy" onerror="this.style.display=\'none\'">'
+          + (poster
+              ? '<img class="sidebar-poster" src="' + escapeHtml(poster) + '" alt="' + escapeHtml(title) + '" loading="lazy" onerror="_noImgSwap(this)">'
+              : '<div class="sidebar-poster no-image" role="img" aria-label="No Image"></div>')
           + '<div class="sidebar-info">'
           + '<h4>' + escapeHtml(title) + '</h4>'
           + '<div class="side-meta">\u2B50 ' + ((typeof score === 'string' ? score : Number(score || 0).toFixed(1)) || 'N/A') + (type ? ' \u00B7 ' + type : '') + (year ? ' \u00B7 ' + year : '') + extraMeta + '</div>'
@@ -6751,7 +7012,7 @@ img { max-width: 100%; height: auto; display: block; }
               if (!k || seen.has(k)) return;
               seen.add(k); items.push(a);
             });
-            const res = await fetch(base, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(12000) });
+            const res = await fetch(base, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(6500) });   // t110 — 504s arrive ~8s; 6.5s cap reaches the fallback chain sooner
             if (res.ok) {
               const json = await res.json();
               push(json.data);
@@ -7018,13 +7279,17 @@ img { max-width: 100%; height: auto; display: block; }
         const src   = mediaType === 'movie' ? 'tmdb-movie' : 'tmdb-tv';
         const detailsUrl = `/info/${mediaType}/${src}-${item.id}/${slug}`;
 
-        const posterStyle = poster
+        // t112 — missing poster → index.html-style "No Image" placeholder
+        // (slate gradient + stacked NO / IMAGE text via .rec-poster.no-image).
+        // Covers build-time missing AND runtime-broken URLs (img onerror).
+        const hasPoster = !!poster;
+        const posterStyle = hasPoster
           ? `background-image: url('${poster}')`
-          : `background: linear-gradient(135deg, var(--bg-surface), var(--bg-card))`;
+          : `background: linear-gradient(135deg, #1e293b 0%, #334155 100%)`;
 
         return `<a href="${detailsUrl}" class="rec-card">
-          <div class="rec-poster" style="${posterStyle}">
-            ${poster ? `<img src="${poster}" alt="${escapeHtml(title)}" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;">` : ''}
+          <div class="rec-poster${hasPoster ? '' : ' no-image'}" style="${posterStyle}">
+            ${hasPoster ? `<img src="${poster}" alt="${escapeHtml(title)}" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;" onerror="this.parentElement.classList.add('no-image');this.remove();">` : ''}
             <span class="quality-badge">${type}</span>
             <span class="score-badge"><i class="fa-solid fa-star"></i> ${score ? score.toFixed(1) : 'N/A'}</span>
             <div class="play-overlay">
@@ -7623,7 +7888,7 @@ img { max-width: 100%; height: auto; display: block; }
         try {
           // Correct REST endpoint — filter by MAL site + external_id, include song + entries + videos
           const url = `https://api.animethemes.moe/anime?filter[has]=resources&filter[site]=MyAnimeList&filter[external_id]=${malId}&include=animethemes.song,animethemes.animethemeentries.videos`;
-          const res = await fetch(url);
+          const res = await fetch(url, { signal: AbortSignal.timeout(10000) });   // t110 — hung responses delayed the stage-2 completion signal
           if (!res.ok) throw new Error(`AnimThemes error: ${res.status}`);
           const json = await res.json();
           const animeEntry = (json.anime || [])[0];
