@@ -23,7 +23,7 @@
 // window and simply rebuilds after cold starts.
 // ─────────────────────────────────────────────────────────────────────────
 
-import { getSql } from '../_lib/neon.js';
+import { getSql, withNeon, neonCircuitOpen } from '../_lib/neon.js';
 
 const TTL_MS = 3 * 60 * 60 * 1000; // 3 hours
 const MAX_PAYLOAD_CHARS = 1800000; // ~1.8MB JSON — mirrors the browser cap
@@ -87,19 +87,24 @@ export default async function handler(req, res) {
 
     try {
       const sql = getSql();
-      if (sql) {
-        await ensureTable(sql);
-        const rows = await sql`
+      // t110 — DB reads run under the shared Neon circuit breaker + timeout:
+      // a sick Neon (402 quota outage) used to make every GET-miss pay a
+      // ~1.5-2s failed roundtrip before the 404. With the breaker, at most
+      // one probe per 5min pays that tax; everything else fails fast to
+      // the miss path (memory layer still serves warm entries untouched).
+      if (sql && !neonCircuitOpen()) {
+        await withNeon(() => ensureTable(sql));
+        const rows = await withNeon(() => sql`
           SELECT payload, saved_at FROM info_page_cache
           WHERE cache_key = ${key} AND saved_at > now() - interval '3 hours'
-          LIMIT 1`;
+          LIMIT 1`);
         if (rows && rows.length) {
           const entry = { data: rows[0].payload, savedAt: new Date(rows[0].saved_at).getTime() };
           mem.set(key, entry);
           return serveHit(res, key, entry);
         }
         // expired or never-saved row — best-effort cleanup of stale rows
-        try { await sql`DELETE FROM info_page_cache WHERE cache_key = ${key} AND saved_at <= now() - interval '3 hours'`; } catch (e) {}
+        try { await withNeon(() => sql`DELETE FROM info_page_cache WHERE cache_key = ${key} AND saved_at <= now() - interval '3 hours'`); } catch (e) {}
       }
     } catch (e) {
       console.error('[info-cache] GET db error:', e.message);
@@ -126,13 +131,15 @@ export default async function handler(req, res) {
 
     try {
       const sql = getSql();
-      if (sql) {
-        await ensureTable(sql);
-        await sql`
+      // t110 — same breaker on the write path: the response must not hang
+      // on a sick Neon (memory layer already holds the entry regardless).
+      if (sql && !neonCircuitOpen()) {
+        await withNeon(() => ensureTable(sql));
+        await withNeon(() => sql`
           INSERT INTO info_page_cache (cache_key, payload, saved_at)
           VALUES (${key}, ${JSON.stringify(data)}::jsonb, now())
           ON CONFLICT (cache_key)
-          DO UPDATE SET payload = EXCLUDED.payload, saved_at = now()`;
+          DO UPDATE SET payload = EXCLUDED.payload, saved_at = now()`);
       }
     } catch (e) {
       console.error('[info-cache] POST db error (memory-only this round):', e.message);
