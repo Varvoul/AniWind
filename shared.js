@@ -636,14 +636,17 @@
     }
     .mob-nav-item:hover{background:rgba(255,255,255,0.07);color:#fff;}
     /* Mobile sub-triggers (click to open) */
+    /* t117: flex-start (was space-between) — the FA icon added inside Genre/
+       Country triggers made the text float to center. Icon+label now group
+       left like no-icon triggers; the arrow still pins right via auto margin. */
     .mob-sub-trigger{
-      display:flex;align-items:center;justify-content:space-between;
+      display:flex;align-items:center;justify-content:flex-start;
       padding:9px 10px;font-size:0.82rem;color:var(--text-secondary,#ccc);
       border-radius:8px;cursor:pointer;
       transition:background .15s,color .15s;user-select:none;
     }
     .mob-sub-trigger:hover{background:rgba(255,255,255,0.07);color:#fff;}
-    .mob-sub-arr{transition:transform .25s;font-size:.7rem;flex-shrink:0;}
+    .mob-sub-arr{transition:transform .25s;font-size:.7rem;flex-shrink:0;margin-left:auto;padding-left:8px;}
     .mob-sub-trigger.open .mob-sub-arr{transform:rotate(90deg);}
     .mob-sub-menu{
       display:none;padding:4px 0 4px 10px;
