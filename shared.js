@@ -1171,13 +1171,20 @@
   /* ── FONT AWESOME GUARD (t117: nav icons) ──
      The shared nav uses FA icons (home/genre/country/news/forum). Pages
      include the FA stylesheet in their own <head>; this guard guarantees it
-     on EVERY page that renders the nav, without ever double-loading it. */
+     on EVERY page that renders the nav, without ever double-loading it.
+     Runs after DOM parse: on index.html shared.js executes BEFORE that
+     page's own FA <link> (line 13 vs line 20), so a synchronous check here
+     would miss it and inject a duplicate stylesheet. */
   (function ensureFontAwesome() {
-    if (document.querySelector('link[href*="font-awesome"]')) return;
-    const fa = document.createElement('link');
-    fa.rel = 'stylesheet';
-    fa.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css';
-    document.head.appendChild(fa);
+    var addFa = function () {
+      if (document.querySelector('link[href*="font-awesome"]')) return;
+      var fa = document.createElement('link');
+      fa.rel = 'stylesheet';
+      fa.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css';
+      document.head.appendChild(fa);
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', addFa);
+    else addFa();
   })();
 
   /* ── DYNAMIC FAVICON ──
