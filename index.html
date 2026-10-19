@@ -8229,7 +8229,7 @@ titleEl.style.color = '#ffffff';
        `;
        
        const genreTypeSegment = show.type === 'Anime' ? 'anime' : (show.type === 'Movie' ? 'movie' : 'tv');
-       const genreSlug = g => g.trim().toLowerCase().replace(/\s+/g, '+');
+       const genreSlug = g => g.trim().toLowerCase().replace(/\s+/g, '-'); // hyphen: '+' is only a space in query strings, in a path it stays literal '+'; matches shared.js nav slugs + info.html genre tags
        const genresHtml = (show.genres || [])
          .filter(Boolean)
          .flatMap(g => g.split('&').map(part => part.trim()).filter(Boolean))
@@ -8259,7 +8259,7 @@ titleEl.style.color = '#ffffff';
        window._popupManager.requestShow(`anilist-${mal_id}`, anchorEl);
 
        const starIcon = '<i class="fas fa-star" style="color:var(--star-icon-color)"></i>';
-       const genreSlug = g => g.trim().toLowerCase().replace(/\s+/g, '+');
+       const genreSlug = g => g.trim().toLowerCase().replace(/\s+/g, '-'); // hyphen: '+' is only a space in query strings, in a path it stays literal '+'; matches shared.js nav slugs + info.html genre tags
        const genresHtml = (anime.genres || [])
          .flatMap(g => g.split('&').map(part => part.trim()).filter(Boolean))
          .map(g => `<a href="/anime/genre/${genreSlug(g)}" class="genre-pill">${g}</a>`)
