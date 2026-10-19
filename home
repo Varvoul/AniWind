@@ -2487,7 +2487,7 @@
       /* Direct fallback URLs (used if proxy is unavailable) */
       const JIKAN_BASE    = 'https://api.jikan.moe/v4';
       const TMDB_PROXY    = 'https://t-umi.bionmovies47.workers.dev'; // NEW primary TMDB proxy
-      const TMDB_LEGACY   = 'https://aniocen.bionmovies47.workers.dev'; // legacy TMDB proxy (fallback)
+      const TMDB_LEGACY   = 'https://t-umi.zeraf.workers.dev'; // 2026-10-16: aniocen worker DELETED (CF 1042) — legacy tier now t-umi on 2nd domain (same worker, no /3 prefix — worker prepends it)
       const ANIKOTO_API   = 'https://anikoto.bionmovies47.workers.dev'; // direct anikoto fallback
       const TMDB_IMAGE = 'https://image.tmdb.org/t/p';
       const tmdbImg = (p,s='w500') => p ? `${TMDB_IMAGE}/${s}${p}` : '';
@@ -2754,9 +2754,10 @@
           console.log(`[TMDB] ⏭️ Skipping t-umi for paginated request (page=${requestedPage}) - known caching bug`);
         }
         
-        // 2) Legacy aniocen worker — CONFIRMED WORKING for pagination, handles TMDB auth server-side
+        // 2) t-umi.zeraf — same worker as tier 1 on a second domain (handles
+        //    pagination + TMDB auth server-side). aniocen was deleted (CF 1042).
         try {
-          const res = await fetch(`${TMDB_LEGACY}/3${endpoint}${qs}`, {
+          const res = await fetch(`${TMDB_LEGACY}${endpoint}${qs}`, {
             headers: { Accept: 'application/json' },
             signal: AbortSignal.timeout(10000)
           });
