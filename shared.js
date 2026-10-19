@@ -115,7 +115,15 @@
   // If ruri is slow or down, the existing chain below takes over unchanged
   // (edge proxy -> direct RPC -> anikoto RPC -> AniList -> Jikan).
   const RURI_URL          = 'https://ruri.bionmovies47.workers.dev';
-  const RURI_TIMEOUT_MS   = 1200; // matches DB_TIMEOUT_MS - fallback chain absorbs overruns
+  // Both ruri search profiles race in PARALLEL (see ruriSearch), so the outer
+  // budget must fit the SLOWEST single profile (cold s-mal ~1.1s at the edge +
+  // user RTT) instead of their sequential sum - the old 1200ms window is what
+  // let a slow-but-alive s-mal payload get discarded. Inner aborts sit just
+  // under the outer budget so Promise.allSettled always settles deterministically
+  // BEFORE the outer withTimeout fires (no boundary coin-flip).
+  const RURI_TIMEOUT_MS         = 1500; // outer budget for the whole ruri race - fallback chain absorbs overruns
+  const RURI_SMAL_TIMEOUT_MS    = 1450; // s-mal profile inner abort (< RURI_TIMEOUT_MS)
+  const RURI_ANIKOTO_TIMEOUT_MS = 1400; // anikoto profile inner abort (< RURI_SMAL_TIMEOUT_MS)
   const RURI_LIMIT        = 8;   // same page size the RPC search path uses
 
   // Calls one of the three whitelisted RPCs. Tries the edge proxy first
@@ -2461,17 +2469,18 @@
      Cloudflare's edge with a 5-minute cache per query. Semantics mirror the
      fallback tiers so primary and fallback agree: anime_data (/s-mal) first,
      anikoto (/anikoto) only fills in when s-mal has fewer than 3 hits, results
-     deduped by mal_id. Any failure (timeout / 5xx / bad payload / network)
+     deduped by mal_id. Both profiles are fetched in parallel (see ruriSearch).
+     Any failure (timeout / 5xx / bad payload / network)
      throws -> fetchAnimeWithFallbacks falls through to the untouched proxy
      chain below. */
 
   const ruriSearchCache = new Map();
   const RURI_CACHE_TTL = 3 * 60 * 1000; // same as DB_CACHE_TTL
 
-  async function ruriFetch(pathAndQuery) {
+  async function ruriFetch(pathAndQuery, timeoutMs = RURI_TIMEOUT_MS) {
     const res = await fetch(`${RURI_URL}${pathAndQuery}`, {
       headers: { 'Accept': 'application/json' },
-      signal: AbortSignal.timeout(RURI_TIMEOUT_MS)
+      signal: AbortSignal.timeout(timeoutMs)
     });
     if (!res.ok) throw new Error(`ruri HTTP ${res.status}`);
     const json = await res.json();
@@ -2578,11 +2587,18 @@
   }
 
   /**
-   * ruri search: /s-mal (anime_data) first, then /anikoto fills in when the
-   * s-mal side has fewer than 3 hits - mirroring the tier semantics of
-   * fetchAnimeWithFallbacks. Returns { items, servedSMal, servedAnikoto };
-   * never throws for a single-profile failure (a partial ruri win is still
-   * used), only a total failure surfaces as empty items.
+   * ruri search: /s-mal (anime_data) and /anikoto fire IN PARALLEL via
+   * Promise.allSettled and the merge is s-mal-first - anikoto only fills in
+   * when the s-mal side has fewer than 3 hits, mirroring the tier semantics
+   * of fetchAnimeWithFallbacks. (Both profiles always FIRE - the responses
+   * are edge-cached and cheap; only the MERGE applies the < 3 tier rule.)
+   * Racing the profiles caps the wait at the slowest single profile instead
+   * of their sequential sum, so a slow-but-alive s-mal (cold edge cache
+   * ~1.1s + user RTT) can no longer overflow the outer ruri budget and get
+   * discarded while anikoto-only results slip in through the gap.
+   * Returns { items, servedSMal, servedAnikoto }; never throws for a
+   * single-profile failure (a partial ruri win is still used), only a total
+   * failure surfaces as empty items.
    */
   async function ruriSearch(q) {
     const cacheKey = `ruri:${q}`;
@@ -2602,24 +2618,27 @@
     let servedSMal = false, servedAnikoto = false;
     let items = [];
 
-    try {
-      const smal = (await ruriFetch(`/s-mal/anime?q=${enc(safeQ)}&order_by=score&sort=desc&limit=${RURI_LIMIT}`))
-        .map(mapRuriSMalItem);
+    const [smalRes, anikotoRes] = await Promise.allSettled([
+      ruriFetch(`/s-mal/anime?q=${enc(safeQ)}&order_by=score&sort=desc&limit=${RURI_LIMIT}`, RURI_SMAL_TIMEOUT_MS),
+      ruriFetch(`/anikoto/anime?q=${enc(safeQ)}&order_by=score&sort=desc&limit=${RURI_LIMIT}`, RURI_ANIKOTO_TIMEOUT_MS)
+    ]);
+
+    if (smalRes.status === 'fulfilled') {
+      items = smalRes.value.map(mapRuriSMalItem);
       servedSMal = true;
-      items = smal;
-    } catch (e) {
-      console.warn(`[Ruri Search] s-mal failed (${e.message})`);
+    } else {
+      console.warn(`[Ruri Search] s-mal failed (${smalRes.reason?.message || smalRes.reason})`);
     }
 
+    // Tier semantics preserved: anikoto only fills in when the s-mal side has
+    // fewer than 3 hits. Dedupe against s-mal results by mal_id OR AniList
+    // identity - anime_data rows that carry only an anilist_id (no MAL entry
+    // exists, e.g. Soul Land S6-8) would otherwise render TWICE for the same
+    // anime: once as the s-mal card and once as the anikoto card.
     if (items.length < 3) {
-      try {
-        const anikoto = (await ruriFetch(`/anikoto/anime?q=${enc(safeQ)}&order_by=score&sort=desc&limit=${RURI_LIMIT}`))
-          .map(mapRuriAnikotoItem);
+      if (anikotoRes.status === 'fulfilled') {
+        const anikoto = anikotoRes.value.map(mapRuriAnikotoItem);
         servedAnikoto = true;
-        // Dedupe against s-mal results by mal_id OR AniList identity.
-        // anime_data rows that carry only an anilist_id (no MAL entry exists,
-        // e.g. Soul Land S6-8) would otherwise render TWICE for the same
-        // anime: once as the s-mal card and once as the anikoto card.
         const existingIds = new Set(items.map(r => r.mal_id).filter(Boolean));
         const existingAlis = new Set(
           items.map(r => r.anilist_id ?? r.anilistId).filter(v => v !== null && v !== undefined && v !== '').map(String)
@@ -2629,8 +2648,8 @@
           if (r.anilist_id && existingAlis.has(String(r.anilist_id))) return false;
           return true;
         })];
-      } catch (e) {
-        console.warn(`[Ruri Search] anikoto failed (${e.message})`);
+      } else {
+        console.warn(`[Ruri Search] anikoto failed (${anikotoRes.reason?.message || anikotoRes.reason})`);
       }
     }
 
