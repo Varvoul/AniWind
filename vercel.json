@@ -18,6 +18,8 @@
     }
   ],
   "rewrites": [
+    { "source": "/latest-updates",         "destination": "/latest-updates.html" },
+
     { "source": "/info/anime/:id",         "destination": "/info.html" },
     { "source": "/info/anime/:id/:slug",   "destination": "/info.html" },
     { "source": "/info/movie/:id",         "destination": "/info.html" },

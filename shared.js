@@ -315,6 +315,17 @@
       white-space:nowrap;user-select:none;cursor:default;display:flex;align-items:center;gap:3px;
     }
     .nav-dd-wrap:hover .nav-dd-label,.nav-dd-wrap:focus-within .nav-dd-label{background:rgba(255,255,255,0.08);color:#fff;}
+    /* ── NAV ICONS (Font Awesome, t117) ──
+       Only the items the owner asked for carry icons: home, genre, country,
+       news, forum (both PC + mobile). Icons inherit the accent blue so they
+       read as decoration, not buttons. .mob-forum-item is a centered flex
+       with its own gap -> no extra margin there. */
+    .nav-link-item .fa-solid,.nav-dd-label .fa-solid,
+    .mob-nav-item .fa-solid,.mob-sub-trigger .fa-solid,.mob-forum-item .fa-solid{
+      color:var(--accent-blue,#4299e1);font-size:0.92em;
+      width:1.1em;text-align:center;margin-right:7px;
+    }
+    .mob-forum-item .fa-solid{margin-right:0;}
     /* Desktop dropdown: ONLY shown on hover of parent wrapper */
     .nav-dropdown{
       display:none;position:absolute;top:calc(100% + 4px);left:0;
@@ -1157,6 +1168,18 @@
   styleEl.textContent = css;
   document.head.appendChild(styleEl);
 
+  /* ── FONT AWESOME GUARD (t117: nav icons) ──
+     The shared nav uses FA icons (home/genre/country/news/forum). Pages
+     include the FA stylesheet in their own <head>; this guard guarantees it
+     on EVERY page that renders the nav, without ever double-loading it. */
+  (function ensureFontAwesome() {
+    if (document.querySelector('link[href*="font-awesome"]')) return;
+    const fa = document.createElement('link');
+    fa.rel = 'stylesheet';
+    fa.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css';
+    document.head.appendChild(fa);
+  })();
+
   /* ── DYNAMIC FAVICON ──
      Automatically sets/updates favicon on EVERY page that loads shared.js.
      No manual setup needed - just include shared.js and favicon appears!
@@ -1235,15 +1258,15 @@
 
   <!-- Desktop Nav -->
   <nav class="main-nav" id="mainNav">
-    <a href="/" class="nav-link-item">Home</a>
+    <a href="/" class="nav-link-item"><i class="fa-solid fa-house"></i>Home</a>
 
     <div class="nav-dd-wrap">
-      <span class="nav-dd-label">Genre ▾</span>
+      <span class="nav-dd-label"><i class="fa-solid fa-layer-group"></i>Genre ▾</span>
       <div class="nav-dropdown grid-4">${genreLinks}</div>
     </div>
 
     <div class="nav-dd-wrap">
-      <span class="nav-dd-label">Country ▾</span>
+      <span class="nav-dd-label"><i class="fa-solid fa-globe"></i>Country ▾</span>
       <div class="nav-dropdown grid-4">${countryLinks}</div>
     </div>
 
@@ -1258,9 +1281,9 @@
     </div>
 
     <a href="/status/ongoing" class="nav-link-item">Ongoing</a>
-    <a href="/search?q=updates" class="nav-link-item">Updates</a>
-    <a href="#" class="nav-link-item">News</a>
-    <a href="#" class="nav-link-item">Forum</a>
+    <a href="/latest-updates" class="nav-link-item">Updates</a>
+    <a href="#" class="nav-link-item"><i class="fa-solid fa-newspaper"></i>News</a>
+    <a href="#" class="nav-link-item"><i class="fa-solid fa-comments"></i>Forum</a>
   </nav>
 
   <!-- Desktop Socials (left of search) -->
@@ -1348,13 +1371,13 @@
     <div class="mob-nav-close-row">
       <button class="mob-nav-close-btn" id="mobNavClose">${SVG.close}</button>
     </div>
-    <a href="#" class="mob-forum-item"><svg fill="currentColor" width="15px" height="15px" viewBox="0 0 128 128" id="Layer_1" version="1.1" xml:space="preserve" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <g> <path d="M64,42c-13.2,0-24,10.8-24,24s10.8,24,24,24s24-10.8,24-24S77.2,42,64,42z M64,82c-8.8,0-16-7.2-16-16s7.2-16,16-16 s16,7.2,16,16S72.8,82,64,82z"></path> <path d="M64,100.8c-14.9,0-29.2,6.2-39.4,17.1l-2.7,2.9l5.8,5.5l2.7-2.9c8.8-9.4,20.7-14.6,33.6-14.6s24.8,5.2,33.6,14.6l2.7,2.9 l5.8-5.5l-2.7-2.9C93.2,107.1,78.9,100.8,64,100.8z"></path> <path d="M97,47.9v8c9.4,0,18.1,3.8,24.6,10.7l5.8-5.5C119.6,52.7,108.5,47.9,97,47.9z"></path> <path d="M116.1,20c0-10.5-8.6-19.1-19.1-19.1S77.9,9.5,77.9,20S86.5,39.1,97,39.1S116.1,30.5,116.1,20z M85.9,20 c0-6.1,5-11.1,11.1-11.1s11.1,5,11.1,11.1s-5,11.1-11.1,11.1S85.9,26.1,85.9,20z"></path> <path d="M31,47.9c-11.5,0-22.6,4.8-30.4,13.2l5.8,5.5c6.4-6.9,15.2-10.7,24.6-10.7V47.9z"></path> <path d="M50.1,20C50.1,9.5,41.5,0.9,31,0.9S11.9,9.5,11.9,20S20.5,39.1,31,39.1S50.1,30.5,50.1,20z M31,31.1 c-6.1,0-11.1-5-11.1-11.1S24.9,8.9,31,8.9s11.1,5,11.1,11.1S37.1,31.1,31,31.1z"></path> </g> </g></svg> Community</a>
-    <a href="/" class="mob-nav-item">Home</a>
+    <a href="#" class="mob-forum-item"><i class="fa-solid fa-comments" style="font-size:0.95em;"></i>Community</a>
+    <a href="/" class="mob-nav-item"><i class="fa-solid fa-house"></i>Home</a>
 
-    <div class="mob-sub-trigger" data-target="mobGenreMenu">Genre <span class="mob-sub-arr">▶</span></div>
+    <div class="mob-sub-trigger" data-target="mobGenreMenu"><i class="fa-solid fa-layer-group"></i>Genre <span class="mob-sub-arr">▶</span></div>
     <div class="mob-sub-menu" id="mobGenreMenu">${genreMob}</div>
 
-    <div class="mob-sub-trigger" data-target="mobCountryMenu">Country <span class="mob-sub-arr">▶</span></div>
+    <div class="mob-sub-trigger" data-target="mobCountryMenu"><i class="fa-solid fa-globe"></i>Country <span class="mob-sub-arr">▶</span></div>
     <div class="mob-sub-menu" id="mobCountryMenu">${countryMob}</div>
 
     <div class="mob-sub-trigger" data-target="mobTypeMenu">Type <span class="mob-sub-arr">▶</span></div>
@@ -1366,8 +1389,8 @@
     </div>
 
     <a href="/status/ongoing" class="mob-nav-item">Ongoing</a>
-    <a href="/search?q=updates" class="mob-nav-item">Updates</a>
-    <a href="#" class="mob-nav-item">News</a>
+    <a href="/latest-updates" class="mob-nav-item">Updates</a>
+    <a href="#" class="mob-nav-item"><i class="fa-solid fa-newspaper"></i>News</a>
   </div>
 </div>
 `;

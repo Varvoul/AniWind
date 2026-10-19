@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Latest Updates — AniOcean</title>
+  <!-- Minimal fallback title (enhanced by shared.js MetadataManager) -->
+  <meta name="description" content="Latest anime episode updates on AniOcean — the most recently updated shows, freshest episodes first. Stream free with multi-language subtitles.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:opsz,wght@14..32,400..700&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Scripts (shared.js injects header, nav, footer, auth, SEO metadata) -->
+  <script src="/shared.js"></script>
+  <style>
+    :root {
+      --bg-body: #0a1929;
+      --bg-header: #0f2440;
+      --bg-card: #132f4c;
+      --bg-surface: #1a3a5c;
+      --bg-popup: #102a44;
+      --text-primary: #ffffff;
+      --text-secondary: #b0c7e3;
+      --text-muted: #94a3b8;
+      --text-widget-title: #a2c4de;
+      --btn-primary: #2b6cb0;
+      --btn-primary-hover: #1d4e89;
+      --btn-primary-text: #ffffff;
+      --btn-secondary: #334e68;
+      --btn-secondary-hover: #243b53;
+      --popup-btn: #5c6ac4;
+      --popup-btn-text: #ffffff;
+      --popup-btn-hover: #4955b5;
+      --genre-tag-bg: #4c51bf;
+      --link-accent: #ed64a6;
+      --accent-gold: #ecc94b;
+      --star-icon-color: #f5b942;
+      --fire-icon-color: #e0622e;
+      --accent-blue: #4299e1;
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-medium: rgba(255, 255, 255, 0.16);
+      --font-title: 'Archivo Black', sans-serif;
+      --font-body: 'Inter', sans-serif;
+      --font-meta: 'Poppins', sans-serif;
+      --radius-sm: 6px;
+      --radius-md: 12px;
+      --radius-lg: 18px;
+      --radius-pill: 50px;
+      --radius-circle: 50%;
+      --shadow-lg: 0 20px 60px rgba(0,0,0,0.5);
+      --transition-fast: 0.18s ease;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      background: var(--bg-body);
+      font-family: var(--font-body);
+      color: var(--text-primary);
+      line-height: 1.5;
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+
+    /* ── PAGE HEADER ── */
+    .up-page { max-width: 1280px; margin: 0 auto; padding: 26px 20px 40px; }
+    .up-head { display:flex; align-items:flex-end; justify-content:space-between; gap:14px; flex-wrap:wrap; margin-bottom:20px; }
+    .up-h1 { font-family: var(--font-title); font-size: clamp(1.5rem, 3.4vw, 2.15rem); letter-spacing:.5px; display:flex; align-items:center; gap:12px; }
+    .up-h1 .fa-solid { color: var(--accent-blue); font-size:.82em; }
+    .up-sub { color: var(--text-muted); font-size: .84rem; margin-top:6px; }
+    .up-count {
+      font-family: var(--font-meta); font-size:.74rem; font-weight:600; color:var(--text-secondary);
+      background: var(--bg-card); border:1px solid var(--border-subtle);
+      border-radius: var(--radius-pill); padding:6px 14px; white-space:nowrap;
+    }
+    .up-count b { color: var(--accent-blue); }
+
+    /* ── GRID + CARDS ── */
+    .up-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(158px, 1fr)); gap:14px; }
+    .up-card { display:block; text-decoration:none; color:inherit; border-radius: var(--radius-md);
+      transition: transform .2s ease; }
+    .up-card:hover { transform: translateY(-4px); }
+    .up-poster-wrap { position:relative; aspect-ratio: 2/3; border-radius: var(--radius-md); overflow:hidden;
+      background: var(--bg-card); border:1px solid var(--border-subtle); }
+    .up-poster { width:100%; height:100%; object-fit:cover; display:block; transition: transform .25s ease; }
+    .up-card:hover .up-poster { transform: scale(1.06); }
+    .up-grad { position:absolute; inset:0; background:linear-gradient(to top, rgba(7,17,29,.92) 0%, rgba(7,17,29,.25) 38%, transparent 62%); }
+    .up-ep {
+      position:absolute; top:8px; right:8px; font-family:var(--font-meta); font-weight:600; font-size:.66rem;
+      color:#fff; background: var(--btn-primary); border-radius:6px; padding:3px 7px; letter-spacing:.4px;
+      box-shadow: 0 4px 12px rgba(0,0,0,.4);
+    }
+    .up-ttl-wrap { position:absolute; left:0; right:0; bottom:0; padding:10px 10px 9px; }
+    .up-title { font-size:.8rem; font-weight:600; line-height:1.32; color:#fff;
+      display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+      text-shadow:0 1px 4px rgba(0,0,0,.6); }
+    .up-meta { display:flex; align-items:center; gap:8px; margin-top:5px; font-family:var(--font-meta); font-size:.64rem; color:var(--text-secondary); }
+    .up-type { background:rgba(255,255,255,.14); border-radius:4px; padding:1px 6px; font-weight:500; }
+    .up-score { color: var(--star-icon-color); font-weight:500; display:flex; align-items:center; gap:3px; }
+    .up-ago { margin-left:auto; color: var(--text-muted); }
+
+    /* ── SKELETON ── */
+    .up-skel { border-radius: var(--radius-md); overflow:hidden; background: var(--bg-card); border:1px solid var(--border-subtle); }
+    .up-skel .ph { background:linear-gradient(100deg, var(--bg-card) 40%, #1c3f63 50%, var(--bg-card) 60%);
+      background-size: 200% 100%; animation: upShimmer 1.3s infinite; }
+    .up-skel .ph.poster { aspect-ratio: 2/3; }
+    @keyframes upShimmer { to { background-position: -200% 0; } }
+
+    /* ── ERROR / EMPTY ── */
+    .up-state { text-align:center; padding:70px 16px; color:var(--text-secondary); }
+    .up-state .fa-solid { font-size:2rem; color:var(--text-muted); display:block; margin-bottom:14px; opacity:.7; }
+    .up-state p { font-size:.88rem; margin-bottom:18px; }
+    .up-retry {
+      background:var(--btn-primary); color:var(--btn-primary-text); border:none; cursor:pointer;
+      font-family:var(--font-meta); font-weight:600; font-size:.8rem;
+      padding:10px 26px; border-radius:var(--radius-pill); transition:background .18s;
+    }
+    .up-retry:hover { background:var(--btn-primary-hover); }
+
+    @media (max-width:600px) {
+      .up-page { padding: 18px 14px 32px; }
+      .up-grid { grid-template-columns: repeat(auto-fill, minmax(122px, 1fr)); gap:10px; }
+      .up-title { font-size:.72rem; }
+      .up-meta { font-size:.58rem; gap:6px; }
+    }
+  </style>
+</head>
+<body>
+
+<main class="up-page" id="upPage">
+  <div class="up-head">
+    <div>
+      <h1 class="up-h1"><i class="fa-solid fa-rotate"></i>Latest Updates</h1>
+      <p class="up-sub">Freshly updated anime — newest episodes first. Bookmark a show to pick up where you left off.</p>
+    </div>
+    <span class="up-count" id="upCount"><b>—</b> shows</span>
+  </div>
+
+  <div class="up-grid" id="upGrid"></div>
+
+  <div class="up-state" id="upState" style="display:none;">
+    <i class="fa-solid fa-satellite-dish"></i>
+    <p id="upStateMsg">Couldn't load the update feed right now.</p>
+    <button class="up-retry" id="upRetry">Try again</button>
+  </div>
+</main>
+
+<script>
+(function () {
+  'use strict';
+  var FEED_URL = '/api/new-on-ruri';
+  var grid = document.getElementById('upGrid');
+  var stateBox = document.getElementById('upState');
+  var stateMsg = document.getElementById('upStateMsg');
+  var retryBtn = document.getElementById('upRetry');
+  var countEl = document.getElementById('upCount');
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c];
+    });
+  }
+
+  /* anikoto stores "2026-10-19 02:19:11" (UTC). Parse defensively — if the
+     stamp is missing or in the future, fall back to the date part only. */
+  function timeAgo(raw) {
+    if (!raw) return '';
+    var t = Date.parse(String(raw).replace(' ', 'T') + 'Z');
+    if (!isFinite(t)) return esc(String(raw).split(' ')[0]);
+    var diff = Date.now() - t;
+    if (diff < -30 * 60 * 1000) return esc(String(raw).split(' ')[0]); // clock skew guard
+    var m = Math.floor(diff / 60000);
+    if (m < 1) return 'just now';
+    if (m < 60) return m + 'm ago';
+    var h = Math.floor(m / 60);
+    if (h < 24) return h + 'h ago';
+    var d = Math.floor(h / 24);
+    if (d < 7) return d + 'd ago';
+    return esc(String(raw).split(' ')[0]);
+  }
+
+  function cardHTML(it) {
+    var mal = String(it.mal_id || '').trim();
+    if (!mal || !it.poster) return ''; // no MAL id -> no valid /info link; skip (homepage parity)
+    var slug = esc(it.slug || it.title || '').replace(/\s+/g, '-');
+    var href = '/info/anime/jikan-' + encodeURIComponent(mal) + '/' + slug;
+    var ep = parseFloat(it.is_sub);
+    var epBadge = (isFinite(ep) && ep > 0) ? '<span class="up-ep">EP ' + ep + '</span>' : '';
+    var type = (it.terms_by_type && Array.isArray(it.terms_by_type.type) && it.terms_by_type.type[0]) || '';
+    var score = parseFloat(it.score);
+    var scoreHTML = (isFinite(score) && score > 0)
+      ? '<span class="up-score"><i class="fa-solid fa-star" style="font-size:.9em;"></i>' + score.toFixed(2) + '</span>' : '';
+    return '<a class="up-card" href="' + href + '" title="' + esc(it.title || '') + '">'
+      + '<div class="up-poster-wrap">'
+      + '<img class="up-poster" loading="lazy" src="' + esc(it.poster) + '" alt="' + esc(it.title || 'Anime poster') + '">'
+      + epBadge
+      + '<div class="up-grad"></div>'
+      + '<div class="up-ttl-wrap">'
+      + '<h3 class="up-title">' + esc(it.title || it.native || 'Untitled') + '</h3>'
+      + '<div class="up-meta">'
+      + (type ? '<span class="up-type">' + esc(type) + '</span>' : '')
+      + scoreHTML
+      + '<span class="up-ago">' + timeAgo(it.updated_at) + '</span>'
+      + '</div></div></div></a>';
+  }
+
+  function showSkeletons(n) {
+    var html = '';
+    for (var i = 0; i < n; i++) html += '<div class="up-skel"><div class="ph poster"></div></div>';
+    grid.innerHTML = html;
+  }
+
+  function showError(msg) {
+    stateMsg.textContent = msg || "Couldn't load the update feed right now.";
+    stateBox.style.display = 'block';
+  }
+
+  function load() {
+    stateBox.style.display = 'none';
+    showSkeletons(18);
+    var ctl = ('AbortSignal' in window && AbortSignal.timeout) ? { signal: AbortSignal.timeout(15000) } : {};
+    fetch(FEED_URL, ctl)
+      .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(function (j) {
+        var items = Array.isArray(j && j.Anime) ? j.Anime : [];
+        items = items.filter(function (it) { return it && it.mal_id && it.poster; });
+        items.sort(function (a, b) { return String(b.updated_at || '').localeCompare(String(a.updated_at || '')); });
+        if (!items.length) { grid.innerHTML = ''; showError('No updates in the feed yet — check back soon.'); return; }
+        grid.innerHTML = items.map(cardHTML).join('');
+        countEl.innerHTML = '<b>' + items.length + '</b> shows';
+      })
+      .catch(function (e) {
+        grid.innerHTML = '';
+        showError("Couldn't load the update feed right now. (" + (e && e.name === 'TimeoutError' ? 'timed out' : 'network error') + ')');
+      });
+  }
+
+  retryBtn.addEventListener('click', load);
+  load();
+})();
+</script>
+
+</body>
+</html>
