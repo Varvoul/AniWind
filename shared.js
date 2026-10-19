@@ -1254,9 +1254,11 @@
     ['Spain','spain'],['Sweden','sweden'],['Switzerland','switzerland'],['Taiwan','taiwan'],
     ['Thailand','thailand'],['Turkey','turkey'],['United Kingdom','united-kingdom'],['United States','united-states']
   ];
-  const genreLinks    = GENRES.map(([n,s])=>`<a href="/genre/${s}">${n}</a>`).join('');
+  // Anime-genre dropdown uses the type-prefixed route /anime/genre/ (identifier
+  // scheme unified with popup + info-page genre links: /anime|tv|movie/genre/)
+  const genreLinks    = GENRES.map(([n,s])=>`<a href="/anime/genre/${s}">${n}</a>`).join('');
   const countryLinks  = COUNTRIES.map(([n,s])=>`<a href="/country/${s}">${n}</a>`).join('');
-  const genreMob      = GENRES.map(([n,s])=>`<a href="/genre/${s}">${n}</a>`).join('');
+  const genreMob      = GENRES.map(([n,s])=>`<a href="/anime/genre/${s}">${n}</a>`).join('');
   const countryMob    = COUNTRIES.map(([n,s])=>`<a href="/country/${s}">${n}</a>`).join('');
 
   /* ═══════════════════════════════════════════════════════════

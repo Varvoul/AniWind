@@ -5054,11 +5054,14 @@ img { max-width: 100%; height: auto; display: block; }
           }
         } else if (!isAnime) {
           if (data.genres?.length) {
+            // Type-prefixed genre route: /tv/genre/... or /movie/genre/... - the
+            // segment identifies the TMDB kind (unified with home popup links)
+            const genreTypeSeg = currentState.type === 'movie' ? 'movie' : 'tv';
             const genreHtml = data.genres.map(g => {
               const name = g.name;
               const firstChar = name.charAt(0).toLowerCase();
               const colorAttr = GENRE_COLOR_MAP[firstChar] || '';
-              return `<a href="/genre/${name.toLowerCase().replace(/\s+/g, '-')}" class="genre-tag" ${colorAttr}>${name}</a>`;
+              return `<a href="/${genreTypeSeg}/genre/${name.toLowerCase().replace(/\s+/g, '-')}" class="genre-tag" ${colorAttr}>${name}</a>`;
             }).join('');
             details.push({ label: 'Genres', value: `<div class="genre-tags">${genreHtml}</div>`, isHtml: true });
           } else {
