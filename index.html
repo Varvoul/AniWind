@@ -9010,10 +9010,15 @@ titleEl.style.color = '#ffffff';
         const nowSec = Math.floor(Date.now() / 1000);
         const todayKey = DAYS[(new Date().getDay() + 6) % 7];   // Mon=0 … Sun=6
         const isTodayView = currentWeekOffset === 0 && dayName === todayKey;
+        // Spotlight horizon: only flag "next up" if it airs within 24h — late in
+        // the JST day the next future entry can be NEXT week's slot, which is
+        // too far out to deserve a live-style highlight.
+        const NEXT_UP_HORIZON_SEC = 24 * 3600;
         let nextUpEpoch = Infinity;
         if (isTodayView) {
           animeList.forEach(a => {
-            if (a.__src === 'anilist' && a.airing_at > nowSec && a.airing_at < nextUpEpoch) nextUpEpoch = a.airing_at;
+            if (a.__src === 'anilist' && a.airing_at > nowSec &&
+                a.airing_at - nowSec <= NEXT_UP_HORIZON_SEC && a.airing_at < nextUpEpoch) nextUpEpoch = a.airing_at;
           });
         }
         const animeRows = animeList.map(anime => {
