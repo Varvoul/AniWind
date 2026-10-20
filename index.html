@@ -8916,6 +8916,14 @@ titleEl.style.color = '#ffffff';
           return (parts.find(p => p.type === 'timeZoneName') || {}).value || 'local time';
         } catch (e) { return 'local time'; }
       }
+      // V6: local "HH:MM" from any date-like input (ISO airstamp from TVMaze)
+      function localHMOf(dateLike) {
+        try {
+          if (!dateLike) return null;
+          const out = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(dateLike));
+          return out === 'Invalid Date' ? null : out;
+        } catch (e) { return null; }
+      }
 
       // ---------- Helper: human countdown for the next upcoming episode ----------
       // (computed at render time — refreshes on any day switch / re-render)
@@ -9288,7 +9296,12 @@ titleEl.style.color = '#ffffff';
             ? (show.poster || '')
             : (show.image?.medium || show.image?.original || '');
           const watchUrl = show.url || '#';
-          const time = ep.airtime && ep.airtime.trim() ? ep.airtime : '—';
+          // V6: airstamp is an absolute UTC instant → render the VIEWER's local
+          // time (falls back to the raw US-network airtime when missing). This
+          // also makes the anime/TV interleave chronologically coherent, since
+          // anime times are local now too.
+          const localTvTime = localHMOf(ep.airstamp);
+          const time = localTvTime || (ep.airtime && ep.airtime.trim() ? ep.airtime : '—');
           const epLabel = (ep.number) ? `E${ep.number}` : 'TV';
           const countryTag = show._sourceCountry || show.country || tvResult.country || '';
           const subtitle = `TV · ${countryTag}`;
