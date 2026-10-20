@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Airing Schedule — AniOcean</title>
+  <meta name="description" content="Weekly anime airing schedule with exact broadcast times in your local timezone — filter by format, browse day by day, never miss an episode.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:opsz,wght@14..32,400..700&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Scripts (shared.js injects header, nav, footer, auth, SEO metadata).
+       supabase-js MUST come first: shared.js createClient() runs at top level. -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/shared.js"></script>
+  <style>
+    :root {
+      --bg-body: #0a1929;
+      --bg-header: #0f2440;
+      --bg-card: #132f4c;
+      --bg-surface: #1a3a5c;
+      --bg-popup: #102a44;
+      --text-primary: #ffffff;
+      --text-secondary: #b0c7e3;
+      --text-muted: #94a3b8;
+      --btn-primary: #2b6cb0;
+      --btn-primary-hover: #1d4e89;
+      --btn-primary-text: #ffffff;
+      --accent-gold: #ecc94b;
+      --star-icon-color: #f5b942;
+      --accent-blue: #4299e1;
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-medium: rgba(255, 255, 255, 0.16);
+      --font-title: 'Archivo Black', sans-serif;
+      --font-body: 'Inter', sans-serif;
+      --font-meta: 'Poppins', sans-serif;
+      --radius-sm: 6px;
+      --radius-md: 12px;
+      --radius-lg: 18px;
+      --radius-pill: 50px;
+      --shadow-lg: 0 20px 60px rgba(0,0,0,0.5);
+      --transition-fast: 0.18s ease;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { background: var(--bg-body); font-family: var(--font-body); color: var(--text-primary); line-height: 1.5; overflow-x: hidden; min-height: 100vh; }
+
+    /* ── PAGE SHELL ── */
+    .sch-page { max-width: 1280px; margin: 0 auto; padding: 26px 20px 46px; }
+    .sch-head { display:flex; align-items:flex-end; justify-content:space-between; gap:14px; flex-wrap:wrap; margin-bottom:18px; }
+    .sch-h1 { font-family: var(--font-title); font-size: clamp(1.5rem, 3.4vw, 2.15rem); letter-spacing:.5px; display:flex; align-items:center; gap:12px; }
+    .sch-h1 .fa-solid { color: var(--accent-blue); font-size:.82em; }
+    .sch-sub { color: var(--text-muted); font-size:.84rem; margin-top:6px; }
+    .sch-sub b { color: var(--accent-blue); font-weight:600; }
+
+    /* ── FORMAT FILTER CHIPS ── */
+    .sch-chips { display:flex; gap:8px; flex-wrap:wrap; }
+    .sch-chip {
+      font-family: var(--font-meta); font-size:.72rem; font-weight:600; letter-spacing:.4px;
+      color: var(--text-secondary); background: var(--bg-card);
+      border:1px solid var(--border-subtle); border-radius: var(--radius-pill);
+      padding:7px 16px; cursor:pointer; transition: all .18s ease;
+    }
+    .sch-chip:hover { color:#fff; border-color: var(--border-medium); }
+    .sch-chip.active { color:#fff; background: linear-gradient(135deg, var(--btn-primary), #2563eb); border-color: var(--btn-primary); box-shadow: 0 3px 10px rgba(43,108,176,.4); }
+
+    /* ── DAY TABS ── */
+    .sch-days { display:flex; gap:8px; margin-bottom:22px; overflow-x:auto; padding-bottom:4px; scrollbar-width:none; }
+    .sch-days::-webkit-scrollbar { display:none; }
+    .sc-day {
+      flex:1; min-width:86px; background: var(--bg-card);
+      border:2px solid var(--border-subtle); border-radius: var(--radius-md);
+      padding:10px 6px 8px; cursor:pointer; text-align:center;
+      display:flex; flex-direction:column; align-items:center; gap:2px;
+      color: var(--text-secondary); transition: all .22s ease; position:relative;
+    }
+    .sc-day:hover { transform: translateY(-3px); border-color: var(--accent-blue); box-shadow: 0 4px 12px rgba(66,153,225,.2); }
+    .sc-day.active { background: linear-gradient(135deg, var(--btn-primary) 0%, #2563eb 100%); border-color: var(--btn-primary); color:#fff; box-shadow: 0 4px 15px rgba(43,108,176,.4); }
+    .sc-day.today { border-color: var(--accent-gold); }
+    .sc-day.today::after { content:''; position:absolute; top:-2px; right:-2px; width:9px; height:9px; background:var(--accent-gold); border-radius:50%; border:2px solid var(--bg-body); }
+    .sc-dow { font-family: var(--font-meta); font-size:.62rem; font-weight:700; letter-spacing:1.2px; text-transform:uppercase; }
+    .sc-date { font-family: var(--font-title); font-size:1.05rem; color:#fff; }
+    .sc-day.active .sc-date { color:#fff; }
+    .sc-dcount { font-family: var(--font-meta); font-size:.56rem; font-weight:700; padding:1px 7px; border-radius:8px; background: rgba(66,153,225,.16); color: var(--accent-blue); }
+    .sc-day.active .sc-dcount { background: rgba(255,255,255,.22); color:#fff; }
+    .sc-day.today .sc-dcount { color: var(--accent-gold); background: rgba(236,201,75,.12); }
+    .sc-day.active.today .sc-dcount { background: rgba(255,255,255,.22); color:#fff; }
+
+    /* ── TIME GROUPS ── */
+    .sc-timegroup { margin-bottom:26px; }
+    .sc-time-head {
+      display:flex; align-items:center; gap:10px; margin-bottom:12px;
+      font-family: var(--font-meta); font-weight:700; font-size:.95rem; color: var(--accent-blue);
+      letter-spacing:.5px;
+    }
+    .sc-time-head .fa-regular, .sc-time-head .fa-solid { font-size:.85em; opacity:.85; }
+    .sc-time-count { font-size:.64rem; font-weight:600; color: var(--text-muted); background: var(--bg-card); border:1px solid var(--border-subtle); border-radius: var(--radius-pill); padding:2px 10px; }
+    .sc-time-line { flex:1; height:1px; background: var(--border-subtle); }
+    .sc-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(158px, 1fr)); gap:14px; }
+
+    /* ── CARDS ── */
+    .sc-card { display:block; text-decoration:none; color:inherit; border-radius: var(--radius-md); transition: transform .2s ease; }
+    .sc-card:hover { transform: translateY(-4px); }
+    .sc-card.is-aired { opacity:.55; }
+    .sc-card.is-next .sc-poster-wrap { border-color: rgba(236,201,75,.65); box-shadow: 0 0 0 1px rgba(236,201,75,.4), 0 6px 22px rgba(236,201,75,.12); }
+    .sc-poster-wrap { position:relative; aspect-ratio: 2/3; border-radius: var(--radius-md); overflow:hidden; background: var(--bg-card); border:1px solid var(--border-subtle); }
+    .sc-poster { width:100%; height:100%; object-fit:cover; display:block; transition: transform .25s ease; }
+    .sc-card:hover .sc-poster { transform: scale(1.06); }
+    .sc-grad { position:absolute; inset:0; background:linear-gradient(to top, rgba(7,17,29,.94) 0%, rgba(7,17,29,.28) 40%, transparent 64%); }
+    .sc-ep {
+      position:absolute; top:8px; right:8px; font-family:var(--font-meta); font-weight:600; font-size:.66rem;
+      color:#fff; background: var(--btn-primary); border-radius:6px; padding:3px 7px; letter-spacing:.4px;
+      box-shadow: 0 4px 12px rgba(0,0,0,.4);
+    }
+    .sc-card.is-next .sc-ep { background: var(--accent-gold); color:#1a1a1a; font-weight:700; }
+    .sc-fmt {
+      position:absolute; top:8px; left:8px; font-family:var(--font-meta); font-weight:600; font-size:.58rem;
+      letter-spacing:.6px; text-transform:uppercase; color:#e0f0ff;
+      background: rgba(10,20,35,.72); border:1px solid rgba(255,255,255,.18); border-radius:6px; padding:2px 7px;
+    }
+    .sc-ttl-wrap { position:absolute; left:0; right:0; bottom:0; padding:10px 10px 9px; }
+    .sc-title { font-size:.8rem; font-weight:600; line-height:1.32; color:#fff;
+      display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+      text-shadow:0 1px 4px rgba(0,0,0,.6); }
+    .sc-meta { display:flex; align-items:center; gap:8px; margin-top:5px; font-family:var(--font-meta); font-size:.64rem; color:var(--text-secondary); flex-wrap:wrap; }
+    .sc-score { color: var(--star-icon-color); font-weight:500; display:flex; align-items:center; gap:3px; }
+    .sc-count { color: var(--accent-gold); font-weight:700; }
+    .sc-progress { height:3px; border-radius:2px; background: rgba(255,255,255,.16); margin-top:6px; overflow:hidden; }
+    .sc-progress span { display:block; height:100%; border-radius:2px; background: linear-gradient(90deg, var(--btn-primary), var(--accent-gold)); }
+
+    /* ── SKELETON ── */
+    .sc-skel { border-radius: var(--radius-md); overflow:hidden; background: var(--bg-card); border:1px solid var(--border-subtle); }
+    .sc-skel .ph { background:linear-gradient(100deg, var(--bg-card) 40%, #1c3f63 50%, var(--bg-card) 60%); background-size: 200% 100%; animation: scShimmer 1.3s infinite; }
+    .sc-skel .ph.poster { aspect-ratio: 2/3; }
+    @keyframes scShimmer { to { background-position: -200% 0; } }
+
+    /* ── ERROR / EMPTY ── */
+    .sch-state { text-align:center; padding:70px 16px; color:var(--text-secondary); }
+    .sch-state .fa-solid { font-size:2rem; color:var(--text-muted); display:block; margin-bottom:14px; opacity:.7; }
+    .sch-state p { font-size:.88rem; margin-bottom:18px; }
+    .sch-retry {
+      background:var(--btn-primary); color:#fff; border:none; cursor:pointer;
+      font-family:var(--font-meta); font-weight:600; font-size:.8rem;
+      padding:10px 26px; border-radius:var(--radius-pill); transition:background .18s;
+    }
+    .sch-retry:hover { background: var(--btn-primary-hover); }
+
+    /* ── HOVER POPUP (bigger poster preview — PC only) ── */
+    .sched-pop {
+      position: fixed; z-index: 460; width: 308px; max-width: calc(100vw - 24px);
+      display: none; background: var(--bg-popup);
+      border: 1px solid var(--border-medium); border-radius: var(--radius-lg);
+      padding: 12px; box-shadow: var(--shadow-lg);
+      pointer-events: none; opacity: 0; transition: opacity 0.16s ease; color: #fff;
+    }
+    .sched-pop.active { display: flex; gap: 12px; opacity: 1; }
+    .sched-pop-poster { width: 150px; flex-shrink: 0; border-radius: 8px; overflow: hidden; background: var(--bg-card); }
+    .sched-pop-poster img { width: 100%; display: block; aspect-ratio: 2/3; object-fit: cover; }
+    .sched-pop-body { flex: 1; min-width: 0; }
+    .sched-pop-title { font-weight: 700; font-size: 0.88rem; line-height: 1.3; margin-bottom: 6px; }
+    .sched-pop-meta { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
+    .sched-pop-pill { background: rgba(255,255,255,0.13); border-radius: 12px; padding: 2px 8px; font-size: 0.64rem; font-weight: 600; white-space: nowrap; }
+    .sched-pop-pill.gold { color: var(--accent-gold); }
+    .sched-pop-pill.blue { color: var(--accent-blue); }
+    .sched-pop-genres { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+    .sched-pop-genre { font-size: 0.6rem; color: #7ec8e0; background: rgba(126,200,224,0.15); border-radius: 10px; padding: 2px 7px; }
+    .sched-pop-desc { font-size: 0.68rem; color: #cbd5e1; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+    @media (max-width: 768px), (hover: none) { .sched-pop { display: none !important; } }
+
+    @media (max-width:600px) {
+      .sch-page { padding: 18px 14px 36px; }
+      .sc-grid { grid-template-columns: repeat(auto-fill, minmax(122px, 1fr)); gap:10px; }
+      .sc-title { font-size:.72rem; }
+      .sc-meta { font-size:.58rem; gap:6px; }
+      .sc-day { min-width:64px; padding:8px 4px 6px; }
+      .sc-date { font-size:.92rem; }
+    }
+  </style>
+</head>
+<body>
+
+<main class="sch-page">
+  <div class="sch-head">
+    <div>
+      <h1 class="sch-h1"><i class="fa-solid fa-calendar-days"></i>Airing Schedule</h1>
+      <p class="sch-sub">Weekly anime broadcast guide — every time is shown in <b id="schTz">your local timezone</b>.</p>
+    </div>
+    <div class="sch-chips" id="schChips">
+      <button type="button" class="sch-chip active" data-format="all">All</button>
+      <button type="button" class="sch-chip" data-format="tv">TV</button>
+      <button type="button" class="sch-chip" data-format="ona">ONA</button>
+      <button type="button" class="sch-chip" data-format="ova">OVA</button>
+      <button type="button" class="sch-chip" data-format="movie">Movie</button>
+    </div>
+  </div>
+
+  <div class="sch-days" id="schDays"></div>
+  <div id="schContent"></div>
+
+  <div class="sch-state" id="schState" style="display:none;">
+    <i class="fa-solid fa-satellite-dish"></i>
+    <p id="schStateMsg">Couldn't load the airing schedule right now.</p>
+    <button class="sch-retry" id="schRetry">Try again</button>
+  </div>
+</main>
+
+<!-- HOVER POPUP (bigger poster preview, hover devices only) -->
+<div class="sched-pop" id="schedPop" aria-hidden="true"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ════════════════════════════════════════════════════════════
+     CONFIG
+     PRIMARY: anilist-my-proxy /api/schedule/all — AniList
+     airingSchedules with TRUE episode numbers + exact broadcast
+     instants (4h server TTL + 2h edge TTL). Times are rendered in
+     the visitor's LOCAL timezone.
+   ════════════════════════════════════════════════════════════ */
+  var SCHEDULE_ALL = 'https://anilist-my-proxy.vercel.app/api/schedule/all';
+  var TIMEOUT_MS = 15000;
+  var FORMAT_LABELS = { TV_SHORT: 'TV Short', ONA: 'ONA', OVA: 'OVA', MOVIE: 'Movie', SPECIAL: 'Special', MUSIC: 'Music' };
+  var DOW_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  var allItems = [];        // flattened + locally-annotated airing entries
+  var selDayIdx = 0;        // 0 = today .. 6 = today+6
+  var fmtFilter = 'all';    // all | tv | ona | ova | movie
+
+  var daysEl = document.getElementById('schDays');
+  var contentEl = document.getElementById('schContent');
+  var stateEl = document.getElementById('schState');
+  var stateMsg = document.getElementById('schStateMsg');
+  var retryBtn = document.getElementById('schRetry');
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function localTimeHM(epochSec) {
+    try {
+      return new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })
+        .format(new Date(epochSec * 1000));
+    } catch (e) { return '—'; }
+  }
+  function localHour12(epochSec) {
+    try {
+      return new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+        .format(new Date(epochSec * 1000));
+    } catch (e) { return '—'; }
+  }
+  function localTz() {
+    try {
+      var p = new Intl.DateTimeFormat('en-US', { timeZoneName: 'shortOffset' }).formatToParts(new Date());
+      return (p.find(function (x) { return x.type === 'timeZoneName'; }) || {}).value || 'your local timezone';
+    } catch (e) { return 'your local timezone'; }
+  }
+  function localDateKey(d) {
+    var y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, '0'), dd = String(d.getDate()).padStart(2, '0');
+    return y + '-' + m + '-' + dd;
+  }
+  function humanCountdown(sec) {
+    if (!(sec > 0)) return null;
+    var h = Math.floor(sec / 3600), m = Math.round((sec % 3600) / 60);
+    if (h >= 24) return 'in ' + Math.floor(h / 24) + 'd ' + (h % 24) + 'h';
+    if (h >= 1) return 'in ' + h + 'h ' + m + 'm';
+    if (m >= 1) return 'in ' + m + 'm';
+    return 'airing now';
+  }
+
+  /* ── Map one AniList airingSchedule entry into our card shape ── */
+  function mapItem(it) {
+    var m = (it && it.media) || {};
+    var t = m.title || {};
+    var title = t.english || t.romaji || t.userPreferred || t.native || 'Unknown Title';
+    var slug = String(title).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    var malId = m.idMal || null;
+    var desc = String(m.description || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+    return {
+      title: title,
+      poster: (m.coverImage && (m.coverImage.extraLarge || m.coverImage.large || m.coverImage.medium)) || '',
+      airing_at: it.airingAt || 0,
+      episode: Number.isInteger(it.episode) ? it.episode : null,
+      format: m.format || null,
+      episodes_total: m.episodes || null,
+      score: m.averageScore || null,
+      year: m.seasonYear || null,
+      genres: Array.isArray(m.genres) ? m.genres.slice(0, 4) : [],
+      studio: (m.studios && m.studios.nodes && m.studios.nodes[0] && m.studios.nodes[0].name) || null,
+      description: desc.slice(0, 230),
+      href: malId ? '/info/anime/jikan-' + malId + '/' + slug : '/info/anime/anilist-' + (m.id || '') + '/' + slug
+    };
+  }
+
+  /* ── Fetch + flatten ── */
+  function load() {
+    stateEl.style.display = 'none';
+    showSkeletons();
+    var ctl = ('AbortSignal' in window && AbortSignal.timeout) ? { signal: AbortSignal.timeout(TIMEOUT_MS) } : {};
+    fetch(SCHEDULE_ALL, ctl)
+      .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(function (j) {
+        var days = j && j.data && j.data.Page && j.data.Page.days;
+        if (!days || typeof days !== 'object') throw new Error('unexpected payload');
+        allItems = [];
+        Object.keys(days).forEach(function (k) {
+          (Array.isArray(days[k]) ? days[k] : []).forEach(function (raw) {
+            var mapped = mapItem(raw);
+            if (mapped.airing_at > 0 && mapped.poster) {
+              mapped._dayKey = localDateKey(new Date(mapped.airing_at * 1000));
+              allItems.push(mapped);
+            }
+          });
+        });
+        // dedup (same media can appear in several JST buckets via the boundary)
+        var seen = {};
+        allItems = allItems.filter(function (it) {
+          var k = it.title + '|' + it.airing_at;
+          if (seen[k]) return false;
+          seen[k] = 1; return true;
+        });
+        if (!allItems.length) throw new Error('empty schedule');
+        renderDays();
+        renderDay();
+      })
+      .catch(function (e) {
+        contentEl.innerHTML = '';
+        daysEl.innerHTML = '';
+        stateMsg.textContent = "Couldn't load the airing schedule right now. (" +
+          (e && e.name === 'TimeoutError' ? 'timed out' : 'network error') + ')';
+        stateEl.style.display = 'block';
+      });
+  }
+
+  function showSkeletons() {
+    var html = '<div class="sc-timegroup"><div class="sc-grid">';
+    for (var i = 0; i < 12; i++) html += '<div class="sc-skel"><div class="ph poster"></div></div>';
+    contentEl.innerHTML = html + '</div></div>';
+  }
+
+  /* ── Day tabs: rolling 7 days starting today (full endpoint coverage) ── */
+  function renderDays() {
+    var now = new Date();
+    var todayKey = localDateKey(now);
+    var html = '';
+    for (var i = 0; i < 7; i++) {
+      var d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
+      var key = localDateKey(d);
+      var count = allItems.filter(function (it) { return it._dayKey === key; }).length;
+      html += '<button type="button" class="sc-day' + (i === 0 ? ' today' : '') + (i === selDayIdx ? ' active' : '') +
+        '" data-idx="' + i + '" data-key="' + key + '">' +
+        '<span class="sc-dow">' + (i === 0 ? 'Today' : DOW_SHORT[d.getDay()]) + '</span>' +
+        '<span class="sc-date">' + MONTHS[d.getMonth()] + ' ' + d.getDate() + '</span>' +
+        (count ? '<span class="sc-dcount">' + count + ' EP</span>' : '') +
+        '</button>';
+    }
+    daysEl.innerHTML = html;
+    void todayKey;
+  }
+
+  /* ── Content for the selected day + format filter, grouped by hour ── */
+  function renderDay() {
+    var tab = daysEl.querySelector('.sc-day[data-idx="' + selDayIdx + '"]');
+    if (!tab) return;
+    var key = tab.dataset.key;
+    var nowSec = Math.floor(Date.now() / 1000);
+
+    var items = allItems.filter(function (it) { return it._dayKey === key; });
+    if (fmtFilter !== 'all') {
+      var want = fmtFilter.toUpperCase(); // tv|ona|ova|movie -> TV|ONA|OVA|MOVIE
+      items = items.filter(function (it) { return (it.format || '').toUpperCase() === want; });
+    }
+    items.sort(function (a, b) { return a.airing_at - b.airing_at; });
+
+    // next upcoming episode within the filtered list
+    var nextAt = Infinity;
+    for (var i = 0; i < items.length; i++) {
+      if (items[i].airing_at > nowSec) { nextAt = items[i].airing_at; break; }
+    }
+
+    if (!items.length) {
+      contentEl.innerHTML = '<div class="sch-state"><i class="fa-solid fa-calendar-xmark"></i>' +
+        '<p>No ' + (fmtFilter === 'all' ? '' : fmtFilter.toUpperCase() + ' ') + 'episodes scheduled for ' +
+        esc(tab.querySelector('.sc-dow').textContent) + ', ' + esc(tab.querySelector('.sc-date').textContent) + '.</p></div>';
+      return;
+    }
+
+    // group by local hour
+    var groups = [];
+    var cur = null;
+    items.forEach(function (it) {
+      var h = new Date(it.airing_at * 1000).getHours();
+      if (!cur || cur.h !== h) { cur = { h: h, items: [] }; groups.push(cur); }
+      cur.items.push(it);
+    });
+
+    var html = '';
+    groups.forEach(function (g) {
+      html += '<div class="sc-timegroup">' +
+        '<div class="sc-time-head"><i class="fa-regular fa-clock"></i>' + localHour12(g.items[0].airing_at) +
+        '<span class="sc-time-count">' + g.items.length + ' show' + (g.items.length > 1 ? 's' : '') + '</span>' +
+        '<span class="sc-time-line"></span></div><div class="sc-grid">';
+      g.items.forEach(function (it) {
+        html += cardHTML(it, nowSec, nextAt);
+      });
+      html += '</div></div>';
+    });
+    contentEl.innerHTML = html;
+  }
+
+  function cardHTML(it, nowSec, nextAt) {
+    var isAired = it.airing_at <= nowSec;
+    var isNext = it.airing_at === nextAt;
+    var fmt = FORMAT_LABELS[it.format] || it.format || 'Anime';
+    var ep = it.episode != null ? 'EP ' + it.episode : 'EP ?';
+    var score = (it.score != null && it.score > 0) ? '<span class="sc-score"><i class="fa-solid fa-star" style="font-size:.9em;"></i>' + it.score + '</span>' : '';
+    var count = (!isAired && isNext) ? '<span class="sc-count"><i class="fa-solid fa-bolt" style="font-size:.85em;"></i> ' + humanCountdown(it.airing_at - nowSec) + '</span>' : '';
+    var progress = '';
+    if (it.episodes_total > 0 && it.episode != null && it.episode >= 1 && it.episode <= it.episodes_total) {
+      var pct = Math.min(100, Math.round((it.episode / it.episodes_total) * 100));
+      progress = '<div class="sc-progress"><span style="width:' + pct + '%"></span></div>';
+    }
+    return '<a class="sc-card' + (isAired ? ' is-aired' : '') + (isNext ? ' is-next' : '') + '" href="' + esc(it.href) + '"' + popAttrs(it) + '>' +
+      '<div class="sc-poster-wrap">' +
+      '<img class="sc-poster" loading="lazy" src="' + esc(it.poster) + '" alt="' + esc(it.title) + '">' +
+      '<span class="sc-fmt">' + esc(fmt) + '</span>' +
+      '<span class="sc-ep">' + esc(ep) + '</span>' +
+      '<div class="sc-grad"></div>' +
+      '<div class="sc-ttl-wrap">' +
+      '<h3 class="sc-title">' + esc(it.title) + '</h3>' +
+      '<div class="sc-meta">' + score + (it.year ? '<span>' + it.year + '</span>' : '') + count + '</div>' +
+      progress +
+      '</div></div></a>';
+  }
+
+  function popAttrs(it) {
+    var a = ' data-pop-img="' + esc(it.poster) + '" data-pop-title="' + esc(it.title) + '"';
+    if (it.episode != null) a += ' data-pop-ep="EP ' + it.episode + (it.episodes_total ? ' / ' + it.episodes_total : '') + '"';
+    var meta = [FORMAT_LABELS[it.format] || it.format, it.year, it.studio].filter(Boolean).join(' · ');
+    if (meta) a += ' data-pop-meta="' + esc(meta) + '"';
+    if (it.score) a += ' data-pop-score="' + it.score + '%"';
+    if (it.genres && it.genres.length) a += ' data-pop-genres="' + esc(it.genres.join(', ')) + '"';
+    if (it.description) a += ' data-pop-desc="' + esc(it.description) + '"';
+    return a;
+  }
+
+  /* ── Hover popup (shared behaviour with the sidebar widget) ── */
+  var popEl = document.getElementById('schedPop');
+  var canHover = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+  var popTimer = null;
+  function hidePop() { clearTimeout(popTimer); if (popEl) popEl.classList.remove('active'); }
+  function showPop(anchor) {
+    if (!popEl || !canHover) return;
+    var d = anchor.dataset;
+    if (!d.popImg || !d.popTitle) return;
+    popEl.innerHTML =
+      '<div class="sched-pop-poster"><img src="' + d.popImg + '" alt="" onerror="this.parentElement.style.display=\'none\'"></div>' +
+      '<div class="sched-pop-body">' +
+      '<div class="sched-pop-title">' + esc(d.popTitle) + '</div>' +
+      '<div class="sched-pop-meta">' +
+      (d.popEp ? '<span class="sched-pop-pill blue">' + esc(d.popEp) + '</span>' : '') +
+      (d.popScore ? '<span class="sched-pop-pill gold"><i class="fas fa-star"></i> ' + esc(d.popScore) + '</span>' : '') +
+      (d.popMeta ? '<span class="sched-pop-pill">' + esc(d.popMeta) + '</span>' : '') +
+      '</div>' +
+      (d.popGenres ? '<div class="sched-pop-genres">' + d.popGenres.split(',').map(function (g) { return g.trim(); }).filter(Boolean).map(function (g) { return '<span class="sched-pop-genre">' + esc(g) + '</span>'; }).join('') + '</div>' : '') +
+      (d.popDesc ? '<div class="sched-pop-desc">' + esc(d.popDesc) + '</div>' : '') +
+      '</div>';
+    popEl.classList.add('active');
+    var r = anchor.getBoundingClientRect();
+    var pw = popEl.offsetWidth, ph = popEl.offsetHeight;
+    var x = r.right + 14;                       // content grid → open rightwards
+    if (x + pw > window.innerWidth - 8) x = r.left - pw - 14;
+    if (x < 8) x = Math.max(8, window.innerWidth - pw - 8);
+    var y = r.top + r.height / 2 - ph / 2;
+    y = Math.max(8, Math.min(y, window.innerHeight - ph - 8));
+    popEl.style.left = Math.round(x) + 'px';
+    popEl.style.top = Math.round(y) + 'px';
+  }
+  if (canHover) {
+    document.addEventListener('mouseover', function (e) {
+      var card = e.target && e.target.closest ? e.target.closest('.sc-card') : null;
+      if (!card || !card.dataset.popImg) return;
+      clearTimeout(popTimer);
+      popTimer = setTimeout(function () { showPop(card); }, 240);
+    });
+    document.addEventListener('mouseout', function (e) {
+      var card = e.target && e.target.closest ? e.target.closest('.sc-card') : null;
+      if (!card) return;
+      if (card.contains(e.relatedTarget)) return;
+      hidePop();
+    });
+    document.addEventListener('scroll', hidePop, { passive: true, capture: true });
+  }
+
+  /* ── Wiring ── */
+  daysEl.addEventListener('click', function (e) {
+    var tab = e.target.closest('.sc-day');
+    if (!tab) return;
+    selDayIdx = parseInt(tab.dataset.idx, 10) || 0;
+    daysEl.querySelectorAll('.sc-day').forEach(function (t) { t.classList.toggle('active', t === tab); });
+    renderDay();
+  });
+  document.getElementById('schChips').addEventListener('click', function (e) {
+    var chip = e.target.closest('.sch-chip');
+    if (!chip) return;
+    fmtFilter = chip.dataset.format || 'all';
+    document.querySelectorAll('#schChips .sch-chip').forEach(function (c) { c.classList.toggle('active', c === chip); });
+    renderDay();
+  });
+  retryBtn.addEventListener('click', load);
+
+  document.getElementById('schTz').textContent = localTz();
+  load();
+})();
+</script>
+
+</body>
+</html>

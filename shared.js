@@ -1302,6 +1302,7 @@
 
     <a href="/status/ongoing" class="nav-link-item">Ongoing</a>
     <a href="/latest-updates" class="nav-link-item">Updates</a>
+    <a href="/schedule" class="nav-link-item"><i class="fa-solid fa-calendar-days"></i>Schedule</a>
     <a href="#" class="nav-link-item"><i class="fa-solid fa-newspaper"></i>News</a>
     <a href="#" class="nav-link-item"><i class="fa-solid fa-comments"></i>Forum</a>
   </nav>
@@ -1410,6 +1411,7 @@
 
     <a href="/status/ongoing" class="mob-nav-item">Ongoing</a>
     <a href="/latest-updates" class="mob-nav-item">Updates</a>
+    <a href="/schedule" class="mob-nav-item"><i class="fa-solid fa-calendar-days"></i>Schedule</a>
     <a href="#" class="mob-nav-item"><i class="fa-solid fa-newspaper"></i>News</a>
   </div>
 </div>

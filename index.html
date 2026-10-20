@@ -2166,6 +2166,83 @@
 }
 .esw-day-card.today .esw-dc-count { color: var(--accent-gold); background: rgba(236, 201, 75, 0.12); }
 .esw-day-card.active .esw-dc-count { background: rgba(255, 255, 255, 0.22); color: #fff; }
+/* V6 source filter chips (All / Anime / Live-Action) */
+.esw-filter-row {
+  display: flex;
+  gap: 6px;
+  padding: 8px 12px 0;
+}
+.esw-chip {
+  flex: 1;
+  padding: 5px 4px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+.esw-chip i { font-size: 0.66rem; }
+.esw-chip:hover { color: var(--text-primary); border-color: var(--border-medium); }
+.esw-chip.active {
+  color: #fff;
+  background: linear-gradient(135deg, var(--btn-primary), #2563eb);
+  border-color: var(--btn-primary);
+  box-shadow: 0 2px 8px rgba(43, 108, 176, 0.35);
+}
+/* V6 schedule row hover popup (bigger poster preview — PC / hover devices only) */
+.sched-pop {
+  position: fixed;
+  z-index: 460;
+  width: 308px;
+  max-width: calc(100vw - 24px);
+  display: none;
+  background: var(--bg-popup);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-lg);
+  padding: 12px;
+  box-shadow: var(--shadow-lg);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.16s ease;
+  color: #fff;
+}
+.sched-pop.active { display: flex; gap: 12px; opacity: 1; }
+.sched-pop-poster { width: 150px; flex-shrink: 0; border-radius: 8px; overflow: hidden; background: var(--bg-card); }
+.sched-pop-poster img { width: 100%; display: block; aspect-ratio: 2/3; object-fit: cover; }
+.sched-pop-body { flex: 1; min-width: 0; }
+.sched-pop-title { font-weight: 700; font-size: 0.88rem; line-height: 1.3; margin-bottom: 6px; }
+.sched-pop-meta { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
+.sched-pop-pill {
+  background: rgba(255, 255, 255, 0.13);
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-size: 0.64rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.sched-pop-pill.gold { color: var(--accent-gold); }
+.sched-pop-pill.blue { color: var(--accent-blue); }
+.sched-pop-genres { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+.sched-pop-genre { font-size: 0.6rem; color: #7ec8e0; background: rgba(126, 200, 224, 0.15); border-radius: 10px; padding: 2px 7px; }
+.sched-pop-desc {
+  font-size: 0.68rem;
+  color: #cbd5e1;
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+@media (max-width: 768px), (hover: none) { .sched-pop { display: none !important; } }
 
     /* pagination */
     .pagination-nav { display:flex; gap:6px; justify-content:center; margin-top:18px; flex-wrap:wrap; align-items:center; }
@@ -2559,6 +2636,11 @@
             <div class="esw-clock-pill"><span id="eswClockText"></span></div>
           </div>
         </div>
+        <div class="esw-filter-row" id="eswFilterRow">
+          <button type="button" class="esw-chip active" data-filter="all"><i class="fas fa-border-all"></i> All</button>
+          <button type="button" class="esw-chip" data-filter="anime"><i class="fas fa-dragon"></i> Anime</button>
+          <button type="button" class="esw-chip" data-filter="tv"><i class="fas fa-tv"></i> Live-Action</button>
+        </div>
         <div class="esw-week-nav">
           <button class="esw-nav-btn" id="eswPrev" title="Previous Week"><i class="fas fa-chevron-left"></i></button>
           <span class="esw-week-label" id="eswWeekLabel">This Week</span>
@@ -2577,6 +2659,9 @@
       <div id="popupContent"></div>
     </div>
   </div>
+
+  <!-- SCHEDULE ROW HOVER POPUP (bigger poster preview, hover devices only) -->
+  <div class="sched-pop" id="schedPop" aria-hidden="true"></div>
 
   <script>
     (function() {
@@ -8724,11 +8809,53 @@ titleEl.style.color = '#ffffff';
       const DAY_FULL_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
       const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       
-      let scheduleData = null;           // { monday: [anime], tuesday: [...], ... }
+      let scheduleData = null;           // { monday: [anime], ... } — raw proxy payload (debug)
+      let scheduleByLocalWeek = null;    // V6: { '0': {monday:[...],...}, '1': {...} } — LOCAL-day regrouped
+      let scheduleFilter = 'all';        // V6: 'all' | 'anime' | 'tv' — source filter chips
       let currentDay = null;             // 'monday' ... 'sunday'
       let currentWeekOffset = 0;         // weeks from today's week start
       const MAX_WEEK_OFFSET = 20;        // ~5 months limit (20 weeks)
       const VISIBLE_COUNT = 9;           // Show 9 animes per day initially
+
+      // ---------- V6: regroup the JST-bucketed payload into LOCAL calendar days ----------
+      // The endpoint groups airings by JST broadcast weekday; visitors think in
+      // their own timezone. Every AniList item carries an absolute airing epoch,
+      // so we can re-bucket by the viewer's local calendar and make week nav
+      // week-aware too (buckets keyed by local week offset vs the current week).
+      function localWeekMondayMs(weekOffset) {
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const dow = today.getDay(); // 0=Sun
+        const monday = new Date(today);
+        monday.setDate(today.getDate() + (dow === 0 ? -6 : 1 - dow) + weekOffset * 7);
+        return monday.getTime();
+      }
+      function regroupScheduleLocal(raw) {
+        const map = {};
+        const getBucket = (wk) => (map[wk] || (map[wk] = { monday: [], tuesday: [], wednesday: [], thursday: [], friday: [], saturday: [], sunday: [] }));
+        const baseMs = localWeekMondayMs(0);
+        DAYS.forEach(dayKey => {
+          (raw && Array.isArray(raw[dayKey]) ? raw[dayKey] : []).forEach(item => {
+            if (item && item.__src === 'anilist' && item.airing_at > 0) {
+              const d = new Date(item.airing_at * 1000);
+              const localMidnight = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+              const wk = Math.round((localMidnight - baseMs) / (7 * 86400000));
+              const dayIdx = (d.getDay() + 6) % 7; // Mon=0..Sun=6
+              getBucket(wk)[DAYS[dayIdx]].push(item);
+            } else {
+              // Jikan fallback items carry no absolute epoch — keep their
+              // original JST weekday bucket in the current week (degraded mode).
+              getBucket(0)[dayKey].push(item);
+            }
+          });
+        });
+        return map;
+      }
+      // {monday..sunday} buckets for the week currently being viewed
+      function getScheduleForView() {
+        return (scheduleByLocalWeek && scheduleByLocalWeek[String(currentWeekOffset)]) ||
+          { monday: [], tuesday: [], wednesday: [], thursday: [], friday: [], saturday: [], sunday: [] };
+      }
 
       // ---------- Helper: Fetch single day from self-hosted Jikan ----------
       async function fetchDayFromJikan(day) {
@@ -8763,12 +8890,31 @@ titleEl.style.color = '#ffffff';
       }
 
       // ---------- Helper: JST wall-clock time of an airing epoch ----------
+      // (kept for reference; V6 displays the visitor's LOCAL time instead)
       function jstTimeOf(epochSec) {
         try {
           return new Intl.DateTimeFormat('en-GB', {
             timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit', hour12: false
           }).format(new Date((epochSec || 0) * 1000));
         } catch (e) { return '—'; }
+      }
+
+      // ---------- V6: LOCAL wall-clock "HH:MM" of an airing epoch ----------
+      // The schedule now speaks the visitor's own timezone — every displayed
+      // time, day grouping and aired/next state follows the local clock.
+      function localTimeOf(epochSec) {
+        try {
+          return new Intl.DateTimeFormat('en-GB', {
+            hour: '2-digit', minute: '2-digit', hour12: false
+          }).format(new Date((epochSec || 0) * 1000));
+        } catch (e) { return '—'; }
+      }
+      // e.g. "GMT+6" — shown so users can trust what they see
+      function localTzLabel() {
+        try {
+          const parts = new Intl.DateTimeFormat('en-US', { timeZoneName: 'shortOffset' }).formatToParts(new Date());
+          return (parts.find(p => p.type === 'timeZoneName') || {}).value || 'local time';
+        } catch (e) { return 'local time'; }
       }
 
       // ---------- Helper: human countdown for the next upcoming episode ----------
@@ -8793,6 +8939,7 @@ titleEl.style.color = '#ffffff';
         const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
         const malId = m.idMal || null;
         const poster = (m.coverImage && (m.coverImage.extraLarge || m.coverImage.large || m.coverImage.medium)) || '';
+        const cleanDesc = String(m.description || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
         return {
           __src: 'anilist',
           mal_id: malId,
@@ -8800,12 +8947,18 @@ titleEl.style.color = '#ffffff';
           title,
           title_english: t.english || null,
           poster,
-          time: jstTimeOf(it.airingAt),          // JST broadcast time "HH:MM"
-          airing_at: it.airingAt || 0,           // absolute epoch (sort/state)
+          time: localTimeOf(it.airingAt),          // V6: LOCAL broadcast time "HH:MM"
+          airing_at: it.airingAt || 0,             // absolute epoch (sort/state)
           episode: Number.isInteger(it.episode) ? it.episode : null,  // TRUE episode
           format: m.format || null,
           status: m.status || null,
           episodes_total: m.episodes || null,
+          // V6 hover-popup fields
+          score: m.averageScore || null,
+          year: m.seasonYear || null,
+          genres: Array.isArray(m.genres) ? m.genres.slice(0, 4) : [],
+          studio: (m.studios && m.studios.nodes && m.studios.nodes[0] && m.studios.nodes[0].name) || null,
+          description: cleanDesc.slice(0, 230),
           watchUrl: malId ? `/info/anime/jikan-${malId}/${slug}` : `/info/anime/anilist-${m.id || ''}/${slug}`,
           images: { webp: { large_image_url: poster } }  // Jikan-compat shim
         };
@@ -8861,7 +9014,6 @@ titleEl.style.color = '#ffffff';
         // numbers, exact airingAt timestamps, JST broadcast-day grouping.
         const proxyData = await fetchScheduleFromProxy();
         if (proxyData) return proxyData;
-
         // FALLBACK: legacy self-hosted Jikan per-day schedule (episode numbers
         // ESTIMATED from aired-from week diffs — kept only as a safety net).
         console.log('[Schedule] 🐌 Falling back to self-hosted Jikan (estimated episode numbers)...');
@@ -8923,10 +9075,21 @@ titleEl.style.color = '#ffffff';
 
       // ---------- Render schedule for a given day (from scheduleData) ----------
       // ---------- Shared row builder for anime + sidebar TV rows ----------
-      function buildScheduleRowHtml({ watchUrl, external, time, poster, title, subtitle, epLabel, rowClass = '', timeNote = '', progressHtml = '' }) {
+      function buildScheduleRowHtml({ watchUrl, external, time, poster, title, subtitle, epLabel, rowClass = '', timeNote = '', progressHtml = '', pop = null }) {
         const linkAttrs = external ? ' target="_blank" rel="noopener noreferrer"' : '';
+        // V6: hover-popup payload (bigger poster preview on PC) — data attrs,
+        // read by the delegated .sched-pop controller.
+        let popAttrs = '';
+        if (pop) {
+          popAttrs = ` data-pop-img="${escAttr(pop.img || '')}" data-pop-title="${escAttr(pop.title || '')}"`;
+          if (pop.ep) popAttrs += ` data-pop-ep="${escAttr(pop.ep)}"`;
+          if (pop.meta) popAttrs += ` data-pop-meta="${escAttr(pop.meta)}"`;
+          if (pop.score) popAttrs += ` data-pop-score="${escAttr(pop.score)}"`;
+          if (pop.genres) popAttrs += ` data-pop-genres="${escAttr(pop.genres)}"`;
+          if (pop.desc) popAttrs += ` data-pop-desc="${escAttr(pop.desc)}"`;
+        }
         return `
-            <a href="${watchUrl}" class="schedule-row${rowClass}"${linkAttrs}>
+            <a href="${watchUrl}" class="schedule-row${rowClass}"${linkAttrs}${popAttrs}>
               <div class="schedule-time">${time}${timeNote}</div>
               <div class="schedule-poster">
                 <img src="${poster}" alt="${escapeHtml(title)}" loading="lazy" 
@@ -8961,7 +9124,8 @@ titleEl.style.color = '#ffffff';
 
       async function renderScheduleForDay(dayName) {
         const container = document.getElementById('eswBody');
-        const animeList = scheduleData?.[dayName] || [];
+        // V6: buckets are LOCAL-calendar days for the week being viewed
+        const animeList = getScheduleForView()[dayName] || [];
 
         // Brief loading state while we fetch this day's TV shows (anime data is
         // already in memory from fetchAllDaysParallel, only TV needs a fetch).
@@ -9052,7 +9216,15 @@ titleEl.style.color = '#ffffff';
               html: buildScheduleRowHtml({
                 watchUrl: anime.watchUrl, external: false, time: anime.time,
                 poster: anime.poster, title: anime.title, subtitle, epLabel: `EP ${episode}`,
-                rowClass, timeNote, progressHtml
+                rowClass, timeNote, progressHtml,
+                pop: {
+                  img: anime.poster, title: anime.title,
+                  ep: episode != null ? `EP ${episode}${anime.episodes_total ? ` / ${anime.episodes_total}` : ''}` : '',
+                  meta: [ANILIST_FORMAT_LABELS[anime.format] || (anime.format === 'TV' ? 'TV' : anime.format), anime.year, anime.studio].filter(Boolean).join(' · '),
+                  score: anime.score ? `${anime.score}%` : '',
+                  genres: (anime.genres || []).join(', '),
+                  desc: anime.description || ''
+                }
               })
             };
           }
@@ -9097,7 +9269,8 @@ titleEl.style.color = '#ffffff';
             sortKey: broadcastTime,
             html: buildScheduleRowHtml({
               watchUrl, external: false, time: broadcastTime, poster, title,
-              subtitle: null, epLabel: `EP ${episode}`
+              subtitle: null, epLabel: `EP ${episode}`,
+              pop: { img: poster, title, ep: `EP ${episode}`, meta: 'Anime' }
             })
           };
         });
@@ -9123,7 +9296,8 @@ titleEl.style.color = '#ffffff';
           return {
             sortKey: time,
             html: buildScheduleRowHtml({
-              watchUrl, external: true, time, poster, title, subtitle, epLabel
+              watchUrl, external: true, time, poster, title, subtitle, epLabel,
+              pop: { img: poster, title, ep: epLabel, meta: subtitle }
             })
           };
         });
@@ -9143,11 +9317,15 @@ titleEl.style.color = '#ffffff';
         });
         
         // Build [Anime][TV][Anime][TV]... alternating pattern
+        // (V6: the source filter chips narrow the mix — Anime-only or
+        // Live-Action-only render as a single sequence)
+        const useAnime = scheduleFilter !== 'tv';
+        const useTv = scheduleFilter !== 'anime';
         const combinedRows = [];
-        const maxLen = Math.max(sortedAnime.length, sortedTv.length);
+        const maxLen = Math.max(useAnime ? sortedAnime.length : 0, useTv ? sortedTv.length : 0);
         for (let i = 0; i < maxLen; i++) {
-          if (sortedAnime[i]) combinedRows.push(sortedAnime[i]);
-          if (sortedTv[i]) combinedRows.push(sortedTv[i]);
+          if (useAnime && sortedAnime[i]) combinedRows.push(sortedAnime[i]);
+          if (useTv && sortedTv[i]) combinedRows.push(sortedTv[i]);
         }
 
         const rowsArray = combinedRows.map(r => r.html);
@@ -9251,10 +9429,10 @@ titleEl.style.color = '#ffffff';
           const dayKeyIdx = dayIndex === 0 ? 6 : dayIndex - 1; // Convert to Mon=0 index
           const isActive = currentDay === DAYS[dayKeyIdx];
           const dayKey = DAYS[dayKeyIdx];
-          // V5.1: per-day EP count badge (current week only — the airing data
-          // is the live week's, so counts would be misleading on other weeks)
-          const dayCount = (currentWeekOffset === 0 && scheduleData && Array.isArray(scheduleData[dayKey]))
-            ? scheduleData[dayKey].length : null;
+          // V5.1: per-day EP count badge — V6 counts come from the LOCAL-week
+          // buckets, so they are honest for every navigated week (0 = hidden)
+          const viewBuckets = getScheduleForView();
+          const dayCount = Array.isArray(viewBuckets[dayKey]) ? viewBuckets[dayKey].length : null;
 
           return `
             <div class="esw-day-card ${isToday ? 'today' : ''} ${isActive ? 'active' : ''}" 
@@ -9300,8 +9478,12 @@ titleEl.style.color = '#ffffff';
         console.log('[Schedule] 🚀 Fetching all 7 days in parallel...');
         scheduleData = await fetchAllDaysParallel();
 
+        // V6: regroup into the visitor's LOCAL calendar days + week buckets
+        scheduleByLocalWeek = regroupScheduleLocal(scheduleData);
+
         // Expose scheduleData globally for debugging
         window.scheduleData = scheduleData;
+        window.scheduleLocalWeeks = scheduleByLocalWeek;
 
         // Determine current day (Monday‑Sunday)
         const now = new Date();
@@ -9343,6 +9525,66 @@ titleEl.style.color = '#ffffff';
       document.getElementById('eswPrev').addEventListener('click', previousWeek);
       document.getElementById('eswNext').addEventListener('click', nextWeek);
 
+      // ── V6: source filter chips (All / Anime / Live-Action) ──
+      document.getElementById('eswFilterRow').addEventListener('click', (e) => {
+        const chip = e.target.closest('.esw-chip');
+        if (!chip) return;
+        scheduleFilter = chip.dataset.filter || 'all';
+        document.querySelectorAll('#eswFilterRow .esw-chip').forEach(c => c.classList.toggle('active', c === chip));
+        if (currentDay) renderScheduleForDay(currentDay);
+      });
+
+      // ── V6: schedule-row hover popup — bigger poster preview (PC only) ──
+      const schedPopEl = document.getElementById('schedPop');
+      const canHoverPop = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+      let schedPopTimer = null;
+      function hideSchedPop() {
+        clearTimeout(schedPopTimer);
+        if (schedPopEl) schedPopEl.classList.remove('active');
+      }
+      function showSchedPopFrom(row) {
+        if (!schedPopEl || !canHoverPop) return;
+        const d = row.dataset;
+        if (!d.popImg || !d.popTitle) return;
+        schedPopEl.innerHTML = `
+          <div class="sched-pop-poster"><img src="${escAttr(d.popImg)}" alt="" onerror="this.parentElement.style.display='none'"></div>
+          <div class="sched-pop-body">
+            <div class="sched-pop-title">${escAttr(d.popTitle)}</div>
+            <div class="sched-pop-meta">
+              ${d.popEp ? `<span class="sched-pop-pill blue">${escAttr(d.popEp)}</span>` : ''}
+              ${d.popScore ? `<span class="sched-pop-pill gold"><i class="fas fa-star"></i> ${escAttr(d.popScore)}</span>` : ''}
+              ${d.popMeta ? `<span class="sched-pop-pill">${escAttr(d.popMeta)}</span>` : ''}
+            </div>
+            ${d.popGenres ? `<div class="sched-pop-genres">${d.popGenres.split(',').map(g => g.trim()).filter(Boolean).map(g => `<span class="sched-pop-genre">${escAttr(g)}</span>`).join('')}</div>` : ''}
+            ${d.popDesc ? `<div class="sched-pop-desc">${escAttr(d.popDesc)}</div>` : ''}
+          </div>`;
+        schedPopEl.classList.add('active');
+        const r = row.getBoundingClientRect();
+        const pw = schedPopEl.offsetWidth, ph = schedPopEl.offsetHeight;
+        let x = r.left - pw - 14;                 // sidebar sits right → open leftwards
+        if (x < 8) x = Math.min(r.right + 14, window.innerWidth - pw - 8);
+        let y = r.top + r.height / 2 - ph / 2;
+        y = Math.max(8, Math.min(y, window.innerHeight - ph - 8));
+        schedPopEl.style.left = Math.round(x) + 'px';
+        schedPopEl.style.top = Math.round(y) + 'px';
+      }
+      if (canHoverPop) {
+        document.addEventListener('mouseover', (e) => {
+          const row = e.target && e.target.closest ? e.target.closest('.schedule-row') : null;
+          if (!row || !row.dataset.popImg) return;
+          clearTimeout(schedPopTimer);
+          schedPopTimer = setTimeout(() => showSchedPopFrom(row), 240);
+        });
+        document.addEventListener('mouseout', (e) => {
+          const row = e.target && e.target.closest ? e.target.closest('.schedule-row') : null;
+          if (!row) return;
+          if (row.contains(e.relatedTarget)) return; // still inside the row
+          hideSchedPop();
+        });
+        // any scroll (incl. the inner .schedule-list) dismisses instantly
+        document.addEventListener('scroll', hideSchedPop, { passive: true, capture: true });
+      }
+
       function escapeHtml(str) {
         if (!str) return '';
         return str.replace(/[&<>]/g, function(m) {
@@ -9351,6 +9593,11 @@ titleEl.style.color = '#ffffff';
           if (m === '>') return '&gt;';
           return m;
         });
+      }
+
+      // V6: attribute-safe escape (adds quotes) for data-pop-* payloads
+      function escAttr(str) {
+        return escapeHtml(str).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
       }
       
 

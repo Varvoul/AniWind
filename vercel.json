@@ -19,6 +19,7 @@
   ],
   "rewrites": [
     { "source": "/latest-updates",         "destination": "/latest-updates.html" },
+    { "source": "/schedule",               "destination": "/schedule.html" },
 
     { "source": "/info/anime/:id",         "destination": "/info.html" },
     { "source": "/info/anime/:id/:slug",   "destination": "/info.html" },
