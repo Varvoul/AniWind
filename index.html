@@ -1847,21 +1847,38 @@
       border-color:var(--accent-gold); 
     }
 
+    /* V5.1: .esw-body is a flex-column SHELL — the inner .schedule-list is
+       the ONLY scrolling region, so the Show More button placed below it
+       stays permanently visible (owner request: button must not scroll away). */
     .esw-body {
       padding: 10px 12px;
-      max-height: 420px;
-      overflow-y: auto;
+      max-height: 580px;
       min-height: 200px;
+      display: flex;
+      flex-direction: column;
     }
-    .esw-body::-webkit-scrollbar {
+    .schedule-list {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border-medium) transparent;
+    }
+    .schedule-list::-webkit-scrollbar {
       width: 4px;
     }
-    .esw-body::-webkit-scrollbar-thumb {
+    .schedule-list::-webkit-scrollbar-thumb {
       background: var(--border-medium);
       border-radius: 3px;
     }
-    .esw-body::-webkit-scrollbar-track {
+    .schedule-list::-webkit-scrollbar-track {
       background: transparent;
+    }
+    /* Fade hint: bottom edge melts away whenever the list overflows */
+    .schedule-list.has-more {
+      -webkit-mask-image: linear-gradient(180deg, #000 0, #000 calc(100% - 32px), transparent 100%);
+              mask-image: linear-gradient(180deg, #000 0, #000 calc(100% - 32px), transparent 100%);
     }
     .esw-row { 
       display:flex; 
@@ -2040,6 +2057,7 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
+  flex: 0 0 auto; /* pinned: never scrolls with the list */
   margin-top: 12px;
   display: flex !important;
   align-items: center;
@@ -2065,11 +2083,89 @@
 .schedule-more-btn:hover i {
   transform: rotate(180deg);
 }
-.esw-body {
-  padding: 10px 12px;
-  max-height: 580px;
-  overflow-y: auto;
+/* ── V5.1 schedule polish ───────────────────────────────────────────── */
+/* Poster micro-zoom on row hover */
+.schedule-poster { border-radius: 4px; overflow: hidden; }
+.schedule-poster img { transition: transform 0.3s ease; }
+.schedule-row:hover .schedule-poster img { transform: scale(1.08); }
+/* Episode progress bar (true AniList episode vs total) */
+.schedule-progress {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--bg-body);
+  margin-top: 5px;
+  overflow: hidden;
 }
+.schedule-progress span {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--btn-primary), var(--accent-gold));
+}
+/* Today-only timeline states: already aired vs next upcoming episode */
+.schedule-row.is-aired { opacity: 0.55; }
+.schedule-row.is-aired .schedule-time { color: var(--text-muted); }
+.schedule-row.is-next {
+  border-color: rgba(236, 201, 75, 0.55);
+  background: linear-gradient(90deg, rgba(236, 201, 75, 0.10), rgba(236, 201, 75, 0.02) 60%, transparent);
+}
+.schedule-row.is-next .schedule-time { color: var(--accent-gold); }
+.schedule-row.is-next .schedule-time::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-gold);
+  margin-right: 5px;
+  vertical-align: 1px;
+  animation: eswLivePulse 1.5s ease-in-out infinite;
+}
+@keyframes eswLivePulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.3; transform: scale(0.7); }
+}
+.schedule-countdown {
+  display: block;
+  font-size: 0.58rem;
+  font-weight: 700;
+  color: var(--accent-gold);
+  margin-top: 2px;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+/* Skeleton rows while a day is loading (matches .schedule-row grid) */
+.sk-esw-row {
+  display: grid;
+  grid-template-columns: 70px 45px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+.sk-esw-time { height: 12px; width: 38px; }
+.sk-esw-img  { width: 40px; height: 56px; border-radius: 4px; }
+.sk-esw-body { display: flex; flex-direction: column; gap: 6px; }
+.sk-esw-t    { height: 11px; width: 75%; }
+.sk-esw-m    { height: 8px; width: 45%; }
+.sk-esw-ep   { height: 16px; width: 34px; border-radius: 4px; }
+/* Per-day EP count badge on the day cards */
+.esw-dc-count {
+  font-size: 0.5rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: rgba(66, 153, 225, 0.14);
+  color: var(--accent-blue);
+  letter-spacing: 0.3px;
+  margin-top: 1px;
+  white-space: nowrap;
+}
+.esw-day-card.today .esw-dc-count { color: var(--accent-gold); background: rgba(236, 201, 75, 0.12); }
+.esw-day-card.active .esw-dc-count { background: rgba(255, 255, 255, 0.22); color: #fff; }
 
     /* pagination */
     .pagination-nav { display:flex; gap:6px; justify-content:center; margin-top:18px; flex-wrap:wrap; align-items:center; }
@@ -2147,6 +2243,8 @@
         min-height: 180px;
         padding: 8px 8px;
       }
+      .sk-esw-row { grid-template-columns: 60px 40px 1fr auto; gap: 8px; padding: 8px; }
+      .sk-esw-img { width: 36px; height: 50px; }
       .schedule-row {
         grid-template-columns: 60px 40px 1fr auto;
         gap: 8px;
@@ -8612,7 +8710,8 @@ titleEl.style.color = '#ffffff';
                     by JST broadcast day (4h server TTL + 2h edge TTL)
          FALLBACK:  self-hosted Jikan /v4/schedule/{day} (legacy shape,
                     episode numbers estimated — kept as the safety net)
-         Features: Parallel fetch, Week nav, 5-month limit, Show More
+         Features: Parallel fetch, Week nav, 5-month limit, Pinned Show More,
+                   scroll fade, today timeline states, EP progress bars
          ════════════════════════════════════════════════════════════ */
       
       // Configuration
@@ -8670,6 +8769,18 @@ titleEl.style.color = '#ffffff';
             timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit', hour12: false
           }).format(new Date((epochSec || 0) * 1000));
         } catch (e) { return '—'; }
+      }
+
+      // ---------- Helper: human countdown for the next upcoming episode ----------
+      // (computed at render time — refreshes on any day switch / re-render)
+      function humanCountdown(sec) {
+        if (!(sec > 0)) return null;
+        const h = Math.floor(sec / 3600);
+        const m = Math.round((sec % 3600) / 60);
+        if (h >= 24) return `in ${Math.floor(h / 24)}d ${h % 24}h`;
+        if (h >= 1) return `in ${h}h ${m}m`;
+        if (m >= 1) return `in ${m}m`;
+        return 'airing now';
       }
 
       // ---------- Helper: Map one AniList airingSchedule item to widget shape ----------
@@ -8812,11 +8923,11 @@ titleEl.style.color = '#ffffff';
 
       // ---------- Render schedule for a given day (from scheduleData) ----------
       // ---------- Shared row builder for anime + sidebar TV rows ----------
-      function buildScheduleRowHtml({ watchUrl, external, time, poster, title, subtitle, epLabel }) {
+      function buildScheduleRowHtml({ watchUrl, external, time, poster, title, subtitle, epLabel, rowClass = '', timeNote = '', progressHtml = '' }) {
         const linkAttrs = external ? ' target="_blank" rel="noopener noreferrer"' : '';
         return `
-            <a href="${watchUrl}" class="schedule-row"${linkAttrs}>
-              <div class="schedule-time">${time}</div>
+            <a href="${watchUrl}" class="schedule-row${rowClass}"${linkAttrs}>
+              <div class="schedule-time">${time}${timeNote}</div>
               <div class="schedule-poster">
                 <img src="${poster}" alt="${escapeHtml(title)}" loading="lazy" 
                      onerror="this.parentElement.style.background='linear-gradient(135deg,#1e293b,#334155)';this.style.display='none';">
@@ -8824,10 +8935,18 @@ titleEl.style.color = '#ffffff';
               <div class="schedule-title-wrap">
                 <div class="schedule-title">${escapeHtml(title)}</div>
                 ${subtitle ? `<div class="schedule-subtitle">${escapeHtml(subtitle)}</div>` : ''}
+                ${progressHtml}
               </div>
               <div class="schedule-ep">${epLabel}</div>
             </a>
           `;
+      }
+
+      // ---------- V5.1: toggle the scroll fade on the list when it overflows ----------
+      function updateScheduleScrollFade(containerEl) {
+        const list = containerEl.querySelector('.schedule-list');
+        if (!list) return;
+        list.classList.toggle('has-more', list.scrollHeight > list.clientHeight + 4);
       }
 
       // ---------- Format a Date as YYYY-MM-DD using LOCAL date parts
@@ -8846,7 +8965,13 @@ titleEl.style.color = '#ffffff';
 
         // Brief loading state while we fetch this day's TV shows (anime data is
         // already in memory from fetchAllDaysParallel, only TV needs a fetch).
-        container.innerHTML = '<div style="text-align:center;padding:24px 10px;color:var(--text-muted);font-size:0.75rem;">Loading…</div>';
+        container.innerHTML = `<div class="schedule-list">${Array(4).fill(`
+            <div class="sk-esw-row">
+              <div class="skeleton sk-esw-time"></div>
+              <div class="skeleton sk-esw-img"></div>
+              <div class="sk-esw-body"><div class="skeleton sk-esw-t"></div><div class="skeleton sk-esw-m"></div></div>
+              <div class="skeleton sk-esw-ep"></div>
+            </div>`).join('')}</div>`;
 
         // Resolve the actual calendar date for this day-of-week within the
         // currently selected week (TVMaze needs a real date, unlike Jikan's
@@ -8879,6 +9004,18 @@ titleEl.style.color = '#ffffff';
         }
 
         // Build anime row objects
+        // V5.1: timeline context for TODAY's view — the true absolute airing
+        // instants from AniList airingSchedules let us dim past episodes and
+        // spotlight the next upcoming one with a live countdown.
+        const nowSec = Math.floor(Date.now() / 1000);
+        const todayKey = DAYS[(new Date().getDay() + 6) % 7];   // Mon=0 … Sun=6
+        const isTodayView = currentWeekOffset === 0 && dayName === todayKey;
+        let nextUpEpoch = Infinity;
+        if (isTodayView) {
+          animeList.forEach(a => {
+            if (a.__src === 'anilist' && a.airing_at > nowSec && a.airing_at < nextUpEpoch) nextUpEpoch = a.airing_at;
+          });
+        }
         const animeRows = animeList.map(anime => {
           // V5: AniList proxy items — TRUE episode number + exact JST broadcast
           // time straight from airingSchedules (no estimation anywhere).
@@ -8887,11 +9024,30 @@ titleEl.style.color = '#ffffff';
             const subtitle = anime.format && anime.format !== 'TV'
               ? (ANILIST_FORMAT_LABELS[anime.format] || anime.format)
               : null;
+            // V5.1 timeline states (today only): aired → dim, next → gold + countdown
+            let rowClass = '';
+            let timeNote = '';
+            if (isTodayView && anime.airing_at > 0) {
+              if (anime.airing_at <= nowSec) {
+                rowClass = ' is-aired';
+              } else if (anime.airing_at === nextUpEpoch) {
+                rowClass = ' is-next';
+                const cd = humanCountdown(anime.airing_at - nowSec);
+                if (cd) timeNote = `<span class="schedule-countdown">${cd}</span>`;
+              }
+            }
+            // V5.1 progress bar: true episode vs total (only when both known)
+            let progressHtml = '';
+            if (anime.episodes_total > 0 && anime.episode != null && anime.episode >= 1 && anime.episode <= anime.episodes_total) {
+              const pct = Math.min(100, Math.round((anime.episode / anime.episodes_total) * 100));
+              progressHtml = `<div class="schedule-progress" title="Episode ${anime.episode} of ${anime.episodes_total}"><span style="width:${pct}%"></span></div>`;
+            }
             return {
               sortKey: anime.time && anime.time !== '—' ? anime.time : '99:99',
               html: buildScheduleRowHtml({
                 watchUrl: anime.watchUrl, external: false, time: anime.time,
-                poster: anime.poster, title: anime.title, subtitle, epLabel: `EP ${episode}`
+                poster: anime.poster, title: anime.title, subtitle, epLabel: `EP ${episode}`,
+                rowClass, timeNote, progressHtml
               })
             };
           }
@@ -8995,13 +9151,16 @@ titleEl.style.color = '#ffffff';
         const hasMore = rowsArray.length > VISIBLE_COUNT;
         const remainingCount = rowsArray.length - VISIBLE_COUNT;
 
+        // V5.1: the button lives OUTSIDE .schedule-list (it is a sibling flex
+        // child of .esw-body) so it stays pinned while only the rows scroll.
         container.innerHTML = `
           <div class="schedule-list">
             ${visibleRows}
             ${hasMore ? `<div class="schedule-more-wrapper" style="display:none;">${hiddenRows}</div>` : ''}
-            ${hasMore ? `<button type="button" class="schedule-more-btn"><i class="fas fa-chevron-down"></i> Show More (${remainingCount} more)</button>` : ''}
           </div>
+          ${hasMore ? `<button type="button" class="schedule-more-btn"><i class="fas fa-chevron-down"></i> Show More (${remainingCount} more)</button>` : ''}
         `;
+        updateScheduleScrollFade(container);
 
         // Attach enhanced show more handler
         const moreBtn = container.querySelector('.schedule-more-btn');
@@ -9014,7 +9173,8 @@ titleEl.style.color = '#ffffff';
             if (wrapper) {
               const isHidden = wrapper.style.display === 'none';
               wrapper.style.display = isHidden ? 'block' : 'none';
-              
+              updateScheduleScrollFade(container);
+
               if (isHidden) {
                 moreBtn.classList.add('expanded');
                 moreBtn.innerHTML = '<i class="fas fa-chevron-up"></i> Show Less';
@@ -9085,7 +9245,12 @@ titleEl.style.color = '#ffffff';
           const dayIndex = date.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
           const dayKeyIdx = dayIndex === 0 ? 6 : dayIndex - 1; // Convert to Mon=0 index
           const isActive = currentDay === DAYS[dayKeyIdx];
-          
+          const dayKey = DAYS[dayKeyIdx];
+          // V5.1: per-day EP count badge (current week only — the airing data
+          // is the live week's, so counts would be misleading on other weeks)
+          const dayCount = (currentWeekOffset === 0 && scheduleData && Array.isArray(scheduleData[dayKey]))
+            ? scheduleData[dayKey].length : null;
+
           return `
             <div class="esw-day-card ${isToday ? 'today' : ''} ${isActive ? 'active' : ''}" 
                  data-day-index="${idx}" data-day-key="${DAYS[dayKeyIdx]}"
@@ -9093,6 +9258,7 @@ titleEl.style.color = '#ffffff';
               <span class="esw-dc-month">${MONTHS[date.getMonth()]}</span>
               <span class="esw-dc-day">${date.getDate()}</span>
               <span class="esw-dc-weekday">${DAY_FULL_NAMES[dayKeyIdx].slice(0, 3)}</span>
+              ${dayCount ? `<span class="esw-dc-count">${dayCount} EP</span>` : ''}
             </div>
           `;
         }).join('');
