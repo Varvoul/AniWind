@@ -2094,6 +2094,14 @@ img { max-width: 100%; height: auto; display: block; }
   .sidebar-combined { grid-template-columns: repeat(3, 1fr); }
 }
 
+/* Tablet hero poster (769-1024): one step ABOVE desktop's 220px — owner
+   asked for a slight poster bump on mobile/tablet only; desktop (>=1025)
+   keeps the base 220px. Later blocks (max-width:768 / max-height:500
+   landscape) override this where their ranges apply. */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .poster-wrapper { width: 240px; }
+}
+
 @media (max-width: 768px) {
   :root {
     --gutter: 16px;
@@ -2111,7 +2119,7 @@ img { max-width: 100%; height: auto; display: block; }
     margin-top: -40px;
     text-align: center;
   }
-  .poster-wrapper { width: 180px; margin: 0 auto; }
+  .poster-wrapper { width: 200px; margin: 0 auto; }
   .title-meta-container { padding-top: 0; }
   .show-title { font-size: 1.5rem; }
   .action-buttons { justify-content: center; }
@@ -2191,7 +2199,7 @@ img { max-width: 100%; height: auto; display: block; }
   .breadcrumbs ol { gap: 2px; }
   
   .backdrop-container { aspect-ratio: 16/4; }
-  .poster-wrapper { width: 140px; }
+  .poster-wrapper { width: 160px; }
   .show-title { font-size: 1.3rem; }
 
   /* Action Buttons Layout */
@@ -2256,7 +2264,7 @@ img { max-width: 100%; height: auto; display: block; }
 @media (max-height: 500px) and (orientation: landscape) {
   .backdrop-container { display: none; }
   .hero-section { margin-top: 0; }
-  .poster-wrapper { width: 100px; }
+  .poster-wrapper { width: 112px; }
   .show-title { font-size: 1.2rem; -webkit-line-clamp: 1; }
   .metadata-row { font-size: 0.8rem; }
   .action-buttons { gap: 8px; }
@@ -7156,6 +7164,95 @@ img { max-width: 100%; height: auto; display: block; }
         }
         return [];
       }
+
+      // Genre-discovery passthrough for the RFY fallback — SAME source chain
+      // as _rfyFetchRecs (mapple -> t-umi -> t-umi.zeraf -> direct TMDB).
+      // Returns raw TMDB /discover results[] ([] when every source fails).
+      async function _rfyDiscover(mediaType, params, timeoutMs = 10000) {
+        const qs = new URLSearchParams({ language: 'en-US', include_adult: 'false', ...params }).toString();
+        const chain = [
+          { url: `${CONFIG.MAPPLE_BASE}/tmdb/discover/${mediaType}?${qs}` },
+          { url: `${CONFIG.TMDB_TUMI}/discover/${mediaType}?${qs}` },
+          { url: `${CONFIG.TMDB_TUMI_FB}/discover/${mediaType}?${qs}` },
+          { url: `${CONFIG.TMDB_DIRECT}/discover/${mediaType}?${qs}`,
+            headers: { Authorization: `Bearer ${CONFIG.TMDB_TOKEN}` } }
+        ];
+        for (const src of chain) {
+          try {
+            const res = await fetch(src.url, { headers: { Accept: 'application/json', ...(src.headers || {}) }, signal: AbortSignal.timeout(timeoutMs) });
+            if (!res.ok) continue;
+            const rows = (await res.json()).results || [];
+            if (rows.length) return rows;
+          } catch (e) { console.warn('[RFY] discover source failed:', new URL(src.url).host, e.message); }
+        }
+        return [];
+      }
+
+      /* ── RFY genre fallback ─────────────────────────────────────────────
+         TMDB recommendations/similar are user-driven — many titles (mostly
+         obscure or older ones) have NONE. When the community pool comes back
+         empty, rebuild it from THIS title's first three genres via /discover:
+           - modern title (year >= 2015) -> modern suggestions only
+           - old title     (year <  2015) -> ~half old classics + half modern,
+             interleaved 1:1 so both eras are visible in the top rows
+         Quality: real votes only (vote_count>=50), popularity-sorted, soft
+         vote_average floor; the genre match relaxes AND(3) -> AND(2) -> OR so
+         niche combos still fill the row. Results return in the same TMDB list
+         shape the normal recommendation pipeline consumes (and are cached
+         under info:recommended_for_you:{mediaKey} by the caller). */
+      const _RFY_MODERN_YEAR = 2015;
+      async function _rfyGenreFallback(mediaType) {
+        const data = currentState.data || {};
+        const genreIds = (data.genres || []).map(g => g && g.id).filter(Boolean).slice(0, 3);
+        if (!genreIds.length) {
+          console.log('[RFY] genre fallback skipped: title carries no genre ids');
+          return [];
+        }
+        const year = parseInt(String(data.first_air_date || data.release_date || '').slice(0, 4), 10) || 0;
+        const modernTitle = year >= _RFY_MODERN_YEAR;
+        const dateKey = mediaType === 'movie' ? 'primary_release_date' : 'first_air_date';
+        console.log(`[RFY] community recs empty -> genre fallback (${mediaType}, genres [${genreIds.join(', ')}], year ${year || '?'}, ${modernTitle ? 'modern -> modern picks' : 'old -> old+modern mix'})`);
+
+        const seen = new Set([Number(currentState.id)]);
+        const keep = (rows) => (rows || []).filter(it =>
+          it && it.id && !seen.has(Number(it.id)) && (it.poster_path || it.backdrop_path));
+        const oldBucket = [], newBucket = [];   // oldBucket only fills for old titles
+        // genre ladder: AND(3) -> AND(2) -> OR; last rung also softens the
+        // vote floors so an obscure genre family still produces suggestions
+        const ladder = [];
+        if (genreIds.length >= 3) ladder.push(genreIds.join(','));
+        if (genreIds.length >= 2) ladder.push(genreIds.slice(0, 2).join(','));
+        ladder.push(genreIds.join('|'));
+        const floors = { sort_by: 'popularity.desc', 'vote_count.gte': 50, 'vote_average.gte': 6.5 };
+        for (let i = 0; i < ladder.length; i++) {
+          const g = ladder[i];
+          const q = (i === ladder.length - 1)
+            ? { sort_by: 'popularity.desc', 'vote_count.gte': 20 }
+            : { ...floors, with_genres: g };
+          if (modernTitle) {
+            keep(await _rfyDiscover(mediaType, { ...q, with_genres: g, [`${dateKey}.gte`]: `${_RFY_MODERN_YEAR}-01-01` }))
+              .forEach(it => { seen.add(Number(it.id)); newBucket.push(it); });
+          } else {
+            const wantPerEra = 12;
+            const [olds, news] = await Promise.all([
+              _rfyDiscover(mediaType, { ...q, with_genres: g, [`${dateKey}.gte`]: '1980-01-01', [`${dateKey}.lte`]: `${_RFY_MODERN_YEAR - 1}-12-31` }),
+              _rfyDiscover(mediaType, { ...q, with_genres: g, [`${dateKey}.gte`]: `${_RFY_MODERN_YEAR}-01-01` })
+            ]);
+            keep(olds).forEach(it => { if (oldBucket.length < wantPerEra) { seen.add(Number(it.id)); oldBucket.push(it); } });
+            keep(news).forEach(it => { if (newBucket.length < wantPerEra) { seen.add(Number(it.id)); newBucket.push(it); } });
+          }
+          if (oldBucket.length + newBucket.length >= 20) break;   // enough — stop early
+        }
+        const byScore = (arr) => arr.sort((a, b) => _rfyScore(b) - _rfyScore(a));
+        if (modernTitle) return byScore(newBucket);
+        byScore(oldBucket); byScore(newBucket);
+        const mixed = [];
+        for (let i = 0, n = Math.max(oldBucket.length, newBucket.length); i < n; i++) {
+          if (oldBucket[i]) mixed.push(oldBucket[i]);
+          if (newBucket[i]) mixed.push(newBucket[i]);
+        }
+        return mixed;
+      }
       async function _rfyTopUp(base, mediaType) {
         const seen = new Set(base.map(a => Number(a.id)));
         seen.add(Number(currentState.id));
@@ -7244,6 +7341,18 @@ img { max-width: 100%; height: auto; display: block; }
           if (!merged.length) {
             try { pushAll(await _rfyFetchRecs(mediaType, 1)); }
             catch (e) { console.warn('[RFY] fallback fetch failed:', e.message); }
+          }
+
+          // 4) GENRE-BASED FALLBACK — community recs exhausted (payload recs +
+          //    similar empty AND every recommendations endpoint empty). Fills
+          //    the pool from this title's first three genres via /discover,
+          //    era-aware (modern title -> modern picks; old title -> old+modern
+          //    mix). Falls through the SAME sort/cap/render/cache pipeline
+          //    below, so fallback pools land in
+          //    info:recommended_for_you:{mediaKey} like any other pool.
+          if (!merged.length) {
+            try { pushAll(await _rfyGenreFallback(mediaType)); }
+            catch (e) { console.warn('[RFY] genre fallback failed:', e.message); }
           }
 
           // Sort: weighted score (vote_average × log10(vote_count+1))
