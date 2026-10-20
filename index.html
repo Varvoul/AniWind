@@ -8606,12 +8606,21 @@ titleEl.style.color = '#ffffff';
       }
 
       /* ════════════════════════════════════════════════════════════
-         SCHEDULE SECTION - REBUILT (Self-hosted Jikan API)
+         SCHEDULE SECTION - V5 (anilist-my-proxy airingSchedules)
+         PRIMARY:   /api/schedule/all — AniList airingSchedules with TRUE
+                    episode numbers + exact broadcast timestamps, grouped
+                    by JST broadcast day (4h server TTL + 2h edge TTL)
+         FALLBACK:  self-hosted Jikan /v4/schedule/{day} (legacy shape,
+                    episode numbers estimated — kept as the safety net)
          Features: Parallel fetch, Week nav, 5-month limit, Show More
          ════════════════════════════════════════════════════════════ */
       
       // Configuration
       const JIKAN_SCHEDULE_BASE = 'https://jikan-api-bohb.onrender.com/v4/schedule';
+      // V5 PRIMARY: anilist-my-proxy schedule endpoint (AniList airingSchedules)
+      const SCHEDULE_PROXY_ALL = 'https://anilist-my-proxy.vercel.app/api/schedule/all';
+      const SCHEDULE_PROXY_TIMEOUT_MS = 15000;
+      const ANILIST_FORMAT_LABELS = { TV_SHORT: 'TV Short', ONA: 'ONA', OVA: 'OVA', MOVIE: 'Movie', SPECIAL: 'Special', MUSIC: 'Music' };
       const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
       const DAY_FULL_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
       const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -8654,62 +8663,110 @@ titleEl.style.color = '#ffffff';
         }
       }
 
-      // ---------- Helper: Fetch ALL 7 days in parallel (rate-limit safe) ----------
+      // ---------- Helper: JST wall-clock time of an airing epoch ----------
+      function jstTimeOf(epochSec) {
+        try {
+          return new Intl.DateTimeFormat('en-GB', {
+            timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit', hour12: false
+          }).format(new Date((epochSec || 0) * 1000));
+        } catch (e) { return '—'; }
+      }
+
+      // ---------- Helper: Map one AniList airingSchedule item to widget shape ----------
+      // AniList airingSchedules carry the TRUE airing episode number and the
+      // exact broadcast instant (airingAt) — no week-diff estimation needed.
+      function mapAniListScheduleItem(it) {
+        const m = (it && it.media) || {};
+        const t = m.title || {};
+        const title = t.english || t.romaji || t.userPreferred || t.native || 'Unknown Title';
+        const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+        const malId = m.idMal || null;
+        const poster = (m.coverImage && (m.coverImage.extraLarge || m.coverImage.large || m.coverImage.medium)) || '';
+        return {
+          __src: 'anilist',
+          mal_id: malId,
+          anilist_id: m.id || null,
+          title,
+          title_english: t.english || null,
+          poster,
+          time: jstTimeOf(it.airingAt),          // JST broadcast time "HH:MM"
+          airing_at: it.airingAt || 0,           // absolute epoch (sort/state)
+          episode: Number.isInteger(it.episode) ? it.episode : null,  // TRUE episode
+          format: m.format || null,
+          status: m.status || null,
+          episodes_total: m.episodes || null,
+          watchUrl: malId ? `/info/anime/jikan-${malId}/${slug}` : `/info/anime/anilist-${m.id || ''}/${slug}`,
+          images: { webp: { large_image_url: poster } }  // Jikan-compat shim
+        };
+      }
+
+      // ---------- Helper: PRIMARY fetch — anilist-my-proxy /schedule/all ----------
+      // One request returns all seven JST broadcast days grouped, built from
+      // AniList airingSchedules with true episode numbers. The server caches
+      // the 8-day AniList window (4h TTL) + Vercel edge cache (2h) so this is
+      // one cheap request per visitor.
+      async function fetchScheduleFromProxy() {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), SCHEDULE_PROXY_TIMEOUT_MS);
+        try {
+          const res = await fetch(SCHEDULE_PROXY_ALL, {
+            signal: controller.signal,
+            headers: { 'Accept': 'application/json' }
+          });
+          clearTimeout(timeoutId);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const json = await res.json();
+          const days = json?.data?.Page?.days;
+          if (!days || typeof days !== 'object') throw new Error('unexpected /schedule/all shape');
+
+          const out = {};
+          let total = 0;
+          DAYS.forEach(day => {
+            const arr = Array.isArray(days[day]) ? days[day] : [];
+            const _seen = new Set();
+            out[day] = arr.map(mapAniListScheduleItem).filter(a => {
+              const k = a.anilist_id || a.mal_id || a.title;
+              if (!k || _seen.has(k)) return false;
+              _seen.add(k);
+              return true;
+            });
+            total += out[day].length;
+          });
+          if (total === 0) throw new Error('empty schedule payload from proxy');
+          console.log(`[Schedule] ✅ anilist-my-proxy: ${total} airing entries across 7 days (true episode numbers)`);
+          return out;
+        } catch (err) {
+          clearTimeout(timeoutId);
+          console.warn('[Schedule] ⚠️ anilist-my-proxy failed:', err.message, '→ falling back to self-hosted Jikan');
+          return null;
+        }
+      }
+
+      // ---------- Helper: Fetch ALL 7 days (proxy primary → Jikan fallback) ----------
       async function fetchAllDaysParallel() {
-        // DB (Neon ani_schedule, one endpoint per day) first — each day is
-        // already Jikan-shaped, so it drops straight into the existing
-        // renderer. Falls back to the live self-hosted Jikan schedule for
-        // any day the DB doesn't have data for (e.g. still syncing).
-        // All 7 requests hit the SAME server-side cached column fetch
-        // (see api/ani-schedule/[day].js), so this is one real DB query
-        // shared across all 7 days, not 7 separate ones.
-        console.log('[Schedule] 🚀 Starting parallel fetch of all 7 days...');
+        console.log('[Schedule] 🚀 Fetching weekly airing schedule (anilist-my-proxy → Jikan fallback)...');
 
-        const dbResults = await Promise.allSettled(DAYS.map(day => window.getAniScheduleDay(day)));
-        const dbByDay = {};
-        DAYS.forEach((day, idx) => {
-          const r = dbResults[idx];
-          const arr = r.status === 'fulfilled' ? r.value?.data : null;
-          if (Array.isArray(arr) && arr.length > 0) {
-            // Cross-source dedup by mal_id (safety net for sync duplicates)
-            const _seen = new Set();
-            dbByDay[day] = arr.filter(a => {
-              const k = a.mal_id || a.id;
-              if (!k || _seen.has(k)) return false;
-              _seen.add(k);
-              return true;
-            });
-          }
-        });
+        // PRIMARY: AniList airingSchedules via anilist-my-proxy — true episode
+        // numbers, exact airingAt timestamps, JST broadcast-day grouping.
+        const proxyData = await fetchScheduleFromProxy();
+        if (proxyData) return proxyData;
 
-        const missingDays = DAYS.filter(day => !dbByDay[day]);
-
-        const jikanResults = missingDays.length
-          ? await Promise.allSettled(missingDays.map(day => fetchDayFromJikan(day)))
-          : [];
-
+        // FALLBACK: legacy self-hosted Jikan per-day schedule (episode numbers
+        // ESTIMATED from aired-from week diffs — kept only as a safety net).
+        console.log('[Schedule] 🐌 Falling back to self-hosted Jikan (estimated episode numbers)...');
+        const jikanResults = await Promise.allSettled(DAYS.map(day => fetchDayFromJikan(day)));
         const data = {};
-        let missingIdx = 0;
-        DAYS.forEach((day) => {
-          if (dbByDay[day]) {
-            data[day] = dbByDay[day];
-          } else {
-            const result = jikanResults[missingIdx++];
-            // Also dedup Jikan fallback results
-            const raw = result && result.status === 'fulfilled' ? result.value : [];
-            const _seen = new Set();
-            data[day] = raw.filter(a => {
-              const k = a.mal_id || a.id;
-              if (!k || _seen.has(k)) return false;
-              _seen.add(k);
-              return true;
-            });
-          }
+        DAYS.forEach((day, idx) => {
+          const result = jikanResults[idx];
+          const raw = result && result.status === 'fulfilled' ? result.value : [];
+          const _seen = new Set();
+          data[day] = raw.filter(a => {
+            const k = a.mal_id || a.id;
+            if (!k || _seen.has(k)) return false;
+            _seen.add(k);
+            return true;
+          });
         });
-        
-        const totalAnime = Object.values(data).reduce((sum, arr) => sum + arr.length, 0);
-        console.log(`[Schedule] ✅ Complete! Total: ${totalAnime} anime across 7 days`);
-        
         return data;
       }
 
@@ -8823,6 +8880,22 @@ titleEl.style.color = '#ffffff';
 
         // Build anime row objects
         const animeRows = animeList.map(anime => {
+          // V5: AniList proxy items — TRUE episode number + exact JST broadcast
+          // time straight from airingSchedules (no estimation anywhere).
+          if (anime.__src === 'anilist') {
+            const episode = anime.episode != null ? anime.episode : (anime.episodes_total || '?');
+            const subtitle = anime.format && anime.format !== 'TV'
+              ? (ANILIST_FORMAT_LABELS[anime.format] || anime.format)
+              : null;
+            return {
+              sortKey: anime.time && anime.time !== '—' ? anime.time : '99:99',
+              html: buildScheduleRowHtml({
+                watchUrl: anime.watchUrl, external: false, time: anime.time,
+                poster: anime.poster, title: anime.title, subtitle, epLabel: `EP ${episode}`
+              })
+            };
+          }
+          // Legacy Jikan fallback items — episode estimated from aired-from
           const episode = getEpisodeNumber(anime);
           const title = anime.title_english || anime.title || 'Unknown Title';
           const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
