@@ -4683,6 +4683,227 @@ async function loadNewAniocean() {
         }
       };
 
+      /* ════════════════════════════════════════════════════════════════
+         t130 — OUTAGE-PROOF FALLBACK CHAIN (hero + popular sections)
+         Primary data = the Neon-backed /api/<column> endpoints. When they
+         come back EMPTY/broken (e.g. the nightly AniList refresh fails
+         while AniList API itself is down), these helpers pull fresh anime
+         pools through the owner-specified 3-leg chain:
+
+           1. anilist-my-proxy   (AniList + 4h cache — auto-recovers first)
+           2. anilist-scraper    (web-scrape/mirror project — has its own
+                                  AniList→Supabase→Jikan chain, so it keeps
+                                  serving while AniList API is down)
+           3. ruri worker        (Supabase anikoto_data "currently-airing"
+                                  endpoint, profile ruristream)
+
+         Every leg returns AniList-format media[] so the existing
+         anilistToInternal / normalizeAnimeItem paths work unchanged.
+         When AniList (or the Neon automation) recovers, the DB primary /
+         proxy leg answer first again — auto flip-back, no reload logic.
+         Results are memoized per page load so sections share one fetch.
+         ════════════════════════════════════════════════════════════════ */
+      const T130_CHAIN = {
+        proxy:   'https://anilist-my-proxy.vercel.app',
+        scraper: 'https://anilist-scraper-steel.vercel.app',
+        ruri:    'https://ruri.bionmovies47.workers.dev',
+      };
+      const _t130Memo = {};   // chain-name → Promise<media[]>
+
+      async function _t130FetchJson(url, ms = 15000) {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), ms);
+        try {
+          const r = await fetch(url, { signal: ctrl.signal });
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return await r.json();
+        } finally { clearTimeout(timer); }
+      }
+
+      /** jikan-v4 item → AniList-ish media (for the ruri leg). The ruri rows
+        * carry anilist_id/mal_id/background_image even in jikan shape. */
+      function _t130JikanToAniList(a) {
+        if (!a || typeof a !== 'object') return null;
+        const imgs = a.images || {};
+        const img = imgs.webp?.large_image_url || imgs.jpg?.large_image_url ||
+                    imgs.webp?.image_url || imgs.jpg?.image_url || a.background_image || null;
+        const stMap = { 'Currently Airing': 'RELEASING', 'Finished Airing': 'FINISHED', 'Not yet aired': 'NOT_YET_RELEASED' };
+        const tyMap = { TV: 'TV', Movie: 'MOVIE', OVA: 'OVA', ONA: 'ONA', Special: 'SPECIAL', Music: 'MUSIC' };
+        const genres = [...(a.genres || []), ...(a.explicit_genres || [])].map(g => g?.name || g).filter(Boolean);
+        const hentai = String(a.rating || '').startsWith('Rx') || genres.some(g => String(g).toLowerCase().includes('hentai'));
+        return {
+          id: a.anilist_id != null ? (parseInt(a.anilist_id, 10) || null) : null,
+          idMal: a.mal_id != null ? (parseInt(a.mal_id, 10) || null) : null,
+          title: { romaji: a.title || null, english: a.title_english || a.title || null, native: a.title_japanese || null },
+          coverImage: { extraLarge: img, large: img, medium: img, color: null },
+          bannerImage: a.background_image || a.trailer?.images?.maximum_image_url || null,
+          format: tyMap[a.type] || a.type || 'TV',
+          status: stMap[a.status] || null,
+          episodes: a.episodes ?? null,
+          duration: a.duration ? parseInt(String(a.duration).match(/(\d+)/)?.[1] || '0', 10) || null : null,
+          season: a.season ? String(a.season).toUpperCase() : null,
+          seasonYear: a.year ?? a.aired?.prop?.from?.year ?? null,
+          startDate: { year: a.aired?.prop?.from?.year ?? a.year ?? null, month: null, day: null },
+          averageScore: a.score != null ? Math.round(parseFloat(a.score) * 100) / 10 : null,
+          popularity: a.members ?? a.popularity ?? null,
+          trending: null,
+          favourites: a.favorites ?? null,
+          genres,
+          studios: { nodes: (a.studios || []).map(s => ({ id: s.mal_id ?? null, name: s.name, isAnimationStudio: true })) },
+          nextAiringEpisode: a.next_episode?.airing_at ? {
+            airingAt: Math.round(new Date(a.next_episode.airing_at).getTime() / 1000),
+            timeUntilAiring: Math.max(0, Math.round(new Date(a.next_episode.airing_at).getTime() / 1000 - Date.now() / 1000)),
+            episode: a.next_episode.episode ?? null,
+          } : null,
+          description: (a.synopsis || '').replace(/<[^>]*>/g, '').slice(0, 500) || null,
+          siteUrl: a.url || (a.mal_id ? `https://myanimelist.net/anime/${a.mal_id}` : null),
+          isAdult: !!hentai,
+          _chain_source: 'ruri_anikoto',
+        };
+      }
+
+      /** Valid-pool check that DROPS stray bad rows instead of discarding the
+        * whole pool for one malformed item (some anikoto rows have neither
+        * anilist_id nor mal_id — e.g. "arcane"). Returns the filtered list. */
+      function _t130ValidPool(list, min = 5) {
+        if (!Array.isArray(list)) return null;
+        const good = list.filter(m =>
+          m && typeof m === 'object' && (m.id != null || m.idMal != null) &&
+          (m.title?.romaji || m.title?.english || m.title?.native || m.title));
+        return good.length >= Math.min(min, list.length) ? good : null;
+      }
+
+      /* ── LEG 1: anilist-my-proxy (plain AniList media arrays under .data) ── */
+      async function _t130ProxyList(cat, perPage) {
+        const d = await _t130FetchJson(`${T130_CHAIN.proxy}/api/${cat}?perPage=${perPage}`);
+        const list = d?.data;
+        return _t130ValidPool(list, 1) ? list : null;
+      }
+      /* ── LEG 2: anilist-scraper (AniList-shaped data.Page.media) ── */
+      async function _t130ScraperList(path, params) {
+        const d = await _t130FetchJson(`${T130_CHAIN.scraper}${path}${path.includes('?') ? '&' : '?'}${params}`);
+        const list = d?.data?.Page?.media;
+        return _t130ValidPool(list, 1) ? list : null;
+      }
+      /* ── LEG 3: ruri worker anikoto profile (jikan-v4 list, 25/page cap) ── */
+      async function _t130RuriList(path, want, params = '') {
+        const pages = Math.ceil(want / 25);
+        const lists = await Promise.all(
+          Array.from({ length: Math.min(pages, 3) }, (_, i) =>
+            _t130FetchJson(`${T130_CHAIN.ruri}${path}${path.includes('?') ? '&' : '?'}limit=25&page=${i + 1}${params ? `&${params}` : ''}`)
+              .then(d => (Array.isArray(d?.data) ? d.data : []))
+              .catch(() => []))
+        );
+        const list = lists.flat().map(_t130JikanToAniList).filter(Boolean);
+        return _t130ValidPool(list, 1) ? list : null;
+      }
+
+      /** Airing-anime pool for the HERO (AniList-format media[]). */
+      function getAiringAnimeFallback(limit = 50) {
+        if (!_t130Memo.airing) {
+          _t130Memo.airing = (async () => {
+            const legs = [
+              () => _t130ProxyList('currently-airing', limit),
+              () => _t130ScraperList('/v4/anime/airing', `limit=${limit}&format=TV&sfw=true`),
+              () => _t130RuriList('/anikoto/anime', limit, 'status=currently-airing&order_by=score&sort=desc'),
+            ];
+            for (let i = 0; i < legs.length; i++) {
+              try {
+                const list = await legs[i]();
+                if (list) {
+                  console.log(`[t130-chain] airing pool via leg ${i + 1} (${['anilist-my-proxy', 'anilist-scraper', 'ruri-anikoto'][i]}): ${list.length} items`);
+                  list.forEach(m => { if (m && typeof m === 'object') m._chain_source = m._chain_source || ['anilist-proxy', 'anilist-scraper', 'ruri-anikoto'][i]; });
+                  return list;
+                }
+              } catch (e) { console.warn(`[t130-chain] airing leg ${i + 1} failed:`, e.message); }
+            }
+            console.warn('[t130-chain] ALL airing legs failed — hero stays on whatever the DB had');
+            return [];
+          })();
+        }
+        return _t130Memo.airing;
+      }
+
+      /** Weighted popular pool (mirrors the old live-AniList fallback scoring:
+        * avgScore*0.7 + min(100000/popularity,10) + trending*0.5). */
+      function _t130ScorePopular(list) {
+        const seen = new Set();
+        return list
+          .filter(m => { const k = m.id || m.idMal; if (!k || seen.has(k)) return false; seen.add(k); return true; })
+          .map(m => {
+            const avgScore = m.averageScore || 0;
+            const popBonus = m.popularity ? Math.min(100000 / m.popularity, 10) : 0;
+            const trendBonus = m.trending ? m.trending * 0.5 : 0;
+            return { ...m, _w: avgScore * 0.7 + popBonus + trendBonus };
+          })
+          .sort((a, b) => b._w - a._w);
+      }
+
+      /** Popular pool for the POPULAR ANIME section (AniList-format media[]). */
+      function getPopularAnimeFallback() {
+        if (!_t130Memo.popular) {
+          _t130Memo.popular = (async () => {
+            const legs = [
+              async () => {   // same popularity+score merge the old fallback did
+                const [pop, top] = await Promise.all([
+                  _t130ProxyList('popular', 30).catch(() => null),
+                  _t130ProxyList('top-rated', 25).catch(() => null),
+                ]);
+                const merged = [...(pop || []), ...(top || [])];
+                return merged.length ? _t130ScorePopular(merged).slice(0, 28) : null;
+              },
+              async () => {
+                const list = await _t130ScraperList('/v4/anime/popular', 'limit=40&sfw=true');
+                return list ? _t130ScorePopular(list).slice(0, 28) : null;
+              },
+              async () => {
+                const list = await _t130RuriList('/anikoto/anime', 50, 'order_by=score&sort=desc');
+                return list ? _t130ScorePopular(list).slice(0, 28) : null;
+              },
+            ];
+            for (let i = 0; i < legs.length; i++) {
+              try {
+                const list = await legs[i]();
+                if (list && list.length) {
+                  console.log(`[t130-chain] popular pool via leg ${i + 1} (${['anilist-my-proxy', 'anilist-scraper', 'ruri-anikoto'][i]}): ${list.length} items`);
+                  list.forEach(m => { if (m && typeof m === 'object') m._chain_source = m._chain_source || ['anilist-proxy', 'anilist-scraper', 'ruri-anikoto'][i]; });
+                  return list;
+                }
+              } catch (e) { console.warn(`[t130-chain] popular leg ${i + 1} failed:`, e.message); }
+            }
+            console.warn('[t130-chain] ALL popular legs failed');
+            return [];
+          })();
+        }
+        return _t130Memo.popular;
+      }
+
+      /** Most-favourited pool for the MOST POPULAR section. */
+      function getMostFavouriteAnimeFallback(limit = 30) {
+        if (!_t130Memo.favourite) {
+          _t130Memo.favourite = (async () => {
+            const legs = [
+              () => _t130ProxyList('most-favourite', limit),
+              () => _t130ScraperList('/v4/anime/popular', `limit=${limit}&sfw=true&sort=favourite`),
+              () => _t130RuriList('/anikoto/anime', limit, 'order_by=score&sort=desc'),
+            ];
+            for (let i = 0; i < legs.length; i++) {
+              try {
+                const list = await legs[i]();
+                if (list) {
+                  console.log(`[t130-chain] most-favourite pool via leg ${i + 1} (${['anilist-my-proxy', 'anilist-scraper', 'ruri-anikoto'][i]}): ${list.length} items`);
+                  list.forEach(m => { if (m && typeof m === 'object') m._chain_source = m._chain_source || ['anilist-proxy', 'anilist-scraper', 'ruri-anikoto'][i]; });
+                  return list;
+                }
+              } catch (e) { console.warn(`[t130-chain] most-favourite leg ${i + 1} failed:`, e.message); }
+            }
+            return [];
+          })();
+        }
+        return _t130Memo.favourite;
+      }
+      window._t130Chain = T130_CHAIN; // debug handle
+
       async function loadHero() {
         // ── PRIMARY: /api/hero-slider endpoint (no live API fallback) ────────
         // TMDB TV: filtered to DYNAMIC current-year (no hardcoded year).
@@ -4691,8 +4912,14 @@ async function loadNewAniocean() {
         // V4.8.0: endpoint returns RAW jsonb (tmdb_tv page-keyed object) and
         // Anime items may be AniList OR Jikan v4 — both are normalized here.
         const dbHS = await window.getHomeData('hero_slider');
+        // t130: DB anime pool can come back EMPTY during AniList outages (the
+        // nightly refresh fails) — fall back to the proxy→scraper→ruri chain.
+        let dbHSAnime = dbAnimeList(dbHS);
+        if (!dbHSAnime.length) {
+          console.warn('[Hero] DB anime pool empty → t130 fallback chain (proxy→scraper→ruri)');
+          dbHSAnime = await getAiringAnimeFallback(HERO_CONFIG.anilistPerPage);
+        }
         const dbHSTv = getTmdbArr(dbHS, 'tv');           // tmdb_tv: {"1": [...], "2": [...]} → flat array
-        const dbHSAnime = dbAnimeList(dbHS);              // AniList OR Jikan v4 items
 
         // ═══════════════════════════════════════════════════════════════════
         // TMDB TV: dedup + DYNAMIC current-year filter (never hardcoded)
@@ -8039,7 +8266,13 @@ titleEl.style.color = '#ffffff';
         const dbMF = await window.getHomeData('most_favourite');
 
         // ── Anime ── (filter: averageScore + meanScore + popularity + favourites)
-        const mfAnimeRaw = dbAnimeList(dbMF);
+        // t130: DB most_favourite anime leg can come back empty during AniList
+        // outages — fall back to the proxy→scraper→ruri chain before ranking.
+        let mfAnimeRaw = dbAnimeList(dbMF);
+        if (!mfAnimeRaw.length) {
+          console.warn('[loadPopular] DB most-favourite anime empty → t130 fallback chain (proxy→scraper→ruri)');
+          mfAnimeRaw = await getMostFavouriteAnimeFallback(30);
+        }
         const mfAnime = mfAnimeRaw
           .map(m => {
             const n = normalizeAnimeItem(m);
@@ -8514,48 +8747,12 @@ titleEl.style.color = '#ffffff';
               return true;
             }).slice(0, 28);
           } else {
-            // FALLBACK: live AniList (only when endpoint is completely unavailable)
-            const [anilistPop, anilistTop] = await Promise.all([
-              fetchAniList(`
-                query ($perPage: Int) {
-                  Page(page: 1, perPage: $perPage) {
-                    media(type: ANIME, isAdult: false, sort: [POPULARITY_DESC]) {
-                      ${ANILIST_ANIME_FIELDS}
-                    }
-                  }
-                }
-              `, { perPage: 30 }),
-              fetchAniList(`
-                query ($perPage: Int) {
-                  Page(page: 1, perPage: $perPage) {
-                    media(type: ANIME, isAdult: false, sort: [SCORE_DESC]) {
-                      ${ANILIST_ANIME_FIELDS}
-                    }
-                  }
-                }
-              `, { perPage: 25 })
-            ]);
-
-            const allMedia = [
-              ...(anilistPop?.Page?.media || []),
-              ...(anilistTop?.Page?.media || [])
-            ];
-
-            const seen = new Set();
-            const unique = allMedia.filter(m => {
-              if (seen.has(m.id)) return false;
-              seen.add(m.id);
-              return true;
-            });
-
-            const scored = unique.map(m => {
-              const avgScore    = m.averageScore || 0;
-              const popBonus    = m.popularity ? Math.min(100000 / m.popularity, 10) : 0;
-              const trendBonus  = m.trending ? m.trending * 0.5 : 0;
-              return { ...m, _w: avgScore * 0.7 + popBonus + trendBonus };
-            });
-            scored.sort((a, b) => b._w - a._w);
-            top28 = scored.slice(0, 28);
+            // t130 FALLBACK: the Neon endpoint is empty/broken (e.g. AniList
+            // outage broke the nightly refresh) → 3-leg chain proxy →
+            // anilist-scraper → ruri anikoto (replaces the old direct
+            // live-AniList fallback that died whenever AniList went down).
+            console.warn('[loadPopularAnime] DB popular empty → t130 fallback chain (proxy→scraper→ruri)');
+            top28 = await getPopularAnimeFallback();
           }
 
           const slugify = t => (t||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
