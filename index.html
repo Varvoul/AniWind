@@ -8793,7 +8793,10 @@ titleEl.style.color = '#ffffff';
          PRIMARY:   /api/schedule/all — AniList airingSchedules with TRUE
                     episode numbers + exact broadcast timestamps, grouped
                     by JST broadcast day (4h server TTL + 2h edge TTL)
-         FALLBACK:  self-hosted Jikan /v4/schedule/{day} (legacy shape,
+         FALLBACK1: t129 anilist-scraper /v4/schedule/all — SAME payload
+                    shape built from the owner's Supabase DB (anikoto_data
+                    profile "ruristream"); unaffected by AniList outages
+         FALLBACK2: self-hosted Jikan /v4/schedule/{day} (legacy shape,
                     episode numbers estimated — kept as the safety net)
          Features: Parallel fetch, Week nav, 5-month limit, Pinned Show More,
                    scroll fade, today timeline states, EP progress bars
@@ -8803,6 +8806,9 @@ titleEl.style.color = '#ffffff';
       const JIKAN_SCHEDULE_BASE = 'https://jikan-api-bohb.onrender.com/v4/schedule';
       // V5 PRIMARY: anilist-my-proxy schedule endpoint (AniList airingSchedules)
       const SCHEDULE_PROXY_ALL = 'https://anilist-my-proxy.vercel.app/api/schedule/all';
+      // t129 FALLBACK1: Supabase-backed schedule endpoint (anilist-scraper project)
+      // — identical data.Page.days shape, built from anikoto_data.anilist_full_cached
+      const SCHEDULE_DB_ALL = 'https://anilist-scraper-steel.vercel.app/v4/schedule/all';
       const SCHEDULE_PROXY_TIMEOUT_MS = 15000;
       const ANILIST_FORMAT_LABELS = { TV_SHORT: 'TV Short', ONA: 'ONA', OVA: 'OVA', MOVIE: 'Movie', SPECIAL: 'Special', MUSIC: 'Music' };
       const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
@@ -8864,7 +8870,7 @@ titleEl.style.color = '#ffffff';
           console.log(`[Schedule] Fetching: ${url}`);
           
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 12000); // 12s timeout
+          const timeoutId = setTimeout(() => controller.abort(), 20000); // 20s — Render cold starts + MAL latency
           
           const res = await fetch(url, { 
             signal: controller.signal,
@@ -9014,15 +9020,62 @@ titleEl.style.color = '#ffffff';
         }
       }
 
-      // ---------- Helper: Fetch ALL 7 days (proxy primary → Jikan fallback) ----------
+      // ---------- Helper: FALLBACK 1 — Supabase-backed schedule (t129) ----------
+      // anilist-scraper /v4/schedule/all serves the SAME data.Page.days shape
+      // built from anikoto_data.anilist_full_cached (profile "ruristream").
+      // It never touches graphql.anilist.co, so the widget keeps rendering
+      // while the AniList API is down; when AniList recovers the PRIMARY leg
+      // above wins again automatically (it is tried first on every load).
+      async function fetchScheduleFromDb() {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), SCHEDULE_PROXY_TIMEOUT_MS);
+        try {
+          const res = await fetch(SCHEDULE_DB_ALL, {
+            signal: controller.signal,
+            headers: { 'Accept': 'application/json' }
+          });
+          clearTimeout(timeoutId);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const json = await res.json();
+          const days = json?.data?.Page?.days;
+          if (!days || typeof days !== 'object') throw new Error('unexpected schedule-db shape');
+
+          const out = {};
+          let total = 0;
+          DAYS.forEach(day => {
+            const arr = Array.isArray(days[day]) ? days[day] : [];
+            const _seen = new Set();
+            out[day] = arr.map(mapAniListScheduleItem).filter(a => {
+              const k = a.anilist_id || a.mal_id || a.title;
+              if (!k || _seen.has(k)) return false;
+              _seen.add(k);
+              return true;
+            });
+            total += out[day].length;
+          });
+          if (total === 0) throw new Error('empty schedule-db payload');
+          console.log(`[Schedule] ✅ schedule-db (Supabase anikoto_data): ${total} airing entries across 7 days (true episode numbers)`);
+          return out;
+        } catch (err) {
+          clearTimeout(timeoutId);
+          console.warn('[Schedule] ⚠️ schedule-db failed:', err.message, '→ falling back to self-hosted Jikan');
+          return null;
+        }
+      }
+
+      // ---------- Helper: Fetch ALL 7 days (proxy → schedule-db → Jikan) ----------
       async function fetchAllDaysParallel() {
-        console.log('[Schedule] 🚀 Fetching weekly airing schedule (anilist-my-proxy → Jikan fallback)...');
+        console.log('[Schedule] 🚀 Fetching weekly airing schedule (anilist-my-proxy → schedule-db → Jikan fallback)...');
 
         // PRIMARY: AniList airingSchedules via anilist-my-proxy — true episode
         // numbers, exact airingAt timestamps, JST broadcast-day grouping.
         const proxyData = await fetchScheduleFromProxy();
         if (proxyData) return proxyData;
-        // FALLBACK: legacy self-hosted Jikan per-day schedule (episode numbers
+        // FALLBACK 1 (t129): Supabase-backed schedule — AniList-shaped payload
+        // from the owner's DB; independent of AniList outages.
+        const dbData = await fetchScheduleFromDb();
+        if (dbData) return dbData;
+        // FALLBACK 2 (last resort): legacy self-hosted Jikan per-day schedule (episode numbers
         // ESTIMATED from aired-from week diffs — kept only as a safety net).
         console.log('[Schedule] 🐌 Falling back to self-hosted Jikan (estimated episode numbers)...');
         const jikanResults = await Promise.allSettled(DAYS.map(day => fetchDayFromJikan(day)));

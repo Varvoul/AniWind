@@ -247,7 +247,11 @@
      the visitor's LOCAL timezone.
    ════════════════════════════════════════════════════════════ */
   var SCHEDULE_ALL = 'https://anilist-my-proxy.vercel.app/api/schedule/all';
+  // t129 fallback chain legs:
+  var SCHEDULE_DB_ALL = 'https://anilist-scraper-steel.vercel.app/v4/schedule/all'; // Supabase-backed (own DB)
+  var JIKAN_SCHEDULE_BASE = 'https://jikan-api-bohb.onrender.com/v4/schedule';       // last resort (degraded)
   var TIMEOUT_MS = 15000;
+  var JIKAN_DAY_TIMEOUT_MS = 20000;
   var FORMAT_LABELS = { TV_SHORT: 'TV Short', ONA: 'ONA', OVA: 'OVA', MOVIE: 'Movie', SPECIAL: 'Special', MUSIC: 'Music' };
   var DOW_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -337,20 +341,111 @@
     };
   }
 
-  /* ── Fetch + flatten ── */
+  /* ── t129 fetch chain — page keeps rendering when AniList is down ──
+     PRIMARY    anilist-my-proxy /api/schedule/all (AniList airingSchedules —
+                true episode numbers + exact instants). Tried FIRST on every
+                load, so the page auto-flips back to AniList as soon as it
+                recovers — no manual switch, no config change.
+     FALLBACK 1 anilist-scraper /v4/schedule/all — the SAME payload shape,
+                built from our own Supabase DB (anikoto_data profile
+                "ruristream"); completely independent of AniList's health.
+     FALLBACK 2 self-hosted Jikan /v4/schedule/{day} — degraded mode:
+                estimated episode numbers (EP ?), JST-anchored broadcast
+                times re-anchored to absolute epochs for local grouping. */
+  function fetchJson(url, ms) {
+    var ctl = ('AbortSignal' in window && AbortSignal.timeout) ? { signal: AbortSignal.timeout(ms) } : {};
+    return fetch(url, ctl).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    });
+  }
+  function daysFromAniListShape(j) {
+    var days = j && j.data && j.data.Page && j.data.Page.days;
+    if (!days || typeof days !== 'object') throw new Error('unexpected payload');
+    return days;
+  }
+  function fetchProxyDays() { return fetchJson(SCHEDULE_ALL, TIMEOUT_MS).then(daysFromAniListShape); }
+  function fetchDbDays()    { return fetchJson(SCHEDULE_DB_ALL, TIMEOUT_MS).then(daysFromAniListShape); }
+  function fetchJikanDays() {
+    return Promise.allSettled(DOW_FULL.map(function (day) {
+      return fetchJson(JIKAN_SCHEDULE_BASE + '/' + day + '?sfw=true', JIKAN_DAY_TIMEOUT_MS);
+    })).then(function (results) {
+      var days = {};
+      var total = 0;
+      DOW_FULL.forEach(function (day, i) {
+        var res = results[i];
+        days[day] = (res && res.status === 'fulfilled' && Array.isArray(res.value && res.value.data)) ? res.value.data : [];
+        total += days[day].length;
+      });
+      if (!total) throw new Error('all jikan day fetches failed');
+      return days;
+    });
+  }
+
+  /* ── Jikan (last-resort) mapper — degraded mode ──
+     jikan /schedule items carry a broadcast STRING but no absolute epoch, so
+     estimate the next occurrence of the JST broadcast time; episode numbers
+     stay unknown (card shows EP ?) — honest degradation, not wrong data. */
+  function jikanBroadcastEpoch(broadcast, dayName) {
+    try {
+      var dayStr = (broadcast && broadcast.day) || dayName || '';
+      var m = String((broadcast && broadcast.time) || '').match(/^(\d{1,2}):(\d{2})$/);
+      var dow = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday']
+        .indexOf(String(dayStr).toLowerCase().replace(/s$/, ''));
+      if (!m || dow < 0) return 0;
+      var now = Date.now();
+      for (var add = 0; add <= 7; add++) {
+        var d = new Date(now + add * 86400000);
+        if (d.getDay() !== dow) continue;
+        var utcMs = Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), parseInt(m[1], 10), parseInt(m[2], 10)) - 9 * 3600000;
+        if (utcMs > now - 45 * 60000) return Math.floor(utcMs / 1000);
+      }
+    } catch (e) { /* fallthrough */ }
+    return 0;
+  }
+  function mapJikanScheduleItem(a, dayName) {
+    var title = a.title_english || a.title || a.title_japanese || 'Unknown Title';
+    var slug = String(title).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    var poster = '';
+    if (a.images) {
+      poster = (a.images.webp && (a.images.webp.large_image_url || a.images.webp.image_url)) ||
+               (a.images.jpg && (a.images.jpg.large_image_url || a.images.jpg.image_url)) || '';
+    }
+    var fmtMap = { TV: 'TV', Movie: 'MOVIE', OVA: 'OVA', ONA: 'ONA', Special: 'SPECIAL', Music: 'MUSIC' };
+    return {
+      title: title,
+      poster: poster,
+      airing_at: jikanBroadcastEpoch(a.broadcast, dayName),
+      episode: null,
+      format: fmtMap[a.type] || a.type || null,
+      episodes_total: a.episodes || null,
+      score: (typeof a.score === 'number' && a.score > 0) ? Math.round(a.score * 10) : null,
+      year: a.year || (a.aired && a.aired.prop && a.aired.prop.from && a.aired.prop.from.year) || null,
+      genres: (a.genres || []).slice(0, 4).map(function (g) { return g.name || g; }),
+      studio: (a.studios && a.studios[0] && a.studios[0].name) || null,
+      description: String(a.synopsis || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 230),
+      href: a.mal_id ? '/info/anime/jikan-' + a.mal_id + '/' + slug : '/info/anime/jikan-0/' + slug
+    };
+  }
+
+  /* ── Fetch + flatten (3-leg chain) ── */
   function load() {
     stateEl.style.display = 'none';
     showSkeletons();
-    var ctl = ('AbortSignal' in window && AbortSignal.timeout) ? { signal: AbortSignal.timeout(TIMEOUT_MS) } : {};
-    fetch(SCHEDULE_ALL, ctl)
-      .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
-      .then(function (j) {
-        var days = j && j.data && j.data.Page && j.data.Page.days;
-        if (!days || typeof days !== 'object') throw new Error('unexpected payload');
+    fetchProxyDays()
+      .catch(function (e1) {
+        console.warn('[Schedule] proxy failed:', e1.message, '→ schedule-db (Supabase)');
+        return fetchDbDays().catch(function (e2) {
+          console.warn('[Schedule] schedule-db failed:', e2.message, '→ Jikan (degraded mode)');
+          return fetchJikanDays().then(function (days) { return { days: days, jikan: true }; });
+        });
+      })
+      .then(function (payload) {
+        var days = payload.days;
         allItems = [];
         Object.keys(days).forEach(function (k) {
           (Array.isArray(days[k]) ? days[k] : []).forEach(function (raw) {
-            var mapped = mapItem(raw);
+            var mapped = payload.jikan ? mapJikanScheduleItem(raw, k) : mapItem(raw);
             if (mapped.airing_at > 0 && mapped.poster) {
               mapped._dayKey = localDateKey(new Date(mapped.airing_at * 1000));
               allItems.push(mapped);
