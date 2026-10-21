@@ -4904,6 +4904,267 @@ async function loadNewAniocean() {
       }
       window._t130Chain = T130_CHAIN; // debug handle
 
+      /* ════════════════════════════════════════════════════════════════
+         t131 — SECTION FALLBACK CHAINS + GUARDED TTL CACHE
+         ════════════════════════════════════════════════════════════════
+         Extends the t130 outage protection (hero + popular) to the rest of
+         the index sections' ANIME pools: Top Airing, New Releases (All +
+         Anime tabs), Upcoming Shows, Recently Completed, Trending Now.
+
+         Chain per section (owner spec): anilist-scraper → self-hosted
+         Jikan (onrender → aniumi edge proxy → api.jikan.moe) → ruri
+         (anikoto profile). The Neon DB endpoint (/api/<column>) stays the
+         PRIMARY — chains fire only when its Anime array comes back empty,
+         so everything auto-flips back to the DB the moment AniList (and
+         the nightly automation) recovers.
+
+         CACHE RULES (owner spec):
+           - Every pool has a TTL (chosen below per section: how often the
+             underlying data actually changes).
+           - A cache entry is NEVER overwritten by empty/corrupt/downstream
+             results — only a valid, non-empty pool (ids + titles) may
+             replace the cached copy.
+           - If the live chain fails entirely, the stale cached copy is
+             still served (past its TTL) rather than leaving the section
+             empty.
+           - Storage: localStorage under t131:v1:<key>. window.CacheHelpers
+             does not exist (those cacheSection calls are no-ops), so this
+             is the only section cache.
+         ════════════════════════════════════════════════════════════════ */
+      const T131_CACHE_TTL_MS = {
+        airingPool:   6 * 3600e3,  // hero + Top Airing pool
+        newReleases:  6 * 3600e3,  // New Releases anime pool
+        upcoming:    12 * 3600e3,  // Upcoming Shows anime pool
+        completed:   12 * 3600e3,  // Recently Completed anime pool
+        trending:     2 * 3600e3,  // Trending Now anime pool (fast-moving)
+      };
+      const _t131Memo = {}; // pool-name → Promise<media[]> (per page load)
+
+      function _t131CacheGet(key) {
+        try {
+          const raw = localStorage.getItem(`t131:v1:${key}`);
+          if (!raw) return null;
+          const obj = JSON.parse(raw);
+          if (!obj || !Array.isArray(obj.v)) return null;
+          return { data: obj.v, at: obj.at || 0, fresh: (Date.now() - (obj.at || 0)) < (T131_CACHE_TTL_MS[key] || 3600e3) };
+        } catch (e) { return null; }
+      }
+      /** Guarded write: only a valid, non-empty pool may enter the cache. */
+      function _t131CacheSet(key, list) {
+        try {
+          if (!Array.isArray(list) || !list.length) return false;
+          const good = list.filter(m => m && typeof m === 'object' &&
+            (m.id != null || m.idMal != null) &&
+            (m.title?.romaji || m.title?.english || m.title?.native || m.title?.userPreferred));
+          if (good.length < Math.min(5, list.length)) return false;
+          localStorage.setItem(`t131:v1:${key}`, JSON.stringify({ at: Date.now(), v: good }));
+          return true;
+        } catch (e) { return false; } // quota / private mode — cache is best-effort
+      }
+      /** Fresh cache wins (instant render); otherwise run the chain, write
+        * only on a valid pool, and serve the stale copy when all legs fail. */
+      async function _t131Pool(key, chainFn) {
+        if (_t131Memo[key]) return _t131Memo[key];
+        _t131Memo[key] = (async () => {
+          const cached = _t131CacheGet(key);
+          if (cached && cached.fresh) {
+            console.log(`[t131-cache] ${key}: fresh hit (${cached.data.length} items, age ${Math.round((Date.now() - cached.at) / 60000)}min)`);
+            return cached.data;
+          }
+          try {
+            const list = await chainFn();
+            if (list && list.length) {
+              _t131CacheSet(key, list);
+              return list;
+            }
+            console.warn(`[t131-cache] ${key}: chain returned empty`);
+          } catch (e) {
+            console.warn(`[t131-cache] ${key}: chain failed:`, e.message);
+          }
+          if (cached) {
+            console.warn(`[t131-cache] ${key}: serving STALE copy (${Math.round((Date.now() - cached.at) / 3600000)}h old) — cache not overwritten by bad live data`);
+            return cached.data;
+          }
+          return [];
+        })();
+        return _t131Memo[key];
+      }
+
+      /* ── Jikan leg: owner's self-hosted instance → aniumi edge proxy → public ── */
+      const T131_JIKAN_BASES = [
+        'https://jikan-api-bohb.onrender.com/v4',               // self-hosted (owner)
+        `${ROWANA_PROXY}/jikan`.replace(/\/jikan\/?$/, '/jikan'), // aniumi worker proxy
+        'https://api.jikan.moe/v4',                             // public last resort
+      ];
+      async function _t131JikanGet(path, ms = 15000) {
+        const clean = String(path || '').replace(/^\/+/, ''); // avoid "/jikan//seasons" double slash
+        for (const base of T131_JIKAN_BASES) {
+          const url = `${base}/${clean}`;
+          try {
+            const r = await fetch(url, { signal: AbortSignal.timeout(ms), headers: { Accept: 'application/json' } });
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            const j = await r.json();
+            if (j && (j.error || j.status === 500 || j.status === 400)) throw new Error('jikan body error');
+            return j;
+          } catch (e) { /* try next base */ }
+        }
+        throw new Error(`jikan unreachable: ${path}`);
+      }
+      /** Multi-page jikan list → flattened data[] rows. Tolerates per-page failures. */
+      async function _t131JikanList(path, pages = 2) {
+        const lists = await Promise.all(
+          Array.from({ length: pages }, (_, i) =>
+            _t131JikanGet(`${path}${path.includes('?') ? '&' : '?'}limit=25&page=${i + 1}`)
+              .then(j => (Array.isArray(j?.data) ? j.data : []))
+              .catch(() => []))
+        );
+        return lists.flat();
+      }
+
+      /* ── LEG 1 helper: anilist-scraper section pools (AniList-shaped media[]) ── */
+      async function _t131ScraperPool(pool, params) {
+        const d = await _t130FetchJson(`${T130_CHAIN.scraper}/v4/anime/list?pool=${pool}${params ? `&${params}` : ''}`);
+        const list = d?.data?.Page?.media;
+        return _t130ValidPool(list, 1) ? list : null;
+      }
+
+      /* ── LEG 3 helper: ruri anikoto profile (paged, jikan-shape → AniList-lite) ── */
+      async function _t131RuriPool(path, want, params = '') {
+        const pages = Math.ceil(want / 25);
+        const lists = await Promise.all(
+          Array.from({ length: Math.min(pages, 3) }, (_, i) =>
+            _t130FetchJson(`${T130_CHAIN.ruri}${path}${path.includes('?') ? '&' : '?'}limit=25&page=${i + 1}${params ? `&${params}` : ''}`)
+              .then(d => (Array.isArray(d?.data) ? d.data : []))
+              .catch(() => []))
+        );
+        const list = lists.flat().map(_t130JikanToAniList).filter(Boolean);
+        return _t130ValidPool(list, 1) ? list : null;
+      }
+
+      /* ── POOL: airing anime (hero + Top Airing) — t130 chain + jikan leg + cache ── */
+      function _t131AiringPool(limit = 60) {
+        return _t131Pool('airingPool', async () => {
+          const list = await getAiringAnimeFallback(limit); // proxy → scraper → ruri (t130)
+          if (list && list.length) return list;
+          console.warn('[t131-chain] airing: t130 legs failed → self-hosted jikan /top/anime?filter=airing');
+          const rows = await _t131JikanList('/top/anime?filter=airing', 3);
+          const mapped = rows.map(_t130JikanToAniList).filter(Boolean);
+          return _t130ValidPool(mapped, 1) ? mapped : [];
+        });
+      }
+      /* ── POOL: New Releases (recently premiered, still airing) ── */
+      function _t131NewReleasesPool(limit = 50) {
+        return _t131Pool('newReleases', async () => {
+          const legs = [
+            () => _t131ScraperPool('new', `limit=${limit}&sfw=true`),
+            async () => {
+              console.warn('[t131-chain] new-releases leg 2: self-hosted jikan /seasons/now');
+              const rows = await _t131JikanList('/seasons/now', 2);
+              const mapped = rows.map(_t130JikanToAniList).filter(Boolean);
+              return _t130ValidPool(mapped, 1) ? mapped : null;
+            },
+            () => _t131RuriPool('/anikoto/anime', limit, 'status=currently-airing&order_by=start_date&sort=desc'),
+          ];
+          for (let i = 0; i < legs.length; i++) {
+            try {
+              const list = await legs[i]();
+              if (list && list.length) {
+                console.log(`[t131-chain] new-releases via leg ${i + 1} (${['anilist-scraper', 'self-jikan', 'ruri-anikoto'][i]}): ${list.length} items`);
+                list.forEach(m => { if (m && typeof m === 'object') m._chain_source = ['anilist-scraper', 'self-jikan', 'ruri-anikoto'][i]; });
+                return list;
+              }
+            } catch (e) { console.warn(`[t131-chain] new-releases leg ${i + 1} failed:`, e.message); }
+          }
+          return [];
+        });
+      }
+      /* ── POOL: Upcoming Shows (not yet aired, soonest first) ── */
+      function _t131UpcomingPool(limit = 50) {
+        return _t131Pool('upcoming', async () => {
+          const legs = [
+            () => _t131ScraperPool('upcoming', `limit=${limit}&format=TV,TV_SHORT&sfw=true`),
+            async () => {
+              console.warn('[t131-chain] upcoming leg 2: self-hosted jikan /seasons/upcoming');
+              const rows = await _t131JikanList('/seasons/upcoming', 2);
+              const mapped = rows.map(_t130JikanToAniList).filter(Boolean);
+              return _t130ValidPool(mapped, 1) ? mapped : null;
+            },
+            () => _t131RuriPool('/anikoto/anime', limit, 'status=not-yet-aired&order_by=start_date&sort=asc'),
+          ];
+          for (let i = 0; i < legs.length; i++) {
+            try {
+              const list = await legs[i]();
+              if (list && list.length) {
+                console.log(`[t131-chain] upcoming via leg ${i + 1} (${['anilist-scraper', 'self-jikan', 'ruri-anikoto'][i]}): ${list.length} items`);
+                list.forEach(m => { if (m && typeof m === 'object') m._chain_source = ['anilist-scraper', 'self-jikan', 'ruri-anikoto'][i]; });
+                return list;
+              }
+            } catch (e) { console.warn(`[t131-chain] upcoming leg ${i + 1} failed:`, e.message); }
+          }
+          return [];
+        });
+      }
+      /* ── POOL: Recently Completed (finished airing, most recent first) ── */
+      function _t131CompletedPool(limit = 50) {
+        return _t131Pool('completed', async () => {
+          const legs = [
+            () => _t131ScraperPool('completed', `limit=${limit}&format=TV,TV_SHORT&sfw=true`),
+            async () => {
+              // Jikan has no "recently completed" route — the previous
+              // season's list filtered to Finished Airing is the closest pool.
+              const now = new Date(Date.now() + 9 * 3600e3); // JST
+              const idx = Math.floor(now.getUTCMonth() / 3);
+              const ps = idx === 0
+                ? { season: 'fall', year: now.getUTCFullYear() - 1 }
+                : { season: ['winter', 'spring', 'summer', 'fall'][idx - 1], year: now.getUTCFullYear() };
+              console.warn(`[t131-chain] completed leg 2: self-hosted jikan /seasons/${ps.year}/${ps.season} (finished only)`);
+              const rows = await _t131JikanList(`/seasons/${ps.year}/${ps.season}`, 2);
+              const mapped = rows.filter(a => a && a.status === 'Finished Airing').map(_t130JikanToAniList).filter(Boolean);
+              return _t130ValidPool(mapped, 1) ? mapped : null;
+            },
+            () => _t131RuriPool('/anikoto/anime', limit, 'status=finished-airing&order_by=start_date&sort=desc'),
+          ];
+          for (let i = 0; i < legs.length; i++) {
+            try {
+              const list = await legs[i]();
+              if (list && list.length) {
+                console.log(`[t131-chain] completed via leg ${i + 1} (${['anilist-scraper', 'self-jikan', 'ruri-anikoto'][i]}): ${list.length} items`);
+                list.forEach(m => { if (m && typeof m === 'object') m._chain_source = ['anilist-scraper', 'self-jikan', 'ruri-anikoto'][i]; });
+                return list;
+              }
+            } catch (e) { console.warn(`[t131-chain] completed leg ${i + 1} failed:`, e.message); }
+          }
+          return [];
+        });
+      }
+      /* ── POOL: Trending Now (airing + most popular) ── */
+      function _t131TrendingPool(limit = 21) {
+        return _t131Pool('trending', async () => {
+          const legs = [
+            () => _t131ScraperPool('trending', `limit=${limit}&sfw=true`),
+            async () => {
+              console.warn('[t131-chain] trending leg 2: self-hosted jikan /top/anime?filter=airing');
+              const rows = await _t131JikanList('/top/anime?filter=airing', 1);
+              const mapped = rows.map(_t130JikanToAniList).filter(Boolean);
+              return _t130ValidPool(mapped, 1) ? mapped : null;
+            },
+            () => _t131RuriPool('/anikoto/anime', limit, 'status=currently-airing&order_by=popularity&sort=desc'),
+          ];
+          for (let i = 0; i < legs.length; i++) {
+            try {
+              const list = await legs[i]();
+              if (list && list.length) {
+                console.log(`[t131-chain] trending via leg ${i + 1} (${['anilist-scraper', 'self-jikan', 'ruri-anikoto'][i]}): ${list.length} items`);
+                list.forEach(m => { if (m && typeof m === 'object') m._chain_source = ['anilist-scraper', 'self-jikan', 'ruri-anikoto'][i]; });
+                return list;
+              }
+            } catch (e) { console.warn(`[t131-chain] trending leg ${i + 1} failed:`, e.message); }
+          }
+          return [];
+        });
+      }
+      window._t131Debug = { pools: _t131Memo, cacheGet: _t131CacheGet }; // debug handle
+
       async function loadHero() {
         // ── PRIMARY: /api/hero-slider endpoint (no live API fallback) ────────
         // TMDB TV: filtered to DYNAMIC current-year (no hardcoded year).
@@ -4916,8 +5177,8 @@ async function loadNewAniocean() {
         // nightly refresh fails) — fall back to the proxy→scraper→ruri chain.
         let dbHSAnime = dbAnimeList(dbHS);
         if (!dbHSAnime.length) {
-          console.warn('[Hero] DB anime pool empty → t130 fallback chain (proxy→scraper→ruri)');
-          dbHSAnime = await getAiringAnimeFallback(HERO_CONFIG.anilistPerPage);
+          console.warn('[Hero] DB anime pool empty → t130/t131 fallback chain (proxy→scraper→ruri→self-jikan)');
+          dbHSAnime = await _t131AiringPool(60); // t131: 60-item pool so the slider can always reach 60 slides
         }
         const dbHSTv = getTmdbArr(dbHS, 'tv');           // tmdb_tv: {"1": [...], "2": [...]} → flat array
 
@@ -4987,7 +5248,7 @@ async function loadNewAniocean() {
           return pb - pa;
         });
         const topAnilistAnime = animeWithImage.slice(0, HERO_CONFIG.anilistTargetCount);
-        console.log(`[Hero] 🎌 TV-only anime with banner→extraLarge fallback: ${topAnilistAnime.length} ready (${topAnilistAnime.filter(x => x.n.source === 'jikan').length} jikan / ${topAnilistAnime.filter(x => x.n.source === 'anilist').length} anilist)`);
+        console.log(`[Hero] 🎌 TV-only anime with banner→extraLarge fallback: ${animeWithImage.length} in pool, ${topAnilistAnime.length} capped for merge (${animeWithImage.filter(x => x.n.source === 'jikan').length} jikan / ${animeWithImage.filter(x => x.n.source === 'anilist').length} anilist)`);
 
         const sourceType = 'Endpoint + dynamic year filter';
         console.log(`[Hero] 🎬 Fetched ${topTmdbShows.length} TV (${sourceType}) + ${topAnilistAnime.length} airing anime`);
@@ -5225,11 +5486,12 @@ async function loadNewAniocean() {
         }));
 
         // ── 4b) Map anime slides (AniList OR Jikan) — banner → extraLarge fallback ──
-        // Anime without bannerImage use coverImage.extraLarge as the hero
-        // backdrop instead of being dropped — keeps more anime in the slider.
-        console.log(`[Hero Image] Mapping ${topAnilistAnime.length} anime with banner→extraLarge fallback...`);
+        // t131: map the FULL filtered pool (not just the 45-slide merge cap) so
+        // the slider can always be topped back up to exactly 60 slides after
+        // dedup shrinks it.
+        console.log(`[Hero Image] Mapping ${animeWithImage.length} anime with banner→extraLarge fallback...`);
 
-        const anilistSlides = topAnilistAnime.map(({ raw: m, n }) => {
+        const anilistSlides = animeWithImage.map(({ raw: m, n }) => {
           const slugify = t => (t||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
           const genres = n.genres || [];
           // Themes: AniList tags ranked ≥60; Jikan named themes
@@ -5367,6 +5629,21 @@ async function loadNewAniocean() {
         
         // Final cross-source dedup (anime + TMDB by slide id)
         heroData = dedupById(merged, 'id').slice(0, HERO_CONFIG.maxTotalSlides);
+
+        // ── t131: keep the slider ALWAYS at 60 slides when the pool allows ──
+        // Dedup (by slide id) or a short TMDB leg can shrink the merge below
+        // the target (59 observed in production). Backfill from mapped anime
+        // slides not yet in the carousel before accepting a shorter one.
+        if (heroData.length < HERO_CONFIG.maxTotalSlides) {
+          const inHero = new Set(heroData.map(s => s.id));
+          for (const s of anilistSlides) {
+            if (heroData.length >= HERO_CONFIG.maxTotalSlides) break;
+            if (!s || inHero.has(s.id)) continue;
+            heroData.push(s);
+            inHero.add(s.id);
+          }
+          console.log(`[Hero] ⬆️ t131 top-up → ${heroData.length}/${HERO_CONFIG.maxTotalSlides} slides (leftover anime pool used)`);
+        }
 
         console.log(`[Hero] ${tmdbSlides.length} TMDB + ${jikanSlides.length} Jikan = ${heroData.length} total slides`);
         renderHero();
@@ -5899,7 +6176,14 @@ titleEl.style.color = '#ffffff';
         ]);
 
         // ── Anime from /api/top-airing (V4.8.0: AniList OR Jikan v4 items) ──
-        const dbTAAnime = dbAnimeList(dbTA);
+        // t131: the DB anime column comes back EMPTY during AniList outages
+        // (nightly automation can't refresh) — fall back to the chain
+        // (anilist-scraper → self-hosted Jikan → ruri) with a guarded TTL cache.
+        let dbTAAnime = dbAnimeList(dbTA);
+        if (!dbTAAnime.length) {
+          console.warn('[Top Airing] DB anime pool empty → t131 chain (scraper→self-jikan→ruri)');
+          dbTAAnime = await _t131AiringPool(50);
+        }
         const anime = [];
         for (const m of dbTAAnime) {
           const n = normalizeAnimeItem(m);
@@ -6320,7 +6604,14 @@ titleEl.style.color = '#ffffff';
           ]);
 
           // ── Anime from /api/new-releases (V4.8.0: AniList OR Jikan v4) ──
-          const dbNRAnime = dbAnimeList(dbNR);
+          // t131: DB anime column empty during AniList outages → chain
+          // (anilist-scraper → self-hosted Jikan → ruri) + guarded TTL cache.
+          // Feeds BOTH the All tab and the Anime tab.
+          let dbNRAnime = dbAnimeList(dbNR);
+          if (!dbNRAnime.length) {
+            console.warn('[New Releases] DB anime pool empty → t131 chain (scraper→self-jikan→ruri)');
+            dbNRAnime = await _t131NewReleasesPool(TARGET_SHOWS);
+          }
           const anime = [];
           for (const m of dbNRAnime.slice(0, TARGET_SHOWS)) {
             const n = normalizeAnimeItem(m);
@@ -7500,7 +7791,13 @@ titleEl.style.color = '#ffffff';
         // V4.8.0: endpoint returns tmdb_movie / tmdb_tv (snake_case, page-keyed)
         const dbUpMovies = getTmdbArr(dbUp, 'movie');
         const dbUpTv     = getTmdbArr(dbUp, 'tv');
-        const dbUpAnime  = dbAnimeList(dbUp);
+        // t131: DB anime column empty during AniList outages → chain
+        // (anilist-scraper → self-hosted Jikan → ruri) + guarded TTL cache.
+        let dbUpAnime  = dbAnimeList(dbUp);
+        if (!dbUpAnime.length) {
+          console.warn('[Upcoming] DB anime pool empty → t131 chain (scraper→self-jikan→ruri)');
+          dbUpAnime = await _t131UpcomingPool(50);
+        }
 
         // Dynamic date filter: current year + current/future month
         const _now = new Date();
@@ -7774,7 +8071,14 @@ titleEl.style.color = '#ffffff';
         const _dbRC = (page === 1 || page === 2) ? await window.getHomeData('recently_completed') : null;
         const dbRCTv = getTmdbArr(_dbRC, 'tv');
         const dbRCMovies = getTmdbArr(_dbRC, 'movie');
-        const dbRCAnime = dbAnimeList(_dbRC);
+        // t131: DB anime column empty during AniList outages → chain
+        // (anilist-scraper → self-hosted Jikan → ruri) + guarded TTL cache.
+        // Pages 1-2 only — page 3+ keeps its server-cache/live-TMDB path.
+        let dbRCAnime = dbAnimeList(_dbRC);
+        if (!dbRCAnime.length && (page === 1 || page === 2)) {
+          console.warn('[Completed] DB anime pool empty → t131 chain (scraper→self-jikan→ruri)');
+          dbRCAnime = await _t131CompletedPool(TARGET_SHOWS);
+        }
         const rcHasDb = dbRCAnime.length > 0 && dbRCTv.length > 0 && dbRCMovies.length > 0;
 
         // For pages 3+, try the server-side cache endpoint first. On success
@@ -8108,7 +8412,13 @@ titleEl.style.color = '#ffffff';
         const TRENDING_PER_TYPE = 7; // 7 anime + 7 TV + 7 movies = 21
 
         // ── Anime ── (V4.8.0: AniList OR Jikan v4 items; ranked by score+popularity+favourites)
-        const tnAnimeRaw = dbAnimeList(dbTN);
+        // t131: DB anime column empty during AniList outages → chain
+        // (anilist-scraper → self-hosted Jikan → ruri) + guarded TTL cache.
+        let tnAnimeRaw = dbAnimeList(dbTN);
+        if (!tnAnimeRaw.length) {
+          console.warn('[Trending] DB anime pool empty → t131 chain (scraper→self-jikan→ruri)');
+          tnAnimeRaw = await _t131TrendingPool(TRENDING_PER_TYPE + 7);
+        }
         const tnAnime = tnAnimeRaw
           .map(m => {
             const n = normalizeAnimeItem(m);
