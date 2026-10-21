@@ -132,7 +132,7 @@
       position:absolute; top:8px; left:8px; font-family:var(--font-meta); font-weight:600; font-size:.58rem;
       letter-spacing:.6px; text-transform:uppercase; color:#e0f0ff;
       background: rgba(10,20,35,.72); border:1px solid rgba(255,255,255,.18); border-radius:6px; padding:2px 7px;
-      max-width:74%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+      max-width: calc(100% - 84px); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
     }
     .sc-ttl-wrap { position:absolute; left:0; right:0; bottom:0; padding:10px 10px 9px; }
     .sc-title { font-size:.8rem; font-weight:600; line-height:1.32; color:#fff;
@@ -642,7 +642,9 @@
   }
 
   function tvEpText(it) {
-    if (it.seasonNum != null && it.epNum != null) return 'S' + it.seasonNum + ' · E' + it.epNum;
+    // long-running shows use YEAR-based seasons on TVMaze (S2026…) — show only the
+    // episode number there, a 4-digit "season" is unreadable on a badge
+    if (it.seasonNum != null && it.seasonNum < 1900 && it.epNum != null) return 'S' + it.seasonNum + ' · E' + it.epNum;
     if (it.epNum != null) return 'E' + it.epNum;
     return 'TV';
   }
@@ -655,7 +657,7 @@
     var count = (!isAired && isNext) ? '<span class="sc-count"><i class="fa-solid fa-bolt" style="font-size:.85em;"></i> ' + humanCountdown(it.epoch - nowSec) + '</span>' : '';
     return '<a class="sc-card' + (isAired ? ' is-aired' : '') + (isNext ? ' is-next' : '') + '" href="' + esc(it.href) + '" target="_blank" rel="noopener"' + tvPopAttrs(it) + '>' +
       '<div class="sc-poster-wrap">' +
-      '<img class="sc-poster" loading="lazy" src="' + esc(it.poster) + '" alt="' + esc(it.title) + '">' +
+      '<img class="sc-poster" loading="lazy" src="' + esc(it.poster) + '" alt="' + esc(it.title) + '" onerror="this.style.display=\'none\'">' +
       '<span class="sc-fmt">' + esc(tag) + '</span>' +
       '<span class="sc-ep">' + esc(tvEpText(it)) + '</span>' +
       '<div class="sc-grad"></div>' +
@@ -667,7 +669,7 @@
 
   function tvPopAttrs(it) {
     var a = ' data-pop-img="' + esc(it.backdrop || it.poster) + '" data-pop-title="' + esc(it.title) + '"';
-    var epTxt = (it.seasonNum != null && it.epNum != null) ? 'Season ' + it.seasonNum + ' · Episode ' + it.epNum
+    var epTxt = (it.seasonNum != null && it.seasonNum < 1900 && it.epNum != null) ? 'Season ' + it.seasonNum + ' · Episode ' + it.epNum
       : (it.epNum != null ? 'Episode ' + it.epNum : '');
     if (epTxt) a += ' data-pop-ep="' + esc(epTxt) + '"';
     var meta = [it.network, it.countryName, it.showType].filter(Boolean).join(' · ');
