@@ -2202,7 +2202,7 @@
 .sched-pop {
   position: fixed;
   z-index: 460;
-  width: 308px;
+  width: 380px;
   max-width: calc(100vw - 24px);
   display: none;
   background: var(--bg-popup);
@@ -9286,7 +9286,10 @@ titleEl.style.color = '#ffffff';
         // Build TV row objects (V4.8.0: shows come from the server endpoint —
         // already-normalized {name, poster, airtime, episode_number, country…} —
         // or, on fallback, raw TVMaze show objects with a nested _episode).
-        const tvRows = tvResult.shows.map(show => {
+        // t127: endpoint now returns 15 countries — cap the widget's TV rows so
+        // the sidebar stays anime-first (the /schedule page shows the full list).
+        const MAX_WIDGET_TV_ROWS = 48;
+        const tvRows = tvResult.shows.slice(0, MAX_WIDGET_TV_ROWS).map(show => {
           const isEndpointShape = show._episode === undefined;
           const ep = isEndpointShape
             ? { name: show.episode_name, season: show.season_number, number: show.episode_number, airtime: show.airtime, airstamp: show.airstamp }
@@ -9304,13 +9307,21 @@ titleEl.style.color = '#ffffff';
           const time = localTvTime || (ep.airtime && ep.airtime.trim() ? ep.airtime : '—');
           const epLabel = (ep.number) ? `E${ep.number}` : 'TV';
           const countryTag = show._sourceCountry || show.country || tvResult.country || '';
+          const countryName = (typeof show.country_name === 'string' && show.country_name) ? show.country_name : '';
           const subtitle = `TV · ${countryTag}`;
+          // t127: richer TV popup — network, genres, synopsis, rating when present
+          const tvPopMeta = ['TV', countryName || countryTag, show.network].filter(Boolean).join(' · ');
 
           return {
             sortKey: time,
             html: buildScheduleRowHtml({
               watchUrl, external: true, time, poster, title, subtitle, epLabel,
-              pop: { img: poster, title, ep: epLabel, meta: subtitle }
+              pop: {
+                img: poster, title, ep: epLabel, meta: tvPopMeta,
+                score: show.rating ? `${show.rating}/10` : '',
+                genres: Array.isArray(show.genres) ? show.genres.join(', ') : '',
+                desc: typeof show.summary === 'string' ? show.summary.slice(0, 230) : ''
+              }
             })
           };
         });
@@ -9566,7 +9577,7 @@ titleEl.style.color = '#ffffff';
             <div class="sched-pop-meta">
               ${d.popEp ? `<span class="sched-pop-pill blue">${escAttr(d.popEp)}</span>` : ''}
               ${d.popScore ? `<span class="sched-pop-pill gold"><i class="fas fa-star"></i> ${escAttr(d.popScore)}</span>` : ''}
-              ${d.popMeta ? `<span class="sched-pop-pill">${escAttr(d.popMeta)}</span>` : ''}
+              ${(d.popMeta || '').split(' · ').map(p => p.trim()).filter(Boolean).map(p => `<span class="sched-pop-pill">${escAttr(p)}</span>`).join('')}
             </div>
             ${d.popGenres ? `<div class="sched-pop-genres">${d.popGenres.split(',').map(g => g.trim()).filter(Boolean).map(g => `<span class="sched-pop-genre">${escAttr(g)}</span>`).join('')}</div>` : ''}
             ${d.popDesc ? `<div class="sched-pop-desc">${escAttr(d.popDesc)}</div>` : ''}

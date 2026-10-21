@@ -29,6 +29,7 @@
       --accent-gold: #ecc94b;
       --star-icon-color: #f5b942;
       --accent-blue: #4299e1;
+      --text-widget-title: #a2c4de;
       --border-subtle: rgba(255, 255, 255, 0.08);
       --border-medium: rgba(255, 255, 255, 0.16);
       --font-title: 'Archivo Black', sans-serif;
@@ -47,7 +48,8 @@
     /* ── PAGE SHELL ── */
     .sch-page { max-width: 1280px; margin: 0 auto; padding: 26px 20px 46px; }
     .sch-head { display:flex; align-items:flex-end; justify-content:space-between; gap:14px; flex-wrap:wrap; margin-bottom:18px; }
-    .sch-h1 { font-family: var(--font-title); font-size: clamp(1.5rem, 3.4vw, 2.15rem); letter-spacing:.5px; display:flex; align-items:center; gap:12px; }
+    /* Heading matches index.html .section-title exactly (font/size/color) */
+    .sch-h1 { font-family: var(--font-title); font-size: 1.35rem; color: var(--text-widget-title); display:flex; align-items:center; gap:12px; }
     .sch-h1 .fa-solid { color: var(--accent-blue); font-size:.82em; }
     .sch-sub { color: var(--text-muted); font-size:.84rem; margin-top:6px; }
     .sch-sub b { color: var(--accent-blue); font-weight:600; }
@@ -62,6 +64,10 @@
     }
     .sch-chip:hover { color:#fff; border-color: var(--border-medium); }
     .sch-chip.active { color:#fff; background: linear-gradient(135deg, var(--btn-primary), #2563eb); border-color: var(--btn-primary); box-shadow: 0 3px 10px rgba(43,108,176,.4); }
+    .sch-chip-sep { width:1px; align-self:stretch; background: var(--border-medium); margin:0 2px; }
+    .sch-chip.sch-mode.active { background: linear-gradient(135deg, #b7791f, var(--accent-gold)); border-color: var(--accent-gold); color:#161616; box-shadow: 0 3px 10px rgba(236,201,75,.35); }
+    .sch-regions { margin: 0 0 18px; }
+    .sch-regions .sch-chip .fa-solid { font-size:.85em; }
 
     /* ── DAY TABS ── */
     .sch-days { display:flex; gap:8px; margin-bottom:22px; overflow-x:auto; padding-bottom:4px; scrollbar-width:none; }
@@ -97,6 +103,16 @@
     .sc-time-line { flex:1; height:1px; background: var(--border-subtle); }
     .sc-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(158px, 1fr)); gap:14px; }
 
+    /* ── REGION SECTIONS (TV mode) ── */
+    .sc-region-head {
+      display:flex; align-items:center; gap:10px; margin:30px 0 14px;
+      font-family: var(--font-title); font-size:1rem; color:#fff; letter-spacing:.4px;
+    }
+    .sc-region-head .fa-solid { color: var(--accent-blue); font-size:.92em; }
+    .sc-region-head .sc-time-count { font-family:var(--font-meta); }
+    .sc-region-head:first-child { margin-top:4px; }
+    .sc-region-empty { color:var(--text-muted); font-size:.78rem; padding:0 2px 8px; }
+
     /* ── CARDS ── */
     .sc-card { display:block; text-decoration:none; color:inherit; border-radius: var(--radius-md); transition: transform .2s ease; }
     .sc-card:hover { transform: translateY(-4px); }
@@ -116,6 +132,7 @@
       position:absolute; top:8px; left:8px; font-family:var(--font-meta); font-weight:600; font-size:.58rem;
       letter-spacing:.6px; text-transform:uppercase; color:#e0f0ff;
       background: rgba(10,20,35,.72); border:1px solid rgba(255,255,255,.18); border-radius:6px; padding:2px 7px;
+      max-width:74%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
     }
     .sc-ttl-wrap { position:absolute; left:0; right:0; bottom:0; padding:10px 10px 9px; }
     .sc-title { font-size:.8rem; font-weight:600; line-height:1.32; color:#fff;
@@ -146,7 +163,7 @@
 
     /* ── HOVER POPUP (bigger poster preview — PC only) ── */
     .sched-pop {
-      position: fixed; z-index: 460; width: 308px; max-width: calc(100vw - 24px);
+      position: fixed; z-index: 460; width: 380px; max-width: calc(100vw - 24px);
       display: none; background: var(--bg-popup);
       border: 1px solid var(--border-medium); border-radius: var(--radius-lg);
       padding: 12px; box-shadow: var(--shadow-lg);
@@ -156,9 +173,9 @@
     .sched-pop-poster { width: 150px; flex-shrink: 0; border-radius: 8px; overflow: hidden; background: var(--bg-card); }
     .sched-pop-poster img { width: 100%; display: block; aspect-ratio: 2/3; object-fit: cover; }
     .sched-pop-body { flex: 1; min-width: 0; }
-    .sched-pop-title { font-weight: 700; font-size: 0.88rem; line-height: 1.3; margin-bottom: 6px; }
+    .sched-pop-title { font-weight: 700; font-size: 0.88rem; line-height: 1.3; margin-bottom: 6px; overflow-wrap: anywhere; }
     .sched-pop-meta { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
-    .sched-pop-pill { background: rgba(255,255,255,0.13); border-radius: 12px; padding: 2px 8px; font-size: 0.64rem; font-weight: 600; white-space: nowrap; }
+    .sched-pop-pill { background: rgba(255,255,255,0.13); border-radius: 12px; padding: 2px 8px; font-size: 0.64rem; font-weight: 600; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
     .sched-pop-pill.gold { color: var(--accent-gold); }
     .sched-pop-pill.blue { color: var(--accent-blue); }
     .sched-pop-genres { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
@@ -182,15 +199,27 @@
   <div class="sch-head">
     <div>
       <h1 class="sch-h1"><i class="fa-solid fa-calendar-days"></i>Airing Schedule</h1>
-      <p class="sch-sub">Weekly anime broadcast guide — every time is shown in <b id="schTz">your local timezone</b>.</p>
+      <p class="sch-sub"><span id="schModeText">Weekly anime broadcast guide</span> — every time is shown in <b id="schTz">your local timezone</b>.</p>
     </div>
     <div class="sch-chips" id="schChips">
-      <button type="button" class="sch-chip active" data-format="all">All</button>
-      <button type="button" class="sch-chip" data-format="tv">TV</button>
-      <button type="button" class="sch-chip" data-format="ona">ONA</button>
-      <button type="button" class="sch-chip" data-format="ova">OVA</button>
-      <button type="button" class="sch-chip" data-format="movie">Movie</button>
+      <button type="button" class="sch-chip sch-mode active" data-mode="anime">Anime</button>
+      <button type="button" class="sch-chip sch-mode" data-mode="tv">TV Shows</button>
+      <span class="sch-chip-sep" id="schChipSep"></span>
+      <button type="button" class="sch-chip sch-fmt active" data-format="all">All</button>
+      <button type="button" class="sch-chip sch-fmt" data-format="tv">TV</button>
+      <button type="button" class="sch-chip sch-fmt" data-format="ona">ONA</button>
+      <button type="button" class="sch-chip sch-fmt" data-format="ova">OVA</button>
+      <button type="button" class="sch-chip sch-fmt" data-format="movie">Movie</button>
     </div>
+  </div>
+
+  <!-- Region chips (TV Shows mode only) -->
+  <div class="sch-chips sch-regions" id="schRegions" style="display:none;">
+    <button type="button" class="sch-chip active" data-region="all">All Regions</button>
+    <button type="button" class="sch-chip" data-region="europe"><i class="fa-solid fa-earth-europe"></i> Europe</button>
+    <button type="button" class="sch-chip" data-region="asia"><i class="fa-solid fa-earth-asia"></i> Asian Dramas</button>
+    <button type="button" class="sch-chip" data-region="america"><i class="fa-solid fa-earth-americas"></i> America</button>
+    <button type="button" class="sch-chip" data-region="oceania"><i class="fa-solid fa-earth-oceania"></i> Oceania</button>
   </div>
 
   <div class="sch-days" id="schDays"></div>
@@ -222,10 +251,25 @@
   var FORMAT_LABELS = { TV_SHORT: 'TV Short', ONA: 'ONA', OVA: 'OVA', MOVIE: 'Movie', SPECIAL: 'Special', MUSIC: 'Music' };
   var DOW_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  var DOW_FULL = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+  /* ── TV mode — TVMaze schedules through the site's own serverless endpoint,
+       region-grouped (Europe / Asian Dramas / America / Oceania) ── */
+  var TV_ENDPOINT_BASE = '/api/tvmaze-schedule/';
+  var TV_VALID_TYPES = ['Scripted', 'Animation', 'Mini-Series', 'Documentary'];
+  var TV_REGIONS = [
+    { id: 'europe',  name: 'Europe',       icon: 'fa-earth-europe',   countries: ['GB', 'DE', 'FR', 'ES', 'SE'] },
+    { id: 'asia',    name: 'Asian Dramas', icon: 'fa-earth-asia',     countries: ['JP', 'KR', 'CN', 'TW', 'TH', 'IN'] },
+    { id: 'america', name: 'America',      icon: 'fa-earth-americas', countries: ['US', 'CA', 'BR'] },
+    { id: 'oceania', name: 'Oceania',      icon: 'fa-earth-oceania',  countries: ['AU'] }
+  ];
 
   var allItems = [];        // flattened + locally-annotated airing entries
   var selDayIdx = 0;        // 0 = today .. 6 = today+6
   var fmtFilter = 'all';    // all | tv | ona | ova | movie
+  var pageMode = 'anime';   // 'anime' | 'tv'
+  var regionFilter = 'all'; // 'all' | europe | asia | america | oceania
+  var tvCache = {};         // dateStr -> { byRegion: {regionId: [items]}, total }
 
   var daysEl = document.getElementById('schDays');
   var contentEl = document.getElementById('schContent');
@@ -352,15 +396,21 @@
         '" data-idx="' + i + '" data-key="' + key + '">' +
         '<span class="sc-dow">' + (i === 0 ? 'Today' : DOW_SHORT[d.getDay()]) + '</span>' +
         '<span class="sc-date">' + MONTHS[d.getMonth()] + ' ' + d.getDate() + '</span>' +
-        (count ? '<span class="sc-dcount">' + count + ' EP</span>' : '') +
+        (count && pageMode === 'anime' ? '<span class="sc-dcount">' + count + ' EP</span>' : '') +
         '</button>';
     }
     daysEl.innerHTML = html;
     void todayKey;
   }
 
-  /* ── Content for the selected day + format filter, grouped by hour ── */
+  /* ── Dispatcher: anime grid or TV region view for the selected day ── */
   function renderDay() {
+    if (pageMode === 'tv') { renderTV(); return; }
+    renderAnime();
+  }
+
+  /* ── Anime mode: selected day + format filter, grouped by local hour ── */
+  function renderAnime() {
     var tab = daysEl.querySelector('.sc-day[data-idx="' + selDayIdx + '"]');
     if (!tab) return;
     var key = tab.dataset.key;
@@ -387,13 +437,7 @@
     }
 
     // group by local hour
-    var groups = [];
-    var cur = null;
-    items.forEach(function (it) {
-      var h = new Date(it.airing_at * 1000).getHours();
-      if (!cur || cur.h !== h) { cur = { h: h, items: [] }; groups.push(cur); }
-      cur.items.push(it);
-    });
+    var groups = groupByLocalHour(items, 'airing_at');
 
     var html = '';
     groups.forEach(function (g) {
@@ -445,6 +489,215 @@
     return a;
   }
 
+  /* ════════════════════════════════════════════════════════════
+     TV MODE — TVMaze schedules via the site's own serverless
+     endpoint (/api/tvmaze-schedule/{day}?date=…), which fetches
+     15 countries in parallel (24h server cache) and returns them
+     keyed by country code. Client groups countries into regions:
+     Europe / Asian Dramas / America / Oceania.
+   ════════════════════════════════════════════════════════════ */
+  function normalizeTvItem(raw) {
+    if (!raw) return null;
+    if (raw.show_type && TV_VALID_TYPES.indexOf(raw.show_type) === -1) return null;
+    if (!raw.poster) return null;
+    var epoch = raw.airstamp ? Math.round(Date.parse(raw.airstamp) / 1000) : 0;
+    if (!(epoch > 0)) return null;
+    return {
+      title: raw.name || 'Unknown Show',
+      poster: raw.poster,
+      backdrop: raw.backdrop || raw.poster,
+      epoch: epoch,
+      epNum: raw.episode_number != null ? raw.episode_number : null,
+      seasonNum: raw.season_number != null ? raw.season_number : null,
+      epName: raw.episode_name || null,
+      network: raw.network || null,
+      country: raw.country || null,
+      countryName: raw.country_name || null,
+      showType: raw.show_type || null,
+      year: raw.premiered ? String(raw.premiered).slice(0, 4) : null,
+      genres: Array.isArray(raw.genres) ? raw.genres.slice(0, 4) : [],
+      rating: typeof raw.rating === 'number' ? raw.rating : null,
+      summary: String(raw.summary || '').replace(/\s+/g, ' ').trim().slice(0, 230),
+      href: raw.url || (raw.show_id ? 'https://www.tvmaze.com/shows/' + raw.show_id : '')
+    };
+  }
+
+  function loadTV(dateStr, done) {
+    var dayName = DOW_FULL[new Date(dateStr + 'T12:00:00').getDay()];
+    var ctl = ('AbortSignal' in window && AbortSignal.timeout) ? { signal: AbortSignal.timeout(TIMEOUT_MS) } : {};
+    fetch(TV_ENDPOINT_BASE + dayName + '?date=' + encodeURIComponent(dateStr), ctl)
+      .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(function (j) {
+        var countries = (j && j.countries) || {};
+        var byRegion = {};
+        var used = {};
+        var total = 0;
+        TV_REGIONS.forEach(function (reg) {
+          byRegion[reg.id] = [];
+          reg.countries.forEach(function (cc) {
+            (Array.isArray(countries[cc]) ? countries[cc] : []).forEach(function (raw) {
+              var it = normalizeTvItem(raw);
+              if (!it) return;
+              // same episode simulcast across countries (US/CA etc.) → keep once
+              var k = (raw.show_id || it.title) + '|' + it.epoch + '|' + (it.epNum != null ? it.epNum : '');
+              if (used[k]) return;
+              used[k] = 1;
+              it._region = reg.id;
+              byRegion[reg.id].push(it);
+              total++;
+            });
+          });
+          byRegion[reg.id].sort(function (a, b) { return a.epoch - b.epoch; });
+        });
+        var data = { byRegion: byRegion, total: total };
+        tvCache[dateStr] = data;
+        done(null, data);
+      })
+      .catch(function (e) { done(e, null); });
+  }
+
+  function currentDayKey() {
+    var tab = daysEl.querySelector('.sc-day[data-idx="' + selDayIdx + '"]');
+    return tab ? tab.dataset.key : localDateKey(new Date());
+  }
+
+  /* shared: group a sorted list of items by the LOCAL calendar hour */
+  function groupByLocalHour(items, epochField) {
+    var groups = [];
+    var cur = null;
+    items.forEach(function (it) {
+      var h = new Date(it[epochField] * 1000).getHours();
+      if (!cur || cur.h !== h) { cur = { h: h, items: [] }; groups.push(cur); }
+      cur.items.push(it);
+    });
+    return groups;
+  }
+
+  /* ── TV mode render: region sections, each grouped by local hour ── */
+  function renderTV() {
+    var tab = daysEl.querySelector('.sc-day[data-idx="' + selDayIdx + '"]');
+    if (!tab) return;
+    var key = tab.dataset.key;
+    var nowSec = Math.floor(Date.now() / 1000);
+
+    if (!tvCache[key]) {
+      showSkeletons();
+      loadTV(key, function (err) {
+        var cur = daysEl.querySelector('.sc-day[data-idx="' + selDayIdx + '"]');
+        if (!cur || cur.dataset.key !== key || pageMode !== 'tv') return;   // stale response
+        if (err) {
+          contentEl.innerHTML = '';
+          stateMsg.textContent = "Couldn't load the TV schedule right now. (" +
+            (err && err.name === 'TimeoutError' ? 'timed out' : 'network error') + ')';
+          stateEl.style.display = 'block';
+        } else {
+          stateEl.style.display = 'none';
+          renderTV();
+        }
+      });
+      return;
+    }
+    stateEl.style.display = 'none';
+
+    var cached = tvCache[key];
+    var regs = TV_REGIONS.filter(function (r) { return regionFilter === 'all' || r.id === regionFilter; });
+
+    // next upcoming episode across the rendered scope (gold countdown ring)
+    var nextAt = Infinity;
+    regs.forEach(function (r) {
+      (cached.byRegion[r.id] || []).forEach(function (it) {
+        if (it.epoch > nowSec && it.epoch < nextAt) nextAt = it.epoch;
+      });
+    });
+
+    var anyItems = false;
+    var html = '';
+    regs.forEach(function (reg) {
+      var items = cached.byRegion[reg.id] || [];
+      if (items.length) anyItems = true;
+      html += '<div class="sc-region-head"><i class="fa-solid ' + reg.icon + '"></i>' + esc(reg.name) +
+        '<span class="sc-time-count">' + items.length + ' show' + (items.length === 1 ? '' : 's') + '</span>' +
+        '<span class="sc-time-line"></span></div>';
+      if (!items.length) {
+        html += '<div class="sc-region-empty">No TV episodes listed for this region on this day.</div>';
+        return;
+      }
+      groupByLocalHour(items, 'epoch').forEach(function (g) {
+        html += '<div class="sc-timegroup">' +
+          '<div class="sc-time-head"><i class="fa-regular fa-clock"></i>' + localHour12(g.items[0].epoch) +
+          '<span class="sc-time-count">' + g.items.length + ' show' + (g.items.length > 1 ? 's' : '') + '</span>' +
+          '<span class="sc-time-line"></span></div><div class="sc-grid">';
+        g.items.forEach(function (it) { html += tvCardHTML(it, nowSec, nextAt); });
+        html += '</div></div>';
+      });
+    });
+
+    if (!anyItems) {
+      contentEl.innerHTML = '<div class="sch-state"><i class="fa-solid fa-tv"></i>' +
+        '<p>No TV episodes found for ' + esc(tab.querySelector('.sc-dow').textContent) + ', ' +
+        esc(tab.querySelector('.sc-date').textContent) + '.</p></div>';
+      return;
+    }
+    contentEl.innerHTML = html;
+  }
+
+  function tvEpText(it) {
+    if (it.seasonNum != null && it.epNum != null) return 'S' + it.seasonNum + ' · E' + it.epNum;
+    if (it.epNum != null) return 'E' + it.epNum;
+    return 'TV';
+  }
+
+  function tvCardHTML(it, nowSec, nextAt) {
+    var isAired = it.epoch <= nowSec;
+    var isNext = it.epoch === nextAt;
+    var tag = [it.country, it.network].filter(Boolean).join(' · ') || 'TV';
+    var score = (it.rating != null && it.rating > 0) ? '<span class="sc-score"><i class="fa-solid fa-star" style="font-size:.9em;"></i>' + it.rating + '</span>' : '';
+    var count = (!isAired && isNext) ? '<span class="sc-count"><i class="fa-solid fa-bolt" style="font-size:.85em;"></i> ' + humanCountdown(it.epoch - nowSec) + '</span>' : '';
+    return '<a class="sc-card' + (isAired ? ' is-aired' : '') + (isNext ? ' is-next' : '') + '" href="' + esc(it.href) + '" target="_blank" rel="noopener"' + tvPopAttrs(it) + '>' +
+      '<div class="sc-poster-wrap">' +
+      '<img class="sc-poster" loading="lazy" src="' + esc(it.poster) + '" alt="' + esc(it.title) + '">' +
+      '<span class="sc-fmt">' + esc(tag) + '</span>' +
+      '<span class="sc-ep">' + esc(tvEpText(it)) + '</span>' +
+      '<div class="sc-grad"></div>' +
+      '<div class="sc-ttl-wrap">' +
+      '<h3 class="sc-title">' + esc(it.title) + '</h3>' +
+      '<div class="sc-meta">' + score + (it.year ? '<span>' + esc(it.year) + '</span>' : '') + count + '</div>' +
+      '</div></div></a>';
+  }
+
+  function tvPopAttrs(it) {
+    var a = ' data-pop-img="' + esc(it.backdrop || it.poster) + '" data-pop-title="' + esc(it.title) + '"';
+    var epTxt = (it.seasonNum != null && it.epNum != null) ? 'Season ' + it.seasonNum + ' · Episode ' + it.epNum
+      : (it.epNum != null ? 'Episode ' + it.epNum : '');
+    if (epTxt) a += ' data-pop-ep="' + esc(epTxt) + '"';
+    var meta = [it.network, it.countryName, it.showType].filter(Boolean).join(' · ');
+    if (meta) a += ' data-pop-meta="' + esc(meta) + '"';
+    if (it.rating != null && it.rating > 0) a += ' data-pop-score="' + it.rating + '/10"';
+    if (it.genres && it.genres.length) a += ' data-pop-genres="' + esc(it.genres.join(', ')) + '"';
+    var desc = (it.epName ? '\u201C' + it.epName + '\u201D \u2014 ' : '') + (it.summary || '');
+    if (desc) a += ' data-pop-desc="' + esc(desc) + '"';
+    return a;
+  }
+
+  /* ── Mode switch (Anime ⇄ TV Shows) ── */
+  function setMode(mode) {
+    if (pageMode === mode) return;
+    pageMode = mode;
+    document.querySelectorAll('#schChips .sch-mode').forEach(function (c) {
+      c.classList.toggle('active', (c.dataset.mode || 'anime') === mode);
+    });
+    document.querySelectorAll('#schChips .sch-fmt').forEach(function (c) {
+      c.style.display = mode === 'anime' ? '' : 'none';
+    });
+    document.getElementById('schChipSep').style.display = mode === 'anime' ? '' : 'none';
+    document.getElementById('schRegions').style.display = mode === 'tv' ? 'flex' : 'none';
+    document.getElementById('schModeText').textContent = mode === 'tv'
+      ? 'TV schedules across Europe, Asian dramas, America & Oceania'
+      : 'Weekly anime broadcast guide';
+    renderDays();
+    renderDay();
+  }
+
   /* ── Hover popup (shared behaviour with the sidebar widget) ── */
   var popEl = document.getElementById('schedPop');
   var canHover = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
@@ -461,7 +714,7 @@
       '<div class="sched-pop-meta">' +
       (d.popEp ? '<span class="sched-pop-pill blue">' + esc(d.popEp) + '</span>' : '') +
       (d.popScore ? '<span class="sched-pop-pill gold"><i class="fas fa-star"></i> ' + esc(d.popScore) + '</span>' : '') +
-      (d.popMeta ? '<span class="sched-pop-pill">' + esc(d.popMeta) + '</span>' : '') +
+      (d.popMeta || '').split(' · ').map(function (p) { return p.trim(); }).filter(Boolean).map(function (p) { return '<span class="sched-pop-pill">' + esc(p) + '</span>'; }).join('') +
       '</div>' +
       (d.popGenres ? '<div class="sched-pop-genres">' + d.popGenres.split(',').map(function (g) { return g.trim(); }).filter(Boolean).map(function (g) { return '<span class="sched-pop-genre">' + esc(g) + '</span>'; }).join('') + '</div>' : '') +
       (d.popDesc ? '<div class="sched-pop-desc">' + esc(d.popDesc) + '</div>' : '') +
@@ -504,11 +757,32 @@
   document.getElementById('schChips').addEventListener('click', function (e) {
     var chip = e.target.closest('.sch-chip');
     if (!chip) return;
-    fmtFilter = chip.dataset.format || 'all';
-    document.querySelectorAll('#schChips .sch-chip').forEach(function (c) { c.classList.toggle('active', c === chip); });
+    if (chip.classList.contains('sch-mode')) {
+      setMode(chip.dataset.mode === 'tv' ? 'tv' : 'anime');
+      return;
+    }
+    if (chip.classList.contains('sch-fmt')) {
+      fmtFilter = chip.dataset.format || 'all';
+      document.querySelectorAll('#schChips .sch-fmt').forEach(function (c) { c.classList.toggle('active', c === chip); });
+      renderDay();
+    }
+  });
+  document.getElementById('schRegions').addEventListener('click', function (e) {
+    var chip = e.target.closest('.sch-chip');
+    if (!chip) return;
+    regionFilter = chip.dataset.region || 'all';
+    document.querySelectorAll('#schRegions .sch-chip').forEach(function (c) { c.classList.toggle('active', c === chip); });
     renderDay();
   });
-  retryBtn.addEventListener('click', load);
+  retryBtn.addEventListener('click', function () {
+    if (pageMode === 'tv') {
+      delete tvCache[currentDayKey()];
+      stateEl.style.display = 'none';
+      renderDay();
+    } else {
+      load();
+    }
+  });
 
   document.getElementById('schTz').textContent = localTz();
   load();

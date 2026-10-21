@@ -12,11 +12,19 @@ import { setCacheHeaders } from '../_lib/cache.js';
 //           /api/tvmaze-schedule/monday?date=2026-09-14   (specific date,
 //           used by the frontend week navigator; cached separately per date)
 //
-// Countries supported: US, GB, JP, AU, DE, FR, CA (major markets)
+// Countries supported (15, grouped by region for the /schedule page):
+//   America  — US, CA, BR
+//   Europe   — GB, DE, FR, ES, SE
+//   Asia     — JP, KR, CN, TW, TH, IN
+//   Oceania  — AU
 // Rate limiting: countries are fetched IN PARALLEL but with a STAGGERED
 // start (250ms between each request) — respecting TVMaze's rate limits
 // while finishing ~6x faster than the old sequential loop.
 //
+// V4.8.1 CHANGES:
+//   - SCHEDULE_COUNTRIES expanded 7 → 15 (adds KR CN TW TH IN ES SE BR)
+//     so the /schedule page can show region-grouped TV schedules
+//   - `premiered` year added to the per-episode transform
 // V4.8.0 CHANGES:
 //   - Parallel staggered country fetching (was strictly sequential)
 //   - Optional ?date=YYYY-MM-DD query param for week navigation
@@ -39,14 +47,28 @@ const DAY_TO_INDEX = {
 };
 
 // Countries to fetch schedules for (ISO 3166-1 alpha-2 codes)
+// V4.8.1: expanded 7 → 15 so the dedicated /schedule page can group
+// shows by region (Europe / Asian Dramas / America / Oceania).
 const SCHEDULE_COUNTRIES = [
+  // America
   { code: 'US', name: 'United States' },
+  { code: 'CA', name: 'Canada' },
+  { code: 'BR', name: 'Brazil' },
+  // Europe
   { code: 'GB', name: 'United Kingdom' },
-  { code: 'JP', name: 'Japan' },
-  { code: 'AU', name: 'Australia' },
   { code: 'DE', name: 'Germany' },
   { code: 'FR', name: 'France' },
-  { code: 'CA', name: 'Canada' }
+  { code: 'ES', name: 'Spain' },
+  { code: 'SE', name: 'Sweden' },
+  // Asia (dramas)
+  { code: 'JP', name: 'Japan' },
+  { code: 'KR', name: 'South Korea' },
+  { code: 'CN', name: 'China' },
+  { code: 'TW', name: 'Taiwan' },
+  { code: 'TH', name: 'Thailand' },
+  { code: 'IN', name: 'India' },
+  // Oceania
+  { code: 'AU', name: 'Australia' }
 ];
 
 // TVMaze API base URL
@@ -209,6 +231,7 @@ async function loadTVMazeScheduleForDay(day, date = null) {
         airstamp: show.airstamp || null,
         runtime: show.show?.runtime || null,
         genres: show.show?.genres || [],
+        premiered: show.show?.premiered || null,
         rating: show.show?.rating?.average || null,
         network: show.show?.network?.name || show.show?.webChannel?.name || null,
         country: country.code,
@@ -291,7 +314,7 @@ export default async function handler(req, res) {
     const response = {
       ...scheduleData,
       _cache: getTVMazeCacheInfo(cacheKey),
-      _version: '4.8.0',
+      _version: '4.8.1',
       _timestamp: new Date().toISOString(),
       _endpoint: 'tvmaze-schedule'
     };
