@@ -441,11 +441,14 @@
         });
       })
       .then(function (payload) {
-        var days = payload.days;
+        // proxy/db legs resolve the days map directly; the jikan leg wraps it
+        // as { days, jikan:true } — normalize both here.
+        var isJikan = !!(payload && payload.jikan);
+        var days = isJikan ? payload.days : payload;
         allItems = [];
         Object.keys(days).forEach(function (k) {
           (Array.isArray(days[k]) ? days[k] : []).forEach(function (raw) {
-            var mapped = payload.jikan ? mapJikanScheduleItem(raw, k) : mapItem(raw);
+            var mapped = isJikan ? mapJikanScheduleItem(raw, k) : mapItem(raw);
             if (mapped.airing_at > 0 && mapped.poster) {
               mapped._dayKey = localDateKey(new Date(mapped.airing_at * 1000));
               allItems.push(mapped);
