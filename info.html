@@ -5053,8 +5053,11 @@ img { max-width: 100%; height: auto; display: block; }
             const genreHtml = uniqueGenres.map(name => {
               const firstChar = name.charAt(0).toLowerCase();
               const colorAttr = GENRE_COLOR_MAP[firstChar] || '';
-              // anime info pages: /anime/genre/ prefix (matches browse popup links)
-              return `<a href="/anime/genre/${name.toLowerCase().replace(/\s+/g, '-')}" class="genre-tag" ${colorAttr}>${name}</a>`;
+              // anime info pages: /anime/genre/ prefix (matches browse popup links).
+              // Canonical slugify (same rule as title slugs + shared.js nav slugs):
+              // any non-alphanumeric run collapses to one hyphen, so a stray "&"
+              // can never leak into the URL
+              return `<a href="/anime/genre/${slugify(name)}" class="genre-tag" ${colorAttr}>${name}</a>`;
             }).join('');
             details.push({ label: 'Genres', value: `<div class="genre-tags">${genreHtml}</div>`, isHtml: true });
           } else {
@@ -5063,13 +5066,17 @@ img { max-width: 100%; height: auto; display: block; }
         } else if (!isAnime) {
           if (data.genres?.length) {
             // Type-prefixed genre route: /tv/genre/... or /movie/genre/... - the
-            // segment identifies the TMDB kind (unified with home popup links)
+            // segment identifies the TMDB kind (unified with home popup links).
+            // "&" genres (TMDB official names like "Action & Adventure",
+            // "Sci-Fi & Fantasy") stay ONE pill under their official name; the
+            // href slug collapses "&" to a hyphen -> /tv/genre/action-adventure
+            // (matches shared.js nav slugs: Music & Musical -> music-musical)
             const genreTypeSeg = currentState.type === 'movie' ? 'movie' : 'tv';
             const genreHtml = data.genres.map(g => {
               const name = g.name;
               const firstChar = name.charAt(0).toLowerCase();
               const colorAttr = GENRE_COLOR_MAP[firstChar] || '';
-              return `<a href="/${genreTypeSeg}/genre/${name.toLowerCase().replace(/\s+/g, '-')}" class="genre-tag" ${colorAttr}>${name}</a>`;
+              return `<a href="/${genreTypeSeg}/genre/${slugify(name)}" class="genre-tag" ${colorAttr}>${name}</a>`;
             }).join('');
             details.push({ label: 'Genres', value: `<div class="genre-tags">${genreHtml}</div>`, isHtml: true });
           } else {
@@ -5077,8 +5084,21 @@ img { max-width: 100%; height: auto; display: block; }
           }
         }
         
-        const status = isAnime ? data.status : (data.status === 'Released' ? 'Released' : data.status);
-        details.push({ label: 'Status', value: status });
+        const status = isAnime ? data.status : (data.status || null);
+        if (status) {
+          // Type-prefixed status route: /anime|tv|movie/status/{status_value} —
+          // hyphenated slug ("Currently Airing" -> /anime/status/currently-airing,
+          // "Returning Series" -> /tv/status/returning-series,
+          // "Released" -> /movie/status/released)
+          const statusSeg = isAnime ? 'anime' : (currentState.type === 'movie' ? 'movie' : 'tv');
+          details.push({
+            label: 'Status',
+            value: `<a href="/${statusSeg}/status/${slugify(String(status))}">${escapeHtml(String(status))}</a>`,
+            isHtml: true
+          });
+        } else {
+          details.push({ label: 'Status', value: 'N/A' });
+        }
         
         // movies never broadcast and rarely need an empty Aired row — detect once
         const isAnimeMovie = isAnime && String(data.type || '').toLowerCase() === 'movie';
@@ -5204,8 +5224,11 @@ img { max-width: 100%; height: auto; display: block; }
         
         const studios = isAnime ? data.studios : data.production_companies || data.networks;
         if (studios?.length) {
-          // anime info pages use /anime/studio/ prefix; TV keeps /studio/
-          const studioBase = isAnime ? '/anime/studio/' : '/studio/';
+          // Type-prefixed studio routes: anime -> /anime/studio/, TMDB ->
+          // /tv/studio/ or /movie/studio/ (segment identifies the TMDB kind,
+          // same scheme as the genre routes above)
+          const studioTypeSeg = currentState.type === 'movie' ? 'movie' : 'tv';
+          const studioBase = isAnime ? '/anime/studio/' : `/${studioTypeSeg}/studio/`;
           const studioLinks = studios.slice(0, 5).map(s => {
             const studioSlug = slugify(s.name);
             return `<a href="${studioBase}${studioSlug}">${s.name}</a>`;
