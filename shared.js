@@ -1240,7 +1240,15 @@
     ['Rom-Com','rom-com'],['Romance','romance'],['School','school'],['Sci-Fi','sci-fi'],
     ['Seinen','seinen'],['Shoujo','shoujo'],['Shounen','shounen'],['Slice of Life','slice-of-life'],
     ['Space','space'],['Sports','sports'],['Super Power','super-power'],['Supernatural','supernatural'],
-    ['Suspense','suspense'],['Thriller','thriller'],['Vampire','vampire']
+    ['Suspense','suspense'],['Thriller','thriller'],['Vampire','vampire'],
+    ['Anthropomorphic','anthropomorphic'],['Historical','historical'],['Medical','medical'],
+    ['Mythology','mythology'],['Otaku Culture','otaku-culture'],['Performing Arts','performing-arts'],
+    ['Pets','pets'],['Police','police'],['Racing','racing'],['Samurai','samurai'],
+    ['Strategy Game','strategy-game'],['Survival','survival'],['Team Sports','team-sports'],
+    ['Time Travel','time-travel'],['Video Game','video-game'],['Workplace','workplace'],
+    ['Action & Adventure','action-adventure'],['Reality TV','reality-tv'],
+    ['Sci-Fi & Fantasy','sci-fi-fantasy'],['Talk Show','talk-show'],['TV Movie','tv-movie'],
+    ['War','war'],['Western','western']
   ];
   const COUNTRIES = [
     ['Argentina','argentina'],['Australia','australia'],['Austria','austria'],['Belgium','belgium'],
@@ -3205,7 +3213,7 @@
             No results for "<strong style="color:#63b3ed">${esc(q)}</strong>"
           </div>
         </div>
-        <button class="view-all-btn" onclick="location.href='/search?q=${encodeURIComponent(q)}&type=${currentSearchMode}'">${SVG.arrow} View all results</button>`;
+        <button class="view-all-btn" onclick="location.href='/latest-updates?q=${encodeURIComponent(q)}&mode=${currentSearchMode}'">${SVG.arrow} View all results</button>`;
       container.style.display = 'block';
       return;
     }
@@ -3307,7 +3315,7 @@
     // Structure: scrollable suggestions + always-visible "View All" button
     container.innerHTML = `
       <div class="suggestions-scroll">${html}</div>
-      <button class="view-all-btn" onclick="location.href='/search?q=${encodeURIComponent(q)}&type=${currentSearchMode}'">${SVG.arrow} View all results for "${esc(q)}"</button>`;
+      <button class="view-all-btn" onclick="location.href='/latest-updates?q=${encodeURIComponent(q)}&mode=${currentSearchMode}'">${SVG.arrow} View all results for "${esc(q)}"</button>`;
     container.style.display = 'block';
   }
 

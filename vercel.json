@@ -18,8 +18,30 @@
     }
   ],
   "rewrites": [
-    { "source": "/latest-updates",         "destination": "/latest-updates.html" },
+    { "source": "/latest-updates",         "destination": "/browse.html" },
     { "source": "/schedule",               "destination": "/schedule.html" },
+
+    { "source": "/browse",                 "destination": "/browse.html" },
+    { "source": "/search",                 "destination": "/browse.html" },
+    { "source": "/genre/:name",            "destination": "/browse.html" },
+    { "source": "/country/:name",          "destination": "/browse.html" },
+    { "source": "/type/:name",             "destination": "/browse.html" },
+    { "source": "/status/:name",           "destination": "/browse.html" },
+    { "source": "/new-releases",           "destination": "/browse.html" },
+    { "source": "/recent",                 "destination": "/browse.html" },
+
+    { "source": "/anime/genre/:name",      "destination": "/browse.html" },
+    { "source": "/anime/studio/:name",     "destination": "/browse.html" },
+    { "source": "/anime/status/:name",     "destination": "/browse.html" },
+    { "source": "/anime/season/:name/year/:year", "destination": "/browse.html" },
+
+    { "source": "/tv/genre/:name",         "destination": "/browse.html" },
+    { "source": "/tv/studio/:name",        "destination": "/browse.html" },
+    { "source": "/tv/status/:name",        "destination": "/browse.html" },
+
+    { "source": "/movie/genre/:name",      "destination": "/browse.html" },
+    { "source": "/movie/studio/:name",     "destination": "/browse.html" },
+    { "source": "/movie/status/:name",     "destination": "/browse.html" },
 
     { "source": "/info/anime/:id",         "destination": "/info.html" },
     { "source": "/info/anime/:id/:slug",   "destination": "/info.html" },
