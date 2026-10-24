@@ -31,9 +31,9 @@
       --btn-secondary-hover: #243b53;
       --accent-gold: #ecc94b;
       --accent-blue: #4299e1;
-      --anime-badge: #7c5cff;
-      --tv-badge: #2ba8a0;
-      --movie-badge: #e0813d;
+      --anime-badge: #6d28d9;
+      --tv-badge: #0f766e;
+      --movie-badge: #c2410c;
       --border-subtle: rgba(255, 255, 255, 0.08);
       --border-medium: rgba(255, 255, 255, 0.16);
       --font-title: 'Archivo Black', sans-serif;
@@ -59,11 +59,17 @@
     /* ── PAGE SHELL ── */
     .br-page { max-width: 1720px; margin: 0 auto; padding: 24px 22px 60px; }
     .br-head { display:flex; align-items:flex-end; justify-content:space-between; gap:14px; flex-wrap:wrap; margin-bottom:16px; }
-    .br-h1 { font-family: var(--font-title); font-size: clamp(1.45rem, 3vw, 2.1rem); letter-spacing:.5px; display:flex; align-items:center; gap:12px; }
-    .br-h1 .fa-solid { color: var(--accent-blue); font-size:.8em; }
+    .br-h1 { font-family: var(--font-title); font-size:1.35rem; color:var(--text-widget-title); }
     .br-sub { color: var(--text-muted); font-size:.82rem; margin-top:5px; }
     .br-count { font-family:var(--font-meta); font-size:.72rem; font-weight:600; color:var(--text-secondary); background:var(--bg-card); border:1px solid var(--border-subtle); border-radius:var(--radius-pill); padding:6px 14px; white-space:nowrap; }
     .br-count b { color: var(--accent-blue); }
+
+    /* ── STICKY CONTROL SHELL (filter bar + chips + toggle stay put; only cards scroll) ── */
+    .br-sticky {
+      position:sticky; top:64px; z-index:90; background:var(--bg-body);
+      margin:0 -22px 4px; padding:8px 22px 12px;
+      box-shadow:0 16px 22px -18px rgba(0,0,0,.65);
+    }
 
     /* ── FILTER BAR ── */
     .br-filterbar {
@@ -72,10 +78,12 @@
       border-radius:var(--radius-lg); padding:12px; margin:0 auto 10px;
       position:relative; z-index:60;
     }
-    .br-search { display:flex; align-items:center; gap:8px; background:var(--bg-surface); border:1px solid var(--border-subtle); border-radius:var(--radius-pill); padding:0 14px; min-width:230px; flex:1 1 230px; max-width:340px; }
-    .br-search i { color:var(--text-muted); font-size:.8rem; }
-    .br-search input { background:transparent; border:none; outline:none; color:var(--text-primary); font-family:var(--font-body); font-size:.82rem; padding:9px 0; width:100%; }
+    .br-search { display:flex; align-items:center; gap:8px; background:var(--bg-surface); border:1px solid var(--border-subtle); border-radius:var(--radius-pill); padding:0 8px 0 14px; min-width:230px; flex:1 1 230px; max-width:340px; }
+    .br-search > i { color:var(--text-muted); font-size:.8rem; }
+    .br-search input { background:transparent; border:none; outline:none; color:var(--text-primary); font-family:var(--font-body); font-size:.82rem; padding:9px 0; width:100%; min-width:0; }
     .br-search input::placeholder { color:var(--text-muted); }
+    .br-search-x { flex-shrink:0; background:rgba(255,255,255,.09); border:none; color:var(--text-secondary); width:20px; height:20px; border-radius:50%; cursor:pointer; font-size:.62rem; display:flex; align-items:center; justify-content:center; transition:background .12s, color .12s; }
+    .br-search-x:hover { background:#e05260; color:#fff; }
     .br-dd { position:relative; }
     .br-dd-btn {
       display:flex; align-items:center; gap:7px; white-space:nowrap;
@@ -123,9 +131,9 @@
     .br-check input:disabled + span { opacity:.35; cursor:not-allowed; }
     .br-check.checked { color:#d6e7f8; background:rgba(66,153,225,.12); }
     .br-mark { font-family:var(--font-meta); font-size:.55rem; font-weight:600; padding:1px 5px; border-radius:4px; margin-left:auto; white-space:nowrap; }
-    .br-mark.anime { background:rgba(124,92,255,.25); color:#b9a7ff; }
-    .br-mark.tv { background:rgba(43,168,160,.25); color:#7fdcd4; }
-    .br-mark.movie { background:rgba(224,129,61,.25); color:#f2b183; }
+    .br-mark.anime { background:#6d28d9; color:#fff; }
+    .br-mark.tv { background:#0f766e; color:#fff; }
+    .br-mark.movie { background:#c2410c; color:#fff; }
     .br-studio-col { font-family:var(--font-meta); font-size:.62rem; text-transform:uppercase; letter-spacing:.8px; color:var(--text-widget-title); margin:8px 0 4px; }
     .br-panel-actions { display:flex; justify-content:space-between; gap:8px; margin-top:10px; padding-top:10px; border-top:1px solid var(--border-subtle); }
     .br-mini-btn { background:transparent; border:1px solid var(--border-medium); color:var(--text-muted); border-radius:var(--radius-pill); font-family:var(--font-meta); font-size:.66rem; padding:5px 12px; cursor:pointer; }
@@ -171,7 +179,7 @@
     .br-card { display:block; text-decoration:none; color:inherit; border-radius:var(--radius-md); transition: transform .2s ease; position:relative; }
     .br-card:hover { transform: translateY(-4px); }
     .br-poster-wrap { position:relative; aspect-ratio:2/3; border-radius:var(--radius-md); overflow:hidden; background:var(--bg-card); border:1px solid var(--border-subtle); }
-    .br-poster { width:100%; height:100%; object-fit:cover; display:block; transition:transform .25s ease; }
+    .br-poster { position:relative; z-index:1; width:100%; height:100%; object-fit:cover; display:block; transition:transform .25s ease; }
     .br-card:hover .br-poster { transform:scale(1.06); }
     .br-grad { position:absolute; inset:0; background:linear-gradient(to top, rgba(7,17,29,.93) 0%, rgba(7,17,29,.28) 40%, transparent 62%); }
     .br-badge {
@@ -181,13 +189,21 @@
     .br-badge.anime { background:var(--anime-badge); }
     .br-badge.tv { background:var(--tv-badge); }
     .br-badge.movie { background:var(--movie-badge); }
-    .br-ep { position:absolute; top:8px; right:8px; font-family:var(--font-meta); font-weight:600; font-size:.62rem; color:#fff; background:rgba(9,26,45,.85); border:1px solid var(--border-subtle); border-radius:6px; padding:3px 7px; }
-    .br-score { position:absolute; bottom:44px; right:8px; font-family:var(--font-meta); font-weight:600; font-size:.66rem; color:var(--accent-gold); background:rgba(9,26,45,.85); border-radius:6px; padding:2px 7px; display:flex; align-items:center; gap:4px; }
-    .br-ttl-wrap { position:absolute; left:0; right:0; bottom:0; padding:10px 10px 9px; }
+    /* top-right flag stack: score pill above the (type · year · ep · SUB|DUB) pill */
+    .br-flag { position:absolute; top:8px; right:8px; display:flex; flex-direction:column; align-items:flex-end; gap:3px; z-index:3; max-width:calc(100% - 78px); }
+    .br-score { font-family:var(--font-meta); font-weight:600; font-size:.62rem; color:var(--accent-gold); background:rgba(9,26,45,.88); border:1px solid rgba(236,201,75,.28); border-radius:6px; padding:2px 7px; display:inline-flex; align-items:center; gap:4px; }
+    .br-score i { font-size:.85em; }
+    .br-info { font-family:var(--font-meta); font-weight:600; font-size:.58rem; letter-spacing:.3px; color:#fff; background:rgba(9,26,45,.88); border:1px solid var(--border-subtle); border-radius:6px; padding:3px 7px; display:flex; align-items:center; justify-content:flex-end; flex-wrap:wrap; gap:3px 5px; text-align:right; }
+    .br-info .sep { color:rgba(255,255,255,.45); }
+    .br-info i { font-size:.9em; }
+    .br-info .ic-cc { color:#7fd4ff; margin-right:2px; }
+    .br-info .ic-dub { color:#ffb38a; margin-right:2px; }
+    .br-ttl-wrap { position:absolute; left:0; right:0; bottom:0; padding:10px; }
     .br-title { font-size:.78rem; font-weight:600; line-height:1.32; color:#fff; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; text-shadow:0 1px 4px rgba(0,0,0,.6); }
-    .br-meta { display:flex; align-items:center; gap:7px; margin-top:4px; font-family:var(--font-meta); font-size:.6rem; color:var(--text-secondary); flex-wrap:wrap; }
-    .br-meta .yr { color:var(--text-muted); }
-    .br-noposter { width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:linear-gradient(145deg, #16334f, #0f2440); color:var(--text-muted); font-size:1.6rem; }
+    /* "No Image" placeholder — same look as index.html .card-poster.no-image */
+    .br-noposter { position:absolute; inset:0; z-index:0; display:flex; flex-direction:column; align-items:center; justify-content:center; background:linear-gradient(135deg, #1e293b 0%, #334155 100%); }
+    .br-noposter .np-a { color:#94a3b8; font-family:var(--font-meta); font-size:.75rem; font-weight:600; letter-spacing:2px; text-transform:uppercase; }
+    .br-noposter .np-b { color:#94a3b8; font-family:var(--font-meta); font-size:.7rem; font-weight:600; letter-spacing:1px; text-transform:uppercase; margin-top:2px; }
 
     /* ── SKELETON ── */
     .br-skel { border-radius:var(--radius-md); overflow:hidden; background:var(--bg-card); border:1px solid var(--border-subtle); }
@@ -236,28 +252,34 @@
     .br-pagination button.nav { font-size:.78rem; }
     .br-pagination .dots { color:var(--text-muted); font-size:.8rem; padding:0 2px; user-select:none; }
 
-    /* ── POPUP CARD (PC only) ── */
+    /* ── POPUP CARD (PC only) — metadata left, poster top right (info-page style) ── */
     .br-pop {
-      position:fixed; width:344px; background:var(--bg-popup); border:1px solid var(--border-medium);
+      position:fixed; width:372px; background:var(--bg-popup); border:1px solid var(--border-medium);
       border-radius:var(--radius-lg); box-shadow:var(--shadow-lg); overflow:hidden;
       opacity:0; visibility:hidden; transform:translateY(8px) scale(.97);
       transition: opacity .18s ease, transform .18s ease; z-index:120; pointer-events:none;
     }
     .br-pop.active { opacity:1; visibility:visible; transform:translateY(0) scale(1); pointer-events:auto; }
-    .br-pop-banner { position:relative; height:110px; background:linear-gradient(120deg, #16334f, #0f2440); }
-    .br-pop-banner img { width:100%; height:100%; object-fit:cover; opacity:.55; }
-    .br-pop-poster { position:absolute; left:14px; bottom:-46px; width:96px; aspect-ratio:2/3; border-radius:10px; overflow:hidden; border:2px solid rgba(255,255,255,.16); background:var(--bg-card); box-shadow:0 10px 26px rgba(0,0,0,.5); }
-    .br-pop-poster img { width:100%; height:100%; object-fit:cover; }
-    .br-pop-body { padding:54px 15px 14px; }
-    .br-pop-title { font-size:.92rem; font-weight:700; line-height:1.3; color:#fff; overflow-wrap:anywhere; }
-    .br-pop-pills { display:flex; flex-wrap:wrap; gap:6px; margin-top:9px; }
-    .br-pop-pill { font-family:var(--font-meta); font-size:.6rem; font-weight:500; color:var(--text-secondary); background:rgba(255,255,255,.08); border-radius:5px; padding:2px 8px; max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .br-pop-pill.gold { color:var(--accent-gold); }
-    .br-pop-genres { display:flex; flex-wrap:wrap; gap:6px; margin-top:9px; }
-    .br-pop-genre { font-family:var(--font-meta); font-size:.6rem; font-weight:500; color:#cdddf0; background:rgba(66,153,225,.16); border:1px solid rgba(66,153,225,.3); border-radius:999px; padding:2px 9px; text-decoration:none; transition:background .14s; max-width:100%; }
-    .br-pop-genre:hover { background:rgba(66,153,225,.34); color:#fff; }
-    .br-pop-desc { font-size:.72rem; color:var(--text-secondary); margin-top:10px; line-height:1.5; display:-webkit-box; -webkit-line-clamp:4; -webkit-box-orient:vertical; overflow:hidden; }
-    .br-pop-desc .striptags {}
+    .br-pop-body { padding:14px 14px 13px; }
+    .br-pop-top { display:flex; gap:12px; align-items:flex-start; }
+    .br-pop-left { flex:1; min-width:0; }
+    .br-pop-kind { display:inline-block; font-family:var(--font-meta); font-size:.54rem; font-weight:700; letter-spacing:.8px; color:#fff; border-radius:4px; padding:2px 7px; }
+    .br-pop-kind.anime { background:var(--anime-badge); }
+    .br-pop-kind.tv { background:var(--tv-badge); }
+    .br-pop-kind.movie { background:var(--movie-badge); }
+    .br-pop-title { font-size:.95rem; font-weight:700; line-height:1.3; color:#fff; margin-top:6px; overflow-wrap:anywhere; }
+    .br-pop-desc { font-size:.72rem; color:var(--text-secondary); margin-top:8px; line-height:1.5; display:-webkit-box; -webkit-line-clamp:4; -webkit-box-orient:vertical; overflow:hidden; }
+    .br-pop-poster { position:relative; width:98px; aspect-ratio:2/3; flex-shrink:0; border-radius:10px; overflow:hidden; border:1px solid var(--border-medium); background:var(--bg-card); box-shadow:0 10px 26px rgba(0,0,0,.5); }
+    .br-pop-poster img { position:relative; z-index:1; width:100%; height:100%; object-fit:cover; }
+    .br-pop-rows { display:grid; grid-template-columns:1fr 1fr; gap:8px 14px; margin-top:12px; border-top:1px solid var(--border-subtle); padding-top:11px; }
+    .br-pop-row { min-width:0; }
+    .br-pop-row .k { display:block; font-family:var(--font-meta); font-size:.55rem; text-transform:uppercase; letter-spacing:.8px; color:var(--text-muted); }
+    .br-pop-row .v { display:block; font-size:.7rem; font-weight:500; color:#dbe7f5; margin-top:1px; overflow-wrap:anywhere; }
+    .br-pop-row .v.gold { color:var(--accent-gold); }
+    .br-pop-row .v i { font-size:.85em; margin-right:3px; }
+    .br-pop-genres { display:flex; flex-wrap:wrap; gap:6px; margin-top:12px; }
+    .br-pop-genre { font-family:var(--font-meta); font-size:.6rem; font-weight:500; color:#e3effc; background:rgba(66,153,225,.28); border:1px solid rgba(66,153,225,.45); border-radius:999px; padding:2px 9px; text-decoration:none; transition:background .14s; max-width:100%; }
+    .br-pop-genre:hover { background:rgba(66,153,225,.5); color:#fff; }
     .br-pop-actions { display:flex; gap:8px; margin-top:13px; }
     .br-pop-btn {
       flex:1; text-align:center; text-decoration:none; font-family:var(--font-meta); font-weight:600;
@@ -284,8 +306,8 @@
       .br-dd-grid.cols-4 { grid-template-columns:repeat(2, 1fr); }
       .br-dd-grid.cols-3 { grid-template-columns:repeat(3, 1fr); }
       .br-title { font-size:.7rem; }
-      .br-meta { font-size:.54rem; gap:5px; }
       .br-toggle button { padding:7px 12px; font-size:.66rem; }
+      .br-sticky { margin:0 -12px 2px; padding:6px 12px 10px; }
     }
     @media (min-width:768px) and (max-width:1023px) {
       /* mobile landscape + tablets: 3-col genre/year panels per spec */
@@ -299,17 +321,21 @@
 <main class="br-page" id="brPage">
   <div class="br-head">
     <div>
-      <h1 class="br-h1" id="brH1"><i class="fa-solid fa-compass"></i>Browse</h1>
+      <h1 class="br-h1" id="brH1">Browse</h1>
       <p class="br-sub" id="brSub">Filter the full RuriStream catalog — anime, TV shows and movies.</p>
     </div>
     <span class="br-count" id="brCount"><b>—</b> titles</span>
   </div>
 
+  <!-- STICKY CONTROL SHELL: filter bar + chips + toggle stay fixed while only cards scroll -->
+  <div class="br-sticky" id="brSticky">
+
   <!-- FILTER BAR -->
   <div class="br-filterbar" id="brFilterbar">
     <div class="br-search">
       <i class="fa-solid fa-magnifying-glass"></i>
-      <input type="text" id="brSearchInput" placeholder="Search titles… (Enter to apply)" autocomplete="off">
+      <input type="text" id="brSearchInput" placeholder="Search anime, movie &amp; series titles" autocomplete="off">
+      <button class="br-search-x" id="brSearchClear" type="button" aria-label="Clear search" title="Clear search" style="display:none"><i class="fa-solid fa-xmark"></i></button>
     </div>
     <div class="br-dd" data-key="genres">
       <button class="br-dd-btn" type="button"><i class="fa-solid fa-tags" style="font-size:.7em"></i>Genre <span class="br-dd-n" style="display:none"></span><i class="fa-solid fa-chevron-down"></i></button>
@@ -375,6 +401,8 @@
       <button type="button" data-media="tmdb"><i class="fa-solid fa-film"></i>Non-Anime</button>
     </div>
   </div>
+
+  </div><!-- /br-sticky -->
 
   <!-- GRID -->
   <div class="br-grid" id="brGrid"></div>
@@ -506,6 +534,10 @@
     });
   }
   function $(id) { return document.getElementById(id); }
+  function syncSearchClear() {
+    var btn = $('brSearchClear'), inp = $('brSearchInput');
+    if (btn && inp) btn.style.display = inp.value ? 'flex' : 'none';
+  }
   function slugName(slug) {
     for (var i = 0; i < GENRES.length; i++) if (GENRES[i][1] === slug) return GENRES[i][0];
     return slug.replace(/-/g, ' ').replace(/\b\w/g, function (c) { return c.toUpperCase(); });
@@ -699,7 +731,7 @@
     else if (state.media === 'tmdb') { h = 'Movies & TV Shows'; icon = 'fa-film'; }
     else { h = 'Browse All'; }
     if (state.sort !== 'default' && !state.q && state.sort) h += ' · ' + sortLabel(state.sort);
-    $('brH1').innerHTML = '<i class="fa-solid ' + icon + '"></i>' + esc(h);
+    $('brH1').textContent = h;
     document.title = h + ' — RuriStream';
     var sub = 'Filter the full RuriStream catalog — anime, TV shows and movies.';
     if (state.media === 'anime') sub = 'Browse every anime on RuriStream — refine with the filters above.';
@@ -910,6 +942,13 @@
     $('brSearchInput').addEventListener('keydown', function (e) {
       if (e.key === 'Enter') { state.q = this.value.trim(); state.page = 1; apply(true); }
     });
+    $('brSearchInput').addEventListener('input', syncSearchClear);
+    $('brSearchClear').addEventListener('click', function () {
+      $('brSearchInput').value = '';
+      syncSearchClear();
+      if (state.q) { state.q = ''; state.page = 1; apply(true); }   // also drop an applied search
+      $('brSearchInput').focus();
+    });
     $('brApplyBtn').addEventListener('click', function () {
       state.q = $('brSearchInput').value.trim();
       state.page = 1;
@@ -1002,23 +1041,36 @@
     if (!it || !it.info_url) return '';
     var kind = it.kind === 'anime' ? 'anime' : (it.kind === 'movie' ? 'movie' : 'tv');
     var kindLabel = kind === 'anime' ? 'ANIME' : kind === 'movie' ? 'MOVIE' : 'TV';
-    var badge = '';
-    var ep = parseInt(it.episodes, 10);
-    if (ep > 0) badge = '<span class="br-ep">EP ' + ep + '</span>';
-    else if (it.year) badge = '<span class="br-ep">' + it.year + '</span>';
-    var score = parseFloat(it.score);
-    var scoreHtml = (isFinite(score) && score > 0) ? '<span class="br-score"><i class="fa-solid fa-star" style="font-size:.85em"></i>' + (score % 1 ? score.toFixed(1) : score) + '</span>' : '';
-    var poster = it.cover
-      ? '<img class="br-poster" loading="lazy" src="' + esc(it.cover) + '" alt="' + esc(it.title) + '">'
-      : '<div class="br-noposter"><i class="fa-solid fa-image"></i></div>';
-    return '<a class="br-card" href="' + esc(it.info_url) + '" data-idx="' + it.__idx + '" title="' + esc(it.title) + '">' +
+    // "No Image" placeholder sits under the poster (visible if src missing or fails to load)
+    var poster = '<div class="br-noposter"><span class="np-a">No</span><span class="np-b">Image</span></div>';
+    if (it.cover) poster += '<img class="br-poster" loading="lazy" src="' + esc(it.cover) + '" alt="' + esc(it.title) + '" onerror="this.remove()">';
+    var flag = cardFlagHtml(it);
+    return '<a class="br-card" href="' + esc(it.info_url) + '" data-idx="' + it.__idx + '">' +
       '<div class="br-poster-wrap">' + poster +
-      '<span class="br-badge ' + kind + '">' + kindLabel + '</span>' + badge +
-      '<div class="br-grad"></div>' + scoreHtml +
-      '<div class="br-ttl-wrap"><h3 class="br-title">' + esc(it.title) + '</h3>' +
-      '<div class="br-meta">' + (it.type ? '<span>' + esc(it.type) + '</span>' : '') +
-      (it.year ? '<span class="yr">' + it.year + '</span>' : '') +
-      (it.language && it.language.indexOf('dub') !== -1 ? '<span>DUB</span>' : '') + '</div></div></div></a>';
+      '<span class="br-badge ' + kind + '">' + kindLabel + '</span>' +
+      '<div class="br-grad"></div>' + flag +
+      '<div class="br-ttl-wrap"><h3 class="br-title">' + esc(it.title) + '</h3></div></div></a>';
+  }
+  /* top-right flag stack: score pill above the (type · year · episode · SUB|DUB) pill.
+     When a dub exists, the total episode count is mirrored to both SUB and DUB. */
+  function cardFlagHtml(it) {
+    var score = parseFloat(it.score);
+    var scoreHtml = (isFinite(score) && score > 0)
+      ? '<span class="br-score"><i class="fa-solid fa-star"></i>' + (score % 1 ? score.toFixed(1) : score) + '</span>' : '';
+    var lang = String(it.language || '');
+    var hasSub = lang.indexOf('sub') !== -1, hasDub = lang.indexOf('dub') !== -1;
+    var ep = parseInt(it.episodes, 10);
+    var parts = [];
+    if (it.type) parts.push('<span>' + esc(String(it.type).toUpperCase()) + '</span>');
+    if (it.year) parts.push('<span>' + it.year + '</span>');
+    if (ep > 0) {
+      if (hasSub && hasDub) parts.push('<span><i class="fa-solid fa-closed-captioning ic-cc"></i>' + ep + '</span><span class="sep">|</span><span><i class="fa-solid fa-microphone ic-dub"></i>' + ep + '</span>');
+      else if (hasDub) parts.push('<span><i class="fa-solid fa-microphone ic-dub"></i>' + ep + '</span>');
+      else if (hasSub) parts.push('<span><i class="fa-solid fa-closed-captioning ic-cc"></i>' + ep + '</span>');
+      else parts.push('<span>EP ' + ep + '</span>');
+    }
+    var infoHtml = parts.length ? '<span class="br-info">' + parts.join('<span class="sep">·</span>') + '</span>' : '';
+    return (scoreHtml || infoHtml) ? '<div class="br-flag">' + scoreHtml + infoHtml + '</div>' : '';
   }
   function renderGrid() {
     var html = '';
@@ -1167,7 +1219,7 @@
   }
 
   /* ── hover popup (PC only) ────────────────────────────────────────── */
-  var popEl = $('brPop'), popTimer = null, popHideTimer = null, popAnchor = null;
+  var popEl = $('brPop'), popTimer = null, popHideTimer = null, popAnchor = null, popHoverCard = null, popPinned = false;
   var POP_MQ = window.matchMedia('(hover:hover) and (min-width:1024px)');
   // window.__forcePopup lets QA/E2E verify the popup in headless browsers
   var POP_CAN = { get matches() { return window.__forcePopup || POP_MQ.matches; } };
@@ -1187,27 +1239,46 @@
     return out.join('');
   }
   function popupHtml(it) {
-    var pills = [];
-    if (it.type) pills.push('<span class="br-pop-pill">' + esc(it.type) + '</span>');
-    if (it.year) pills.push('<span class="br-pop-pill">' + it.year + '</span>');
-    if (it.episodes > 0) pills.push('<span class="br-pop-pill">EP ' + it.episodes + '</span>');
-    if (it.status) pills.push('<span class="br-pop-pill">' + esc(it.status) + '</span>');
+    var kind = it.kind === 'anime' ? 'anime' : (it.kind === 'movie' ? 'movie' : 'tv');
+    var kindLabel = kind === 'anime' ? 'ANIME' : kind === 'movie' ? 'MOVIE' : 'TV';
+    var desc = stripHtml(it.description || it.synopsis || '');
+    var rows = '';
+    function row(k, v, cls) {
+      if (v === null || v === undefined || v === '') return;
+      rows += '<div class="br-pop-row"><span class="k">' + k + '</span><span class="v' + (cls ? ' ' + cls : '') + '">' + v + '</span></div>';
+    }
+    row('Type', it.type ? esc(String(it.type).toUpperCase()) : '');
+    row('Year', it.year || '');
+    var ep = parseInt(it.episodes, 10);
+    row('Episodes', ep > 0 ? ep : '');
+    row('Status', esc(it.status || ''));
     var score = parseFloat(it.score);
-    if (isFinite(score) && score > 0) pills.push('<span class="br-pop-pill gold"><i class="fa-solid fa-star"></i> ' + (score % 1 ? score.toFixed(1) : score) + '</span>');
-    (it.studios || []).slice(0, 2).forEach(function (s) { pills.push('<span class="br-pop-pill">' + esc(s) + '</span>'); });
-    if (it.source) pills.push('<span class="br-pop-pill">Source: ' + esc(it.source) + '</span>');
-    return '<div class="br-pop-banner">' + (it.banner ? '<img src="' + esc(it.banner) + '" alt="" onerror="this.style.display=\'none\'">' : '') +
-      '<div class="br-pop-poster">' + (it.cover ? '<img src="' + esc(it.cover) + '" alt="">' : '') + '</div></div>' +
-      '<div class="br-pop-body"><div class="br-pop-title">' + esc(it.title) + '</div>' +
-      '<div class="br-pop-pills">' + pills.join('') + '</div>' +
+    if (isFinite(score) && score > 0) row('Score', '<i class="fa-solid fa-star"></i>' + (score % 1 ? score.toFixed(1) : score), 'gold');
+    if ((it.studios || []).length) row('Studio', esc(it.studios.slice(0, 2).join(', ')));
+    row('Source', esc(it.source || ''));
+    var lang = String(it.language || '');
+    if (lang) {
+      var audio = [];
+      if (lang.indexOf('sub') !== -1) audio.push('SUB');
+      if (lang.indexOf('dub') !== -1) audio.push('DUB');
+      row('Audio', audio.join(' <span style="opacity:.5">|</span> '));
+    }
+    var np = '<div class="br-noposter"><span class="np-a">No</span><span class="np-b">Image</span></div>';
+    var poster = '<div class="br-pop-poster">' + np + (it.cover ? '<img src="' + esc(it.cover) + '" alt="" onerror="this.remove()">' : '') + '</div>';
+    return '<div class="br-pop-body">' +
+      '<div class="br-pop-top"><div class="br-pop-left">' +
+      '<span class="br-pop-kind ' + kind + '">' + kindLabel + '</span>' +
+      '<div class="br-pop-title">' + esc(it.title) + '</div>' +
+      (desc ? '<div class="br-pop-desc">' + esc(desc.slice(0, 320)) + (desc.length > 320 ? '…' : '') + '</div>' : '') +
+      '</div>' + poster + '</div>' +
+      (rows ? '<div class="br-pop-rows">' + rows + '</div>' : '') +
       ((it.genres || []).length ? '<div class="br-pop-genres">' + genreLinks(it) + '</div>' : '') +
-      (it.description || it.synopsis ? '<div class="br-pop-desc">' + esc(stripHtml(it.description || it.synopsis).slice(0, 320)) + '…</div>' : '') +
-      '<div class="br-pop-actions"><a class="br-pop-btn info" href="' + esc(it.info_url) + '"><i class="fa-solid fa-circle-info"></i> Info Page</a></div></div>';
+      '<div class="br-pop-actions"><a class="br-pop-btn info" href="' + esc(it.info_url) + '"><i class="fa-solid fa-circle-info"></i> More Details</a></div></div>';
   }
   function positionPop() {
     if (!popAnchor) return;
     var r = popAnchor.getBoundingClientRect();
-    var pw = 344, ph = popEl.offsetHeight || 300, m = 12;
+    var pw = 372, ph = popEl.offsetHeight || 300, m = 12;
     var left = r.right + m;
     if (left + pw > window.innerWidth - m) left = r.left - pw - m;
     if (left < m) left = Math.max(m, Math.min(window.innerWidth - pw - m, r.left));
@@ -1215,11 +1286,10 @@
     popEl.style.left = left + 'px';
     popEl.style.top = top + 'px';
   }
-  function showPopFor(anchor, idx) {
+  function showPopFor(anchor, idx, delay) {
     if (!POP_CAN.matches) return;
     var it = items[parseInt(idx, 10)];
     if (!it || !popEl) return;
-    clearTimeout(popHideTimer);
     clearTimeout(popTimer);
     popTimer = setTimeout(function () {
       popEl.innerHTML = popupHtml(it);
@@ -1227,32 +1297,51 @@
       popAnchor = anchor;
       positionPop();
       popEl.removeAttribute('aria-hidden');
-    }, 150);
+    }, delay || 0);
   }
   function hidePopSoon() {
+    if (popPinned) return;
     clearTimeout(popTimer);
+    clearTimeout(popHideTimer);   // hidePopSoon can fire twice per transition (mouseout + mouseleave) — never leave an orphaned timer
     popHideTimer = setTimeout(function () {
       popEl.classList.remove('active');
       popEl.setAttribute('aria-hidden', 'true');
       popAnchor = null;
-    }, 320);
+    }, 400);
   }
   function wirePopups() {
     var grid = $('brGrid');
     grid.addEventListener('mouseover', function (e) {
       var card = e.target.closest('.br-card');
       if (!card) return;
-      if (card === popAnchor && popEl.classList.contains('active')) return;
-      showPopFor(card, card.getAttribute('data-idx'));
+      if (popPinned) return;                    // mouse lives in the popup — never steal it
+      if (card === popHoverCard) return;        // sub-element crossings inside the same card
+      popHoverCard = card;
+      if (card === popAnchor && popEl.classList.contains('active')) { clearTimeout(popHideTimer); clearTimeout(popTimer); return; }
+      clearTimeout(popHideTimer);
+      // popup active → longer switch delay: quick chases across neighbours must NOT
+      // make the popup flee the cursor; a deliberate dwell still switches it.
+      showPopFor(card, card.getAttribute('data-idx'), popEl.classList.contains('active') ? 280 : 140);
     });
-    grid.addEventListener('mouseleave', hidePopSoon);
+    grid.addEventListener('mouseleave', function () { popHoverCard = null; hidePopSoon(); });
     grid.addEventListener('mouseout', function (e) {
-      if (!e.relatedTarget || !e.relatedTarget.closest || !e.relatedTarget.closest('.br-card')) hidePopSoon();
+      if (e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest('.br-card')) return;
+      popHoverCard = null;
+      hidePopSoon();
     });
-    popEl.addEventListener('mouseenter', function () { clearTimeout(popHideTimer); });
-    popEl.addEventListener('mouseleave', hidePopSoon);
+    popEl.addEventListener('mouseenter', function () {
+      popPinned = true;
+      clearTimeout(popHideTimer);
+      clearTimeout(popTimer);                   // abort pending switch — popup stays as-is
+    });
+    popEl.addEventListener('mouseleave', function () {
+      popPinned = false;
+      popHoverCard = null;
+      hidePopSoon();
+    });
     document.addEventListener('scroll', function () {
-      if (popEl.classList.contains('active')) { popEl.classList.remove('active'); popAnchor = null; }
+      popPinned = false; popHoverCard = null; popAnchor = null;
+      if (popEl.classList.contains('active')) popEl.classList.remove('active');
     }, true);
     window.addEventListener('resize', function () { if (popEl.classList.contains('active')) positionPop(); });
   }
@@ -1266,6 +1355,7 @@
   wirePopups();
   reflectSelection();
   $('brSearchInput').value = state.q;
+  syncSearchClear();
   window.addEventListener('resize', function () {
     clearTimeout(window.__brRz);
     window.__brRz = setTimeout(function () {
@@ -1280,6 +1370,7 @@
     state = p.state; pathBase = p.base;
     reflectSelection();
     $('brSearchInput').value = state.q;
+    syncSearchClear();
     apply(false);
   });
   requestAnimationFrame(function () {
