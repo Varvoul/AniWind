@@ -1096,10 +1096,13 @@
       '<h3>Nothing matched those filters</h3>' +
       '<p>' + (state.q ? 'No results for \u201C' + esc(state.q) + '\u201D' + (chips.length > 1 ? ' with the selected filters.' : '.') : 'No titles matched the selected filters. Try removing one or two.') + '</p>' +
       (chips.length ? '<p class="hint">' + chips.map(function (c) { return esc(c.label); }).join(' · ') + '</p>' : '') +
-      '<button class="br-clear" id="brStateClear">Clear all filters</button>';
+      '<button class="br-clear" id="brStateClear">Clear all filters</button>' +
+      (state.page > 1 ? '<button class="br-clear" id="brStateBack" style="margin-top:10px;background:transparent;border:1px solid var(--border-medium);color:var(--text-secondary)"><i class="fa-solid fa-angles-left"></i> Back to first page</button>' : '');
     st.style.display = 'block';
     var b = $('brStateClear');
     if (b) b.addEventListener('click', clearAllFilters);
+    var back = $('brStateBack');
+    if (back) back.addEventListener('click', function () { state.page = 1; apply(true); window.scrollTo({ top:0, behavior:'smooth' }); });
   }
   function showError(msg) {
     $('brGrid').innerHTML = '';

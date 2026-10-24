@@ -41,8 +41,8 @@ const TTL_MS = 30 * 60 * 1000; // 30 min server cache (owner spec: agent-chosen)
 const EDGE_TTL = 1800;
 const MAX_PER_PAGE = 50;
 const MAX_PAGE = 500;
-const WALK_BATCH = 3;          // source pages fetched per post-filter batch
-const WALK_MAX_BATCHES = 2;    // so at most 6 source pages per browse page
+const MAX_SOURCE_PAGES = 7;    // upstream pages one browse request may consume
+const ANILIST_TOTAL_CAP = 5000; // AniList reports pageInfo.total capped at 5000 while deep pages are empty — never trust >= this value
 
 // ── lookups ──────────────────────────────────────────────────────────────
 const COUNTRY_ISO = {
@@ -432,7 +432,7 @@ async function fetchProxyCategory(f, page, perPage, sort) {
   const j = await fetchJson(`${PROXY_BASE}/api/${cat}?${p}`, {}, 12000);
   const items = (Array.isArray(j.data) ? j.data : ((j.data && j.data.Page && j.data.Page.media) || [])).map(uniAnilist);
   const info = j.pagination || (j.data && j.data.Page && j.data.Page.pageInfo) || {};
-  return { items, rawTotal: info.total || items.length, hasNext: !!info.hasNextPage, lastPage: info.lastPage || null };
+  return { items, rawTotal: info.total || items.length, hasNext: !!info.hasNextPage, lastPage: info.lastPage || null, totalBogus: (info.total || 0) >= ANILIST_TOTAL_CAP };
 }
 async function fetchProxySeason(f, page, perPage, sort) {
   const p = new URLSearchParams();
@@ -445,12 +445,15 @@ async function fetchProxySeason(f, page, perPage, sort) {
       if (!name) continue;
       (ANILIST_GENRES.has(name) ? g : t).push(name);
     }
-    if (g.length) p.set('genre_in', g.join(','));
+    if (g.length) p.set('genres', g.join(','));
     if (t.length) p.set('tags', t.join(','));
   }
   if (f.type && ANILIST_FORMAT[f.type]) p.set('format_in', ANILIST_FORMAT[f.type]);
   if (f.status && ANIME_STATUS[f.status]) p.set('status_in', ANIME_STATUS[f.status].anilist);
   if (f.country) p.set('country', COUNTRY_ISO[f.country] || '');
+  // t133 FIX: the proxy parses `genre`/`genres` (genreVars) — it does NOT read
+  // `genre_in` despite its doc comment, so the old param was silently dropped
+  // and the season leg served unfiltered-by-genre pages with inflated totals.
   if (sort && sort !== 'default') {
     const map = { 'score':'SCORE_DESC','most-viewed':'POPULARITY_DESC','release-date':'START_DATE_DESC','name':'TITLE_ROMAJI','latest-added':'ID_DESC','latest-updated':'UPDATED_AT_DESC','episodes':'EPISODES_DESC' };
     if (map[sort]) p.set('sort', map[sort]);
@@ -459,7 +462,7 @@ async function fetchProxySeason(f, page, perPage, sort) {
   const page_ = (j.data && j.data.Page) || {};
   const items = (page_.media || []).map(uniAnilist);
   const info = page_.pageInfo || {};
-  return { items, rawTotal: info.total || items.length, hasNext: !!info.hasNextPage, lastPage: info.lastPage || null };
+  return { items, rawTotal: info.total || items.length, hasNext: !!info.hasNextPage, lastPage: info.lastPage || null, totalBogus: (info.total || 0) >= ANILIST_TOTAL_CAP };
 }
 async function fetchProxySearch(f, page, perPage) {
   const p = new URLSearchParams();
@@ -467,7 +470,7 @@ async function fetchProxySearch(f, page, perPage) {
   const j = await fetchJson(`${PROXY_BASE}/api/search/anime?${p}`, {}, 12000);
   const items = (Array.isArray(j.data) ? j.data : ((j.data && j.data.Page && j.data.Page.media) || [])).map(uniAnilist);
   const info = j.pagination || (j.data && j.data.Page && j.data.Page.pageInfo) || {};
-  return { items, rawTotal: info.total || items.length, hasNext: !!info.hasNextPage, lastPage: info.lastPage || null };
+  return { items, rawTotal: info.total || items.length, hasNext: !!info.hasNextPage, lastPage: info.lastPage || null, totalBogus: (info.total || 0) >= ANILIST_TOTAL_CAP };
 }
 async function fetchProxyStudio(f, page, perPage, sort) {
   const name = STUDIO_NAME[f.studio] || titleCaseSlug(f.studio);
@@ -482,7 +485,7 @@ async function fetchProxyStudio(f, page, perPage, sort) {
   const edges = (st && (st.edges || st.media)) || [];
   const items = edges.map(e => uniAnilist(e.node || e)).filter(Boolean);
   const info = (st && st.pageInfo) || {};
-  return { items, rawTotal: info.total || items.length, hasNext: !!info.hasNextPage, lastPage: info.lastPage || null };
+  return { items, rawTotal: info.total || items.length, hasNext: !!info.hasNextPage, lastPage: info.lastPage || null, totalBogus: (info.total || 0) >= ANILIST_TOTAL_CAP };
 }
 const SCRAPER_ORDER = { 'default':'score','score':'score','most-viewed':'popularity','release-date':'start_date','name':'title','latest-added':'start_date' };
 async function fetchScraper(f, page, perPage, sort) {
@@ -508,6 +511,13 @@ async function fetchScraperSeason(f, page, perPage, sort) {
   const ob = SCRAPER_ORDER[sort] || 'score';
   p.set('order_by', ob); p.set('sort', ob === 'title' ? 'asc' : 'desc');
   if (f.sfw && f.rating !== 'rx') p.set('sfw', 'true');
+  // t133 FIX: the scraper supports native type/genres on seasons — apply them
+  // upstream so this leg only walks when a true post-filter remains
+  if (f.type && ANILIST_FORMAT[f.type]) p.set('type', ANILIST_FORMAT[f.type]);
+  if (f.genres && f.genres.length) {
+    const names = f.genres.map(g => GENRE_NAME[g]).filter(Boolean);
+    if (names.length) p.set('genres', names.slice(0, 6).join(','));
+  }
   const j = await fetchJson(`${SCRAPER_BASE}/v4/seasons/${f.year}/${f.season}?${p}`, {}, 12000);
   const items = (j.data || []).map(uniAnime);
   const pg = j.pagination || {};
@@ -646,7 +656,7 @@ function mkPost(f, opts = {}) {
   const post = {};
   const statusNative = f.status && ANIME_STATUS[f.status] && ANIME_STATUS[f.status].ruri; // ruri supports the 3 basic statuses natively
   if (f.year) post.years = [f.year];
-  if (f.season) post.season = f.season;
+  if (f.season && !opts.noSeason) post.season = f.season;   // noSeason: the leg already scopes by season natively
   const st = opts.status !== undefined ? opts.status : f.status;
   if (st && !(opts.nativeStatus && statusNative)) post.status = st;
   if (f.source) post.source = f.source;
@@ -692,7 +702,7 @@ function buildAnimePlan(f, sort, warnings) {
   }
   if ((sort === 'latest-updated' || sort === 'latest-added') && !f.q) {
     if (!f.genres || !f.genres.length) {
-      plan.push({ name:'anikoto-recent', call:(p,pp)=>fetchRecentFeed(f, p, pp), post:mkPost(f) });
+      plan.push({ name:'anikoto-recent', call:(p,pp)=>fetchRecentFeed(f, p, pp), post:mkPost(f, { noSeason:true }) });
     }
     if (sort === 'latest-added' && f.season && f.year) {
       plan.push({ name:'anilist-proxy:season', call:(p,pp)=>fetchProxySeason(f, p, pp, 'latest-added'), post:mkPost(f, { extraGenres:[] }) });
@@ -706,10 +716,12 @@ function buildAnimePlan(f, sort, warnings) {
     return plan;
   }
   if (f.season && f.year) {
-    plan.push({ name:'anilist-proxy:season', call:(p,pp)=>fetchProxySeason(f, p, pp, sort), post:mkPost(f, { extraGenres:[] }) });
+    // proxy/scraper/jikan all scope by season+year natively (noSeason) — only
+    // ruri lacks a season param and needs the post-filter walk
+    plan.push({ name:'anilist-proxy:season', call:(p,pp)=>fetchProxySeason(f, p, pp, sort), post:mkPost(f, { extraGenres:[], noSeason:true }) });
     plan.push({ name:'ruri-s-mal', call:(p,pp)=>fetchRuri('s-mal', f, p, pp, RURI_SORTS[sort] || RURI_SORTS['default']), post:mkPost(f, { nativeGenres:true, nativeStatus:true }) });
-    plan.push({ name:'anilist-scraper:season', call:(p,pp)=>fetchScraperSeason(f, p, pp, sort), post:mkPost(f, { extraGenres:genreNamesLower(f) }) });
-    plan.push({ name:'jikan:season', call:(p,pp)=>fetchJikanSeason(f, p, pp, sort), post:mkPost(f, { extraGenres:genreNamesLower(f) }) });
+    plan.push({ name:'anilist-scraper:season', call:(p,pp)=>fetchScraperSeason(f, p, pp, sort), post:mkPost(f, { extraGenres:genreNamesLower(f), noSeason:true }) });
+    plan.push({ name:'jikan:season', call:(p,pp)=>fetchJikanSeason(f, p, pp, sort), post:mkPost(f, { extraGenres:genreNamesLower(f), noSeason:true }) });
     if (languageRestricted) return plan.filter(x => x.name.startsWith('ruri'));
     return plan;
   }
@@ -789,73 +801,184 @@ function buildTmdbPlan(f, sort, warnings) {
 }
 
 // ── runner: fetch a browse page from the first leg that can fill it ──────
-async function runPlan(plan, f, page, perPage, warnings) {
+// t133 PAGINATION FIX — the old runner guessed a source window, took the
+// FIRST perPage passing items and reported the source's own lastPage as the
+// page count. That produced: pagination claiming 200 pages for a 3-page
+// result, duplicated/missing cards between consecutive pages (perPage >
+// source page size windows overlapped), and dead pages once the guessed
+// window slid past the data. Now:
+//   native legs  — fetch exactly the source pages covering the raw range
+//                  [ (page-1)*perPage .. page*perPage ) and SLICE at the
+//                  absolute offset: no duplicates, no gaps, true totals.
+//   walked legs  — same window widened by the observed pass-rate (remembered
+//                  per filter-signature), overlap-trimmed against the page
+//                  served immediately before; totals stay estimates but are
+//                  stable, capped by the source total, and NEVER taken from
+//                  the source's own last_visible_page.
+const WALK_STATS = new Map();   // sig+leg -> walk memory (rate + window cursor)
+const WALK_STATS_TTL = 30 * 60 * 1000;
+const LAST_SERVED = new Map();  // filter sig -> { page, ids[] } of the most recent page served (ANY leg) — used to trim cross-leg overlap
+const STICKY_LEG = new Map();   // filter sig -> leg name that served the last page — keeps consecutive pages on ONE source (stable order, no cross-leg dupes)
+function filterSig(f) {
+  return JSON.stringify([f.media, f.q, f.genres, f.country, f.type, f.status, f.season, f.year,
+    f.language, f.rating, f.source, f.studio, f.sort, f.hidden]);
+}
+function walkSig(f, legName) { return filterSig(f) + '|' + legName; }
+function walkStatsFor(sig) {
+  const hit = WALK_STATS.get(sig);
+  if (hit && hit.at > Date.now() - WALK_STATS_TTL) return hit;
+  if (hit) WALK_STATS.delete(sig);
+  const fresh = { scanned: 0, passed: 0, rate: 1, cursorPage: 0, cursorIds: null, nextRawPage: 1, at: Date.now() };
+  WALK_STATS.set(sig, fresh);
+  if (WALK_STATS.size > 300) WALK_STATS.delete(WALK_STATS.keys().next().value);
+  return fresh;
+}
+const clampNum = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const itemKey = it => String(it.id) + '|' + (it.title || '');
+// cross-source overlap key: ids differ between sources (mal vs anilist vs tmdb),
+// titles are the stable join — used ONLY for the cross-leg page trim
+const fuzzyKey = it => String(it.title || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+async function runPlan(plan, f, page, perPage, warnings, sigNs = '') {
   const errors = [];
-  for (const leg of plan) {
+  // t133: leg stickiness — consecutive pages of the same filter set continue on
+  // the SAME source whenever it can still fill the page (stable ordering, no
+  // duplicated cards at leg-switch boundaries)
+  const fSig = filterSig(f) + (sigNs ? '|' + sigNs : '');
+  const sticky = STICKY_LEG.get(fSig) || null;
+  let ordered = plan;
+  if (sticky) {
+    const i = plan.findIndex(L => L.name === sticky);
+    if (i > 0) ordered = [plan[i], ...plan.slice(0, i), ...plan.slice(i + 1)];
+  }
+  for (const leg of ordered) {
     const post = Object.assign({}, leg.post || {});
     if (f.studio && leg.name.includes('ruri') === false && leg.name.includes('studio') === false) post.studioName = null;
-    const S = leg.name.startsWith('t-umi') ? 20 : 25; // source page size
-    const startPage = Math.floor((page - 1) * perPage / S) + 1;
-    const endPage = Math.ceil(page * perPage / S);
+    const S = leg.name.startsWith('t-umi') ? 20 : 25;   // source page size
+    const offset = (page - 1) * perPage;                 // 0-based first item this page must show
     try {
-      let collected = [];
-      let rawTotal = 0, hasNext = false, lastPage = null, approx = false, gotRaw = 0;
       const needsWalk = Object.values(post).some(v => v != null && (!(Array.isArray(v)) || v.length));
+      const st = needsWalk ? walkStatsFor(walkSig(f, leg.name)) : null;
+
+      // ── plan the source window ──
+      let startPage, endPage;
       if (!needsWalk) {
-        const pages = [];
-        for (let p = startPage; p <= endPage; p++) pages.push(leg.call(p, Math.min(perPage, leg.name.startsWith('t-umi') ? 20 : 25)));
-        const rs = await Promise.all(pages);
-        for (const r of rs) { collected.push(...r.items); rawTotal = Math.max(rawTotal, r.rawTotal || 0); hasNext = r.hasNext; lastPage = r.lastPage || lastPage; approx = approx || r.approx; }
+        startPage = Math.floor(offset / S) + 1;
+        endPage = Math.ceil(page * perPage / S);
       } else {
-        // post-filter walk: fetch batches until the window is filled
-        let p = startPage, batch = 0, exhausted = false;
-        while (collected.length < perPage && batch < WALK_MAX_BATCHES && !exhausted) {
-          // first page alone (warms ruri's per-shape count cache), rest parallel
-          const first = await leg.call(p, S);
-          const rs = [first];
-          if (collected.length < perPage) {
-            const rest = [];
-            for (let i = 1; i < WALK_BATCH; i++) rest.push(leg.call(p + i, S));
-            rs.push(...await Promise.all(rest));
-          }
-          for (const r of rs) {
-            gotRaw += r.items.length;
-            rawTotal = Math.max(rawTotal, r.rawTotal || 0);
-            hasNext = r.hasNext;
-            lastPage = r.lastPage || lastPage;
-            for (const it of r.items) {
-              if (matchesUni(it, post) && collected.length < perPage) collected.push(it);
-            }
-          }
-          p += WALK_BATCH; batch++;
-          if (!hasNext) exhausted = true;
+        const rate = clampNum(st.rate, 0.2, 1);
+        const rawFrom = Math.floor(offset / rate);
+        const rawTo = Math.ceil(page * perPage / rate);
+        startPage = Math.floor(rawFrom / S) + 1;
+        endPage = Math.ceil(rawTo / S);
+        if (page === st.cursorPage + 1 && st.nextRawPage > startPage) startPage = st.nextRawPage; // sequential: continue where the last page stopped
+        if (endPage - startPage + 1 > MAX_SOURCE_PAGES) startPage = endPage - MAX_SOURCE_PAGES + 1; // keep the right edge
+        startPage = Math.max(1, startPage);
+      }
+      if (endPage < startPage) endPage = startPage;
+      const hardEnd = needsWalk ? startPage + MAX_SOURCE_PAGES - 1 : endPage;
+
+      // ── fetch the window (batches of 3, walk may extend while underfull) ──
+      let collected = [];
+      let rawTotal = 0, hasNext = false, lastPage = null, approx = false, sourceExhausted = false, totalBogus = false;
+      let p = startPage;
+      while (p <= Math.min(endPage, hardEnd)) {
+        const batchEnd = Math.min(p + 2, endPage, hardEnd);
+        const batch = [];
+        for (let q = p; q <= batchEnd; q++) batch.push(leg.call(q, S));
+        const rs = await Promise.all(batch);
+        for (const r of rs) {
+          collected.push(...r.items);
+          rawTotal = Math.max(rawTotal, r.rawTotal || 0);
+          hasNext = r.hasNext;
+          lastPage = r.lastPage || lastPage;
+          approx = approx || r.approx;
+          totalBogus = totalBogus || !!r.totalBogus;
+          if (r.items.length < S || !r.hasNext) sourceExhausted = true;
         }
+        p = batchEnd + 1;
+        if (needsWalk) {
+          if (sourceExhausted) break;
+          const passedSoFar = collected.reduce((n, it) => n + (matchesUni(it, post) ? 1 : 0), 0);
+          if (passedSoFar >= perPage) break;               // enough to fill this page
+          endPage = Math.min(endPage + 3, hardEnd);        // extend while the window underfills
+        }
+      }
+
+      // ── shape the page ──
+      let items, total, outHasNext;
+      if (!needsWalk) {
+        const sliceFrom = Math.max(0, offset - (startPage - 1) * S);
+        items = collected.slice(sliceFrom, sliceFrom + perPage);
+        if (totalBogus && rawTotal >= ANILIST_TOTAL_CAP) {
+          // AniList's total is a display cap (real pages run dry much earlier) —
+          // only claim what is proven plus one lookahead page
+          total = offset + items.length + (hasNext ? perPage : 0);
+          outHasNext = hasNext;
+        } else {
+          total = rawTotal || (offset + items.length);
+          outHasNext = offset + items.length < total;
+        }
+      } else {
+        const passed = collected.filter(it => matchesUni(it, post));
+        // trim overlap with the most recently served page of this filter set,
+        // whichever leg served it (sequential browsing) — fuzzy title key so
+        // cross-source repeats (mal vs anilist vs tmdb ids) are caught too
+        let pool = passed;
+        const lastServed = LAST_SERVED.get(fSig);
+        if (page === (lastServed && lastServed.page) + 1 && Array.isArray(lastServed.ids) && lastServed.ids.length) {
+          const seenIds = new Set(lastServed.ids);
+          pool = passed.filter(it => !seenIds.has(fuzzyKey(it)));
+        }
+        // dedupe within the request, then take the page
+        const seen = new Set();
+        items = [];
+        for (const it of pool) {
+          const k = itemKey(it);
+          if (seen.has(k)) continue;
+          seen.add(k);
+          items.push(it);
+          if (items.length >= perPage) break;
+        }
+        // cumulative pass-rate memory (kept across pages of the same filter set)
+        st.scanned += collected.length;
+        st.passed += passed.length;
+        st.rate = st.scanned ? clampNum(st.passed / st.scanned, 0.05, 1) : 1;
+        st.nextRawPage = Math.min(p, hardEnd + 1);
+        st.at = Date.now();
         approx = true;
-        if (rawTotal && gotRaw && collected.length) rawTotal = Math.round(rawTotal * (collected.length / Math.max(gotRaw, collected.length))) + collected.length;
+        if (sourceExhausted) {
+          total = offset + items.length;                   // exact: nothing left upstream
+          outHasNext = false;
+        } else {
+          let est = rawTotal ? Math.round(rawTotal * st.rate) : 0;
+          if (totalBogus) est = Math.min(est, offset + items.length + (hasNext ? perPage : 0)); // AniList 5000-cap guard
+          total = clampNum(Math.max(est, offset + items.length), 0, rawTotal || est || (offset + items.length));
+          outHasNext = hasNext && items.length > 0 && offset + items.length < total;
+        }
       }
-      // dedupe by id, slice
-      const seen = new Set();
-      const items = [];
-      for (const it of collected) {
-        const k = it.id + '|' + (it.title || '');
-        if (seen.has(k)) continue;
-        seen.add(k);
-        items.push(it);
-      }
+
       if (items.length || rawTotal === 0) {
+        // remember this page for cross-leg trimming + leg stickiness
+        LAST_SERVED.set(fSig, { page, ids: items.map(fuzzyKey), at: Date.now() });
+        if (LAST_SERVED.size > 300) LAST_SERVED.delete(LAST_SERVED.keys().next().value);
+        STICKY_LEG.set(fSig, leg.name);
+        if (STICKY_LEG.size > 300) STICKY_LEG.delete(STICKY_LEG.keys().next().value);
         return {
-          items: items.slice(0, perPage),
-          total: rawTotal || items.length,
-          hasNext: hasNext && items.length >= perPage ? true : (hasNext && items.length > 0),
+          items,
+          total,
+          hasNext: outHasNext,
           lastPage: lastPage,
           source: leg.name,
-          approx: approx || !!Object.values(post).some(v => v != null && (!(Array.isArray(v)) || v.length))
+          approx: approx || needsWalk,
+          moreLegs: ordered.indexOf(leg) < ordered.length - 1
         };
       }
       // empty result from a healthy leg — try the next leg in case this one
       // is missing the data (owner rule: empty never wins over a good copy)
       errors.push(`${leg.name}: empty`);
-      console.error(`[browse] leg empty: ${leg.name} (rawTotal=${rawTotal}, gotRaw=${gotRaw}, window=${startPage}..${endPage})`);
+      console.error(`[browse] leg empty: ${leg.name} (rawTotal=${rawTotal}, window=${startPage}..${endPage})`);
+      if (sticky === leg.name) STICKY_LEG.delete(fSig);  // exhausted stickiness — free the ordering
       if (leg.legitEmpty) break;
     } catch (e) {
       errors.push(`${leg.name}: ${e.message}`);
@@ -871,8 +994,8 @@ async function runMixed(animePlan, tmdbPlan, f, page, perPage, warnings) {
   const anN = Math.ceil(perPage * 2 / 3);
   const tmN = Math.max(perPage - anN, 1);
   const [an, tm] = await Promise.all([
-    runPlan(animePlan, f, page, anN, warnings),
-    runPlan(tmdbPlan, f, page, tmN, warnings)
+    runPlan(animePlan, f, page, anN, warnings, 'anime'),
+    runPlan(tmdbPlan, f, page, tmN, warnings, 'tmdb')
   ]);
   // interleave 2 anime : 1 tmdb
   const items = [];
@@ -889,6 +1012,7 @@ async function runMixed(animePlan, tmdbPlan, f, page, perPage, warnings) {
     items, total,
     lastPage: Math.max(anLP || 1, tmLP || 1) || null,
     hasNext: an.hasNext || tm.hasNext,
+    moreLegs: an.moreLegs || tm.moreLegs,
     source: `mixed[anime:${an.source || 'failed'} + tmdb:${tm.source || 'failed'}]`,
     errors: [...(an.errors || []), ...(tm.errors || [])],
     approx: an.approx || tm.approx
@@ -1016,7 +1140,23 @@ async function handle(q) {
     result = await runPlan(plan, tmF, f.page, f.perPage, warnings);
   }
 
-  const lastPage = result.lastPage || (result.total ? Math.ceil(result.total / f.perPage) : null);
+  // t133 FIX: one page-count formula for every path. The old code mixed the
+  // source's own lastPage (counted in SOURCE page sizes, and raw-catalog wide
+  // for post-filtered legs) with ceil(total/perPage) — that is where "200
+  // pages" came from. total is the (filtered) title count for THIS query, so
+  // ceil(total/perPage) is always the honest page count.
+  let totalPages = Math.max(1, Math.ceil((result.total || 0) / f.perPage));
+  let hasNext = !!result.hasNext && f.page < totalPages;
+  // t133: a SHORT page from the winning leg with untried legs left usually
+  // means this source ran dry while others still hold data — keep the next
+  // button alive instead of dead-ending at the leg boundary (the next click
+  // continues on the next leg; a genuinely-empty result still shows the
+  // honest empty state with a back-to-page-1 button)
+  if (!hasNext && Array.isArray(result.items) && result.items.length > 0 &&
+      result.items.length < f.perPage && result.moreLegs) {
+    hasNext = true;
+    totalPages = Math.max(totalPages, f.page + 1);
+  }
   const applied = {
     media: f.media, q: f.q || null, genres: f.genres.length ? f.genres : null,
     country: f.country || null, type: f.type || null,
@@ -1033,8 +1173,9 @@ async function handle(q) {
     page: f.page,
     perPage: f.perPage,
     total: result.total || 0,
-    totalPages: lastPage || 1,
-    hasNext: !!result.hasNext && f.page < (lastPage || Infinity),
+    totalPages,
+    hasNext,
+    sourceLastPage: result.lastPage || null,
     approximate: !!result.approx,
     servedBy: result.source || null,
     warnings: warnings.length ? warnings : undefined,
