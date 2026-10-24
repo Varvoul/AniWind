@@ -75,7 +75,8 @@ const GENRE_NAME = {
   'workplace':'Workplace','survival':'Survival','video-game':'Video Game',
   'racing':'Racing','medical':'Medical','pets':'Pets','anthropomorphic':'Anthropomorphic',
   'performing-arts':'Performing Arts','otaku-culture':'Otaku Culture',
-  'strategy-game':'Strategy Game','team-sports':'Team Sports','adult-cast':'Adult Cast'
+  'strategy-game':'Strategy Game','team-sports':'Team Sports','adult-cast':'Adult Cast',
+  'music-musical':'Music'
 };
 
 // AniList GENRE enum names (everything else is a TAG on AniList)
@@ -99,14 +100,14 @@ const TMDB_TV_GENRE = {
   'comedy':35,'crime':80,'documentary':99,'drama':18,'family':10751,'kids':10762,
   'mystery':9648,'news':10763,'reality':10764,'reality-tv':10764,'sci-fi':10765,
   'sci-fi-fantasy':10765,'fantasy':10765,'soap':10766,'talk':10767,'talk-show':10767,
-  'war':10768,'war-politics':10768,'western':37
+  'war':10768,'war-politics':10768,'western':37,'music-musical':10402
 };
 const TMDB_MOVIE_GENRE = {
   'action':28,'action-adventure':28,'adventure':12,'animation':16,'comedy':35,
   'crime':80,'documentary':99,'drama':18,'family':10751,'fantasy':14,'history':36,
   'horror':27,'music':10402,'mystery':9648,'romance':10749,'sci-fi':878,
   'science-fiction':878,'sci-fi-fantasy':878,'tv-movie':10770,'thriller':53,
-  'war':10752,'western':37
+  'war':10752,'western':37,'music-musical':10402
 };
 // TMDB id -> display name (for normalizing genre_ids on results)
 const TMDB_GENRE_NAME = {
