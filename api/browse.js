@@ -815,9 +815,10 @@ function buildTmdbPlan(f, sort, warnings) {
 //                  served immediately before; totals stay estimates but are
 //                  stable, capped by the source total, and NEVER taken from
 //                  the source's own last_visible_page.
-const WALK_STATS = new Map();   // sig+leg -> walk memory (rate + window cursor)
+const WALK_STATS = new Map();   // filter sig -> walk memory (rate)
+const WALK_CURSOR = new Map();  // filter sig + perPage -> { page, nextRawPage } (window position depends on page size)
 const WALK_STATS_TTL = 30 * 60 * 1000;
-const LAST_SERVED = new Map();  // filter sig -> { page, ids[] } of the most recent page served (ANY leg) — used to trim cross-leg overlap
+const LAST_SERVED = new Map();  // filter sig -> { page, seen:Set(cumulative served ids) } — used to trim cross-leg + cross-page overlap
 const STICKY_LEG = new Map();   // filter sig -> leg name that served the last page — keeps consecutive pages on ONE source (stable order, no cross-leg dupes)
 function filterSig(f) {
   return JSON.stringify([f.media, f.q, f.genres, f.country, f.type, f.status, f.season, f.year,
@@ -828,16 +829,37 @@ function walkStatsFor(sig) {
   const hit = WALK_STATS.get(sig);
   if (hit && hit.at > Date.now() - WALK_STATS_TTL) return hit;
   if (hit) WALK_STATS.delete(sig);
-  const fresh = { scanned: 0, passed: 0, rate: 1, cursorPage: 0, cursorIds: null, nextRawPage: 1, at: Date.now() };
+  const fresh = { scanned: 0, passed: 0, rate: 1, at: Date.now() };
   WALK_STATS.set(sig, fresh);
   if (WALK_STATS.size > 300) WALK_STATS.delete(WALK_STATS.keys().next().value);
   return fresh;
 }
+function walkCursorFor(sig, perPage) {
+  const k = sig + '|' + perPage;
+  const hit = WALK_CURSOR.get(k);
+  if (hit && hit.at > Date.now() - WALK_STATS_TTL) return hit;
+  if (hit) WALK_CURSOR.delete(k);
+  const fresh = { page: 0, nextRawPage: 1, at: Date.now() };
+  WALK_CURSOR.set(k, fresh);
+  if (WALK_CURSOR.size > 400) WALK_CURSOR.delete(WALK_CURSOR.keys().next().value);
+  return fresh;
+}
 const clampNum = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const itemKey = it => String(it.id) + '|' + (it.title || '');
-// cross-source overlap key: ids differ between sources (mal vs anilist vs tmdb),
-// titles are the stable join — used ONLY for the cross-leg page trim
-const fuzzyKey = it => String(it.title || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+// cross-source overlap key: ids differ between sources (mal vs anilist vs tmdb)
+// and title strings drift — MAL id is carried by anime rows on EVERY source
+// (uniAnilist.idMal / uniAnime.mal_id), so it is the stable join; TMDB and
+// mal-less rows fall back to the fuzzy title key
+const fuzzyKey = it => (it.mal_id ? 'm' + it.mal_id : String(it.title || '').toLowerCase().replace(/[^a-z0-9]/g, ''));
+// cumulative served-id memory per filter signature (cross-page + cross-leg trim)
+function lastServedSeen(fSig) { const l = LAST_SERVED.get(fSig); return (l && l.seen) || new Set(); }
+function rememberServed(fSig, page, items) {
+  const prev = LAST_SERVED.get(fSig);
+  const seen = (prev && prev.seen) || new Set();
+  for (const it of items) seen.add(fuzzyKey(it));
+  LAST_SERVED.set(fSig, { page, seen, at: Date.now() });
+  if (LAST_SERVED.size > 300) LAST_SERVED.delete(LAST_SERVED.keys().next().value);
+}
 
 async function runPlan(plan, f, page, perPage, warnings, sigNs = '') {
   const errors = [];
@@ -851,6 +873,11 @@ async function runPlan(plan, f, page, perPage, warnings, sigNs = '') {
     const i = plan.findIndex(L => L.name === sticky);
     if (i > 0) ordered = [plan[i], ...plan.slice(0, i), ...plan.slice(i + 1)];
   }
+  // t133: a walked leg that returns a nearly-empty page (e.g. 2 of 49 slots)
+  // must not WIN over untried legs holding better data — stash the best thin
+  // result and fall through; if every leg is thin/empty the stash is returned
+  const minSufficient = Math.min(perPage, Math.max(8, Math.round(perPage * 0.25)));
+  let fallback = null;
   for (const leg of ordered) {
     const post = Object.assign({}, leg.post || {});
     if (f.studio && leg.name.includes('ruri') === false && leg.name.includes('studio') === false) post.studioName = null;
@@ -859,6 +886,7 @@ async function runPlan(plan, f, page, perPage, warnings, sigNs = '') {
     try {
       const needsWalk = Object.values(post).some(v => v != null && (!(Array.isArray(v)) || v.length));
       const st = needsWalk ? walkStatsFor(walkSig(f, leg.name)) : null;
+      const cur = needsWalk ? walkCursorFor(walkSig(f, leg.name), perPage) : null;
 
       // ── plan the source window ──
       let startPage, endPage;
@@ -867,13 +895,23 @@ async function runPlan(plan, f, page, perPage, warnings, sigNs = '') {
         endPage = Math.ceil(page * perPage / S);
       } else {
         const rate = clampNum(st.rate, 0.2, 1);
+        // LEFT edge: estimated raw position of this page's first filtered item,
+        // but never beyond the page's own naive window + 1 — pass-rates cluster
+        // (e.g. winter titles concentrate late in a score-ordered list), so an
+        // aggressive rate jump can land in empty territory (t133 live lesson)
+        const naiveEnd = Math.ceil(page * perPage / S);
         const rawFrom = Math.floor(offset / rate);
-        const rawTo = Math.ceil(page * perPage / rate);
-        startPage = Math.floor(rawFrom / S) + 1;
-        endPage = Math.ceil(rawTo / S);
-        if (page === st.cursorPage + 1 && st.nextRawPage > startPage) startPage = st.nextRawPage; // sequential: continue where the last page stopped
-        if (endPage - startPage + 1 > MAX_SOURCE_PAGES) startPage = endPage - MAX_SOURCE_PAGES + 1; // keep the right edge
-        startPage = Math.max(1, startPage);
+        startPage = Math.max(1, Math.min(Math.floor(rawFrom / S) + 1, naiveEnd + 1));
+        if (page === cur.page + 1 && cur.nextRawPage > startPage) {
+          // sequential: continue where the last page actually stopped scanning
+          startPage = Math.max(startPage, Math.min(cur.nextRawPage, naiveEnd + MAX_SOURCE_PAGES));
+        }
+        // RIGHT edge: naive (rate-1) page boundary — the underfill loop below
+        // extends it adaptively when the pass-rate is low. t133 LESSON: when the
+        // span must be capped, keep the LEFT edge — keeping the right edge let a
+        // low pass-rate push page-1's window past all the data (all legs empty)
+        endPage = Math.max(startPage, naiveEnd);
+        if (endPage - startPage + 1 > MAX_SOURCE_PAGES) endPage = startPage + MAX_SOURCE_PAGES - 1;
       }
       if (endPage < startPage) endPage = startPage;
       const hardEnd = needsWalk ? startPage + MAX_SOURCE_PAGES - 1 : endPage;
@@ -921,14 +959,14 @@ async function runPlan(plan, f, page, perPage, warnings, sigNs = '') {
         }
       } else {
         const passed = collected.filter(it => matchesUni(it, post));
-        // trim overlap with the most recently served page of this filter set,
-        // whichever leg served it (sequential browsing) — fuzzy title key so
-        // cross-source repeats (mal vs anilist vs tmdb ids) are caught too
+        // trim overlap with everything already served for this filter set,
+        // whichever leg served it — applied on sequential continuation only
+        // (page === lastServed.page + 1) so jumps/back-navigation still show
+        // their pages. MAL-id join catches cross-source repeats.
         let pool = passed;
         const lastServed = LAST_SERVED.get(fSig);
-        if (page === (lastServed && lastServed.page) + 1 && Array.isArray(lastServed.ids) && lastServed.ids.length) {
-          const seenIds = new Set(lastServed.ids);
-          pool = passed.filter(it => !seenIds.has(fuzzyKey(it)));
+        if (page === (lastServed && lastServed.page) + 1 && lastServed.seen && lastServed.seen.size) {
+          pool = passed.filter(it => !lastServed.seen.has(fuzzyKey(it)));
         }
         // dedupe within the request, then take the page
         const seen = new Set();
@@ -944,7 +982,9 @@ async function runPlan(plan, f, page, perPage, warnings, sigNs = '') {
         st.scanned += collected.length;
         st.passed += passed.length;
         st.rate = st.scanned ? clampNum(st.passed / st.scanned, 0.05, 1) : 1;
-        st.nextRawPage = Math.min(p, hardEnd + 1);
+        cur.page = page;
+        cur.nextRawPage = Math.min(p, hardEnd + 1);
+        cur.at = Date.now();
         st.at = Date.now();
         approx = true;
         if (sourceExhausted) {
@@ -958,10 +998,14 @@ async function runPlan(plan, f, page, perPage, warnings, sigNs = '') {
         }
       }
 
-      if (items.length || rawTotal === 0) {
+      if (items.length === 0 && rawTotal === 0) {
+        // source genuinely reports nothing for these filters — honest empty
+        LAST_SERVED.set(fSig, { page, seen: lastServedSeen(fSig), at: Date.now() });
+        return { items, total, hasNext: false, lastPage, source: leg.name, approx: approx || needsWalk, moreLegs: ordered.indexOf(leg) < ordered.length - 1 };
+      }
+      if (items.length > 0 && (!needsWalk || items.length >= minSufficient)) {
         // remember this page for cross-leg trimming + leg stickiness
-        LAST_SERVED.set(fSig, { page, ids: items.map(fuzzyKey), at: Date.now() });
-        if (LAST_SERVED.size > 300) LAST_SERVED.delete(LAST_SERVED.keys().next().value);
+        rememberServed(fSig, page, items);
         STICKY_LEG.set(fSig, leg.name);
         if (STICKY_LEG.size > 300) STICKY_LEG.delete(STICKY_LEG.keys().next().value);
         return {
@@ -974,6 +1018,16 @@ async function runPlan(plan, f, page, perPage, warnings, sigNs = '') {
           moreLegs: ordered.indexOf(leg) < ordered.length - 1
         };
       }
+      if (items.length > 0) {
+        // thin walked result — stash and try the remaining legs for a fuller page
+        if (!fallback || items.length > fallback.result.items.length) {
+          fallback = { legName: leg.name, result: { items, total, hasNext: outHasNext, lastPage, approx: true } };
+        }
+        errors.push(`${leg.name}: thin (${items.length}/${minSufficient})`);
+        console.error(`[browse] leg thin: ${leg.name} (${items.length} < ${minSufficient}) — trying next leg`);
+        if (sticky === leg.name) STICKY_LEG.delete(fSig);
+        continue;
+      }
       // empty result from a healthy leg — try the next leg in case this one
       // is missing the data (owner rule: empty never wins over a good copy)
       errors.push(`${leg.name}: empty`);
@@ -984,6 +1038,12 @@ async function runPlan(plan, f, page, perPage, warnings, sigNs = '') {
       errors.push(`${leg.name}: ${e.message}`);
       console.error(`[browse] leg failed: ${leg.name}: ${e.message}`);
     }
+  }
+  // every leg failed/was thin — serve the best thin walked result if one exists
+  if (fallback) {
+    rememberServed(fSig, page, fallback.result.items);
+    STICKY_LEG.set(fSig, fallback.legName);
+    return Object.assign({}, fallback.result, { source: fallback.legName, moreLegs: false });
   }
   console.error(`[browse] all legs failed: ${errors.join(' ; ')}`);
   return { items: [], total: 0, hasNext: false, lastPage: null, source: null, errors, approx: false };
@@ -1093,7 +1153,16 @@ module.exports = async (req, res) => {
       if (out && out.ok && (out.items.length > 0 || out.legitEmpty)) {
         cacheSet(key, Object.assign({}, out, { cache: { hit:false, key, cached_at: new Date().toISOString(), ttl_seconds: TTL_MS/1000 } }));
       }
-      if (out && out.ok) { setEdge(res); return json(res, 200, Object.assign({}, out, { cache: { hit:false, key, cached_at: new Date().toISOString(), ttl_seconds: TTL_MS/1000 } })); }
+      if (out && out.ok) {
+        // t133: a transient all-legs-failed empty (ok:true, 0 items) must NEVER
+        // be edge-cached — it would serve that blip to every visitor for 30 min.
+        // Genuinely-empty filters (legitEmpty) are stable and stay cacheable.
+        if ((out.items || []).length === 0 && !out.legitEmpty) {
+          noEdge(res);
+          return json(res, 200, Object.assign({}, out, { cache: { hit:false, key, cached_at: new Date().toISOString(), ttl_seconds: TTL_MS/1000 } }));
+        }
+        setEdge(res); return json(res, 200, Object.assign({}, out, { cache: { hit:false, key, cached_at: new Date().toISOString(), ttl_seconds: TTL_MS/1000 } }));
+      }
       noEdge(res);
       return json(res, out && out.status || 502, out || { ok:false });
     } catch (e) {
