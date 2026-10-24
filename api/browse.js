@@ -595,6 +595,12 @@ async function fetchTmdb(base, f, page, perPage, kind, sort, warnings) {
     p.set('with_genres', ids.join('|')); // OR semantics
   }
   if (f.country) p.set('with_origin_country', COUNTRY_ISO[f.country] || '');
+  if (f.studio && f.studioName) {
+    const known = TMDB_COMPANY_ID[f.studio];
+    const companyId = known || await resolveCompanyId(base, f.studio, f.studioName);
+    if (!companyId) return { items: [], rawTotal: 0, hasNext: false, lastPage: 0, legitEmpty: true };
+    p.set('with_companies', String(companyId));
+  }
   if (f.year) { if (kind === 'tv') p.set('first_air_date_year', f.year); else p.set('primary_release_year', f.year); }
   if (f.tvStatus && kind === 'tv') { p.set('with_status', String(TV_STATUS[f.tvStatus].tmdb)); statusHint = TV_STATUS[f.tvStatus].display; }
   if (f.movieStatus && kind === 'movie') {
@@ -610,6 +616,22 @@ async function fetchTmdb(base, f, page, perPage, kind, sort, warnings) {
   const j = await fetchJson(`${base}/discover/${kind}?${p}`, {}, 12000);
   const items = (j.results || []).map(r => uniTmdb(r, kind, statusHint));
   return { items, rawTotal: j.total_results || items.length, hasNext: !!j.has_next_page, lastPage: j.total_pages || null };
+}
+// resolve arbitrary TMDB studio/company slugs (from info-page links) to
+// company ids via TMDB /search/company, cached for the process lifetime
+const COMPANY_ID_CACHE = new Map();
+async function resolveCompanyId(base, slug, name) {
+  const key = String(slug || name || '').toLowerCase();
+  if (COMPANY_ID_CACHE.has(key)) return COMPANY_ID_CACHE.get(key);
+  try {
+    const j = await fetchJson(`${base}/search/company?query=${encodeURIComponent(name || titleCaseSlug(slug))}`, {}, 10000);
+    const id = (j.results && j.results[0] && j.results[0].id) || null;
+    COMPANY_ID_CACHE.set(key, id);
+    return id;
+  } catch (e) {
+    COMPANY_ID_CACHE.set(key, null);
+    return null;
+  }
 }
 async function fetchMappleHidden(f, page, perPage, kind) {
   const j = await fetchJson(`${MAPPLE_BASE}/api/hidden-gems/${kind === 'tv' ? 'tv' : 'movies'}?page=${page}`, {}, 40000);
@@ -739,6 +761,12 @@ function buildTmdbPlan(f, sort, warnings) {
   const plan = [];
   const kinds = tmdbKindSplit(f);
   const bases = [TUMI_PRIMARY, TUMI_BACKUP];
+  if (f.studio && STUDIO_NAME[f.studio]) {
+    // an ANIME studio was requested — TMDB has no equivalent; empty is the
+    // honest answer (unfiltered results would mislead)
+    warnings.push('Anime studio selected — no TMDB equivalent.');
+    return plan;
+  }
   if (f.hidden) {
     for (const kind of (kinds.length ? kinds : ['tv','movie'])) {
       plan.push({ name:`mapple:hidden-${kind}`, kind, call:(p,pp)=>fetchMappleHidden(f, p, pp, kind), post:{} });
@@ -756,8 +784,6 @@ function buildTmdbPlan(f, sort, warnings) {
     }
   });
   if (f.rating || f.language || f.source || f.season) warnings.push('Rating/Language/Source/Season filters only apply to anime; ignored for TMDB results.');
-  if (f.studio && !TMDB_COMPANY_ID[f.studio] && !STUDIO_NAME[f.studio]) warnings.push('Unknown studio for TMDB; ignored.');
-  if (f.studio && STUDIO_NAME[f.studio]) warnings.push('Anime studio selected — no TMDB equivalent.');
   return plan;
 }
 
@@ -969,7 +995,7 @@ async function handle(q) {
 
   // anime-side filters only make sense on the anime half
   const anF = Object.assign({}, f, { status: f.animeStatus });
-  const tmF = Object.assign({}, f, { status: null, tvStatus: f.tvStatus, movieStatus: f.movieStatus === 'future-release' ? 'future-release' : f.movieStatus, studio: (f.studio && TMDB_COMPANY_ID[f.studio]) ? f.studio : null, hidden: f.hidden && f.media !== 'anime' });
+  const tmF = Object.assign({}, f, { status: null, tvStatus: f.tvStatus, movieStatus: f.movieStatus === 'future-release' ? 'future-release' : f.movieStatus, studio: (f.studio && STUDIO_NAME[f.studio]) ? null : f.studio, hidden: f.hidden && f.media !== 'anime' });
   if (f.rating || f.language || f.source || f.season) {
     if (f.media === 'tmdb') warnings.push('Rating/Language/Source/Season filters only apply to anime.');
   }
