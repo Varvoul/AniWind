@@ -690,7 +690,7 @@ function buildAnimePlan(f, sort, warnings) {
     }
     return plan;
   }
-  if (sort === 'latest-updated' || sort === 'latest-added') {
+  if ((sort === 'latest-updated' || sort === 'latest-added') && !f.q) {
     if (!f.genres || !f.genres.length) {
       plan.push({ name:'anikoto-recent', call:(p,pp)=>fetchRecentFeed(f, p, pp), post:mkPost(f) });
     }
@@ -715,6 +715,7 @@ function buildAnimePlan(f, sort, warnings) {
   }
   // default listing chain (owner spec order): ruri s-mal -> ruri anikoto -> proxy -> scraper -> jikan
   const ruriSort = RURI_SORTS[sort] || RURI_SORTS['default'];
+  if ((sort === 'latest-updated' || sort === 'latest-added') && f.q) warnings.push('Search results are relevance-ranked; recency sort applies where sources support it.');
   // tv-short only exists on AniList — route there first for that type
   if (f.type === 'tv-short') {
     plan.push(f.q
