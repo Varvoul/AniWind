@@ -312,8 +312,11 @@
        t138 hover rework: the old grey background wash was replaced by a
        sliding pill underline — a 2px rounded line that grows from the LEFT
        edge of the item text and stops at 58% of the text width (a little
-       past halfway, deliberately NOT the full text length). Line color is
-       the site accent gold. Text still brightens to #fff on hover. */
+       past halfway, deliberately NOT the full text length). t138b: line
+       color moved from accent-gold to the site's deep-blue step #3182ce
+       (blue.500 — sits between --accent-blue #4299e1 and --btn-primary
+       #2b6cb0 in the same palette family). Text still brightens #fff on
+       hover. */
     .main-nav{display:flex;align-items:center;gap:2px;flex-shrink:0;}
     .nav-link-item{
       padding:7px 10px;font-size:0.78rem;font-weight:500;
@@ -340,7 +343,7 @@
     .nav-link-item::after,.nav-dd-label::after{
       content:'';position:absolute;left:10px;bottom:1px;height:2px;
       width:calc((100% - 20px) * .58);
-      border-radius:999px;background:var(--accent-gold,#ecc94b);
+      border-radius:999px;background:var(--accent-blue-deep,#3182ce);
       transform:scaleX(0);transform-origin:left center;
       transition:transform .28s cubic-bezier(.33,0,.2,1);pointer-events:none;
     }
