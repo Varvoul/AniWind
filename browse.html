@@ -31,9 +31,15 @@
       --btn-secondary-hover: #243b53;
       --accent-gold: #ecc94b;
       --accent-blue: #4299e1;
-      --anime-badge: #6d28d9;
+      /* kind pills reuse ONLY site palette colors: anime = accent blue,
+         movie = accent gold — both with dark navy text (AA+ readable);
+         TV keeps its teal. */
+      --anime-badge: #4299e1;
+      --anime-badge-text: #062033;
       --tv-badge: #0f766e;
-      --movie-badge: #c2410c;
+      --tv-badge-text: #ffffff;
+      --movie-badge: #ecc94b;
+      --movie-badge-text: #0a1929;
       --border-subtle: rgba(255, 255, 255, 0.08);
       --border-medium: rgba(255, 255, 255, 0.16);
       --font-title: 'Archivo Black', sans-serif;
@@ -131,9 +137,9 @@
     .br-check input:disabled + span { opacity:.35; cursor:not-allowed; }
     .br-check.checked { color:#d6e7f8; background:rgba(66,153,225,.12); }
     .br-mark { font-family:var(--font-meta); font-size:.55rem; font-weight:600; padding:1px 5px; border-radius:4px; margin-left:auto; white-space:nowrap; }
-    .br-mark.anime { background:#6d28d9; color:#fff; }
-    .br-mark.tv { background:#0f766e; color:#fff; }
-    .br-mark.movie { background:#c2410c; color:#fff; }
+    .br-mark.anime { background:var(--anime-badge); color:var(--anime-badge-text); }
+    .br-mark.tv { background:var(--tv-badge); color:var(--tv-badge-text); }
+    .br-mark.movie { background:var(--movie-badge); color:var(--movie-badge-text); }
     .br-studio-col { font-family:var(--font-meta); font-size:.62rem; text-transform:uppercase; letter-spacing:.8px; color:var(--text-widget-title); margin:8px 0 4px; }
     .br-panel-actions { display:flex; justify-content:space-between; gap:8px; margin-top:10px; padding-top:10px; border-top:1px solid var(--border-subtle); }
     .br-mini-btn { background:transparent; border:1px solid var(--border-medium); color:var(--text-muted); border-radius:var(--radius-pill); font-family:var(--font-meta); font-size:.66rem; padding:5px 12px; cursor:pointer; }
@@ -184,14 +190,21 @@
     .br-grad { position:absolute; inset:0; z-index:2; background:linear-gradient(to top, rgba(7,17,29,.93) 0%, rgba(7,17,29,.28) 40%, transparent 62%); }
     .br-badge {
       position:absolute; top:8px; left:8px; z-index:4; font-family:var(--font-meta); font-weight:600; font-size:.58rem;
-      letter-spacing:.4px; color:#fff; border-radius:5px; padding:3px 7px; box-shadow:0 4px 12px rgba(0,0,0,.4);
+      letter-spacing:.4px; border-radius:5px; padding:3px 7px; box-shadow:0 4px 12px rgba(0,0,0,.4);
     }
-    .br-badge.anime { background:var(--anime-badge); }
-    .br-badge.tv { background:var(--tv-badge); }
-    .br-badge.movie { background:var(--movie-badge); }
-    /* bottom-left meta row BELOW the title: score pill + (type · year · ep · SUB|DUB) pill */
+    .br-badge.anime { background:var(--anime-badge); color:var(--anime-badge-text); }
+    .br-badge.tv { background:var(--tv-badge); color:var(--tv-badge-text); }
+    .br-badge.movie { background:var(--movie-badge); color:var(--movie-badge-text); }
+    /* score pill pinned to the card's TOP-RIGHT corner (mirrors the kind badge top-left);
+       type · year · EP · SUB|DUB stays in the bottom-left row below the title */
+    .br-score {
+      position:absolute; top:8px; right:8px; z-index:4;
+      font-family:var(--font-meta); font-weight:600; font-size:.62rem; color:var(--accent-gold);
+      background:rgba(9,26,45,.88); border:1px solid rgba(236,201,75,.28); border-radius:6px; padding:2px 7px;
+      display:inline-flex; align-items:center; gap:4px; box-shadow:0 4px 12px rgba(0,0,0,.4);
+    }
+    /* bottom-left meta row BELOW the title: (type · year · ep · SUB|DUB) pill */
     .br-flag { display:flex; flex-wrap:wrap; align-items:center; gap:4px; margin-top:7px; }
-    .br-score { font-family:var(--font-meta); font-weight:600; font-size:.62rem; color:var(--accent-gold); background:rgba(9,26,45,.88); border:1px solid rgba(236,201,75,.28); border-radius:6px; padding:2px 7px; display:inline-flex; align-items:center; gap:4px; }
     .br-score i { font-size:.85em; }
     .br-info { font-family:var(--font-meta); font-weight:600; font-size:.58rem; letter-spacing:.3px; color:#fff; background:rgba(9,26,45,.88); border:1px solid var(--border-subtle); border-radius:6px; padding:3px 7px; display:inline-flex; align-items:center; flex-wrap:wrap; gap:3px 5px; text-align:left; }
     .br-info .sep { color:rgba(255,255,255,.45); }
@@ -263,10 +276,10 @@
     .br-pop-body { padding:14px 14px 13px; }
     .br-pop-top { display:flex; gap:12px; align-items:flex-start; }
     .br-pop-left { flex:1; min-width:0; }
-    .br-pop-kind { display:inline-block; font-family:var(--font-meta); font-size:.6rem; font-weight:700; letter-spacing:.8px; color:#fff; border-radius:4px; padding:2px 8px; }
-    .br-pop-kind.anime { background:var(--anime-badge); }
-    .br-pop-kind.tv { background:var(--tv-badge); }
-    .br-pop-kind.movie { background:var(--movie-badge); }
+    .br-pop-kind { display:inline-block; font-family:var(--font-meta); font-size:.6rem; font-weight:700; letter-spacing:.8px; border-radius:4px; padding:2px 8px; }
+    .br-pop-kind.anime { background:var(--anime-badge); color:var(--anime-badge-text); }
+    .br-pop-kind.tv { background:var(--tv-badge); color:var(--tv-badge-text); }
+    .br-pop-kind.movie { background:var(--movie-badge); color:var(--movie-badge-text); }
     .br-pop-title { font-size:1.05rem; font-weight:700; line-height:1.32; color:#fff; margin-top:6px; overflow-wrap:anywhere; }
     .br-pop-desc { font-size:.78rem; color:var(--text-secondary); margin-top:8px; line-height:1.5; display:-webkit-box; -webkit-line-clamp:4; -webkit-box-orient:vertical; overflow:hidden; }
     .br-pop-poster { position:relative; width:98px; aspect-ratio:2/3; flex-shrink:0; border-radius:10px; overflow:hidden; border:1px solid var(--border-medium); background:var(--bg-card); box-shadow:0 10px 26px rgba(0,0,0,.5); }
@@ -1044,19 +1057,20 @@
     // "No Image" placeholder sits under the poster (visible if src missing or fails to load)
     var poster = '<div class="br-noposter"><span class="np-a">No</span><span class="np-b">Image</span></div>';
     if (it.cover) poster += '<img class="br-poster" loading="lazy" src="' + esc(it.cover) + '" alt="' + esc(it.title) + '" onerror="this.remove()">';
-    var flag = cardFlagHtml(it);
-    return '<a class="br-card" href="' + esc(it.info_url) + '" data-idx="' + it.__idx + '">' +
-      '<div class="br-poster-wrap">' + poster +
-      '<span class="br-badge ' + kind + '">' + kindLabel + '</span>' +
-      '<div class="br-grad"></div>' +
-      '<div class="br-ttl-wrap"><h3 class="br-title">' + esc(it.title) + '</h3>' + flag + '</div></div></a>';
-  }
-  /* bottom-left meta row UNDER the title: score pill + (type · year · episode · SUB|DUB) pill.
-     When a dub exists, the total episode count is mirrored to both SUB and DUB. */
-  function cardFlagHtml(it) {
+    // score pill = TOP-RIGHT corner of the card (kind badge sits top-left)
     var score = parseFloat(it.score);
     var scoreHtml = (isFinite(score) && score > 0)
       ? '<span class="br-score"><i class="fa-solid fa-star"></i>' + (score % 1 ? score.toFixed(1) : score) + '</span>' : '';
+    var flag = cardFlagHtml(it);
+    return '<a class="br-card" href="' + esc(it.info_url) + '" data-idx="' + it.__idx + '">' +
+      '<div class="br-poster-wrap">' + poster +
+      '<span class="br-badge ' + kind + '">' + kindLabel + '</span>' + scoreHtml +
+      '<div class="br-grad"></div>' +
+      '<div class="br-ttl-wrap"><h3 class="br-title">' + esc(it.title) + '</h3>' + flag + '</div></div></a>';
+  }
+  /* bottom-left meta row UNDER the title: (type · year · episode · SUB|DUB) pill.
+     When a dub exists, the total episode count is mirrored to both SUB and DUB. */
+  function cardFlagHtml(it) {
     var lang = String(it.language || '');
     var hasSub = lang.indexOf('sub') !== -1, hasDub = lang.indexOf('dub') !== -1;
     var ep = parseInt(it.episodes, 10);
@@ -1070,7 +1084,7 @@
       else parts.push('<span>EP ' + ep + '</span>');
     }
     var infoHtml = parts.length ? '<span class="br-info">' + parts.join('<span class="sep">·</span>') + '</span>' : '';
-    return (scoreHtml || infoHtml) ? '<div class="br-flag">' + scoreHtml + infoHtml + '</div>' : '';
+    return infoHtml ? '<div class="br-flag">' + infoHtml + '</div>' : '';
   }
   function renderGrid() {
     var html = '';
@@ -1238,6 +1252,65 @@
     });
     return out.join('');
   }
+  /* Jikan/AniList rating strings come in two shapes: "PG-13" (short, ruri s-mal)
+     and "PG-13 - Teens 13 or older" / "R - 17+ (violence & profanity)" (Jikan).
+     Normalize to the certificate part only: PG-13 / R - 17+ / G / R+ / Rx. */
+  function shortRating(r) {
+    var s = String(r || '').split(' (')[0].trim();
+    if (!s) return '';
+    var i = s.indexOf(' - ');
+    if (i !== -1) {
+      var head = s.slice(0, i).trim();
+      var tail = s.slice(i + 3).trim();
+      if (/^\d/.test(tail)) return (head + ' - ' + tail.split(' (')[0].trim()).trim(); // "R - 17+"
+      return head;                                     // "PG-13", "G", "R+"
+    }
+    return s;
+  }
+  /* TMDB list payloads carry NO production companies — hydrate the popup's
+     Studio row lazily per hovered item (t-umi chain, CORS open for this site,
+     verified t125/t137). Results cached per tmdb id for the session. */
+  var TMDB_DETAIL_BASES = ['https://t-umi.bionmovies47.workers.dev', 'https://t-umi.zeraf.workers.dev'];
+  var tmdbStudioCache = new Map();
+  var popItemKey = '';                 // identity of the item the popup currently shows
+  function tmdbStudioKey(it) { return it.kind + ':' + it.tmdb_id; }
+  function fetchTmdbStudios(it) {
+    var key = tmdbStudioKey(it);
+    if (tmdbStudioCache.has(key)) return Promise.resolve(tmdbStudioCache.get(key));
+    var path = '/' + (it.kind === 'tv' ? 'tv' : 'movie') + '/' + it.tmdb_id;
+    function tryBase(i) {
+      if (i >= TMDB_DETAIL_BASES.length) return Promise.resolve([]);
+      return fetch(TMDB_DETAIL_BASES[i] + path, { headers:{ Accept:'application/json' }, signal: AbortSignal.timeout(9000) })
+        .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        .then(function (j) {
+          var names = [];
+          if (it.kind === 'tv' && Array.isArray(j.networks)) {
+            j.networks.forEach(function (n) { if (n && n.name) names.push(n.name); });   // TV: network is the "studio"
+          }
+          if (!names.length && Array.isArray(j.production_companies)) {
+            j.production_companies.forEach(function (n) { if (n && n.name) names.push(n.name); });
+          }
+          var out = names.slice(0, 2);
+          tmdbStudioCache.set(key, out);
+          return out;
+        })
+        .catch(function () { return tryBase(i + 1); });
+    }
+    return tryBase(0);
+  }
+  function hydrateTmdbStudio(it) {
+    if (it.kind === 'anime' || !it.tmdb_id || !popEl) return;
+    var span = popEl.querySelector('[data-pop-studio]');
+    if (!span) return;
+    var key = tmdbStudioKey(it);
+    var cached = tmdbStudioCache.get(key);
+    if (cached) { span.textContent = cached.length ? cached.join(', ') : '—'; return; }
+    fetchTmdbStudios(it).then(function (names) {
+      // only write if the popup is still showing this same item
+      if (popItemKey !== key || !span.isConnected) return;
+      span.textContent = (names && names.length) ? names.join(', ') : '—';
+    });
+  }
   function popupHtml(it) {
     var kind = it.kind === 'anime' ? 'anime' : (it.kind === 'movie' ? 'movie' : 'tv');
     var kindLabel = kind === 'anime' ? 'ANIME' : kind === 'movie' ? 'MOVIE' : 'TV';
@@ -1249,12 +1322,19 @@
     }
     row('Type', it.type ? esc(String(it.type).toUpperCase()) : '');
     row('Year', it.year || '');
+    /* TMDB cards: Studio row sits right below Year — filled in lazily by
+       hydrateTmdbStudio() once the popup is on screen (list APIs omit companies). */
+    if (kind !== 'anime' && it.tmdb_id) {
+      rows += '<div class="br-pop-row"><span class="k">Studio</span><span class="v" data-pop-studio>\u2026</span></div>';
+    }
     var ep = parseInt(it.episodes, 10);
     row('Episodes', ep > 0 ? ep : '');
     row('Status', esc(it.status || ''));
     var score = parseFloat(it.score);
     if (isFinite(score) && score > 0) row('Score', '<i class="fa-solid fa-star"></i>' + (score % 1 ? score.toFixed(1) : score), 'gold');
     if ((it.studios || []).length) row('Studio', esc(it.studios.slice(0, 2).join(', ')));
+    /* anime cards: age certificate sits right below Studio */
+    if (kind === 'anime') row('Rated', esc(shortRating(it.rating)));
     row('Source', esc(it.source || ''));
     var lang = String(it.language || '');
     if (lang) {
@@ -1292,11 +1372,13 @@
     if (!it || !popEl) return;
     clearTimeout(popTimer);
     popTimer = setTimeout(function () {
+      popItemKey = (it.kind !== 'anime' && it.tmdb_id) ? tmdbStudioKey(it) : '';
       popEl.innerHTML = popupHtml(it);
       popEl.classList.add('active');
       popAnchor = anchor;
       positionPop();
       popEl.removeAttribute('aria-hidden');
+      hydrateTmdbStudio(it);      // fills the TMDB Studio row when the fetch lands
     }, delay || 0);
   }
   function hidePopSoon() {
