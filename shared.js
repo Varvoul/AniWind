@@ -308,29 +308,54 @@
     .header-logo{flex-shrink:0;display:flex;align-items:center;}
     .header-logo img{width:clamp(98px,13vw,212px);height:auto;object-fit:contain;max-height:63px;}
 
-    /* ── DESKTOP NAV (hover-only) ── */
+    /* ── DESKTOP NAV (hover-only) ──
+       t138 hover rework: the old grey background wash was replaced by a
+       sliding pill underline — a 2px rounded line that grows from the LEFT
+       edge of the item text and stops at 58% of the text width (a little
+       past halfway, deliberately NOT the full text length). Line color is
+       the site accent gold. Text still brightens to #fff on hover. */
     .main-nav{display:flex;align-items:center;gap:2px;flex-shrink:0;}
     .nav-link-item{
       padding:7px 10px;font-size:0.78rem;font-weight:500;
       color:var(--text-secondary,#ccc);border-radius:6px;
-      transition:background .18s,color .18s;white-space:nowrap;display:block;
+      transition:color .18s;white-space:nowrap;display:block;position:relative;
     }
-    .nav-link-item:hover,.nav-link-item:focus{background:rgba(255,255,255,0.08);color:#fff;}
+    .nav-link-item:hover,.nav-link-item:focus{color:#fff;}
     .nav-dd-wrap{position:relative;}
+    /* t138: invisible hover bridge — fills the 4px gap between the nav label
+       and its dropdown (dropdown sits at top:calc(100% + 4px)). Without it,
+       the mouse crossed a dead zone where :hover flickered off and the
+       dropdown closed before the pointer could reach the items. */
+    .nav-dd-wrap::before{
+      content:'';position:absolute;left:0;right:0;top:100%;height:8px;
+    }
     .nav-dd-label{
       padding:7px 10px;font-size:0.78rem;color:var(--text-secondary,#ccc);
-      border-radius:6px;transition:background .18s,color .18s;
+      border-radius:6px;transition:color .18s;
       white-space:nowrap;user-select:none;cursor:default;display:flex;align-items:center;gap:3px;
+      position:relative;
     }
-    .nav-dd-wrap:hover .nav-dd-label,.nav-dd-wrap:focus-within .nav-dd-label{background:rgba(255,255,255,0.08);color:#fff;}
-    /* ── NAV ICONS (Font Awesome, t117) ──
+    .nav-dd-wrap:hover .nav-dd-label,.nav-dd-wrap:focus-within .nav-dd-label{color:#fff;}
+    /* t138 sliding pill underline (nav items + dropdown trigger labels) */
+    .nav-link-item::after,.nav-dd-label::after{
+      content:'';position:absolute;left:10px;bottom:1px;height:2px;
+      width:calc((100% - 20px) * .58);
+      border-radius:999px;background:var(--accent-gold,#ecc94b);
+      transform:scaleX(0);transform-origin:left center;
+      transition:transform .28s cubic-bezier(.33,0,.2,1);pointer-events:none;
+    }
+    .nav-link-item:hover::after,.nav-link-item:focus::after,
+    .nav-dd-wrap:hover .nav-dd-label::after,
+    .nav-dd-wrap:focus-within .nav-dd-label::after{transform:scaleX(1);}
+    /* ── NAV ICONS (Font Awesome, t117 / recolored t138) ──
        Only the items the owner asked for carry icons: home, genre, country,
-       news, forum (both PC + mobile). Icons inherit the accent blue so they
-       read as decoration, not buttons. .mob-forum-item is a centered flex
-       with its own gap -> no extra margin there. */
+       news, forum (both PC + mobile). t138: icons now inherit the CURRENT
+       font color (muted grey at rest, white on hover/open) instead of the
+       fixed accent blue. .mob-forum-item is a centered flex with its own
+       gap -> no extra margin there. */
     .nav-link-item .fa-solid,.nav-dd-label .fa-solid,
     .mob-nav-item .fa-solid,.mob-sub-trigger .fa-solid,.mob-forum-item .fa-solid{
-      color:var(--accent-blue,#4299e1);font-size:0.92em;
+      color:currentColor;font-size:0.92em;
       width:1.1em;text-align:center;margin-right:7px;
     }
     .mob-forum-item .fa-solid{margin-right:0;}

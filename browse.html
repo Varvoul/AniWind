@@ -731,7 +731,7 @@
     else if (state.season && state.year) { h = seasonLabel(state.season) + ' ' + state.year + ' Anime'; icon = 'fa-leaf'; }
     else if (state.genres.length === 1) { h = slugName(state.genres[0]) + ' ' + kindWord(); icon = 'fa-tags'; }
     else if (state.genres.length > 1) { h = state.genres.length + ' Genres · ' + kindWord(); icon = 'fa-tags'; }
-    else if (state.country) { h = countryName(state.country) + ' — ' + kindWord(); icon = 'fa-earth-asia'; }
+    else if (state.country) { h = 'Country-' + countryName(state.country); icon = 'fa-earth-asia'; }
     else if (state.status) {
       var sl = statusLabel(state.status);
       h = sl + (state.status === 'ongoing' || state.status === 'upcoming' ? ' Shows' : (state.media === 'anime' ? ' Anime' : state.type === 'movie' ? ' Movies' : ' TV Shows'));
