@@ -26,7 +26,6 @@
       --btn-primary: #2b6cb0;
       --btn-primary-hover: #1d4e89;
       --btn-primary-text: #ffffff;
-      --accent-gold: #ecc94b;
       --star-icon-color: #f5b942;
       --accent-blue: #4299e1;
       --text-widget-title: #a2c4de;
@@ -65,7 +64,33 @@
     .sch-chip:hover { color:#fff; border-color: var(--border-medium); }
     .sch-chip.active { color:#fff; background: linear-gradient(135deg, var(--btn-primary), #2563eb); border-color: var(--btn-primary); box-shadow: 0 3px 10px rgba(43,108,176,.4); }
     .sch-chip-sep { width:1px; align-self:stretch; background: var(--border-medium); margin:0 2px; }
-    .sch-chip.sch-mode.active { background: linear-gradient(135deg, #b7791f, var(--accent-gold)); border-color: var(--accent-gold); color:#161616; box-shadow: 0 3px 10px rgba(236,201,75,.35); }
+    /* ── t139: Anime | TV Shows sliding toggle ──
+       Same look as the shared.js search-bar Anime/Non-Anime toggle (rounded
+       pill container, muted caps, flat --btn-primary active pill with white
+       text) plus a real left/right sliding thumb like the browse
+       All|Anime|Non-Anime toggle. Gold accents elsewhere on this page were
+       moved to the site blue family: --btn-primary deep blue for filled
+       pills (white text), --accent-blue light blue for borders/text/dots on
+       the dark background. */
+    .sch-mode-toggle{
+      display:inline-flex;align-items:center;gap:2px;padding:4px;flex-shrink:0;
+      background:var(--bg-surface,var(--bg-card));border:1px solid var(--border-subtle);
+      border-radius:var(--radius-pill);position:relative;user-select:none;
+    }
+    .sch-mode-thumb{
+      position:absolute;top:4px;bottom:4px;left:4px;width:0;
+      background:var(--btn-primary);border-radius:var(--radius-pill);z-index:0;
+      box-shadow:0 3px 10px rgba(43,108,176,.4);
+      transition:left .28s cubic-bezier(.6,.05,.28,1.4), width .28s cubic-bezier(.6,.05,.28,1.4);
+    }
+    .sch-mode-tab{
+      position:relative;z-index:1;font-size:.62rem;font-weight:700;letter-spacing:.03em;
+      color:var(--text-muted);background:transparent;border:none;
+      border-radius:var(--radius-pill);padding:5px 12px;cursor:pointer;
+      white-space:nowrap;transition:color .18s ease;user-select:none;
+    }
+    .sch-mode-tab:hover{color:#fff;}
+    .sch-mode-tab.active{color:#fff;}
     .sch-regions { margin: 0 0 18px; }
     .sch-regions .sch-chip .fa-solid { font-size:.85em; }
 
@@ -81,14 +106,14 @@
     }
     .sc-day:hover { transform: translateY(-3px); border-color: var(--accent-blue); box-shadow: 0 4px 12px rgba(66,153,225,.2); }
     .sc-day.active { background: linear-gradient(135deg, var(--btn-primary) 0%, #2563eb 100%); border-color: var(--btn-primary); color:#fff; box-shadow: 0 4px 15px rgba(43,108,176,.4); }
-    .sc-day.today { border-color: var(--accent-gold); }
-    .sc-day.today::after { content:''; position:absolute; top:-2px; right:-2px; width:9px; height:9px; background:var(--accent-gold); border-radius:50%; border:2px solid var(--bg-body); }
+    .sc-day.today { border-color: var(--accent-blue); }
+    .sc-day.today::after { content:''; position:absolute; top:-2px; right:-2px; width:9px; height:9px; background:var(--accent-blue); border-radius:50%; border:2px solid var(--bg-body); }
     .sc-dow { font-family: var(--font-meta); font-size:.62rem; font-weight:700; letter-spacing:1.2px; text-transform:uppercase; }
     .sc-date { font-family: var(--font-title); font-size:1.05rem; color:#fff; }
     .sc-day.active .sc-date { color:#fff; }
     .sc-dcount { font-family: var(--font-meta); font-size:.56rem; font-weight:700; padding:1px 7px; border-radius:8px; background: rgba(66,153,225,.16); color: var(--accent-blue); }
     .sc-day.active .sc-dcount { background: rgba(255,255,255,.22); color:#fff; }
-    .sc-day.today .sc-dcount { color: var(--accent-gold); background: rgba(236,201,75,.12); }
+    .sc-day.today .sc-dcount { color: var(--accent-blue); background: rgba(66,153,225,.12); }
     .sc-day.active.today .sc-dcount { background: rgba(255,255,255,.22); color:#fff; }
 
     /* ── TIME GROUPS ── */
@@ -117,7 +142,7 @@
     .sc-card { display:block; text-decoration:none; color:inherit; border-radius: var(--radius-md); transition: transform .2s ease; }
     .sc-card:hover { transform: translateY(-4px); }
     .sc-card.is-aired { opacity:.55; }
-    .sc-card.is-next .sc-poster-wrap { border-color: rgba(236,201,75,.65); box-shadow: 0 0 0 1px rgba(236,201,75,.4), 0 6px 22px rgba(236,201,75,.12); }
+    .sc-card.is-next .sc-poster-wrap { border-color: rgba(66,153,225,.65); box-shadow: 0 0 0 1px rgba(66,153,225,.4), 0 6px 22px rgba(66,153,225,.12); }
     .sc-poster-wrap { position:relative; aspect-ratio: 2/3; border-radius: var(--radius-md); overflow:hidden; background: var(--bg-card); border:1px solid var(--border-subtle); }
     .sc-poster { width:100%; height:100%; object-fit:cover; display:block; transition: transform .25s ease; }
     .sc-card:hover .sc-poster { transform: scale(1.06); }
@@ -127,7 +152,7 @@
       color:#fff; background: var(--btn-primary); border-radius:6px; padding:3px 7px; letter-spacing:.4px;
       box-shadow: 0 4px 12px rgba(0,0,0,.4);
     }
-    .sc-card.is-next .sc-ep { background: var(--accent-gold); color:#1a1a1a; font-weight:700; }
+    .sc-card.is-next .sc-ep { background: var(--btn-primary); color:#fff; font-weight:700; }
     .sc-fmt {
       position:absolute; top:8px; left:8px; font-family:var(--font-meta); font-weight:600; font-size:.58rem;
       letter-spacing:.6px; text-transform:uppercase; color:#e0f0ff;
@@ -140,9 +165,9 @@
       text-shadow:0 1px 4px rgba(0,0,0,.6); }
     .sc-meta { display:flex; align-items:center; gap:8px; margin-top:5px; font-family:var(--font-meta); font-size:.64rem; color:var(--text-secondary); flex-wrap:wrap; }
     .sc-score { color: var(--star-icon-color); font-weight:500; display:flex; align-items:center; gap:3px; }
-    .sc-count { color: var(--accent-gold); font-weight:700; }
+    .sc-count { color: var(--accent-blue); font-weight:700; }
     .sc-progress { height:3px; border-radius:2px; background: rgba(255,255,255,.16); margin-top:6px; overflow:hidden; }
-    .sc-progress span { display:block; height:100%; border-radius:2px; background: linear-gradient(90deg, var(--btn-primary), var(--accent-gold)); }
+    .sc-progress span { display:block; height:100%; border-radius:2px; background: linear-gradient(90deg, var(--btn-primary), var(--accent-blue)); }
 
     /* ── SKELETON ── */
     .sc-skel { border-radius: var(--radius-md); overflow:hidden; background: var(--bg-card); border:1px solid var(--border-subtle); }
@@ -176,7 +201,7 @@
     .sched-pop-title { font-weight: 700; font-size: 0.88rem; line-height: 1.3; margin-bottom: 6px; overflow-wrap: anywhere; }
     .sched-pop-meta { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
     .sched-pop-pill { background: rgba(255,255,255,0.13); border-radius: 12px; padding: 2px 8px; font-size: 0.64rem; font-weight: 600; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
-    .sched-pop-pill.gold { color: var(--accent-gold); }
+    .sched-pop-pill.gold { color: var(--accent-blue); }
     .sched-pop-pill.blue { color: var(--accent-blue); }
     .sched-pop-genres { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
     .sched-pop-genre { font-size: 0.6rem; color: #7ec8e0; background: rgba(126,200,224,0.15); border-radius: 10px; padding: 2px 7px; }
@@ -202,8 +227,11 @@
       <p class="sch-sub"><span id="schModeText">Weekly anime broadcast guide</span> — every time is shown in <b id="schTz">your local timezone</b>.</p>
     </div>
     <div class="sch-chips" id="schChips">
-      <button type="button" class="sch-chip sch-mode active" data-mode="anime">Anime</button>
-      <button type="button" class="sch-chip sch-mode" data-mode="tv">TV Shows</button>
+    <div class="sch-mode-toggle" id="schModeToggle" role="tablist" aria-label="Schedule mode">
+      <div class="sch-mode-thumb" id="schModeThumb"></div>
+      <button type="button" class="sch-mode-tab active" data-mode="anime" role="tab" aria-selected="true">Anime</button>
+      <button type="button" class="sch-mode-tab" data-mode="tv" role="tab" aria-selected="false">TV Shows</button>
+    </div>
       <span class="sch-chip-sep" id="schChipSep"></span>
       <button type="button" class="sch-chip sch-fmt active" data-format="all">All</button>
       <button type="button" class="sch-chip sch-fmt" data-format="tv">TV</button>
@@ -779,13 +807,33 @@
     return a;
   }
 
-  /* ── Mode switch (Anime ⇄ TV Shows) ── */
+  /* ── Mode switch (Anime ⇄ TV Shows) ──
+     t139: the active pill is a real sliding thumb (same behaviour as the
+     browse All|Anime|Non-Anime toggle, same look as the shared.js search-bar
+     toggle). moveModeThumb() measures the active tab and glides the thumb
+     under it; re-measured on resize so the slide stays aligned. */
+  function moveModeThumb() {
+    var wrap = document.getElementById('schModeToggle');
+    var thumb = document.getElementById('schModeThumb');
+    if (!wrap || !thumb) return;
+    var active = wrap.querySelector('.sch-mode-tab.active');
+    if (!active) return;
+    thumb.style.left = active.offsetLeft + 'px';
+    thumb.style.width = active.offsetWidth + 'px';
+  }
+  window.addEventListener('resize', moveModeThumb);
+  moveModeThumb();
+  setTimeout(moveModeThumb, 350); /* re-measure after webfont settle */
+
   function setMode(mode) {
     if (pageMode === mode) return;
     pageMode = mode;
-    document.querySelectorAll('#schChips .sch-mode').forEach(function (c) {
-      c.classList.toggle('active', (c.dataset.mode || 'anime') === mode);
+    document.querySelectorAll('#schModeToggle .sch-mode-tab').forEach(function (c) {
+      var on = (c.dataset.mode || 'anime') === mode;
+      c.classList.toggle('active', on);
+      c.setAttribute('aria-selected', on ? 'true' : 'false');
     });
+    moveModeThumb();
     document.querySelectorAll('#schChips .sch-fmt').forEach(function (c) {
       c.style.display = mode === 'anime' ? '' : 'none';
     });
@@ -855,9 +903,9 @@
     renderDay();
   });
   document.getElementById('schChips').addEventListener('click', function (e) {
-    var chip = e.target.closest('.sch-chip');
+    var chip = e.target.closest('.sch-chip, .sch-mode-tab');
     if (!chip) return;
-    if (chip.classList.contains('sch-mode')) {
+    if (chip.classList.contains('sch-mode-tab')) {
       setMode(chip.dataset.mode === 'tv' ? 'tv' : 'anime');
       return;
     }
