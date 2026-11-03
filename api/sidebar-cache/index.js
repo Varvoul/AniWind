@@ -49,29 +49,55 @@ function validate(rows) {
   return ok >= 5; // ≥5 usable rows — corrupted/empty upstreams never pass
 }
 
-function tumiSidebarUrl(section, type) {
+function tumiSidebarUrl(section, type, page = 1) {
   if (section === 'hiddenGem')
-    return `/discover/${type}?vote_average.gte=7&vote_count.gte=50&popularity.lte=50&sort_by=popularity.asc&page=1`;
+    return `/discover/${type}?vote_average.gte=7&vote_count.gte=50&popularity.lte=50&sort_by=popularity.asc&page=${page}`;
   if (section === 'topRanking')
-    return `/${type}/top_rated?language=en-US&page=1`;
-  return `/${type}/popular?language=en-US&page=1`;
+    return `/${type}/top_rated?language=en-US&page=${page}`;
+  return `/${type}/popular?language=en-US&page=${page}`;
 }
 
+function mappleSidebarUrl(section, type, page = 1) {
+  if (section === 'hiddenGem')
+    return `${MAPPLE}/hidden-gems/${type === 'movie' ? 'movies' : 'tv'}?page=${page}`;
+  return `${MAPPLE}/tmdb/${type}/${section === 'topRanking' ? 'top_rated' : 'popular'}?language=en-US&page=${page}`;
+}
+
+// t140 — Hidden Gem serves up to 25 poster-having rows client-side; ONE
+// upstream page (~20 rows, of which 1-2 usually lack poster_path) cannot
+// fill that cap, so hiddenGem scans TWO pages per tier and concatenates
+// (dedupe by TMDB id). topRanking / mostFavourite stay single-page.
+const SIDEBAR_PAGES = { hiddenGem: 2, topRanking: 1, mostFavourite: 1 };
+const SIDEBAR_MAX_ROWS = 45;
+
 async function fetchTmdbSection(section, type) {
-  const mappleUrl = section === 'hiddenGem'
-    ? `${MAPPLE}/hidden-gems/${type === 'movie' ? 'movies' : 'tv'}?page=1`
-    : `${MAPPLE}/tmdb/${type}/${section === 'topRanking' ? 'top_rated' : 'popular'}?language=en-US&page=1`;
-  const chain = [
-    { url: mappleUrl },
-    ...TUMI.map(b => ({ url: `${b}${tumiSidebarUrl(section, type)}` })),
-    { url: `${TMDB_DIRECT}${tumiSidebarUrl(section, type)}`, headers: { Authorization: `Bearer ${TMDB_TOKEN}` } },
+  const pageCount = SIDEBAR_PAGES[section] || 1;
+  const tiers = [
+    { label: 'mapple-tmdb-proxy.vercel.app', fetch: (p) => fetchJson(mappleSidebarUrl(section, type, p), 15000) },
+    ...TUMI.map(b => ({
+      label: new URL(b).host,
+      fetch: (p) => fetchJson(`${b}${tumiSidebarUrl(section, type, p)}`, 15000),
+    })),
+    { label: 'api.themoviedb.org', fetch: (p) => fetchJson(`${TMDB_DIRECT}${tumiSidebarUrl(section, type, p)}`, 15000, { Authorization: `Bearer ${TMDB_TOKEN}` }) },
   ];
-  for (const src of chain) {
+  for (const tier of tiers) {
     try {
-      const j = await fetchJson(src.url, 15000, src.headers || {});
-      const rows = j.data || j.results || [];
+      // All pages of THIS tier in parallel; a failed page just contributes
+      // nothing (the tier still wins when enough rows survived).
+      const pages = await Promise.all(
+        Array.from({ length: pageCount }, (_, i) => tier.fetch(i + 1).catch(() => null))
+      );
+      const seen = new Set();
+      const rows = [];
+      for (const j of pages) {
+        for (const it of ((j && (j.data || j.results)) || [])) {
+          if (!it || it.id == null || seen.has(it.id)) continue;
+          seen.add(it.id);
+          rows.push(it);
+        }
+      }
       if (validate(rows)) {
-        return { data: rows.slice(0, 25), source: new URL(src.url).host };
+        return { data: rows.slice(0, SIDEBAR_MAX_ROWS), source: tier.label };
       }
     } catch (e) { /* next tier */ }
   }

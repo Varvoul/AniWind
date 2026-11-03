@@ -243,7 +243,15 @@ img { max-width: 100%; height: auto; display: block; }
 
 /* Combined sidebar container - ALL SECTIONS IN ONE */
 .sidebar-combined {
-  background: var(--bg-card);
+  /* t140 (owner ask): the sidebar card no longer ends on a hard edge —
+     its card-blue background fades smoothly into the page background
+     (--bg-body #0a1929) toward the bottom, so the box "blends" into the
+     info page instead of sitting on it as a solid block. */
+  background: linear-gradient(180deg,
+    var(--bg-card) 0%,
+    rgba(19, 47, 76, 0.82) 38%,
+    rgba(19, 47, 76, 0.40) 70%,
+    rgba(19, 47, 76, 0.08) 100%);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   /* t113: clip instead of hidden — overflow:hidden would trap position:sticky
@@ -384,9 +392,11 @@ img { max-width: 100%; height: auto; display: block; }
   font-family: var(--font-title);
 }
 
+/* t140: poster bump (owner ask "just a little bit", PC + mobile):
+   50×70 → 58×80 */
 .sidebar-poster {
-  width: 50px;
-  height: 70px;
+  width: 58px;
+  height: 80px;
   object-fit: cover;
   border-radius: var(--radius-sm);
   flex-shrink: 0;
@@ -454,8 +464,22 @@ img { max-width: 100%; height: auto; display: block; }
   letter-spacing: 0.02em;
   line-height: 1.6;
 }
-.side-tag.genre  { background: rgba(66,153,225,0.13); border: 1px solid rgba(66,153,225,0.45); color: #7ec8f8; }
-.side-tag.studio { background: rgba(128,90,213,0.13); border: 1px solid rgba(128,90,213,0.45); color: #c4b0f8; }
+/* t140 — sidebar genre + studio pills now match the SHOW DETAILS genre
+   tags: same font size/weight and the same inherited text color
+   (.detail-value -> --text-secondary #b0c7e3), while bg/border use the
+   show-details letter-"A" palette (.genre-tag[data-start="a"]):
+   bg rgba(49,132,192,.15) / border rgba(49,132,192,.4) */
+.side-tag.genre  { background: rgba(49, 132, 192, 0.15); border: 1px solid rgba(49, 132, 192, 0.4); }
+.side-tag.studio { background: rgba(49, 132, 192, 0.15); border: 1px solid rgba(49, 132, 192, 0.4); }
+.side-tag.genre,
+.side-tag.studio {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  padding: 3px 10px;
+  border-radius: 20px;
+  line-height: 1.35;
+}
 .side-tag.rating { background: rgba(237,100,166,0.13); border: 1px solid rgba(237,100,166,0.45); color: #f9aed5; }
 
 /* PC only (t112-b, owner pick): sidebar = ONE card with 3 instant tabs
@@ -505,6 +529,12 @@ img { max-width: 100%; height: auto; display: block; }
   }
   /* Top 10 per tab (owner pick) — the full 17-21 rows stay in the DOM (mobile uses them) */
   .sidebar-combined.side-tabs-on .sidebar-section.side-active .sidebar-list-item:nth-child(n+11) { display: none; }
+  /* t140 — Hidden Gem shows 15 rows on PC tabs (owner ask: display more
+     data); Top Ranking / Most Favourite keep the owner-picked 10. The
+     [data-section] attribute lifts specificity above the generic n+11
+     rule: items 1-15 are restored to flex, 16+ stay hidden. */
+  .sidebar-combined.side-tabs-on .sidebar-section[data-section="hiddenGem"].side-active .sidebar-list-item:nth-child(-n+15) { display: flex; }
+  .sidebar-combined.side-tabs-on .sidebar-section[data-section="hiddenGem"].side-active .sidebar-list-item:nth-child(n+16) { display: none; }
   /* compact density (owner pick): keep the BASE sizes on PC — the old roomy
      64×90 / 0.95rem bumps are intentionally NOT re-applied */
 }
@@ -2077,7 +2107,13 @@ img { max-width: 100%; height: auto; display: block; }
     border: none;
   }
   .sidebar-section {
-    background: var(--bg-card);
+    /* t140: same blend-into-page treatment as the PC combined card —
+       each stacked section fades from card blue into the page bg */
+    background: linear-gradient(180deg,
+      var(--bg-card) 0%,
+      rgba(19, 47, 76, 0.82) 38%,
+      rgba(19, 47, 76, 0.40) 70%,
+      rgba(19, 47, 76, 0.08) 100%);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-md);
     margin: 0;
@@ -2086,6 +2122,19 @@ img { max-width: 100%; height: auto; display: block; }
     max-height: none;
     overflow-y: visible;
   }
+  /* t140 — Hidden Gem on mobile: fixed-height VERTICAL scroll box with
+     smooth momentum scrolling and NO visible scrollbar (owner request).
+     Scoped to this one section — Top Ranking / Most Favourite keep their
+     natural full-height stacked lists. */
+  .sidebar-section[data-section="hiddenGem"] .sidebar-list {
+    max-height: 520px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .sidebar-section[data-section="hiddenGem"] .sidebar-list::-webkit-scrollbar { display: none; }
 }
 
 /* tablets 852-1024px: exactly 3 sections → 3 columns never leaves an
@@ -6626,10 +6675,12 @@ img { max-width: 100%; height: auto; display: block; }
         const type = isAnime ? (currentState.sideType[section] || 'tv') : currentState.type;
         const container = document.getElementById(_sidebarListId(section));
         if (!container) return;
-        // v3 key — invalidates pre-t112 cached sidebar HTML (rendered before
-        // the "No Image" poster placeholder existed, so cached copies would
-        // never show it). v2 invalidates pre-polish HTML (Tv caps etc.).
-        const cacheKey = `sidebar_html:v3:${section}:${isAnime ? 'anime-' + type : currentState.type}`;
+        // v4 key — t140 invalidates pre-t140 cached sidebar HTML (old copies
+        // carry the small blue/purple pills, 50×70 posters and poster-less
+        // TMDB rows). v3 invalidates pre-t112 cached HTML (rendered before
+        // the "No Image" poster placeholder existed). v2 invalidates
+        // pre-polish HTML (Tv caps etc.).
+        const cacheKey = `sidebar_html:v4:${section}:${isAnime ? 'anime-' + type : currentState.type}`;
         if (!force) {
           if (window.AniCache) {
             try {
@@ -6691,8 +6742,19 @@ img { max-width: 100%; height: auto; display: block; }
             }
           }
           if (!json) throw (lastErr || new Error('all sidebar sources failed'));
-          const cap = section === 'topRanking' ? 19 : section === 'mostFavourite' ? 21 : 17;
-          let items = (json.data || json.results || []).slice(0, cap);
+          // t140 — Hidden Gem shows MORE data (owner ask): cap 17 → 25.
+          // Top Ranking (19) / Most Favourite (21) keep their owner caps.
+          const cap = section === 'topRanking' ? 19 : section === 'mostFavourite' ? 21 : 25;
+          // t140 (TMDB pages, owner ask): shows WITHOUT a poster never
+          // render — they are filtered out BEFORE the cap so the slots
+          // they would have taken are filled by poster-having shows from
+          // the same source data (server-side /api/sidebar-cache now
+          // returns 2 pages ≈ 40 rows for hiddenGem to feed this).
+          let pool = (json.data || json.results || []);
+          if (!isAnime) {
+            pool = pool.filter(it => it && (it.poster_path || it._supaImg || it.poster));
+          }
+          let items = pool.slice(0, cap);
           if (!items.length) throw new Error('empty list');
           if (!isAnime) {
             // TMDB rows carry genre_ids — map them to names for the pills
@@ -7237,8 +7299,10 @@ img { max-width: 100%; height: auto; display: block; }
         console.log(`[RFY] community recs empty -> genre fallback (${mediaType}, genres [${genreIds.join(', ')}], year ${year || '?'}, ${modernTitle ? 'modern -> modern picks' : 'old -> old+modern mix'})`);
 
         const seen = new Set([Number(currentState.id)]);
+        // t140: poster_path only — backdrop-having/poster-less rows would
+        // render as "No Image" boxes downstream
         const keep = (rows) => (rows || []).filter(it =>
-          it && it.id && !seen.has(Number(it.id)) && (it.poster_path || it.backdrop_path));
+          it && it.id && !seen.has(Number(it.id)) && it.poster_path);
         const oldBucket = [], newBucket = [];   // oldBucket only fills for old titles
         // genre ladder: AND(3) -> AND(2) -> OR; last rung also softens the
         // vote floors so an obscure genre family still produces suggestions
@@ -7286,6 +7350,8 @@ img { max-width: 100%; height: auto; display: block; }
           if (!rows.length) break;               // endpoint exhausted / sources down
           rows.forEach(item => {
             if (!item || !item.id || seen.has(Number(item.id))) return;
+            // t140: top-up rows must carry a poster too — no "No Image" boxes
+            if (!item.poster_path) return;
             seen.add(Number(item.id));
             out.push(item);
           });
@@ -7294,7 +7360,10 @@ img { max-width: 100%; height: auto; display: block; }
         return out;
       }
       async function loadRecommendForYou() {
-        const _rfyKey = `info:recommended_for_you:${mediaKeyOf()}`;
+        // t140 — v2 key: pre-t140 cached pools may carry poster-less rows
+        // (they rendered as "No Image" boxes); the v2 key forces one clean
+        // rebuild from the now poster-filtered live pipeline.
+        const _rfyKey = `info:recommended_for_you:v2:${mediaKeyOf()}`;
         if (window.AniCache) {
           try {
             const cached = await window.AniCache.get(_rfyKey);
@@ -7302,10 +7371,15 @@ img { max-width: 100%; height: auto; display: block; }
               const el = document.getElementById('recommendForYouGrid');
               const sec = document.getElementById('recommendForYouSection');
               if (sec) sec.style.display = 'block';
-              let pool = cached;
+              // t140 (owner ask): poster-less shows never render — same
+              // filter as the live path below, applied to cached pools too.
+              let pool = cached.filter(it => it && it.poster_path);
               // phones: a cached pool saved on a desktop visit may be too
-              // short for 12 full rows — top it up once, re-cache, render
-              if (_recIsPhone() && pool.length < 48) {
+              // short for 12 full rows — top it up once, re-cache, render.
+              // t140: desktops top up too when the poster filter shrank the
+              // pool below the 4-full-rows need (7 cols x 4 = 28).
+              const needCached = _recIsPhone() ? 48 : 28;
+              if (pool.length < needCached) {
                 try {
                   const topped = await _rfyTopUp(pool, currentState.type);
                   if (topped.length > pool.length) {
@@ -7348,6 +7422,10 @@ img { max-width: 100%; height: auto; display: block; }
             if (arr && !Array.isArray(arr) && Array.isArray(arr.results)) arr = arr.results;
             (arr || []).forEach(item => {
               if (!item || !item.id || seen.has(Number(item.id))) return;
+              // t140 (owner ask): shows without a poster are REPLACED by
+              // poster-having shows further down the source data — skip
+              // them here instead of rendering "No Image" boxes.
+              if (!item.poster_path) return;
               seen.add(Number(item.id));
               merged.push(item);
             });
@@ -7382,9 +7460,11 @@ img { max-width: 100%; height: auto; display: block; }
           merged.sort((a, b) => _rfyScore(b) - _rfyScore(a));
 
           // phones need up to 36 (3 cols x 12 rows) — top up when the
-          // embedded pool is short; computers keep the original pool
+          // embedded pool is short. t140: desktops top up too when the
+          // poster filter left fewer than the 4-full-rows need (28).
           let finalPool = merged;
-          if (_recIsPhone() && finalPool.length < 36) {
+          const needLive = _recIsPhone() ? 36 : 28;
+          if (finalPool.length < needLive) {
             try {
               const topped = await _rfyTopUp(merged, mediaType);
               if (topped.length > finalPool.length) finalPool = topped;
