@@ -3517,8 +3517,18 @@ img { max-width: 100%; height: auto; display: block; }
         // Deep-link support: /info/tv/tmdb-tv-65494/<slug>/season/2 (also plain /season/N)
         const slugMatch = path.match(new RegExp(`/info/(?:anime|tv|movie)/${sourcePrefix}-${id}/([^/]+)`));
         currentState.slug = (slugMatch && slugMatch[1] !== 'season') ? slugMatch[1] : null;
+        // t144 — season can arrive in TWO URL shapes and both must register:
+        //   path suffix  /info/tv/tmdb-tv-2316/the-office/season/2   (season cards)
+        //   slug tail    /info/tv/tmdb-tv-2316/the-office-season-2   (home page infoUrl)
+        // The slug tail was previously ignored → Watch Now always offered
+        // season 1 and the "Now Viewing" card highlighted the wrong season.
         const seasonMatch = path.match(/\/season\/(\d+)/);
-        currentState.urlSeason = seasonMatch ? parseInt(seasonMatch[1], 10) : null;
+        if (seasonMatch) {
+          currentState.urlSeason = parseInt(seasonMatch[1], 10);
+        } else {
+          const slugSeason = currentState.slug && currentState.slug.match(/-season-(\d+)$/);
+          currentState.urlSeason = slugSeason ? parseInt(slugSeason[1], 10) : null;
+        }
       }
 
       /* ── ruri-aware helpers (anikoto-/anilist- pages + dead-MAL fallback) ──
@@ -4898,13 +4908,28 @@ img { max-width: 100%; height: auto; display: block; }
 
         // ── Watch Now link formats ──
         // anime: /watch/anime/{jikan|anilist|anikoto}-{id}/{slug}/episode/01
-        // tmdb:  /watch/{tv|movie}/tmdb-{tv|movie}-{id}/{slug}/season/1/episode/1
+        // tmdb:  /watch/{tv|movie}/tmdb-{tv|movie}-{id}/{slug}/season/{S}/episode/1
+        // t144 — S is the season the info page is actually showing (parsed
+        // from /season/N or the -season-N slug tail, see parseUrl), NOT a
+        // hardcoded 1. Guarded against bogus URLs: when the TMDB seasons
+        // list is available and the parsed season is not in it, fall back
+        // to 1. Movies have no seasons — keep season 1 (watch.html expects
+        // the segment; index.html's movie generator omits it, both resolve).
         const slug = slugify(currentState.title);
+        let watchSeason = 1;
+        if (!isAnime && currentState.type === 'tv') {
+          const seasons = Array.isArray(data.seasons)
+            ? data.seasons.filter(s => (s.season_number || 0) > 0) : [];
+          const parsed = currentState.urlSeason;
+          if (parsed && (!seasons.length || seasons.some(s => s.season_number === parsed))) {
+            watchSeason = parsed;
+          }
+        }
         let watchPath;
         if (isAnime) {
           watchPath = `/watch/anime/${currentState.source}-${currentState.id}/${slug}/episode/01`;
         } else {
-          watchPath = `/watch/${currentState.type}/tmdb-${currentState.type}-${currentState.id}/${slug}/season/1/episode/1`;
+          watchPath = `/watch/${currentState.type}/tmdb-${currentState.type}-${currentState.id}/${slug}/season/${watchSeason}/episode/1`;
         }
         document.getElementById('watchNowBtn').href = watchPath;
       }
