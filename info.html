@@ -4100,7 +4100,17 @@ img { max-width: 100%; height: auto; display: block; }
                 }
                 // Set page display title to English (for breadcrumb, tab, share, etc.)
                 // Do NOT overwrite data.title — for anime it holds the romaji title needed by renderDetails()
-                currentState.title = currentState.data.title_english || currentState.data.title || dbShow.eng_title || dbShow.default_title;
+                // t143 — shape-tolerant pick, same chain as the live TMDB path:
+                // TMDB TV payloads carry the title in `name` (not `title`) and
+                // TMDB shows rows have eng_title/default_title = NULL, so the
+                // old chain returned undefined → breadcrumb + hero title (and
+                // the Watch Now slug) went blank on every cache-served visit.
+                currentState.title = currentState.data.title_english
+                  || currentState.data.title
+                  || currentState.data.name
+                  || (currentState.data.metadata && (currentState.data.metadata.title || currentState.data.metadata.name))
+                  || dbShow.eng_title || dbShow.default_title || dbShow.title
+                  || 'Unknown';
               } else {
                 // Only sparse shows table data — hydrate what we can
                 console.log('[AniCache] info: only sparse DB data, will background-refresh', _mediaId);
