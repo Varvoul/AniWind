@@ -1456,6 +1456,294 @@ img { max-width: 100%; height: auto; display: block; }
   stroke-linejoin: round;
 }
 
+/* ── t146 — TMDB Cast/Crew credits deck (movie + tv info pages only;
+   anime pages keep the character/VA row layout above, untouched) ── */
+.cc-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 2px 0 14px;
+}
+.cc-title {
+  font-family: var(--font-meta);
+  font-weight: 600;
+  font-size: 1.02rem;
+  color: var(--text-primary);
+  letter-spacing: 0.01em;
+}
+.cc-count {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  background: rgba(66, 153, 225, 0.14);
+  border: 1px solid rgba(66, 153, 225, 0.35);
+  color: var(--accent-blue);
+  line-height: 1.5;
+}
+.cc-cast { margin-bottom: 28px; }
+
+/* Cast rail — portrait poster-style cards, snap scroll, glass arrows */
+.cc-railbox { position: relative; }
+.cc-rail {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  padding: 6px 2px 14px;
+  scrollbar-width: none;
+}
+.cc-rail::-webkit-scrollbar { display: none; }
+.cc-card {
+  position: relative;
+  flex: 0 0 152px;
+  aspect-ratio: 2 / 3;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  scroll-snap-align: start;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+  animation: ccIn 0.4s ease both;
+}
+.cc-card:hover {
+  transform: translateY(-5px);
+  border-color: rgba(66, 153, 225, 0.55);
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.45);
+  z-index: 2;
+}
+.cc-card-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.cc-shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(4,10,20,0) 42%, rgba(4,10,20,0.38) 64%, rgba(4,10,20,0.93) 100%);
+  pointer-events: none;
+}
+.cc-card-txt {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  padding: 10px 10px 9px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  pointer-events: none;
+}
+.cc-card-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cc-card-char {
+  font-size: 0.68rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cc-letter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--bg-surface), var(--bg-card));
+  color: var(--accent-blue);
+  font-family: var(--font-title);
+  font-size: 1.7rem;
+  text-transform: uppercase;
+}
+
+/* Expanded grid ("View all") — same cards in a responsive grid */
+.cc-gridwrap[hidden] { display: none !important; }
+.cc-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  gap: 12px;
+  padding: 6px 2px 4px;
+}
+.cc-grid .cc-card { flex: none; width: auto; }
+
+.cc-viewall {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 10px;
+  padding: 9px 18px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+.cc-viewall b { font-weight: 700; color: var(--text-primary); }
+.cc-viewall:hover { background: var(--btn-primary); border-color: var(--btn-primary); color: #fff; }
+.cc-viewall:hover b { color: #fff; }
+.cc-viewall svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.cc-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 5;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid var(--border-medium);
+  background: rgba(10, 25, 41, 0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: opacity 0.25s ease, background 0.2s ease;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+.cc-arrow svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: #fff;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.cc-arrow.cc-al { left: -8px; }
+.cc-arrow.cc-ar { right: -8px; }
+.cc-arrow:hover { background: rgba(43, 108, 176, 0.85); }
+.cc-arrow.cc-off { opacity: 0; pointer-events: none; }
+
+/* Crew — key credits spotlight + department groups */
+.cc-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.cc-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 7px 14px 7px 7px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-subtle);
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+.cc-chip:hover { border-color: rgba(66, 153, 225, 0.45); background: rgba(255, 255, 255, 0.08); }
+.cc-key .cc-chip { animation: ccIn 0.4s ease both; }
+.cc-ava {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--bg-surface);
+}
+.cc-ava.cc-letter { font-size: 1.05rem; }
+.cc-chip-txt { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.cc-chip-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cc-chip-job {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cc-depts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(292px, 1fr));
+  gap: 12px;
+}
+.cc-dept {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 13px 15px;
+  animation: ccIn 0.4s ease both;
+}
+.cc-dept-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 9px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.cc-dept-head > span:first-child {
+  font-family: var(--font-meta);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--accent-blue);
+}
+.cc-dept-count { font-size: 0.68rem; color: var(--text-muted); }
+.cc-dept-people { display: flex; flex-direction: column; gap: 8px; }
+.cc-dept .cc-chip {
+  padding: 4px 8px 4px 4px;
+  border-radius: 9px;
+  background: transparent;
+  border-color: transparent;
+}
+.cc-dept .cc-chip:hover { border-color: var(--border-subtle); background: rgba(255, 255, 255, 0.05); }
+.cc-dept .cc-ava { width: 28px; height: 28px; }
+.cc-dept .cc-ava.cc-letter { font-size: 0.72rem; }
+.cc-dept .cc-chip-name { font-size: 0.78rem; font-weight: 500; }
+.cc-more {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  padding-left: 42px;
+}
+@keyframes ccIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cc-card, .cc-key .cc-chip, .cc-dept { animation: none; }
+  .cc-card:hover { transform: none; }
+}
+@media (max-width: 768px) {
+  .cc-arrow { display: none !important; }
+  .cc-card { flex-basis: 128px; }
+  .cc-grid { grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 10px; }
+  .cc-key { gap: 8px; }
+  .cc-key .cc-chip { flex: 1 1 46%; min-width: 0; padding: 6px 10px 6px 6px; }
+  .cc-key .cc-ava { width: 36px; height: 36px; }
+  .cc-depts { grid-template-columns: 1fr; gap: 10px; }
+  .cc-cast { margin-bottom: 22px; }
+}
+
 /* Artwork Grid — Pinterest-style masonry: natural aspect ratios, no forced crops,
    compact tiles on both PC and mobile instead of oversized cells */
 .artwork-grid {
@@ -3153,22 +3441,33 @@ img { max-width: 100%; height: auto; display: block; }
           dg.appendChild(wrap);
         }
 
-        // 6) Cast list — inject cards INSIDE castList (it's empty until render)
+        // 6) Cast list — inject cards INSIDE castList (it's empty until render).
+        //    TMDB pages get portrait-card placeholders (t146 deck shape);
+        //    anime keeps the circle+text row placeholders.
         const castList = $('castList');
         if (castList && castList.children.length === 0) {
           const wrap = document.createElement('div');
           wrap.className = SK_CLASS;
-          wrap.style.cssText = 'display:flex;gap:12px;overflow:hidden;padding:4px 0;';
-          for (let i=0;i<10;i++) {
-            const card = document.createElement('div');
-            card.style.cssText = 'flex-shrink:0;width:80px;display:flex;flex-direction:column;align-items:center;gap:7px;';
-            const circ = document.createElement('div');
-            circ.className = SK_CLASS;
-            circ.style.cssText = 'width:72px;height:72px;border-radius:50%;background:linear-gradient(90deg,#132f4c 25%,#1a3a5c 45%,#1f4468 55%,#132f4c 75%);background-size:1200px 100%;animation:sk-wave 1.6s ease-in-out infinite;';
-            addSkBlock(card, '10px', '80%');
-            addSkBlock(card, '9px', '60%', '2px');
-            card.insertBefore(circ, card.firstChild);
-            wrap.appendChild(card);
+          if (typeof currentState !== 'undefined' && currentState.source === 'tmdb') {
+            wrap.style.cssText = 'display:flex;gap:12px;overflow:hidden;padding:6px 2px;';
+            for (let i=0;i<9;i++) {
+              const card = document.createElement('div');
+              card.style.cssText = 'flex-shrink:0;width:152px;aspect-ratio:2/3;border-radius:14px;background:linear-gradient(90deg,#132f4c 25%,#1a3a5c 45%,#1f4468 55%,#132f4c 75%);background-size:1200px 100%;animation:sk-wave 1.6s ease-in-out infinite;';
+              wrap.appendChild(card);
+            }
+          } else {
+            wrap.style.cssText = 'display:flex;gap:12px;overflow:hidden;padding:4px 0;';
+            for (let i=0;i<10;i++) {
+              const card = document.createElement('div');
+              card.style.cssText = 'flex-shrink:0;width:80px;display:flex;flex-direction:column;align-items:center;gap:7px;';
+              const circ = document.createElement('div');
+              circ.className = SK_CLASS;
+              circ.style.cssText = 'width:72px;height:72px;border-radius:50%;background:linear-gradient(90deg,#132f4c 25%,#1a3a5c 45%,#1f4468 55%,#132f4c 75%);background-size:1200px 100%;animation:sk-wave 1.6s ease-in-out infinite;';
+              addSkBlock(card, '10px', '80%');
+              addSkBlock(card, '9px', '60%', '2px');
+              card.insertBefore(circ, card.firstChild);
+              wrap.appendChild(card);
+            }
           }
           castList.appendChild(wrap);
         }
@@ -5742,6 +6041,153 @@ img { max-width: 100%; height: auto; display: block; }
         return `<div class="cast-warp-container"><div class="cast-list-grid">${rows}</div>`;
       }
 
+      // ── t146 — TMDB Cast & Crew credits deck (movie/tv info pages only;
+      // anime pages keep the character/VA rows above). ONE builder renders
+      // BOTH the live payload and the AniCache fmt:3 blob, so a cached tab
+      // is pixel-identical to a live-fetched one by construction. ──
+      const CC_RAIL_CAP = 14;   // cast cards in the horizontal rail before "View all"
+      const CC_CAST_CAP = 24;   // cast rendered at all (rail + grid) — keeps cache==live
+      const CC_KEY_CAP  = 10;   // above-the-line spotlight chips
+      const CC_DEPT_CAP = 12;   // department cards rendered
+      const CC_PPL_CAP  = 6;    // people per department card
+      const CC_IMG = (p, s) => p ? `https://image.tmdb.org/t/p/w${s}${p}` : '';
+
+      window.ccImgFail = function (img) {
+        // Broken/missing TMDB portrait -> lettered tile in the same box
+        const s = document.createElement('span');
+        s.className = img.className + ' cc-letter';
+        s.textContent = ((img.getAttribute('alt') || '?').trim().charAt(0) || '?').toUpperCase();
+        img.replaceWith(s);
+      };
+
+      // Normalize raw TMDB cast/crew arrays into the capped display shape —
+      // this exact shape is also what gets persisted to AniCache (fmt:3)
+      function tmdbCreditsShape(castRaw, crewRaw) {
+        const cast = (Array.isArray(castRaw) ? castRaw : []).slice(0, CC_CAST_CAP).map(c => ({
+          n:  c.name || c.original_name || 'Unknown',
+          ch: c.character || '',
+          p:  c.profile_path || '',
+        }));
+        // Crew: dedup person+job (TMDB/mapple repeat people across jobs)
+        const seen = new Set();
+        const crew = [];
+        (Array.isArray(crewRaw) ? crewRaw : []).forEach(c => {
+          const nm = c.name || c.original_name || '';
+          const jb = c.job || '';
+          if (!nm || !jb) return;
+          const k = `${c.id || nm}|${jb}`;
+          if (seen.has(k)) return;
+          seen.add(k);
+          crew.push({ n: nm, j: jb, d: c.department || 'Crew', p: c.profile_path || '' });
+        });
+        // Above-the-line spotlight — the credits people actually look for
+        const KEY_JOBS = ['Director', 'Screenplay', 'Writer', 'Novel', 'Story', 'Producer',
+          'Executive Producer', 'Original Music Composer', 'Music', 'Director of Photography',
+          'Editor', 'Film Editor', 'Production Design', 'Costume Design'];
+        const key = [], keySeen = new Set();
+        KEY_JOBS.forEach(jb => {
+          crew.forEach(r => {
+            if (key.length >= CC_KEY_CAP || r.j !== jb || keySeen.has(r.n)) return;
+            keySeen.add(r.n);
+            key.push(r);
+          });
+        });
+        // Department groups — site-priority order, then by size
+        const ORDER = ['Directing', 'Writing', 'Production', 'Sound', 'Camera', 'Editing',
+          'Art', 'Visual Effects', 'Costume & Make-Up', 'Lighting', 'Crew'];
+        const byDept = {};
+        crew.forEach(r => { (byDept[r.d] = byDept[r.d] || []).push(r); });
+        const depts = Object.keys(byDept)
+          .sort((a, b) => {
+            const ia = ORDER.indexOf(a), ib = ORDER.indexOf(b);
+            return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || byDept[b].length - byDept[a].length;
+          })
+          .slice(0, CC_DEPT_CAP)
+          .map(name => ({ name, total: byDept[name].length, people: byDept[name].slice(0, CC_PPL_CAP) }));
+        return { fmt: 3, cast, key, depts, castTotal: cast.length, crewTotal: crew.length };
+      }
+
+      function ccCard(c, i) {
+        const nm = c.n || 'Unknown';
+        const img = c.p
+          ? `<img class="cc-card-img" src="${CC_IMG(c.p, 342)}" alt="${escapeHtml(nm)}" loading="lazy" onerror="ccImgFail(this)">`
+          : `<span class="cc-card-img cc-letter">${escapeHtml(nm.charAt(0).toUpperCase())}</span>`;
+        return `<div class="cc-card" style="animation-delay:${Math.min(i * 30, 420)}ms">${img}<span class="cc-shade"></span><span class="cc-card-txt"><span class="cc-card-name">${escapeHtml(nm)}</span>${c.ch ? `<span class="cc-card-char">${escapeHtml(c.ch)}</span>` : ''}</span></div>`;
+      }
+
+      function ccChip(r) {
+        const ava = r.p
+          ? `<img class="cc-ava" src="${CC_IMG(r.p, 185)}" alt="${escapeHtml(r.n)}" loading="lazy" onerror="ccImgFail(this)">`
+          : `<span class="cc-ava cc-letter">${escapeHtml(r.n.charAt(0).toUpperCase())}</span>`;
+        return `<div class="cc-chip">${ava}<span class="cc-chip-txt"><span class="cc-chip-name">${escapeHtml(r.n)}</span><span class="cc-chip-job">${escapeHtml(r.j)}</span></span></div>`;
+      }
+
+      function buildTmdbCreditsHTML(sh) {
+        const parts = [];
+        if (sh.cast && sh.cast.length) {
+          const viewAll = sh.cast.length > CC_RAIL_CAP ? `
+            <div class="cc-gridwrap" hidden><div class="cc-grid">${sh.cast.map((c, i) => ccCard(c, i)).join('')}</div></div>
+            <button class="cc-viewall" type="button" data-n="${sh.cast.length}">View all <b>${sh.cast.length}</b><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>` : '';
+          parts.push(`<section class="cc-cast">
+            <div class="cc-head"><span class="cc-title">Cast</span><span class="cc-count">${sh.castTotal || sh.cast.length}</span></div>
+            <div class="cc-railbox">
+              <button class="cc-arrow cc-al cc-off" aria-label="Scroll cast left"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></button>
+              <div class="cc-rail">${sh.cast.slice(0, CC_RAIL_CAP).map((c, i) => ccCard(c, i)).join('')}</div>
+              <button class="cc-arrow cc-ar" aria-label="Scroll cast right"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+            </div>${viewAll}</section>`);
+        }
+        if ((sh.key && sh.key.length) || (sh.depts && sh.depts.length)) {
+          parts.push(`<section class="cc-crew">
+            <div class="cc-head"><span class="cc-title">Crew</span><span class="cc-count">${sh.crewTotal || 0}</span></div>
+            ${sh.key && sh.key.length ? `<div class="cc-key">${sh.key.map((r, i) => ccChip(r)).join('')}</div>` : ''}
+            ${sh.depts && sh.depts.length ? `<div class="cc-depts">${sh.depts.map((d, i) => `
+              <div class="cc-dept" style="animation-delay:${Math.min(i * 45, 420)}ms">
+                <div class="cc-dept-head"><span>${escapeHtml(d.name)}</span><span class="cc-dept-count">${d.total}</span></div>
+                <div class="cc-dept-people">${d.people.map(ccChip).join('')}${d.total > d.people.length ? `<span class="cc-more">+ ${d.total - d.people.length} more</span>` : ''}</div>
+              </div>`).join('')}</div>` : ''}
+          </section>`);
+        }
+        return parts.join('');
+      }
+
+      // Rail arrows + "View all" toggle — delegated on #castList ONCE, so the
+      // wiring survives every innerHTML re-render (live, cached, retry paths)
+      function ccArrowState(root) {
+        const rail = root.querySelector('.cc-rail');
+        if (!rail) return;
+        const l = root.querySelector('.cc-al'), r = root.querySelector('.cc-ar');
+        if (l) l.classList.toggle('cc-off', rail.scrollLeft <= 4);
+        if (r) r.classList.toggle('cc-off', rail.scrollWidth <= rail.clientWidth + rail.scrollLeft + 4);
+      }
+      function ccInitUi(root) {
+        if (!root) return;
+        if (!root.dataset.ccWired) {
+          root.dataset.ccWired = '1';
+          root.addEventListener('click', (e) => {
+            const al = e.target.closest('.cc-al'), ar = e.target.closest('.cc-ar');
+            if (al || ar) {
+              const rail = root.querySelector('.cc-rail');
+              if (rail) rail.scrollBy({ left: (ar ? 1 : -1) * Math.max(rail.clientWidth * 0.8, 300), behavior: 'smooth' });
+              return;
+            }
+            const va = e.target.closest('.cc-viewall');
+            if (va) {
+              const exp = va.classList.toggle('open');
+              const gw = root.querySelector('.cc-gridwrap');
+              const rb = root.querySelector('.cc-railbox');
+              if (gw) gw.hidden = !exp;
+              if (rb) rb.style.display = exp ? 'none' : '';
+              va.innerHTML = exp
+                ? `Show less <svg viewBox="0 0 24 24"><path d="M18 15l-6-6-6 6"/></svg>`
+                : `View all <b>${va.dataset.n}</b><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>`;
+            }
+          });
+          root.addEventListener('scroll', () => ccArrowState(root), true);
+          window.addEventListener('resize', () => ccArrowState(root));
+        }
+        ccArrowState(root);
+      }
+
       function buildArtworkHtml(items) {
         const typeLabel = { poster: 'Poster', backdrop: 'Backdrop', logo: 'Logo' };
         return (items || []).map(img => {
@@ -5834,7 +6280,25 @@ img { max-width: 100%; height: auto; display: block; }
       // builders; each returns true when the tab was drawn from cache. ────
       function _renderCastFromDB(castArr) {
         const container = document.getElementById('castList');
-        if (!container || !Array.isArray(castArr) || !castArr.length) return false;
+        if (!container || !castArr) return false;
+        // t146 — fmt:3 OBJECT: rebuild the TMDB credits deck from the capped
+        // display shape saved by the live loader (identical markup by
+        // construction). Anime pages never save objects, so they are
+        // unaffected.
+        if (!Array.isArray(castArr)) {
+          if (castArr.fmt !== 3 || !Array.isArray(castArr.cast)) return false;
+          if (!castArr.cast.length && !(castArr.key || []).length && !(castArr.depts || []).length) return false;
+          container.innerHTML = buildTmdbCreditsHTML(castArr);
+          ccInitUi(container);
+          return true;
+        }
+        // Legacy ARRAY blobs: TMDB-era saves (fmt:2 / role:'Actor' rows)
+        // predate the crew-inclusive deck — return false so the live loader
+        // runs once and re-saves in fmt:3 (one-time upgrade, keeps
+        // cache==live rendering). Anime rows (role Main/Supporting) still
+        // render through the row builder below, unchanged.
+        if (castArr.length && castArr.some(c => c && (c.fmt === 2 || c.role === 'Actor'))) return false;
+        if (!castArr.length) return false;
         container.innerHTML = castWarpHTML(buildCastRowsHTML(castArr));
         return true;
       }
@@ -7923,32 +8387,24 @@ img { max-width: 100%; height: auto; display: block; }
             showTabState('castList', 'error', 'Cast & crew could not be loaded', 'The cast server did not respond right now — this is usually temporary.', loadCastData);
           }
         } else {
-          // TMDB cast — mapple cast_crew (fallback: legacy credits shape)
-          const cast = (data.cast_crew && data.cast_crew.cast) || data.credits?.cast || [];
-          if (!cast.length) {
+          // TMDB cast + crew — t146 credits deck (mapple cast_crew, fallback:
+          // legacy credits shape from the backup tiers). One builder renders
+          // both live and cached payloads -> identical markup by construction.
+          const ccSrc = (data.cast_crew && typeof data.cast_crew === 'object')
+            ? data.cast_crew
+            : (data.credits ? { cast: data.credits.cast || [], crew: data.credits.crew || [] } : {});
+          const shape = tmdbCreditsShape(ccSrc.cast || [], ccSrc.crew || []);
+          if (!shape.cast.length && !shape.key.length && !shape.depts.length) {
             showTabState('castList', 'sleep', 'No cast data available', 'No cast or crew information is registered for this show yet.');
             return;
           }
-
-          // AniCache: capture TMDB cast for DB storage — faithful display shape
-          // (actor name/photo on the char side, character name on the va side,
-          // fmt:2 marks the shape for the cached renderer)
-          window._lastCastData = cast.slice(0, 20).map(c => ({
-            fmt:       2,
-            char_name: c.name || 'Unknown',
-            char_img:  c.profile_path ? `https://image.tmdb.org/t/p/w185${c.profile_path}` : '',
-            role:      'Actor',
-            va_name:   c.character || '',
-            va_img:    '',
-            va_lang:   'Character',
-          }));
-          // Render through the shared builder — identical markup to the
-          // cached render by construction
-          container.innerHTML = castWarpHTML(buildCastRowsHTML(window._lastCastData));
-          // AniCache: save TMDB cast (this path never persisted before, so
-          // cached visits re-derived it from the payload every time)
-          if (window.AniCache && window._lastCastData?.length) {
-            window.AniCache.saveDetails(mediaKeyOf(), { cast_crew: window._lastCastData },
+          // AniCache: persist the capped display shape (fmt:3) — the cached
+          // renderer rebuilds the IDENTICAL deck from it, no refetch needed
+          window._lastCastData = shape;
+          container.innerHTML = buildTmdbCreditsHTML(shape);
+          ccInitUi(container);
+          if (window.AniCache && (shape.cast.length || shape.key.length)) {
+            window.AniCache.saveDetails(mediaKeyOf(), { cast_crew: shape },
               { permanent: currentState.isPermanent }).catch(() => {});
           }
         }
