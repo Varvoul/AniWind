@@ -4908,13 +4908,14 @@ img { max-width: 100%; height: auto; display: block; }
 
         // ── Watch Now link formats ──
         // anime: /watch/anime/{jikan|anilist|anikoto}-{id}/{slug}/episode/01
-        // tmdb:  /watch/{tv|movie}/tmdb-{tv|movie}-{id}/{slug}/season/{S}/episode/1
+        // movie: /watch/movie/tmdb-movie-{id}/{slug}                 (no season/episode segments — owner request t145,
+        //                                                             same shape as the home page movie watchUrl generator)
+        // tv:    /watch/tv/tmdb-tv-{id}/{slug}/season/{S}/episode/1
         // t144 — S is the season the info page is actually showing (parsed
         // from /season/N or the -season-N slug tail, see parseUrl), NOT a
         // hardcoded 1. Guarded against bogus URLs: when the TMDB seasons
         // list is available and the parsed season is not in it, fall back
-        // to 1. Movies have no seasons — keep season 1 (watch.html expects
-        // the segment; index.html's movie generator omits it, both resolve).
+        // to 1.
         const slug = slugify(currentState.title);
         let watchSeason = 1;
         if (!isAnime && currentState.type === 'tv') {
@@ -4928,8 +4929,10 @@ img { max-width: 100%; height: auto; display: block; }
         let watchPath;
         if (isAnime) {
           watchPath = `/watch/anime/${currentState.source}-${currentState.id}/${slug}/episode/01`;
+        } else if (currentState.type === 'movie') {
+          watchPath = `/watch/movie/tmdb-movie-${currentState.id}/${slug}`;
         } else {
-          watchPath = `/watch/${currentState.type}/tmdb-${currentState.type}-${currentState.id}/${slug}/season/${watchSeason}/episode/1`;
+          watchPath = `/watch/tv/tmdb-tv-${currentState.id}/${slug}/season/${watchSeason}/episode/1`;
         }
         document.getElementById('watchNowBtn').href = watchPath;
       }
