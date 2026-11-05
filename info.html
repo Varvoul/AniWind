@@ -6379,7 +6379,17 @@ img { max-width: 100%; height: auto; display: block; }
 
         dropdownBtn.addEventListener('click', (e) => {
           e.stopPropagation();
-          if (!currentState.currentUser) { showLoginAlert(); return; }
+          if (!currentState.currentUser) {
+            // t148 — signed-out: keep the "Please sign in" alert AND auto-open
+            // the SAME auth modal the header Sign In button uses (shared.js
+            // exports window.openLoginModal → openModal(0) = Sign In slide).
+            // Optional-chain style guard: if shared.js hasn't loaded (e.g. an
+            // old cached copy predating the export) the alert alone still
+            // shows, so the gate degrades gracefully instead of throwing.
+            showLoginAlert();
+            if (typeof window.openLoginModal === 'function') window.openLoginModal();
+            return;
+          }
           const isOpen = !dropdown.classList.contains('show');
           if (isOpen) {
             dropdown.classList.add('show');
