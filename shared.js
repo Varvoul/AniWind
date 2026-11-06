@@ -3971,35 +3971,55 @@
     const currentAvatar = profile?.avatar_url || googleImg || DEFAULT_AVATAR;
 
     const now = new Date().toISOString();
-    const patch = {
-      last_login_date:         now,
-      google_account_username: profile?.google_account_username || googleName,
-      gmail_address:           profile?.gmail_address           || gmail,
-      google_profile_image:    profile?.google_profile_image    || googleImg,
-      updated_at:              now
-    };
-    if (geo) {
-      patch.ip_address_text = geo.ip             || null;
-      patch.country         = geo.country        || null;
-      patch.country_code    = geo.country_code   || null;
-      patch.state           = geo.state          || null;
-      patch.city            = geo.city           || null;
-      patch.local_timezone  = geo.local_timezone || geo.timezone || null;
-      patch.utc_offset      = geo.utc_offset     || null;
-    }
-    // Only increment login_count on a genuine new sign-in (not page refresh)
-    if (isGenuineLogin) {
-      if (profile?.login_count != null) {
-        patch.login_count = profile.login_count + 1;
-      } else {
-        patch.login_count    = 1;
-        patch.first_login_date = now;
-        patch.account_created_at = now;
+    /* t151 anti-feedback-loop gate — WHY THIS GUARD EXISTS:
+       this function runs on EVERY updateUserUI(), including the realtime
+       'profiles' callback (initRealtime) and every hourly TOKEN_REFRESHED.
+       The patch below used to be UNCONDITIONAL (last_login_date/updated_at
+       = now change every call), so: PATCH profiles -> realtime publishes the
+       change -> initRealtime callback -> updateUserUI() -> handleOAuthCallback()
+       -> another PATCH -> ... an infinite write loop while any signed-in tab
+       is open. Live cost measured in pg_stat_statements (Oct 17-Nov 6):
+       448,104 profiles UPDATEs + 448k GoTrue /user calls + 540k realtime
+       messages -> Supabase Log Ingestion 347% and Egress 117% over quota.
+       FIX: write ONLY on a genuine sign-in (counted once per tab via the
+       sessionStorage flag above) or when a fill-if-missing Google field is
+       actually still empty. Read-only paths (avatar render, realtime
+       subscribe) are untouched. */
+    const missingGoogleFields =
+      (!profile?.google_account_username && googleName) ||
+      (!profile?.gmail_address           && gmail)      ||
+      (!profile?.google_profile_image    && googleImg);
+    if (isGenuineLogin || missingGoogleFields) {
+      const patch = {
+        last_login_date:         now,
+        google_account_username: profile?.google_account_username || googleName,
+        gmail_address:           profile?.gmail_address           || gmail,
+        google_profile_image:    profile?.google_profile_image    || googleImg,
+        updated_at:              now
+      };
+      if (geo) {
+        patch.ip_address_text = geo.ip             || null;
+        patch.country         = geo.country        || null;
+        patch.country_code    = geo.country_code   || null;
+        patch.state           = geo.state          || null;
+        patch.city            = geo.city           || null;
+        patch.local_timezone  = geo.local_timezone || geo.timezone || null;
+        patch.utc_offset      = geo.utc_offset     || null;
       }
+      // Only increment login_count on a genuine new sign-in (not page refresh)
+      if (isGenuineLogin) {
+        if (profile?.login_count != null) {
+          patch.login_count = profile.login_count + 1;
+        } else {
+          patch.login_count    = 1;
+          patch.first_login_date = now;
+          patch.account_created_at = now;
+        }
+      }
+      try {
+        await supabase.from('profiles').update(patch).eq('user_id', user.id);
+      } catch (e) { console.warn('[handleOAuthCallback] update failed:', e); }
     }
-    try {
-      await supabase.from('profiles').update(patch).eq('user_id', user.id);
-    } catch (e) { console.warn('[handleOAuthCallback] update failed:', e); }
 
     // Persist the Google avatar into the permanent bucket ONCE.
     const alreadyPermanent = currentAvatar && currentAvatar.includes(`/${AVATAR_BUCKET}/`);
