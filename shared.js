@@ -2259,7 +2259,13 @@
   const DB_TIMEOUT_MS = 1200;      // Max wait for anime_data before trying anikoto_data
   const ANIKOTO_TIMEOUT_MS = 1200; // Max wait for anikoto_data before trying AniList
   const ANILIST_TIMEOUT_MS = 2000; // Max wait for AniList before trying Jikan
-  const JIKAN_TIMEOUT_MS = 2500;   // Max wait for Jikan (last resort, public API)
+  // t155: raised 2500 → 9000. The self-hosted jikan search scrapes MAL upstream
+  // on Render (~6-7s even warm), so 2500ms guaranteed the last-resort tier
+  // timed out on EVERY query — the UI could never show a single jikan card.
+  // 9000 sits just above searchAnimeFromJikan's own 8s AbortSignal so the
+  // inner abort always fires first (deterministic settle). Only reached when
+  // ruri + both Supabase tiers + AniList all underdeliver/fail.
+  const JIKAN_TIMEOUT_MS = 9000;   // Max wait for Jikan (last resort, public API)
   
   // API endpoints
   const JIKAN_API_BASE = 'https://jikan-api-bohb.onrender.com/v4/search/anime';
