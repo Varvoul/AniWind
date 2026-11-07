@@ -315,10 +315,11 @@
     @media (max-width:1439px) and (min-width:1024px) { .br-grid { grid-template-columns:repeat(4, 1fr); gap:14px; } }
     @media (max-width:1023px) and (min-width:768px) { .br-grid { grid-template-columns:repeat(3, 1fr); gap:12px; } }
     @media (max-width:767px) { .br-grid { grid-template-columns:repeat(2, 1fr); gap:10px; } }
-    /* ≤767px (phones): compact control shell + collapsible filter body —
+    /* ≤767px (phones) AND short-landscape phones (≤1023px wide, ≤500px tall —
+       e.g. 844×390 rotated): compact control shell + collapsible filter body —
        title row + one filter row + chips + toggle ≈ top third of the screen,
        the rest belongs to the cards; pagination docked full-bleed. */
-    @media (max-width:767px) {
+    @media (max-width:767px), (max-width:1023px) and (max-height:500px) {
       .br-page { padding:12px 12px 44px; }
       .br-head { margin-bottom:10px; }
       .br-h1 { font-size:1.05rem; }
@@ -354,6 +355,16 @@
       .br-titlerow { margin:0 0 6px; }
       .br-toggle button { padding:6px 12px; font-size:.66rem; }
       .br-pagination { margin:12px -12px 0; padding:14px 12px calc(12px + env(safe-area-inset-bottom)); }
+    }
+    /* landscape phones (short viewport, ≥600px wide): search + Filters share one
+       row, docked rail tightened, and the sticky shell scrolls internally if the
+       expanded filter body outgrows the screen (portrait tablets/desktop keep the
+       always-expanded pill bar — height cutoff 500px never matches them) */
+    @media (max-height:500px) and (min-width:600px) {
+      .br-search { min-width:0; max-width:340px; flex:1 1 230px; order:0; }
+      .br-fbtn { flex:0 0 auto; }
+      .br-sticky { padding:4px 12px 6px; max-height:calc(100vh - 70px); max-height:calc(100dvh - 70px); overflow-y:auto; }
+      .br-pagination { padding:10px 12px calc(10px + env(safe-area-inset-bottom)); }
     }
     @media (min-width:768px) and (max-width:1023px) {
       /* mobile landscape + tablets: 3-col genre/year panels per spec */
