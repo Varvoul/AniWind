@@ -2834,6 +2834,13 @@ img { max-width: 100%; height: auto; display: block; }
   filter: blur(3px) brightness(0.8) saturate(1.08);
   transform: scale(1.09);
 }
+/* t161 — the shared "no image" fallback art must stay crisp: never blur or
+   overscale it like a real banner strip (wins over .season-rel-img and the
+   generic .season-card img darkening) */
+.season-card img[data-fb] {
+  filter: brightness(0.92) !important;
+  transform: none !important;
+}
 .season-card .season-amber-veil {
   position: absolute;
   inset: 0;
@@ -5779,6 +5786,36 @@ img { max-width: 100%; height: auto; display: block; }
         `).join('');
       }
 
+      // t161 — shared "no image" fallback art for Watch More Seasons cards.
+      // A real <img> (inline SVG data URI, 640x280 = the card's 16:7) instead
+      // of hiding broken images: covers TMDB seasons without a poster, movie
+      // collections without art, anime relations whose ruri row carries
+      // neither banner nor picture, and any URL that 404s at load time.
+      const SEASON_FALLBACK_IMG = 'data:image/svg+xml,' + encodeURIComponent(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="640" height="280" viewBox="0 0 640 280">' +
+        '<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">' +
+        '<stop offset="0" stop-color="#1b2f4a"/><stop offset="0.55" stop-color="#12233a"/><stop offset="1" stop-color="#0c1728"/>' +
+        '</linearGradient></defs>' +
+        '<rect width="640" height="280" fill="url(#g)"/>' +
+        '<g transform="translate(294,80)" fill="none" stroke="#4a6d94" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">' +
+        '<rect x="0" y="0" width="52" height="40" rx="6"/>' +
+        '<circle cx="15" cy="13" r="5"/>' +
+        '<path d="M6 34 L21 19 L31 29 L39 21 L46 28"/>' +
+        '</g>' +
+        '<text x="320" y="172" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="18" letter-spacing="2" fill="#5e82ab">NO IMAGE AVAILABLE</text>' +
+        '</svg>');
+      // <img> error hook: swap once to the shared fallback (data-fb guards so
+      // the fallback itself can never loop). Assigned on window because the
+      // inline onerror attribute resolves through the global scope.
+      window.__seasonImgFallback = function (el) {
+        if (el.dataset.fb) return;
+        el.dataset.fb = '1';
+        el.src = SEASON_FALLBACK_IMG;
+      };
+      function seasonImgHtml(src, alt) {
+        return `<img src="${src || SEASON_FALLBACK_IMG}"${src ? '' : ' data-fb="1"'} alt="${escapeHtml(alt || '')}" loading="lazy" onerror="__seasonImgFallback(this)">`;
+      }
+
       async function renderSeasons() {
         const section = document.getElementById('seasonsSection');
         const grid = document.getElementById('seasonsGrid');
@@ -5799,9 +5836,7 @@ img { max-width: 100%; height: auto; display: block; }
             const poster = season.poster_path ? `https://image.tmdb.org/t/p/w300${season.poster_path}` : '';
             const isCurrent = num === currentSeason;
             return `<a href="${seasonUrl}" class="season-card${isCurrent ? ' season-current' : ''}">
-              ${poster
-                ? `<img src="${poster}" alt="${escapeHtml(seasonTitle)}" loading="lazy" onerror="this.style.display='none'">`
-                : `<div class="season-img-placeholder"><i class="fa-solid fa-film" style="font-size:2rem;opacity:0.3;"></i></div>`}
+              ${seasonImgHtml(poster, seasonTitle)}
               ${isCurrent ? '<span class="season-now-tag">Now Viewing</span>' : ''}
               <div class="season-info-overlay">
                 <span class="season-number">Season ${num}</span>
@@ -5820,9 +5855,7 @@ img { max-width: 100%; height: auto; display: block; }
               ? `https://image.tmdb.org/t/p/w780${col.backdrop_path}`
               : (col.poster_path ? `https://image.tmdb.org/t/p/w500${col.poster_path}` : '');
             grid.innerHTML = `<div class="season-card">
-              ${img
-                ? `<img src="${img}" alt="${escapeHtml(col.name || 'Collection')}" loading="lazy" onerror="this.style.display='none'">`
-                : `<div class="season-img-placeholder"><i class="fa-solid fa-film" style="font-size:2rem;opacity:0.3;"></i></div>`}
+              ${seasonImgHtml(img, col.name || 'Collection')}
               <div class="season-info-overlay">
                 <span class="season-relation-tag">Collection</span>
                 <span class="season-number">${escapeHtml(col.name || 'Collection')}</span>
@@ -5873,7 +5906,7 @@ img { max-width: 100%; height: auto; display: block; }
           const seasonTitle = s.name || currentState.title;
           const relationLabel = s.relation ? `<span class="season-relation-tag">${escapeHtml(s.relation)}</span>` : '';
           return `<a href="#" class="season-card" data-season-idx="${idx}">
-            <img id="season-img-${idx}" src="" alt="${escapeHtml(seasonTitle)}" loading="lazy" style="display:none;" class="season-rel-img" onerror="this.style.display='none'">
+            <img id="season-img-${idx}" alt="${escapeHtml(seasonTitle)}" loading="lazy" style="display:none;" class="season-rel-img" onerror="__seasonImgFallback(this)">
             <span class="season-amber-veil"></span>
             <div class="season-img-placeholder" id="season-placeholder-${idx}">
               <i class="fa-solid fa-film" style="font-size:2rem;opacity:0.3;"></i>
@@ -5948,18 +5981,40 @@ img { max-width: 100%; height: auto; display: block; }
               `/info/anime/${currentState.source}-${currentState.id}/${slugify(currentState.title)}`);
           }
         } catch (e) { console.warn('[Seasons] ruri batch images failed:', e.message); }
+
+        // t161 — cards whose art never arrived (ruri down / circuit open /
+        // no banner+picture on the row) still get the shared fallback image
+        // instead of sitting on the bare icon placeholder forever. The self
+        // card first tries the page's own payload art before the fallback.
+        grid.querySelectorAll('.season-img-placeholder').forEach(ph => {
+          const card = ph.closest('.season-card');
+          const img = card && card.querySelector('img.season-rel-img');
+          if (img && img.style.display === 'none') {
+            const s = all[Number(card.dataset.seasonIdx)];
+            let art = (s && s.self) ? (data.images?.jpg?.large_image_url || data.images?.jpg?.image_url || '') : '';
+            if (art) delete img.dataset.fb;
+            else { art = SEASON_FALLBACK_IMG; img.dataset.fb = '1'; }
+            img.src = art;
+            img.style.display = '';
+            ph.style.display = 'none';
+          }
+        });
       }
 
       function _fillSeasonCard(idx, s, imgUrl, url) {
         if (idx < 0 || !s) return;
         const cardEl = document.querySelector(`[data-season-idx="${idx}"]`);
         if (cardEl && url) cardEl.href = url;
-        if (imgUrl) {
-          const imgEl = document.getElementById(`season-img-${idx}`);
-          const phEl = document.getElementById(`season-placeholder-${idx}`);
-          if (imgEl) { imgEl.src = imgUrl; imgEl.style.display = ''; }
-          if (phEl) phEl.style.display = 'none';
-        }
+        const imgEl = document.getElementById(`season-img-${idx}`);
+        if (!imgEl) return;
+        // t161 — always paint SOMETHING: empty art falls back to the shared
+        // placeholder image instead of leaving the icon placeholder in place
+        if (!imgUrl) { imgUrl = SEASON_FALLBACK_IMG; imgEl.dataset.fb = '1'; }
+        else delete imgEl.dataset.fb;   // a fresh real URL may still 404 → fallback must stay reachable
+        imgEl.src = imgUrl;
+        imgEl.style.display = '';
+        const phEl = document.getElementById(`season-placeholder-${idx}`);
+        if (phEl) phEl.style.display = 'none';
       }
 
       // ════════════════════════════════════════════════════════════
@@ -8764,7 +8819,9 @@ img { max-width: 100%; height: auto; display: block; }
 
         } catch (e) {
           console.warn('AnimeThemes error:', e);
-          showTabState('themesContainer', 'error', 'Theme songs could not be loaded', 'AnimeThemes did not respond — try again in a moment.', loadThemesData);
+          // t161 — honest outage copy: the upstream has been down for days,
+          // "try again in a moment" was misleading
+          showTabState('themesContainer', 'error', 'AnimeThemes is temporarily unavailable', 'The AnimeThemes API is down at the moment, so theme songs cannot be fetched right now. Themes you have viewed on this device before still load from your cache — please try again later.', loadThemesData);
         }
       }
       // ════════════════════════════════════════════════════════════
