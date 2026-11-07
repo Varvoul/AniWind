@@ -113,6 +113,8 @@
     .br-apply:hover { background:var(--btn-primary-hover); }
     .br-apply:active { transform:scale(.96); }
     .br-apply.loading i { animation: brspin .8s linear infinite; }
+    /* mobile-only filter expander — hidden on ≥768px where the pills always show */
+    .br-fbtn { display:none; }
     @keyframes brspin { to { transform: rotate(360deg); } }
 
     /* dropdown panels */
@@ -250,8 +252,14 @@
     .chibi-sparkle { animation: chibiSpark 2.8s ease-in-out infinite; transform-origin:center; }
     @keyframes chibiSpark { 0%,100% { opacity:.25; transform:scale(.8) rotate(0deg);} 50% { opacity:1; transform:scale(1.12) rotate(20deg);} }
 
-    /* ── PAGINATION ── */
-    .br-pagination { display:none; justify-content:center; align-items:center; gap:6px; margin-top:30px; flex-wrap:wrap; }
+    /* ── PAGINATION ── docked rail: sticky bottom mirrors the sticky filter shell,
+       so paging never needs a trip up/down the list — only the cards scroll.
+       Top padding (not margin) keeps an opaque scroll-under cover above the buttons. */
+    .br-pagination {
+      display:none; justify-content:center; align-items:center; gap:6px; flex-wrap:wrap;
+      position:sticky; bottom:0; z-index:90; background:var(--bg-body);
+      padding:26px 0 14px; box-shadow:0 -16px 22px -18px rgba(0,0,0,.72);
+    }
     .br-pagination.visible { display:flex; }
     .br-pagination button {
       min-width:34px; height:34px; padding:0 9px; border-radius:9px; background:var(--bg-card);
@@ -307,20 +315,45 @@
     @media (max-width:1439px) and (min-width:1024px) { .br-grid { grid-template-columns:repeat(4, 1fr); gap:14px; } }
     @media (max-width:1023px) and (min-width:768px) { .br-grid { grid-template-columns:repeat(3, 1fr); gap:12px; } }
     @media (max-width:767px) { .br-grid { grid-template-columns:repeat(2, 1fr); gap:10px; } }
-    @media (max-width:600px) {
-      .br-page { padding:16px 12px 44px; }
-      .br-filterbar { padding:10px; gap:7px; }
+    /* ≤767px (phones): compact control shell + collapsible filter body —
+       title row + one filter row + chips + toggle ≈ top third of the screen,
+       the rest belongs to the cards; pagination docked full-bleed. */
+    @media (max-width:767px) {
+      .br-page { padding:12px 12px 44px; }
+      .br-head { margin-bottom:10px; }
+      .br-h1 { font-size:1.05rem; }
+      .br-sub { display:none; }
+      .br-count { padding:4px 11px; font-size:.66rem; }
+      .br-sticky { margin:0 -12px 2px; padding:4px 12px 8px; }
+      .br-filterbar { padding:8px; gap:6px; margin-bottom:8px; }
+      /* collapsed by default: one search row + Filters expander */
+      .br-fbtn {
+        display:flex; align-items:center; justify-content:center; gap:7px; flex:1 1 auto;
+        background:var(--bg-surface); color:var(--text-secondary); cursor:pointer;
+        border:1px solid var(--border-subtle); border-radius:var(--radius-pill);
+        padding:9px 14px; font-family:var(--font-meta); font-size:.74rem; font-weight:500;
+      }
+      .br-fbtn .fa-chevron-down { font-size:.56rem; transition:transform .2s ease; }
+      .br-filterbar.open .br-fbtn { border-color:var(--accent-blue); color:var(--text-primary); }
+      .br-filterbar.open .br-fbtn .fa-chevron-down { transform:rotate(180deg); }
+      .br-fbtn-n { background:var(--accent-blue); color:#062033; font-weight:700; border-radius:999px; font-size:.6rem; padding:1px 6px; }
+      .br-filterbar:not(.open) > .br-dd, .br-filterbar:not(.open) > .br-apply { display:none; }
+      /* expanded body: same pills as before, tightened */
       .br-search { min-width:100%; max-width:100%; order:-1; }
       .br-dd { flex:1 1 auto; }
       .br-dd-btn { padding:8px 11px; font-size:.68rem; }
       .br-apply { flex:1 1 auto; justify-content:center; }
-      .br-dd-panel { position:fixed; left:10px !important; right:10px !important; top:auto; bottom:10px; transform:none; max-width:none; width:auto; max-height:62vh; }
+      /* dropdown sheets float above the docked pagination rail */
+      .br-dd-panel { position:fixed; left:10px !important; right:10px !important; top:auto; bottom:10px; transform:none; max-width:none; width:auto; max-height:62vh; z-index:130; }
       .br-dd.open .br-dd-panel { transform:none; }
       .br-dd-grid.cols-4 { grid-template-columns:repeat(2, 1fr); }
       .br-dd-grid.cols-3 { grid-template-columns:repeat(3, 1fr); }
       .br-title { font-size:.7rem; }
-      .br-toggle button { padding:7px 12px; font-size:.66rem; }
-      .br-sticky { margin:0 -12px 2px; padding:6px 12px 10px; }
+      .br-chips { margin:0 auto 8px; gap:6px; }
+      .br-chip { padding:4px 7px 4px 11px; font-size:.64rem; }
+      .br-titlerow { margin:0 0 6px; }
+      .br-toggle button { padding:6px 12px; font-size:.66rem; }
+      .br-pagination { margin:12px -12px 0; padding:14px 12px calc(12px + env(safe-area-inset-bottom)); }
     }
     @media (min-width:768px) and (max-width:1023px) {
       /* mobile landscape + tablets: 3-col genre/year panels per spec */
@@ -350,6 +383,10 @@
       <input type="text" id="brSearchInput" placeholder="Search anime, movie &amp; series titles" autocomplete="off">
       <button class="br-search-x" id="brSearchClear" type="button" aria-label="Clear search" title="Clear search" style="display:none"><i class="fa-solid fa-xmark"></i></button>
     </div>
+    <!-- mobile-only expander: phones keep ONE compact filter row; pills + Apply live in the collapsible body -->
+    <button class="br-fbtn" id="brFilterToggle" type="button" aria-expanded="false" aria-controls="brFilterbar">
+      <i class="fa-solid fa-sliders"></i>Filters <span class="br-fbtn-n" id="brFilterTN" style="display:none"></span><i class="fa-solid fa-chevron-down"></i>
+    </button>
     <div class="br-dd" data-key="genres">
       <button class="br-dd-btn" type="button"><i class="fa-solid fa-tags" style="font-size:.7em"></i>Genre <span class="br-dd-n" style="display:none"></span><i class="fa-solid fa-chevron-down"></i></button>
       <div class="br-dd-panel"><div class="br-dd-head">Genres</div><div class="br-dd-grid cols-4" id="brGenreGrid"></div>
@@ -871,6 +908,17 @@
       if (badge) { badge.style.display = n ? '' : 'none'; badge.textContent = n; }
       dd.classList.toggle('has-sel', !!n);
     });
+    // mobile Filters-expander badge = number of active filter groups
+    var ftn = $('brFilterTN');
+    if (ftn) {
+      var fn = (state.q ? 1 : 0) + state.genres.length
+        + (state.country ? 1 : 0) + (state.type ? 1 : 0) + (state.status ? 1 : 0)
+        + (state.season ? 1 : 0) + (state.year ? 1 : 0) + (state.language ? 1 : 0)
+        + (state.rating ? 1 : 0) + (state.source ? 1 : 0) + (state.studio ? 1 : 0)
+        + (state.service ? 1 : 0) + (state.hidden ? 1 : 0);
+      ftn.style.display = fn ? '' : 'none';
+      ftn.textContent = fn;
+    }
     renderChips();
   }
   function chipDefs() {
@@ -982,6 +1030,13 @@
         reflectSelection();
       });
     });
+    // mobile collapsible filter body (t157): phones show one compact row;
+    // tapping Filters expands the pills + Apply (auto-collapses on Apply)
+    $('brFilterToggle').addEventListener('click', function () {
+      var open = $('brFilterbar').classList.toggle('open');
+      this.setAttribute('aria-expanded', open ? 'true' : 'false');
+      if (open) closeAllDd();
+    });
     // search
     $('brSearchInput').addEventListener('keydown', function (e) {
       if (e.key === 'Enter') { state.q = this.value.trim(); state.page = 1; apply(true); }
@@ -996,6 +1051,8 @@
     $('brApplyBtn').addEventListener('click', function () {
       state.q = $('brSearchInput').value.trim();
       state.page = 1;
+      $('brFilterbar').classList.remove('open');            // phones: hand the space back to the cards
+      $('brFilterToggle').setAttribute('aria-expanded', 'false');
       apply(true);
     });
     // toggle
