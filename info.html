@@ -3866,7 +3866,12 @@ img { max-width: 100%; height: auto; display: block; }
           this._loaded = true;
           try {
             const s = JSON.parse(sessionStorage.getItem(this.key) || 'null');
-            if (s && typeof s === 'object') { this.fails = s.fails | 0; this.openUntil = s.openUntil | 0; }
+            // t160 — MUST parse, never `| 0`: bitwise-or truncates to int32 and
+            // an epoch-ms openUntil (~1.7e12) wrapped to garbage (e.g. -1.2e9),
+            // so an open circuit NEVER survived a navigation during an outage
+            // and every page reload re-paid 2 full ruri timeouts (8-12s each)
+            // before the in-memory breaker opened again.
+            if (s && typeof s === 'object') { this.fails = parseInt(s.fails, 10) || 0; this.openUntil = parseInt(s.openUntil, 10) || 0; }
           } catch (e) { /* private mode */ }
         },
         _save() {
@@ -5890,18 +5895,24 @@ img { max-width: 100%; height: auto; display: block; }
               try { rows = await window.AniCache.get(`info:relbanners:${mediaKeyOf()}`); } catch (e) {}
             }
             if (!rows || !rows.length) {
-              // worker caps mal_ids at 25 per request (400 otherwise) — chunk and merge
-              const chunks = [];
-              for (let i = 0; i < ids.length; i += 25) chunks.push(ids.slice(i, i + 25));
-              const results = await Promise.allSettled(chunks.map(chunk =>
-                fetch(`${RURI_BASE}/s-mal/anime?mal_ids=${chunk.join(',')}`,
-                      { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(12000) })
-                  .then(r => r.ok ? r.json() : { data: [] })
-              ));
-              rows = results.flatMap(x => (x.status === 'fulfilled' && Array.isArray(x.value?.data)) ? x.value.data : []);
-              if (rows.length && window.AniCache) {
-                window.AniCache.set({ cacheKey: `info:relbanners:${mediaKeyOf()}`, pageSource: 'info',
-                  section: 'season_banners', data: rows, permanent: true }).catch(() => {});
+              if (!RURI_CIRCUIT.isOpen()) {
+                // worker caps mal_ids at 25 per request (400 otherwise) — chunk and merge
+                const chunks = [];
+                for (let i = 0; i < ids.length; i += 25) chunks.push(ids.slice(i, i + 25));
+                // t160 — circuit-aware: with ruri down these chunk fetches (12s
+                // timeout each) burned one full timeout per chunk on every cold
+                // visit; when the breaker is open the cards simply render
+                // without ruri banners and the anilist/poster fallbacks apply.
+                const results = await Promise.allSettled(chunks.map(chunk =>
+                  fetch(`${RURI_BASE}/s-mal/anime?mal_ids=${chunk.join(',')}`,
+                        { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(12000) })
+                    .then(r => r.ok ? r.json() : { data: [] })
+                ));
+                rows = results.flatMap(x => (x.status === 'fulfilled' && Array.isArray(x.value?.data)) ? x.value.data : []);
+                if (rows.length && window.AniCache) {
+                  window.AniCache.set({ cacheKey: `info:relbanners:${mediaKeyOf()}`, pageSource: 'info',
+                    section: 'season_banners', data: rows, permanent: true }).catch(() => {});
+                }
               }
             }
             if (rows && rows.length) {
@@ -7772,6 +7783,7 @@ img { max-width: 100%; height: auto; display: block; }
               });
               for (const g of garr) {
                 try {
+                  if (RURI_CIRCUIT.isOpen()) break;   // t160 — ruri down: stop paying 12s per genre, let the anilist fallback take over
                   const gUrl = `${RURI_BASE}/${currentState.source === 'anikoto' ? 'anikoto' : 's-mal'}/anime?genres=${encodeURIComponent(g)}&min_score=7&sfw=true&order_by=score&sort=desc&limit=25`;
                   const gRes = await fetch(gUrl, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(12000) });
                   if (gRes.ok) pushG((await gRes.json()).data);

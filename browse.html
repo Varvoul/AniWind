@@ -1143,11 +1143,12 @@
     thumb.style.width = b.offsetWidth + 'px';
   }
 
-  /* ── TOP BANNER (PC only) — one unique image per (media tab, service) context.
-     The context URL carries ONLY media+service, so genre/year/checkbox tweaks can
-     never change the banner; cache (memory + sessionStorage) keeps it stable
-     across pages/visits. Contexts skip URLs already used by another context so
-     every tab/service gets distinct art. */
+  /* ── TOP BANNER (PC only) — one unique image per (media tab, service) context,
+     chosen from the context's MOST POPULAR tier by best score (t160). The
+     context URL carries ONLY media+service+sort, so genre/year/checkbox tweaks
+     can never change the banner; cache (memory + sessionStorage) keeps it
+     stable across pages/visits. Contexts skip URLs already used by another
+     context so every tab/service gets distinct art. */
   var bannerMem = {};
   function bannerKey() { return (state.hidden ? 'tmdb' : (state.media || 'all')) + '|' + (state.service || ''); }
   function bannerSrcOf(b) { if (!b) return ''; return typeof b === 'string' ? b : (b.large || b.small || ''); }
@@ -1156,6 +1157,7 @@
     p.set('media', state.hidden ? 'tmdb' : (state.media || 'all'));
     if (state.service) p.set('service', state.service);
     p.set('page', '1'); p.set('perPage', '12');
+    p.set('sort', 'most-viewed');                      // t160 — popularity-ordered pool (every leg maps most-viewed -> popularity desc)
     return '/api/browse?' + p.toString();
   }
   function bannerUsedElsewhere(key) {
@@ -1194,14 +1196,26 @@
         if (bannerKey() !== key) return;                   // user moved on — drop it
         var pick = '';
         if (j && j.ok && j.items && j.items.length) {
-          var used = bannerUsedElsewhere(key), first = '';
+          var used = bannerUsedElsewhere(key);
+          // t160 — pick by POPULARITY + SCORE, not first-come: the ctx fetch is
+          // sort=most-viewed (popularity desc), so the pool IS the service/tab's
+          // most popular tier; rank the banner-carrying candidates by score desc
+          // (ties keep popularity order — ES2019 sort is stable) and take the
+          // first not already owned by another context.
+          var cands = [];
           for (var i = 0; i < j.items.length; i++) {
-            var u = bannerSrcOf(j.items[i] && j.items[i].banner).replace('/w780/', '/w1280/');
+            var it = j.items[i];
+            if (!it) continue;
+            var u = bannerSrcOf(it.banner).replace('/w780/', '/w1280/');
             if (!u) continue;
-            if (!first) first = u;                         // fallback if everything else is taken
-            if (!used[u]) { first = u; break; }            // preferred: first not owned by another context
+            var s = parseFloat(it.score);
+            cands.push({ u: u, s: isFinite(s) && s > 0 ? s : 0, i: i });
           }
-          pick = first;
+          cands.sort(function (a, b) { return (b.s - a.s) || (a.i - b.i); });
+          for (var c = 0; c < cands.length; c++) {
+            if (!used[cands[c].u]) { pick = cands[c].u; break; }
+          }
+          if (!pick && cands.length) pick = cands[0].u;    // every candidate owned — take the top-ranked anyway
         }
         bannerMem[key] = pick;
         try { sessionStorage.setItem('brBanner:' + key, pick); } catch (e) {}
