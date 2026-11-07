@@ -70,6 +70,12 @@
     .br-count { font-family:var(--font-meta); font-size:.72rem; font-weight:600; color:var(--text-secondary); background:var(--bg-card); border:1px solid var(--border-subtle); border-radius:var(--radius-pill); padding:6px 14px; white-space:nowrap; }
     .br-count b { color: var(--accent-blue); }
 
+    /* ── TOP BANNER (PC only) ── image layers stay hidden below 1024px, where the
+       .br-head inside simply flows like a normal heading block */
+    .br-banner { position:relative; }
+    .br-banner-img, .br-banner-shade { display:none; }
+    .br-banner.none .br-banner-img { display:none !important; }
+
     /* ── STICKY CONTROL SHELL (filter bar + chips + toggle stay put; only cards scroll) ── */
     .br-sticky {
       position:sticky; top:64px; z-index:90; background:var(--bg-body);
@@ -309,12 +315,45 @@
     .br-pop-btn.info { background:var(--btn-primary); color:#fff; }
     .br-pop-btn.info:hover { background:var(--btn-primary-hover); }
 
+    /* ── TOP BANNER (PC only, ≥1024px) ── full-bleed cinematic strip under the nav.
+       The heading overlays its bottom-left; layered dark shades keep the text
+       readable on any art. NOT sticky — it scrolls away, so the browsing space
+       below (sticky shell + grid) is unchanged after the first pixels. */
+    @media (min-width:1024px) {
+      .br-banner {
+        display:block; height:clamp(168px, 21vh, 216px);
+        margin:-24px -22px 12px; overflow:hidden;
+        border-radius:0 0 var(--radius-lg) var(--radius-lg);
+        background:var(--bg-card);
+        box-shadow:0 16px 34px -20px rgba(0,0,0,.75);
+      }
+      .br-banner-img {
+        display:block; position:absolute; inset:0; width:100%; height:100%;
+        object-fit:cover; object-position:center 25%;
+        opacity:0; transition:opacity .45s ease;
+      }
+      .br-banner-img.on { opacity:1; }
+      .br-banner-shade {
+        display:block; position:absolute; inset:0;
+        background:
+          linear-gradient(90deg, rgba(7,17,29,.92) 0%, rgba(7,17,29,.66) 40%, rgba(9,20,34,.18) 72%, rgba(9,20,34,.38) 100%),
+          linear-gradient(to top, var(--bg-body) 0%, rgba(7,17,29,.42) 24%, rgba(7,17,29,.06) 56%, rgba(7,17,29,.32) 100%);
+      }
+      .br-banner > .br-head { position:absolute; left:22px; right:22px; bottom:10px; margin:0; z-index:2; }
+      .br-banner > .br-head .br-h1 { color:#fff; font-size:1.6rem; text-shadow:0 2px 14px rgba(0,0,0,.85), 0 1px 3px rgba(0,0,0,.95); }
+      .br-banner > .br-head .br-sub { color:#dbe7f5; text-shadow:0 1px 8px rgba(0,0,0,.95); }
+    }
+
     /* ── RESPONSIVE ── */
     @media (min-width:1440px) { .br-grid { grid-template-columns:repeat(6, 1fr); gap:18px; } }
     @media (min-width:1700px) { .br-grid { grid-template-columns:repeat(7, 1fr); } }
     @media (max-width:1439px) and (min-width:1024px) { .br-grid { grid-template-columns:repeat(4, 1fr); gap:14px; } }
     @media (max-width:1023px) and (min-width:768px) { .br-grid { grid-template-columns:repeat(3, 1fr); gap:12px; } }
     @media (max-width:767px) { .br-grid { grid-template-columns:repeat(2, 1fr); gap:10px; } }
+    /* mobile LANDSCAPE phones (short viewport): 3 cols up to 739px wide,
+       4 cols from 740px (t159) — per-page math mirrors this in perPageFor() */
+    @media (min-width:600px) and (max-width:1023px) and (max-height:500px) { .br-grid { grid-template-columns:repeat(3, 1fr); gap:10px; } }
+    @media (min-width:740px) and (max-width:1023px) and (max-height:500px) { .br-grid { grid-template-columns:repeat(4, 1fr); gap:10px; } }
     /* ≤767px (phones) AND short-landscape phones (≤1023px wide, ≤500px tall —
        e.g. 844×390 rotated): compact control shell + collapsible filter body —
        title row + one filter row + chips + toggle ≈ top third of the screen,
@@ -376,13 +415,21 @@
 <body>
 
 <main class="br-page" id="brPage">
-  <div class="br-head">
-    <div>
-      <h1 class="br-h1" id="brH1">Browse</h1>
-      <p class="br-sub" id="brSub">Filter the full RuriStream catalog — anime, TV shows and movies.</p>
+
+  <!-- TOP BANNER (PC only): one unique image per (media tab, service) context.
+       The heading overlays it on desktop; below 1024px the image layers hide and
+       the .br-head flows exactly like the old standalone heading block. -->
+  <section class="br-banner" id="brBanner">
+    <img class="br-banner-img" id="brBannerImg" alt="" loading="eager">
+    <div class="br-banner-shade"></div>
+    <div class="br-head">
+      <div>
+        <h1 class="br-h1" id="brH1">Browse</h1>
+        <p class="br-sub" id="brSub">Filter the full RuriStream catalog — anime, TV shows and movies.</p>
+      </div>
+      <span class="br-count" id="brCount"><b>—</b> titles</span>
     </div>
-    <span class="br-count" id="brCount"><b>—</b> titles</span>
-  </div>
+  </section>
 
   <!-- STICKY CONTROL SHELL: filter bar + chips + toggle stay fixed while only cards scroll -->
   <div class="br-sticky" id="brSticky">
@@ -781,7 +828,7 @@
     var h = '', icon = 'fa-compass';
     if (state.q) { h = 'Search: \u201C' + state.q + '\u201D'; icon = 'fa-magnifying-glass'; }
     else if (state.service) {
-      h = serviceLabel(state.service) + (state.type === 'movie' ? ' Movies' : state.type === 'series' ? ' TV Shows' : ' \u2014 Movies & TV Shows');
+      h = 'Streaming service: ' + serviceLabel(state.service);
       icon = 'fa-circle-play';
     }
     else if (state.view === 'latest-updates') { h = 'Latest Updates'; icon = 'fa-rotate'; }
@@ -814,7 +861,8 @@
     $('brH1').textContent = h;
     document.title = h + ' — RuriStream';
     var sub = 'Filter the full RuriStream catalog — anime, TV shows and movies.';
-    if (state.media === 'anime') sub = 'Browse every anime on RuriStream — refine with the filters above.';
+    if (state.service) sub = 'Movies & TV shows streaming on ' + serviceLabel(state.service) + ' — refine with the filters above.';
+    else if (state.media === 'anime') sub = 'Browse every anime on RuriStream — refine with the filters above.';
     else if (state.media === 'tmdb') sub = 'Browse movies and TV shows — refine with the filters above.';
     else if (state.q) sub = 'Showing all matching results (unlike the 10-result header search, the full list is here).';
     $('brSub').textContent = sub;
@@ -1095,11 +1143,78 @@
     thumb.style.width = b.offsetWidth + 'px';
   }
 
+  /* ── TOP BANNER (PC only) — one unique image per (media tab, service) context.
+     The context URL carries ONLY media+service, so genre/year/checkbox tweaks can
+     never change the banner; cache (memory + sessionStorage) keeps it stable
+     across pages/visits. Contexts skip URLs already used by another context so
+     every tab/service gets distinct art. */
+  var bannerMem = {};
+  function bannerKey() { return (state.hidden ? 'tmdb' : (state.media || 'all')) + '|' + (state.service || ''); }
+  function bannerSrcOf(b) { if (!b) return ''; return typeof b === 'string' ? b : (b.large || b.small || ''); }
+  function bannerUrlForCtx() {
+    var p = new URLSearchParams();
+    p.set('media', state.hidden ? 'tmdb' : (state.media || 'all'));
+    if (state.service) p.set('service', state.service);
+    p.set('page', '1'); p.set('perPage', '12');
+    return '/api/browse?' + p.toString();
+  }
+  function bannerUsedElsewhere(key) {
+    var used = {};
+    for (var k in bannerMem) if (k !== key && bannerMem[k]) used[bannerMem[k]] = 1;
+    try {
+      for (var i = 0; i < sessionStorage.length; i++) {
+        var sk = sessionStorage.key(i);
+        if (sk && sk.indexOf('brBanner:') === 0 && sk !== 'brBanner:' + key) used[sessionStorage.getItem(sk)] = 1;
+      }
+    } catch (e) {}
+    return used;
+  }
+  function paintBanner(key, url) {
+    var wrap = $('brBanner'), img = $('brBannerImg');
+    if (!wrap || !img) return;
+    if (!url) { wrap.classList.add('none'); img.removeAttribute('data-key'); img.className = 'br-banner-img'; img.removeAttribute('src'); return; }
+    wrap.classList.remove('none');
+    if (img.getAttribute('data-key') === key && img.getAttribute('src') === url) return;   // paging/filter tweaks: no repaint
+    img.className = 'br-banner-img';                       // fade out current art
+    img.onload = function () { img.classList.add('on'); };
+    img.onerror = function () { wrap.classList.add('none'); };
+    img.src = url;
+    img.setAttribute('data-key', key);
+  }
+  function updateBanner() {
+    if (window.innerWidth < 1024) return;                  // PC-only feature
+    var key = bannerKey(), known = bannerMem[key];
+    if (known === undefined) {
+      try { var ss = sessionStorage.getItem('brBanner:' + key); if (ss !== null) known = bannerMem[key] = ss; } catch (e) {}
+    }
+    if (known !== undefined) { paintBanner(key, known); return; }
+    fetch(bannerUrlForCtx(), { headers: { 'Accept': 'application/json' } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        if (bannerKey() !== key) return;                   // user moved on — drop it
+        var pick = '';
+        if (j && j.ok && j.items && j.items.length) {
+          var used = bannerUsedElsewhere(key), first = '';
+          for (var i = 0; i < j.items.length; i++) {
+            var u = bannerSrcOf(j.items[i] && j.items[i].banner).replace('/w780/', '/w1280/');
+            if (!u) continue;
+            if (!first) first = u;                         // fallback if everything else is taken
+            if (!used[u]) { first = u; break; }            // preferred: first not owned by another context
+          }
+          pick = first;
+        }
+        bannerMem[key] = pick;
+        try { sessionStorage.setItem('brBanner:' + key, pick); } catch (e) {}
+        if (bannerKey() === key) paintBanner(key, pick);
+      })
+      .catch(function () {});
+  }
+
   /* ── fetch + render ───────────────────────────────────────────────── */
   function perPageFor() {
     var w = window.innerWidth;
     if (w < 768) return 26;              // 2 cols x 13 rows (portrait)
-    if (w < 1024) return 27;             // 3 cols x 9 rows (landscape)
+    if (w < 1024) return (window.innerHeight <= 500 ? (w >= 740 ? 28 : 27) : 27);   // landscape: 3x9, 4x7 from 740px (t159)
     if (w < 1440) return 28;             // 4 cols x 7 rows
     if (w < 1700) return 42;             // 6 cols x 7 rows
     return 49;                           // 7 cols x 7 rows
@@ -1129,6 +1244,7 @@
     lastPerPage = perPageFor();
     var seq = ++reqSeq;
     syncUrl(push);
+    updateBanner();
     skeleton();
     $('brApplyBtn').classList.add('loading');
     fetch(apiUrl(), { headers:{ 'Accept':'application/json' } })
