@@ -3998,8 +3998,7 @@
       // ─── OAuth redirect: pick up stashed geo & persist Google avatar ───
       await handleOAuthCallback(user, profile, authEvent);
 
-      // ─── Start realtime subscriptions for this user ───
-      initRealtime(user.id);
+      // t163: realtime subscriptions removed — the channels are no-ops now (see initRealtime below).
 
     } else {
       if (btnLogin)      btnLogin.style.display = '';
@@ -4187,40 +4186,29 @@
   }
 
   /* ═══════════════════════════════════════════════════════════
-     REALTIME  — subscribe to profiles + user_bookmarks.
-     When ANY row belonging to this user changes (insert/update/delete),
-     the callback fires; we re-fetch the affected data live.
-     No manual refresh needed.
+     t163 — REALTIME SUBSCRIPTIONS REMOVED (kept as a no-op stub).
+     WHY: every signed-in tab opened two postgres_changes channels
+     ('profiles-realtime' + 'bookmarks-realtime'); each one makes the
+     Supabase Realtime service poll realtime.list_changes against the
+     DB continuously. Measured in pg_stat_statements (Oct 17-Nov 7):
+     597,503 calls, 18.4 ms mean = 11,012 s (~3 h) of DB time, on a
+     free-tier project that keeps IO-clamping into "Connection timed
+     out" — this was one of the three standing drains (with the
+     jikan-bulk cron and the ruri 5-min list rescans, both paused
+     the same day).
+     SAFETY: the callbacks only called updateUserUI() (which already
+     runs on every page load, auth refresh and hourly TOKEN_REFRESHED)
+     and dispatched 'aniumi:profile-changed' / 'aniumi:bookmark-'
+     'changed' CustomEvents that had ZERO addEventListener consumers
+     anywhere in the site. Nothing was rendered or written through
+     these channels, so removing them cannot break any feature —
+     profile + bookmarks still load fresh on every page via PostgREST.
+     Server side, both tables were dropped from the supabase_realtime
+     publication (reversible: ALTER PUBLICATION ... ADD TABLE).
   ═══════════════════════════════════════════════════════════ */
-  let realtimeInitialised = false;
   function initRealtime(userId) {
-    if (realtimeInitialised === userId) return;     // already subscribed for this user
-    if (realtimeInitialised) {
-      try { supabase.channel('profiles-realtime').unsubscribe(); } catch(e){}
-      try { supabase.channel('bookmarks-realtime').unsubscribe(); } catch(e){}
-    }
-    realtimeInitialised = userId;
-
-    // ── Profile changes (e.g. admin updated avatar, or another device edited) ──
-    supabase
-      .channel('profiles-realtime')
-      .on('postgres_changes',
-          { event: '*', schema: 'public', table: 'profiles', filter: `user_id=eq.${userId}` },
-          (payload) => {
-            updateUserUI();
-            try { window.dispatchEvent(new CustomEvent('aniumi:profile-changed', { detail: payload })); } catch(e){}
-          })
-      .subscribe();
-
-    // ── Bookmark changes (this device, another tab, or another device) ──
-    supabase
-      .channel('bookmarks-realtime')
-      .on('postgres_changes',
-          { event: '*', schema: 'public', table: 'user_bookmarks', filter: `user_id=eq.${userId}` },
-          (payload) => {
-            try { window.dispatchEvent(new CustomEvent('aniumi:bookmark-changed', { detail: payload })); } catch(e){}
-          })
-      .subscribe();
+    // intentional no-op since t163 — do not re-add realtime channels
+    // without re-checking the Supabase IO budget first.
   }
 
   /* ═══════════════════════════════════════════════════════════
