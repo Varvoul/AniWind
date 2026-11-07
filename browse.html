@@ -370,6 +370,11 @@
       <div class="br-dd-panel"><div class="br-dd-head">Type</div><div class="br-dd-grid cols-2" id="brTypeGrid"></div>
         <div class="br-panel-actions"><button class="br-mini-btn" type="button" data-clear="type">Clear</button><button class="br-mini-btn" type="button" data-done>Done</button></div></div>
     </div>
+    <div class="br-dd" data-key="service">
+      <button class="br-dd-btn" type="button"><i class="fa-solid fa-circle-play" style="font-size:.7em"></i>Service <span class="br-dd-n" style="display:none"></span><i class="fa-solid fa-chevron-down"></i></button>
+      <div class="br-dd-panel"><div class="br-dd-head">Streaming service <span class="br-mark tv">TMDB</span></div><div class="br-dd-grid cols-2" id="brServiceGrid"></div>
+        <div class="br-panel-actions"><button class="br-mini-btn" type="button" data-clear="service">Clear</button><button class="br-mini-btn" type="button" data-done>Done</button></div></div>
+    </div>
     <div class="br-dd" data-key="status">
       <button class="br-dd-btn" type="button"><i class="fa-solid fa-circle-half-stroke" style="font-size:.7em"></i>Status <span class="br-dd-n" style="display:none"></span><i class="fa-solid fa-chevron-down"></i></button>
       <div class="br-dd-panel"><div class="br-dd-head">Status</div><div id="brStatusGrid"></div>
@@ -526,6 +531,13 @@
     ['Score','score'],['Name A-Z','name'],['Release Date','release-date'],
     ['Most Viewed','most-viewed'],['Number of Episodes','episodes']
   ];
+  // Browse by Service — TMDB watch providers (US) + the History TV network.
+  // Slugs match api/browse.js SERVICE map 1:1 (t-umi primary, t-umi.zeraf fallback).
+  var SERVICES = [
+    ['Netflix','netflix'],['Disney+','disney-plus'],['Apple TV','apple-tv'],
+    ['Amazon Prime Video','amazon-prime'],['Max','max'],['Hulu','hulu'],
+    ['Crunchyroll','crunchyroll'],['History','history']
+  ];
   var ANIME_ONLY = ['season','language','rating','source'];   // filter keys
   var ANIME_ONLY_TYPES = ['tv','ova','ona','tv-short','tv-special'];
   var STUDIO_FOR_ANIME = { 'toei-animation':1,'madhouse':1,'bones':1,'kyoto-animation':1,'a-1-pictures':1,'mappa':1,'wit-studio':1,'ufotable':1,'j-c-staff':1,'production-i-g':1 };
@@ -533,7 +545,7 @@
   /* ── state ─────────────────────────────────────────────────────────── */
   var state = {
     media:'all', q:'', genres:[], country:'', type:'', status:'',
-    season:'', year:null, language:'', rating:'', source:'', studio:'',
+    season:'', year:null, language:'', rating:'', source:'', studio:'', service:'',
     sort:'default', hidden:false, page:1, view:''
   };
   var pathBase = { path:'/', filters:{} };   // canonical path this visit came from
@@ -579,6 +591,7 @@
   function sourceLabel(v) { for (var i = 0; i < SOURCES.length; i++) if (SOURCES[i][1] === v) return SOURCES[i][0]; return v; }
   function ratingLabel(v) { for (var i = 0; i < RATINGS.length; i++) if (RATINGS[i][1] === v) return RATINGS[i][0]; return v; }
   function seasonLabel(v) { for (var i = 0; i < SEASONS.length; i++) if (SEASONS[i][1] === v) return SEASONS[i][0]; return v; }
+  function serviceLabel(v) { for (var i = 0; i < SERVICES.length; i++) if (SERVICES[i][1] === v) return SERVICES[i][0]; return v; }
   function isAnimeOnlyType(t) { return ANIME_ONLY_TYPES.indexOf(t) !== -1; }
 
   /* ── URL parsing: clean paths → initial state ─────────────────────── */
@@ -588,12 +601,13 @@
     var s = {
       media:'all', q:q.get('q') || '', genres:[], country:'', type:'', status:'',
       season:'', year:parseInt(q.get('year'), 10) || null, language:'', rating:'',
-      source:'', studio:'', sort:q.get('sort') || 'default', hidden:false,
+      source:'', studio:'', service:q.get('service') || '', sort:q.get('sort') || 'default', hidden:false,
       page:parseInt(q.get('page'), 10) || 1, view:''
     };
+    if (s.service && !SERVICES.some(function (x) { return x[1] === s.service; })) s.service = '';
     var seg = path.split('/').filter(Boolean);
-    if (q.get('mode') === 'anime') s.media = 'anime';
-    else if (q.get('mode') === 'non-anime' || q.get('mode') === 'tmdb') s.media = 'tmdb';
+    if (q.get('mode') === 'anime' && !s.service) s.media = 'anime';   // service always wins the TMDB side
+    else if (q.get('mode') === 'non-anime' || q.get('mode') === 'tmdb' || s.service) s.media = 'tmdb';
     if (q.get('hidden') === '1') { s.hidden = true; s.media = 'tmdb'; s.sort = s.sort === 'default' ? 'default' : s.sort; }
     var gp = q.get('genre') || q.get('genres');
     if (gp) s.genres = gp.split(',').filter(Boolean);
@@ -691,6 +705,7 @@
     if (state.rating) p.set('rating', state.rating);
     if (state.source) p.set('source', state.source);
     if (state.studio && !covered('studio')) p.set('studio', state.studio);
+    if (state.service) p.set('service', state.service);
     if (state.sort && state.sort !== 'default' && state.view !== 'latest-updates' && state.view !== 'recent' && !(state.view === 'new-releases' && state.sort === 'release-date')) p.set('sort', state.sort);
     if (state.hidden) p.set('hidden', '1');
     if (state.page > 1) p.set('page', state.page);
@@ -717,6 +732,10 @@
   function updateHeading() {
     var h = '', icon = 'fa-compass';
     if (state.q) { h = 'Search: \u201C' + state.q + '\u201D'; icon = 'fa-magnifying-glass'; }
+    else if (state.service) {
+      h = serviceLabel(state.service) + (state.type === 'movie' ? ' Movies' : state.type === 'series' ? ' TV Shows' : ' \u2014 Movies & TV Shows');
+      icon = 'fa-circle-play';
+    }
     else if (state.view === 'latest-updates') { h = 'Latest Updates'; icon = 'fa-rotate'; }
     else if (state.view === 'recent') { h = 'New on Ruri'; icon = 'fa-sparkles'; }
     else if (state.view === 'new-releases') {
@@ -801,6 +820,10 @@
     html = '';
     for (i = 0; i < SOURCES.length; i++) html += checkHtml('source', SOURCES[i][0], SOURCES[i][1]);
     $('brSourceGrid').innerHTML = html;
+    // streaming services (Browse by Service)
+    html = '';
+    for (i = 0; i < SERVICES.length; i++) html += checkHtml('service', SERVICES[i][0], SERVICES[i][1]);
+    $('brServiceGrid').innerHTML = html;
     // studios (anime + tmdb separated columns)
     html = '<div class="br-studio-col">Anime Studios</div><div class="br-dd-grid cols-2">';
     for (i = 0; i < ANIME_STUDIOS.length; i++) html += checkHtml('studio', ANIME_STUDIOS[i][0], ANIME_STUDIOS[i][1], { mark:'anime' });
@@ -835,6 +858,8 @@
         var disabled = state.media === 'tmdb';
         inp.disabled = disabled;
       }
+      // service is TMDB-only — disable it while the Anime side is active
+      if (key === 'service') inp.disabled = state.media === 'anime';
     });
     // badges
     document.querySelectorAll('.br-dd').forEach(function (dd) {
@@ -861,6 +886,7 @@
     if (state.rating) chips.push({ key:'rating', label:ratingLabel(state.rating).split(' — ')[0], group:'Rating' });
     if (state.source) chips.push({ key:'source', label:sourceLabel(state.source), group:'Source' });
     if (state.studio) chips.push({ key:'studio', label:studioLabel(state.studio), group:'Studio' });
+    if (state.service) chips.push({ key:'service', label:serviceLabel(state.service), group:'Service' });
     if (state.sort !== 'default') chips.push({ key:'sort', label:'Sort: ' + sortLabel(state.sort), group:'Sort', removable:true });
     if (state.hidden) chips.push({ key:'hidden', label:'Hidden Gems', group:'Curated' });
     return chips;
@@ -896,7 +922,7 @@
   function clearAllFilters() {
     state.q = ''; state.genres = []; state.country = ''; state.type = ''; state.status = '';
     state.season = ''; state.year = null; state.language = ''; state.rating = '';
-    state.source = ''; state.studio = ''; state.sort = 'default'; state.hidden = false; state.page = 1;
+    state.source = ''; state.studio = ''; state.service = ''; state.sort = 'default'; state.hidden = false; state.page = 1;
     reflectSelection();
     apply(true);
   }
@@ -941,6 +967,11 @@
           else state.genres = state.genres.filter(function (g) { return g !== val; });
         } else if (key === 'year') { state.year = inp.checked ? parseInt(val, 10) : null; }
         else { state[key] = inp.checked ? val : ''; }
+        if (key === 'service' && inp.checked && state.media !== 'tmdb') {
+          // service lives on the streaming side — flip the toggle for the user
+          state.media = 'tmdb';
+          renderToggle();
+        }
         if (key === 'type' && inp.checked) { // pick a sensible media side for the chosen type
           if (val === 'tv') { /* keep current side */ }
           else if (val === 'movie') { if (state.media === 'anime') state.media = 'all'; }
@@ -979,6 +1010,7 @@
           if (state.studio && STUDIO_FOR_ANIME[state.studio]) state.studio = '';
           if (isAnimeOnlyType(state.type)) state.type = '';
         }
+        if (m !== 'tmdb' && state.service) state.service = ''; // service is TMDB-only
         renderToggle();
         reflectSelection();
         apply(true);
@@ -1018,6 +1050,7 @@
     if (state.rating) p.set('rating', state.rating);
     if (state.source) p.set('source', state.source);
     if (state.studio) p.set('studio', state.studio);
+    if (state.service) p.set('service', state.service);
     if (state.sort) p.set('sort', state.sort);
     if (state.hidden) p.set('hidden', '1');
     p.set('page', state.page);

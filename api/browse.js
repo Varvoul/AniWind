@@ -131,6 +131,26 @@ const TMDB_COMPANY_ID = {
   'mgm':21,'marvel-studios':420,'legendary-pictures':923,'a24':41077
 };
 
+// ── streaming services (Browse by Service) ──────────────────────────────
+// slug -> TMDB filter: watch provider (movie+tv, US region) or TV network.
+// IDs verified live 2026-11-07 through the t-umi passthrough against
+// /watch/providers/movie?watch_region=US, /watch/providers/tv?watch_region=US
+// and /network/2360 (History, resolved via Vikings /tv/44217 networks).
+// 'history' is a linear TV network — TMDB has no movie-side equivalent, so
+// it filters TV only (tmdbKindSplit clamps kinds and the UI hides its
+// Movies button honestly).
+const SERVICE_REGION = 'US';
+const SERVICE = {
+  'netflix':      { name:'Netflix',            provider:8,    network:null },
+  'disney-plus':  { name:'Disney+',            provider:337,  network:null },
+  'apple-tv':     { name:'Apple TV',           provider:350,  network:null },
+  'amazon-prime': { name:'Amazon Prime Video', provider:9,    network:null },
+  'max':          { name:'Max',                provider:1899, network:null },
+  'hulu':         { name:'Hulu',               provider:15,   network:null },
+  'crunchyroll':  { name:'Crunchyroll',        provider:283,  network:null },
+  'history':      { name:'History',            provider:null, network:2360 }
+};
+
 const SOURCE_NAME = {
   'manga':'Manga','original':'Original','light-novel':'Light Novel','other':'Other',
   'video-game':'Video game','visual-novel':'Visual novel','novel':'Novel',
@@ -572,6 +592,8 @@ const TMDB_SORT = {
 };
 function tmdbKindSplit(f) {
   // returns ['tv'], ['movie'] or ['tv','movie'] for this tmdb sub-query
+  // network-only services (History) filter TV only — no movie equivalent
+  if (f.service && SERVICE[f.service] && !SERVICE[f.service].provider) return ['tv'];
   if (f.type === 'series' || f.type === 'tv' || f.type === 'drama') return ['tv'];
   if (f.type === 'movie') return ['movie'];
   if (f.type && RURI_TYPE[f.type] !== undefined && !['tv','movie'].includes(f.type)) return []; // anime-only types
@@ -584,6 +606,11 @@ async function fetchTmdb(base, f, page, perPage, kind, sort, warnings) {
   p.set('page', page);
   p.set('include_adult', 'false');
   let statusHint = null;
+  if (f.service && SERVICE[f.service]) {
+    // TMDB /search cannot filter by watch provider/network — the service
+    // filter can only apply to discover queries; search warns honestly
+    warnings.push('Search results cannot be filtered by streaming service — the Service filter was ignored for this search.');
+  }
   if (f.q) {
     p.set('query', f.q);
     if (f.year) { // search has no year filter — hint via year cannot apply; post-filter instead
@@ -599,6 +626,15 @@ async function fetchTmdb(base, f, page, perPage, kind, sort, warnings) {
     return { items: results.slice(0, perPage).map(r => uniTmdb(r, kind, statusHint)), rawTotal: j.total_results || results.length, hasNext: !!j.has_next_page, lastPage: j.total_pages || null, approx: true };
   }
   // discover
+  if (f.service && SERVICE[f.service]) {
+    const svc = SERVICE[f.service];
+    if (svc.provider) {
+      p.set('with_watch_providers', String(svc.provider));
+      p.set('watch_region', SERVICE_REGION);
+    } else if (svc.network && kind === 'tv') {
+      p.set('with_networks', String(svc.network));
+    }
+  }
   if (f.genres && f.genres.length) {
     const ids = [...new Set(f.genres.map(g => (kind === 'tv' ? TMDB_TV_GENRE[g] : TMDB_MOVIE_GENRE[g])).filter(Boolean))];
     if (!ids.length) return { items: [], rawTotal: 0, hasNext: false, lastPage: 0, legitEmpty: true };
@@ -822,7 +858,7 @@ const LAST_SERVED = new Map();  // filter sig -> { page, seen:Set(cumulative ser
 const STICKY_LEG = new Map();   // filter sig -> leg name that served the last page — keeps consecutive pages on ONE source (stable order, no cross-leg dupes)
 function filterSig(f) {
   return JSON.stringify([f.media, f.q, f.genres, f.country, f.type, f.status, f.season, f.year,
-    f.language, f.rating, f.source, f.studio, f.sort, f.hidden]);
+    f.language, f.rating, f.source, f.studio, f.service, f.sort, f.hidden]);
 }
 function walkSig(f, legName) { return filterSig(f) + '|' + legName; }
 function walkStatsFor(sig) {
@@ -1102,6 +1138,8 @@ function parseParams(q) {
   f.source = (q.get('source') || '').trim().toLowerCase();
   if (!SOURCE_NAME[f.source]) f.source = '';
   f.studio = (q.get('studio') || '').trim().toLowerCase();
+  f.service = (q.get('service') || '').trim().toLowerCase();
+  if (!SERVICE[f.service]) f.service = '';
   f.sort = (q.get('sort') || 'default').trim().toLowerCase();
   if (!['default','latest-updated','latest-added','score','name','release-date','most-viewed','episodes'].includes(f.sort)) f.sort = 'default';
   f.hidden = q.get('hidden') === '1';
@@ -1196,7 +1234,14 @@ async function handle(q) {
   if (f.media === 'anime' && f.hidden) warnings.push('Hidden gems are TMDB (non-anime) content — showing them anyway.');
 
   let result;
-  if (f.media === 'all' && !f.hidden) {
+  if (f.service) {
+    // Browse by Service — TMDB-only catalogue. The streaming legs (t-umi
+    // primary -> t-umi.zeraf fallback) natively filter by watch provider /
+    // network, so this runs the same plan/runner machinery as any tmdb query.
+    if (f.media !== 'tmdb') warnings.push('The streaming-service filter applies to the streaming (TMDB) catalogue only — showing Movies & TV Shows.');
+    const plan = buildTmdbPlan(tmF, f.sort, warnings);
+    result = await runPlan(plan, tmF, f.page, f.perPage, warnings);
+  } else if (f.media === 'all' && !f.hidden) {
     const animePlan = buildAnimePlan(anF, f.sort, warnings);
     const tmdbPlan = buildTmdbPlan(tmF, f.sort, warnings);
     result = await runMixed(animePlan, tmdbPlan, f, f.page, f.perPage, warnings);
@@ -1231,7 +1276,7 @@ async function handle(q) {
     country: f.country || null, type: f.type || null,
     status: f.status || null, season: f.season || null, year: f.year || null,
     language: f.language || null, rating: f.rating || null, source: f.source || null,
-    studio: f.studio || null, sort: f.sort, hidden: f.hidden || null,
+    studio: f.studio || null, service: f.service || null, sort: f.sort, hidden: f.hidden || null,
     sfw: f.sfw, page: f.page, perPage: f.perPage
   };
   return {
@@ -1247,7 +1292,7 @@ async function handle(q) {
     sourceLastPage: result.lastPage || null,
     approximate: !!result.approx,
     servedBy: result.source || null,
-    warnings: warnings.length ? warnings : undefined,
+    warnings: warnings.length ? warnings.filter((w, i) => warnings.indexOf(w) === i) : undefined,
     legErrors: result.errors && result.errors.length ? result.errors : undefined,
     legitEmpty: result.total === 0 && (!result.errors || !result.errors.length),
     items: result.items || []

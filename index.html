@@ -521,6 +521,24 @@
     .scroll-arrow:hover { background:rgba(255,255,255,0.14); }
     @media (max-width:1024px) { .scroll-arrow { display:none; } }
 
+    /* t156 — BROWSE BY SERVICE */
+    .bys-sub { font-size:.8rem; color:var(--text-muted); margin-top:2px; }
+    .bys-grid { display:grid; grid-template-columns:repeat(4, 1fr); gap:14px; }
+    .bys-card { position:relative; aspect-ratio:16/9; border-radius:var(--radius-md); overflow:hidden; background:var(--bg-card); border:1px solid var(--border-medium); transition:transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast); }
+    .bys-card:hover { transform:translateY(-4px); border-color:var(--svc-color, var(--link-accent)); box-shadow:0 10px 26px rgba(0,0,0,.45); }
+    .bys-backdrop { position:absolute; inset:0; background-image:var(--bys-img); background-size:cover; background-position:center; transition:transform .35s ease; }
+    .bys-card:hover .bys-backdrop { transform:scale(1.06); }
+    .bys-grad { position:absolute; inset:0; background:linear-gradient(to top, rgba(10,25,41,.94) 0%, rgba(10,25,41,.5) 42%, rgba(10,25,41,.1) 100%); }
+    .bys-logo { position:absolute; top:10px; left:12px; right:12px; font-family:var(--font-title); font-weight:700; font-size:1rem; color:#fff; text-shadow:0 2px 10px rgba(0,0,0,.85); letter-spacing:.3px; z-index:2; display:flex; align-items:center; gap:7px; min-width:0; }
+    .bys-logo span.bys-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .bys-dot { flex:0 0 auto; width:9px; height:9px; border-radius:50%; background:var(--svc-color, var(--accent-blue)); box-shadow:0 0 9px var(--svc-color, var(--accent-blue)); }
+    .bys-btns { position:absolute; left:12px; right:12px; bottom:12px; display:flex; gap:8px; z-index:2; flex-wrap:wrap; }
+    .bys-btn { font-size:.72rem; font-weight:600; color:#fff; text-decoration:none; background:rgba(15,36,64,.72); border:1px solid rgba(255,255,255,.22); backdrop-filter:blur(8px); border-radius:var(--radius-pill); padding:6px 13px; transition:all var(--transition-fast); display:inline-flex; align-items:center; gap:6px; }
+    .bys-btn:hover { background:var(--accent-gold); border-color:var(--accent-gold); color:#0a1929; }
+    .bys-btn i { font-size:.66rem; }
+    @media (max-width:1024px) { .bys-grid { grid-template-columns:repeat(2, 1fr); } }
+    @media (max-width:480px) { .bys-grid { gap:10px; } .bys-btns { left:8px; right:8px; bottom:8px; gap:5px; flex-wrap:nowrap; } .bys-btn { padding:4px 8px; font-size:.62rem; white-space:nowrap; } .bys-btn i { font-size:.6rem; } .bys-logo { font-size:.85rem; top:8px; left:9px; } }
+
     .horizontal-scroll { display:flex; gap:14px; overflow-x:auto; scroll-behavior:smooth; padding-bottom:8px; }
     .horizontal-scroll::-webkit-scrollbar { display:none; }
     .show-card-horiz { flex:0 0 auto; width:165px; cursor:pointer; transition:transform var(--transition-fast); }
@@ -2570,6 +2588,63 @@
               </div>
             </div>
             <div class="horizontal-scroll nr-hidden-scroll" id="nrHiddenRow3"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- BROWSE BY SERVICE SECTION (t156) — streaming catalogue shortcuts;
+           each button opens /browse with the service filter (t-umi primary,
+           t-umi.zeraf fallback). Positioned 2nd in the main body: permanent
+           discovery gateway after the fresh-content hook (Top Airing + New
+           Releases), before the site-specific shelves. -->
+      <section class="section" id="browseByServiceSection">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title">Browse by Service</h2>
+            <p class="bys-sub">Jump straight into a streaming catalogue</p>
+          </div>
+          <a href="/browse" class="view-all">Browse All ›</a>
+        </div>
+        <div class="bys-grid">
+          <div class="bys-card" style="--svc-color:#e50914; --bys-img:url('https://image.tmdb.org/t/p/w780/3jDXL4Xvj3AzDOF6UH1xeyHW8MH.jpg')">
+            <div class="bys-backdrop" role="img" aria-label="Netflix"></div><div class="bys-grad"></div>
+            <div class="bys-logo"><span class="bys-dot"></span><span class="bys-name">Netflix</span></div>
+            <div class="bys-btns"><a class="bys-btn" href="/browse?service=netflix&amp;type=movie"><i class="fas fa-film"></i>Movies</a><a class="bys-btn" href="/browse?service=netflix&amp;type=series"><i class="fas fa-tv"></i>TV Shows</a></div>
+          </div>
+          <div class="bys-card" style="--svc-color:#4bc4ff; --bys-img:url('https://image.tmdb.org/t/p/w780/q3jHCb4dMfYF6ojikKuHd6LscxC.jpg')">
+            <div class="bys-backdrop" role="img" aria-label="Disney Plus"></div><div class="bys-grad"></div>
+            <div class="bys-logo"><span class="bys-dot"></span><span class="bys-name">Disney+</span></div>
+            <div class="bys-btns"><a class="bys-btn" href="/browse?service=disney-plus&amp;type=movie"><i class="fas fa-film"></i>Movies</a><a class="bys-btn" href="/browse?service=disney-plus&amp;type=series"><i class="fas fa-tv"></i>TV Shows</a></div>
+          </div>
+          <div class="bys-card" style="--svc-color:#d9d9e3; --bys-img:url('https://image.tmdb.org/t/p/w780/ixgFmf1X59PUZam2qbAfskx2gQr.jpg')">
+            <div class="bys-backdrop" role="img" aria-label="Apple TV"></div><div class="bys-grad"></div>
+            <div class="bys-logo"><span class="bys-dot"></span><span class="bys-name">Apple TV</span></div>
+            <div class="bys-btns"><a class="bys-btn" href="/browse?service=apple-tv&amp;type=movie"><i class="fas fa-film"></i>Movies</a><a class="bys-btn" href="/browse?service=apple-tv&amp;type=series"><i class="fas fa-tv"></i>TV Shows</a></div>
+          </div>
+          <div class="bys-card" style="--svc-color:#00a8e1; --bys-img:url('https://image.tmdb.org/t/p/w780/bq28ajZaoMyzEIm6REelqyqtEDZ.jpg')">
+            <div class="bys-backdrop" role="img" aria-label="Amazon Prime Video"></div><div class="bys-grad"></div>
+            <div class="bys-logo"><span class="bys-dot"></span><span class="bys-name">Amazon</span></div>
+            <div class="bys-btns"><a class="bys-btn" href="/browse?service=amazon-prime&amp;type=movie"><i class="fas fa-film"></i>Movies</a><a class="bys-btn" href="/browse?service=amazon-prime&amp;type=series"><i class="fas fa-tv"></i>TV Shows</a></div>
+          </div>
+          <div class="bys-card" style="--svc-color:#6b8afd; --bys-img:url('https://image.tmdb.org/t/p/w780/zZqpAXxVSBtxV9qPBcscfXBcL2w.jpg')">
+            <div class="bys-backdrop" role="img" aria-label="Max"></div><div class="bys-grad"></div>
+            <div class="bys-logo"><span class="bys-dot"></span><span class="bys-name">Max</span></div>
+            <div class="bys-btns"><a class="bys-btn" href="/browse?service=max&amp;type=movie"><i class="fas fa-film"></i>Movies</a><a class="bys-btn" href="/browse?service=max&amp;type=series"><i class="fas fa-tv"></i>TV Shows</a></div>
+          </div>
+          <div class="bys-card" style="--svc-color:#1ce783; --bys-img:url('https://image.tmdb.org/t/p/w780/aJtG4txtmiRHwAAqENQHZvBs6kY.jpg')">
+            <div class="bys-backdrop" role="img" aria-label="Hulu"></div><div class="bys-grad"></div>
+            <div class="bys-logo"><span class="bys-dot"></span><span class="bys-name">Hulu</span></div>
+            <div class="bys-btns"><a class="bys-btn" href="/browse?service=hulu&amp;type=movie"><i class="fas fa-film"></i>Movies</a><a class="bys-btn" href="/browse?service=hulu&amp;type=series"><i class="fas fa-tv"></i>TV Shows</a></div>
+          </div>
+          <div class="bys-card" style="--svc-color:#f47521; --bys-img:url('https://image.tmdb.org/t/p/w780/3US5UXJSStOVozc6EwhGSMDguol.jpg')">
+            <div class="bys-backdrop" role="img" aria-label="Crunchyroll"></div><div class="bys-grad"></div>
+            <div class="bys-logo"><span class="bys-dot"></span><span class="bys-name">Crunchyroll</span></div>
+            <div class="bys-btns"><a class="bys-btn" href="/browse?service=crunchyroll&amp;type=movie"><i class="fas fa-film"></i>Movies</a><a class="bys-btn" href="/browse?service=crunchyroll&amp;type=series"><i class="fas fa-tv"></i>TV Shows</a></div>
+          </div>
+          <div class="bys-card" style="--svc-color:#ecc94b; --bys-img:url('https://image.tmdb.org/t/p/w780/13kblIK8DnxMurcRDkeyy2sGR7v.jpg')">
+            <div class="bys-backdrop" role="img" aria-label="History"></div><div class="bys-grad"></div>
+            <div class="bys-logo"><span class="bys-dot"></span><span class="bys-name">History</span></div>
+            <div class="bys-btns"><a class="bys-btn" href="/browse?service=history&amp;type=series"><i class="fas fa-tv"></i>TV Shows</a></div>
           </div>
         </div>
       </section>
