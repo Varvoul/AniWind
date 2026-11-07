@@ -2297,11 +2297,41 @@
    * external APIs get hit at all — important for staying fast and not
    * overloading anything at high traffic.
    */
+  // t154 — persistent search mirror (localStorage): survives reloads and
+  // serves stale results when the whole chain is down (e.g. a Supabase
+  // outage killing the ruri + anime_data + anikoto_data tiers at once).
+  const SEARCH_SWR_TTL = 60 * 60 * 1000;        // fresh window: 1h
+  const SEARCH_STALE_MAX = 24 * 60 * 60 * 1000; // stale-if-error window: 24h
+
+  function searchSwrKey(cacheKey) { return `search:swr:${cacheKey}`; }
+
+  function rememberSearch(cacheKey, results) {
+    animeSearchCache.set(cacheKey, { results, timestamp: Date.now() });
+    try {
+      if (Array.isArray(results) && results.length) {
+        localStorage.setItem(searchSwrKey(cacheKey),
+          JSON.stringify({ at: Date.now(), results: results.slice(0, 30) }));
+      }
+    } catch (e) { /* quota exceeded — best effort */ }
+  }
+
+  function recallSearch(cacheKey) {
+    try {
+      const raw = localStorage.getItem(searchSwrKey(cacheKey));
+      if (!raw) return null;
+      const box = JSON.parse(raw);
+      if (!box || !Array.isArray(box.results)) return null;
+      const age = Date.now() - (box.at || 0);
+      if (age > SEARCH_STALE_MAX) { localStorage.removeItem(searchSwrKey(cacheKey)); return null; }
+      return { results: box.results, stale: age > SEARCH_SWR_TTL };
+    } catch (e) { return null; }
+  }
+
   async function fetchAnimeWithFallbacks(q) {
     const cacheKey = `anime:${q}`;
     const overallStart = performance.now();
     
-    // Check cache first
+    // Check cache first (memory 5-min, then the persistent localStorage mirror)
     if (animeSearchCache.has(cacheKey)) {
       const cached = animeSearchCache.get(cacheKey);
       if (Date.now() - cached.timestamp < CACHE_TTL) {
@@ -2309,6 +2339,20 @@
         return cached.results;
       }
       animeSearchCache.delete(cacheKey);
+    }
+    // t154 — persistent layer: a fresh localStorage copy answers instantly
+    // after reloads (survives page unload); a stale copy rides along as a
+    // stale-if-error fallback in case every tier fails below.
+    let staleSearchCopy = null;
+    {
+      const persistent = recallSearch(cacheKey);
+      if (persistent) {
+        if (!persistent.stale) {
+          console.log(`[Search] localStorage hit for "${q}"`);
+          return persistent.results;
+        }
+        staleSearchCopy = persistent.results;
+      }
     }
     
     // NOTE: the shared MIN_API_DELAY throttle used to run here, before even hitting our
@@ -2339,7 +2383,7 @@
       console.log(`[Search] ✅ ruri returned ${results.length} results in ${ruriElapsed}ms (s-mal:${ruriResult.result.servedSMal} anikoto:${ruriServedAnikoto})`);
       
       if (results.length >= 3) {
-        animeSearchCache.set(cacheKey, { results, timestamp: Date.now() });
+        rememberSearch(cacheKey, results);
         console.log(`[Search] ✅ Sufficient results from ruri (${results.length}), returning early [${(performance.now() - overallStart).toFixed(0)}ms total]`);
         return results;
       }
@@ -2375,7 +2419,7 @@
       console.log(`[Search] ✅ anime_data returned ${dbResult.result.length} results (${dbNewResults.length} new) in ${dbElapsed}ms`);
       
       if (results.length >= 3) {
-        animeSearchCache.set(cacheKey, { results, timestamp: Date.now() });
+        rememberSearch(cacheKey, results);
         console.log(`[Search] ✅ Sufficient results from anime_data (${results.length}), returning early [${(performance.now() - overallStart).toFixed(0)}ms total]`);
         return results;
       }
@@ -2420,7 +2464,7 @@
       console.log(`[Search] ✅ anikoto_data returned ${anikotoResult.result.length} results (${newResults.length} new) in ${anikotoElapsed}ms`);
       
       if (results.length >= 3) {
-        animeSearchCache.set(cacheKey, { results, timestamp: Date.now() });
+        rememberSearch(cacheKey, results);
         console.log(`[Search] ✅ Sufficient results from anime_data+anikoto_data (${results.length}), returning [${(performance.now() - overallStart).toFixed(0)}ms total]`);
         return results;
       }
@@ -2460,7 +2504,7 @@
       console.log(`[Search] ✅ AniList returned ${anilistResult.result.length} results (${newResults.length} new) in ${anilistElapsed}ms`);
       
       if (results.length >= 3) {
-        animeSearchCache.set(cacheKey, { results, timestamp: Date.now() });
+        rememberSearch(cacheKey, results);
         console.log(`[Search] ✅ Sufficient results (${results.length}), returning [${(performance.now() - overallStart).toFixed(0)}ms total]`);
         return results;
       }
@@ -2498,7 +2542,14 @@
     
     // Cache final results (even if empty - avoids repeated slow queries)
     const totalElapsed = (performance.now() - overallStart).toFixed(0);
-    animeSearchCache.set(cacheKey, { results, timestamp: Date.now() });
+    // t154 — when every tier died (e.g. a Supabase outage taking ruri + both
+    // Supabase tiers with it) and even the external APIs failed, serve the
+    // stale localStorage copy instead of an empty page.
+    if ((!results || !results.length) && staleSearchCopy) {
+      console.log(`[Search] 🏁 all tiers failed — serving stale localStorage copy [${totalElapsed}ms total]`);
+      return staleSearchCopy;
+    }
+    rememberSearch(cacheKey, results);
     console.log(`[Search] 🏁 Final: ${results.length} results from all sources [${totalElapsed}ms total]`);
     
     return results;

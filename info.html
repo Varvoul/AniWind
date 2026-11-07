@@ -3839,6 +3839,97 @@ img { max-width: 100%; height: auto; display: block; }
          remains the identity; Jikan/AniList live lookups are best-effort). */
       const RURI_BASE = 'https://ruri.bionmovies47.workers.dev';
 
+      // ── t154 — ruri circuit breaker + browser SWR cache ─────────────────
+      // WHY: during the Nov-2026 Supabase outage every ruri call hung the full
+      // client timeout before the fallback chain ran — the info page paid
+      // 8-12s per ruri leg on EVERY visit, and non-permanent (airing) shows
+      // had NO browser copy at all, so reloads re-paid the whole slow chain.
+      //
+      // 1. RURI_CIRCUIT: after 2 ruri failures the circuit opens for 5 min
+      //    (shared across navigations via sessionStorage) — ruri calls fail
+      //    instantly and the page goes straight to its live-source fallback
+      //    chain (self-jikan → anilist proxy → public jikan → AniList). One
+      //    successful response resets it.
+      // 2. SWR cache (info:full_data:swr:<mediaId>): saveFullData() also
+      //    writes a 2-hour browser copy for EVERY show regardless of status,
+      //    so whichever source served — ruri (primary) OR the fallback chain
+      //    — later reloads render instantly from localStorage and refresh in
+      //    the background (stale-while-revalidate). Permanent shows keep
+      //    their forever AniCache copy on top of this.
+      const SWR_TTL_MS = 2 * 60 * 60 * 1000; // 2h browser copy for airing/upcoming shows
+
+      const RURI_CIRCUIT = {
+        key: 'ruriCircuit:v1', fails: 0, openUntil: 0, THRESHOLD: 2, OPEN_MS: 5 * 60 * 1000,
+        _loaded: undefined,
+        _load() {
+          if (this._loaded !== undefined) return;
+          this._loaded = true;
+          try {
+            const s = JSON.parse(sessionStorage.getItem(this.key) || 'null');
+            if (s && typeof s === 'object') { this.fails = s.fails | 0; this.openUntil = s.openUntil | 0; }
+          } catch (e) { /* private mode */ }
+        },
+        _save() {
+          try { sessionStorage.setItem(this.key, JSON.stringify({ fails: this.fails, openUntil: this.openUntil })); } catch (e) { /* private mode */ }
+        },
+        isOpen() { this._load(); return Date.now() < this.openUntil; },
+        ok()    { this._load(); this.fails = 0; this.openUntil = 0; this._save(); },
+        fail()  {
+          this._load(); this.fails++;
+          if (this.fails >= this.THRESHOLD) {
+            this.openUntil = Date.now() + this.OPEN_MS; this.fails = 0;
+            console.warn('[RuriCircuit] OPEN for 5min — primary skipped, fallback chain takes over');
+          }
+          this._save();
+        }
+      };
+
+      /** Every ruri call goes through here: circuit-breaker guarded, throws on
+       *  non-OK (same contract as before — callers keep their fail-open paths). */
+      async function ruriFetch(url, timeoutMs = 10000) {
+        if (RURI_CIRCUIT.isOpen()) throw new Error('ruri circuit open — primary skipped');
+        try {
+          const res = await fetch(url, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(timeoutMs) });
+          if (!res.ok) throw new Error(`ruri HTTP ${res.status}`);
+          RURI_CIRCUIT.ok();
+          return res;
+        } catch (e) {
+          RURI_CIRCUIT.fail();
+          throw e;
+        }
+      }
+
+      function swrKey() { return `info:full_data:swr:${mediaKeyOf()}`; }
+
+      function swrPut(d) {
+        try {
+          const json = JSON.stringify({ at: Date.now(), data: d });
+          if (json.length > 1800000) return;             // mirrors the server payload cap
+          localStorage.setItem(swrKey(), json);
+        } catch (e) { /* quota exceeded — browser copy is best-effort */ }
+      }
+
+      function swrGet() {
+        try {
+          const raw = localStorage.getItem(swrKey());
+          if (!raw) return null;
+          const box = JSON.parse(raw);
+          const d = box && box.data;
+          if (!d || typeof d !== 'object' || Array.isArray(d)) return null;
+          if (!box.at || (Date.now() - box.at) > SWR_TTL_MS) { localStorage.removeItem(swrKey()); return null; }
+          // Same completeness guard as infoServerGet: a partial/foreign write
+          // must NOT block the real render.
+          const hasTitle = !!(d.title || d.name || d.title_english);
+          const isTmdb = currentState.source === 'tmdb';
+          const complete = isTmdb
+            ? hasTitle && !!(d.poster_path || d.backdrop_path || d.overview || d.vote_average)
+            : hasTitle && !!d.status &&
+              !!(d.images && (d.images.jpg?.large_image_url || d.images.jpg?.image_url)) &&
+              !!(d.synopsis || (Array.isArray(d.genres) && d.genres.length));
+          return complete ? d : null;
+        } catch (e) { return null; }
+      }
+
       function mediaKeyOf() {
         return currentState.source === 'tmdb'
           ? `tmdb-${currentState.type}-${currentState.id}`
@@ -3929,7 +4020,9 @@ img { max-width: 100%; height: auto; display: block; }
       // from each browser's own localStorage); otherwise → shared server
       // cache (3h). The server endpoint caps payloads itself.
       function saveFullData(d) {
-        if (!window.AniCache || !d) return;
+        if (!d) return;
+        swrPut(d); // t154 — 2h browser copy for EVERY source (primary + fallback chain)
+        if (!window.AniCache) return;
         if (currentState.isPermanent) {
           window.AniCache.set({
             cacheKey: fullDataCacheKey(), pageSource: 'info', section: 'info_full_data',
@@ -3971,8 +4064,7 @@ img { max-width: 100%; height: auto; display: block; }
         const ssKey = `anikotoSlugOK:${mediaKeyOf()}`;
         try { if (sessionStorage.getItem(ssKey) === '1') return false; } catch (e) { /* private mode */ }
         try {
-          const res = await fetch(`${RURI_BASE}/anikoto/anime?slug=${encodeURIComponent(slug)}&limit=1`,
-                                  { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(6000) });
+          const res = await ruriFetch(`${RURI_BASE}/anikoto/anime?slug=${encodeURIComponent(slug)}&limit=1`, 6000);
           if (!res.ok) return false;                        // fail open
           const json = await res.json();
           const row = json && Array.isArray(json.data) ? json.data[0] : null;
@@ -4066,8 +4158,7 @@ img { max-width: 100%; height: auto; display: block; }
             : [`${RURI_BASE}/s-mal/anime/jikan-${id}/full`];
         for (const url of urls) {
           try {
-            const res = await fetch(url, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(12000) });
-            if (!res.ok) continue;
+            const res = await ruriFetch(url, 12000);
             const json = await res.json();
             const data = json && json.data;
             if (!data || !(data.title || data.title_english)) continue;
@@ -4179,8 +4270,7 @@ img { max-width: 100%; height: auto; display: block; }
 
       async function fetchRuriJikanFallback(malId) {
         // jikan-{mal} page whose MAL entry is gone (404) — serve the DB row
-        const res = await fetch(`${RURI_BASE}/s-mal/anime/jikan-${malId}/full`,
-                                { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(12000) });
+        const res = await ruriFetch(`${RURI_BASE}/s-mal/anime/jikan-${malId}/full`, 12000);
         if (!res.ok) throw new Error(`ruri HTTP ${res.status}`);
         const json = await res.json();
         const data = json && json.data;
@@ -4314,8 +4404,7 @@ img { max-width: 100%; height: auto; display: block; }
         const mid = d && parseInt(d.mal_id, 10);
         if (!mid) return;
         try {
-          const res = await fetch(`${RURI_BASE}/s-mal/anime/jikan-${mid}/full`,
-                                  { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(8000) });
+          const res = await ruriFetch(`${RURI_BASE}/s-mal/anime/jikan-${mid}/full`, 8000);
           if (!res.ok) return; // fail open — render the provider values as-is
           const json = await res.json();
           const row = json && json.data;
@@ -4389,9 +4478,21 @@ img { max-width: 100%; height: auto; display: block; }
               // finished/released shows, the shared 3h server cache for
               // airing/upcoming ones (a stale legacy local copy must not win).
               const fullCacheKey = fullDataCacheKey();
-              const fullData = currentState.isPermanent
+              let fullData = currentState.isPermanent
                 ? await window.AniCache.get(fullCacheKey).catch(()=>null)
                 : await infoServerGet();
+              // t154 — server miss → 2h browser SWR copy (stale-while-revalidate):
+              // instant paint from the last payload ANY source saved (ruri primary
+              // OR the jikan/anilist fallback chain); the background refresh below
+              // re-fetches and re-saves so the copy stays fresh.
+              let servedFromSwr = false;
+              if (!fullData && !currentState.isPermanent) {
+                fullData = swrGet();
+                if (fullData) {
+                  servedFromSwr = true;
+                  console.log('[SWR] info: served airing/upcoming full data from browser copy');
+                }
+              }
 
               currentState.data = currentState.data || {};
 
@@ -4481,7 +4582,7 @@ img { max-width: 100%; height: auto; display: block; }
               renderSeasons(); _queueStage2(true);   // t110 — cache-rendered page: stage 2 starts sooner
               // If we only had sparse data, do a background API fetch to get complete data
               // (relations, broadcast, producers, synonyms, etc.) and re-render when ready
-              if (!fullData) {
+              if (!fullData || servedFromSwr) {
                 console.log('[AniCache] info: starting background refresh for complete data', _mediaId);
                 (async () => {
                   try {
@@ -4548,7 +4649,12 @@ img { max-width: 100%; height: auto; display: block; }
           // every visitor within the 3h window after someone else's live
           // fetch saved the payload (that POST also happens below on miss).
           if (!dbShow) {
-            const srv = await infoServerGet();
+            let srv = await infoServerGet();
+            // t154 — no shows row either → last resort: the 2h browser SWR copy
+            if (!srv) {
+              srv = swrGet();
+              if (srv) console.log('[SWR] info: served from browser SWR copy (no shows row)');
+            }
             if (srv && (srv.title || srv.name || srv.title_english)) {
               currentState.data = srv;
               currentState.isPermanent = !!(window.AniCache && window.AniCache.isPermanentStatus(srv.status));
@@ -5095,7 +5201,7 @@ img { max-width: 100%; height: auto; display: block; }
         }
         try {
           const url = `${CONFIG.RURI_BASE}/s-mal/anime?mal_ids=${malId}&language=sub,dub&limit=1`;
-          const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+          const res = await ruriFetch(url, 10000);
           if (!res.ok) { console.warn('[RuriLang] HTTP', res.status); return; }
           const json = await res.json();
           const row = Array.isArray(json && json.data) ? json.data[0] : null;
@@ -5117,7 +5223,7 @@ img { max-width: 100%; height: auto; display: block; }
       // metadata with real numbers when the catalog maps this MAL id.
       async function fetchAnikotoCounts(malId) {
         try {
-          const res = await fetch(`${CONFIG.RURI_BASE}/anikoto/anime/jikan-${malId}/full`, { signal: AbortSignal.timeout(8000) });
+          const res = await ruriFetch(`${CONFIG.RURI_BASE}/anikoto/anime/jikan-${malId}/full`, 8000);
           if (!res.ok) return;
           const json = await res.json();
           const d = json?.data || json;
@@ -8131,8 +8237,7 @@ img { max-width: 100%; height: auto; display: block; }
         try {
           // PRIMARY — ruri genre search (server-side pages)
           const params = `genres=${encodeURIComponent(genres)}&min_score=7&type=tv&sfw=true&page=${page}`;
-          const res = await fetch(`${RURI_BASE}/s-mal/anime?${params}`,
-                                  { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(12000) });
+          const res = await ruriFetch(`${RURI_BASE}/s-mal/anime?${params}`, 12000);
           if (res.ok) {
             const json = await res.json();
             // keep the full server page (25 rows) — _recRender slices it to
