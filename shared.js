@@ -2655,16 +2655,23 @@
       ? parseInt(item.mal_id, 10)
       : null;
     const synonym = (item.titles || []).find(t => t.type === 'Synonym');
+    // t155: exact s-mal card shape — ruri's mapAnikoto already emits
+    // v4-style studios/genres [{name}] + short rating from anikoto_data
+    // jsonb, the old mapper just ignored them (cards showed "TV · 2023 ·
+    // 12 eps · Finished Airing", no pills, no cert).
     return {
       poster: item.images?.jpg?.large_image_url || '',
       title: item.title || 'Unknown Title',
-      original: synonym && synonym.title !== item.title ? synonym.title : '',
-      meta: [
-        item.type ? String(item.type).toUpperCase() : null,
+      original: [
+        item.title_japanese,
+        synonym && synonym.title !== item.title ? synonym.title : null
+      ].filter(Boolean).join(' / ') || '',
+      meta: buildSuggestionMeta(
+        item.type,
+        (item.studios || []).map(s => s.name).filter(Boolean),
         item.year,
-        item.episodes ? `${item.episodes} eps` : null,
-        item.status
-      ].filter(Boolean).join(' · '),
+        item.episodes
+      ),
       score: item.score ? `★ ${item.score}` : null,
       mal_id: parsedMalId,
       anilist_id: item.anilist_id ?? null,
@@ -2673,7 +2680,9 @@
       source: 'anikoto',
       year: item.year,
       episodes: item.episodes,
-      status: item.status
+      status: item.status,
+      genres: (item.genres || []).map(g => g.name).filter(Boolean),
+      certification: shortCertification(item.rating)
     };
   }
 
@@ -2813,6 +2822,53 @@
     const trimmed = rating.trim();
     if (!trimmed || trimmed === 'None' || trimmed === 'N/A') return '';
     return trimmed.split(' - ')[0].trim();
+  }
+
+  // ── t155: unified suggestion-card shape ──
+  // Every anime source (s-mal db, anikoto, anilist, self-hosted jikan) now emits
+  // the SAME card fields so the suggestion dropdown looks identical no matter
+  // which tier served the row — matching the s-mal card exactly:
+  //   meta    = "TV · Madhouse · 2023 · 28 eps"   (type proper-cased, studios, year, eps)
+  //   score   = "★ 9.3"                            (AniList's 100-pt % normalized to 10-pt)
+  //   genres  = [..]                               (genre pills, up to 4, CSS-trimmed)
+  //   cert    = "PG-13"                            (certification chip when upstream has it)
+
+  // Type label map mirrors ruri's s-mal profile typeMap so "tv"/"TV_SHORT"/
+  // "MOVIE" from any source all render the same way s-mal renders them.
+  const ANIME_TYPE_LABELS = {
+    tv: 'TV', tv_short: 'TV', movie: 'Movie', ova: 'OVA', ona: 'ONA',
+    special: 'Special', tv_special: 'TV Special', music: 'Music',
+    cm: 'CM', pv: 'PV', unknown: 'Unknown',
+  };
+  function normAnimeType(t) {
+    if (!t) return null;
+    const key = String(t).toLowerCase().replace(/\s+/g, '_');
+    return ANIME_TYPE_LABELS[key] || String(t);
+  }
+
+  // anikoto_data genre/studios jsonb arrives as a real array (jsonb) or a
+  // (sometimes double-encoded) JSON string — mirrors ruri worker's jsonbToNameArr.
+  function jsonbNameArr(v) {
+    let a = v;
+    if (typeof a === 'string') {
+      try { a = JSON.parse(a); } catch (e) { /* leave */ }
+      if (typeof a === 'string') { try { a = JSON.parse(a); } catch (e2) { return []; } }
+    }
+    if (!Array.isArray(a)) return [];
+    return a.filter(Boolean)
+      .map(x => (typeof x === 'string' ? x : String(x?.name ?? x)).trim())
+      .filter(x => x && x.toLowerCase() !== 'unknown' && x.toLowerCase() !== 'null' && x.toLowerCase() !== 'none');
+  }
+
+  // s-mal-style meta line builder used by all four source mappers.
+  // Missing pieces drop out via filter(Boolean) exactly like the s-mal mapper.
+  function buildSuggestionMeta(type, studios, year, episodes) {
+    return [
+      normAnimeType(type),
+      (studios || []).filter(Boolean).join(', ') || null,
+      year || null,
+      episodes ? `${episodes} eps` : null
+    ].filter(Boolean).join(' · ');
   }
 
   async function searchAnimeFromDB(q) {
@@ -2997,16 +3053,22 @@
           ? parseInt(item.mal_id, 10)
           : null;
 
+        // t155: exact s-mal card shape. The RPC (extended t155) now also
+        // returns native/rating/genre/studios; genre+studios jsonb arrive as
+        // (sometimes double-encoded) JSON strings — jsonbNameArr unwraps both.
         return {
           poster: item.poster || '',
           title: item.title || 'Unknown Title',
-          original: item.alternative && item.alternative !== item.title ? item.alternative : '',
-          meta: [
-            item.anime_type ? item.anime_type.toUpperCase() : null,
+          original: [
+            item.native,
+            item.alternative && item.alternative !== item.title ? item.alternative : null
+          ].filter(Boolean).join(' / ') || '',
+          meta: buildSuggestionMeta(
+            item.anime_type,
+            jsonbNameArr(item.studios),
             item.year,
-            item.episodes ? `${item.episodes} eps` : null,
-            item.status
-          ].filter(Boolean).join(' · '),
+            item.episodes
+          ),
           score: item.score ? `★ ${item.score}` : null,
           mal_id: parsedMalId,
           anilist_id: item.anilist_id ?? null,
@@ -3015,7 +3077,9 @@
           source: 'anikoto',
           year: item.year,
           episodes: item.episodes,
-          status: item.status
+          status: item.status,
+          genres: jsonbNameArr(item.genre),
+          certification: shortCertification(item.rating)
         };
       });
 
@@ -3038,27 +3102,48 @@
     if (!response.ok) throw new Error(`Jikan HTTP ${response.status}`);
     
     const json = await response.json();
-    const items = json.data || [];
-    
-    return items.map(item => ({
-      poster: item.images?.jpg?.large_image_url || item.images?.jpg?.image_url || '',
-      title: item.title_english || item.title || 'Unknown Title',
-      original: [item.title_japanese, item.title].filter((t, i, arr) => t && arr.indexOf(t) === i && t !== item.title_english).join(' / ') || '',
-      meta: [
-        item.type,
-        item.year || item.season?.year,
-        item.episodes ? `${item.episodes} eps` : null,
-        item.status?.replace('_', ' ')
-      ].filter(Boolean).join(' · '),
-      score: item.score ? `★ ${item.score}` : null,
-      genres: (item.genres || []).map(g => g.name).filter(Boolean),
-      certification: shortCertification(item.rating),
-      mal_id: item.mal_id,
-      source: 'jikan',
-      year: item.year || item.season?.year,
-      episodes: item.episodes,
-      status: item.status
-    }));
+    // t155: the self-hosted fork serves the LEGACY search shape (results[] with
+    // flat image_url/rated/start_date, no studios/genres), while a real V4
+    // upstream returns data[] with images/titles/studios/genres. The old code
+    // read json.data only — every self-hosted jikan search silently produced
+    // ZERO results and the tier never showed a single card. Handle both.
+    const items = Array.isArray(json.data)
+      ? json.data
+      : (Array.isArray(json.results) ? json.results : []);
+
+    return items.map(item => {
+      const legacy = !item.images; // legacy rows have flat image_url, no images{jpg,webp}
+      const year = legacy
+        ? (item.start_date ? parseInt(String(item.start_date).slice(0, 4), 10) || null : null)
+        : (item.year || item.season?.year || null);
+      const studios = legacy
+        ? []  // legacy search rows carry no studios (MAL search table has none)
+        : (item.studios || []).map(s => s.name).filter(Boolean);
+      const genres = legacy
+        ? []
+        : (item.genres || []).map(g => g.name).filter(Boolean);
+
+      return {
+        poster: legacy
+          ? (item.image_url || '')
+          : (item.images?.jpg?.large_image_url || item.images?.jpg?.image_url || ''),
+        title: legacy
+          ? (item.title || 'Unknown Title')
+          : (item.title_english || item.title || 'Unknown Title'),
+        original: legacy
+          ? '' // legacy rows carry a single (romaji) title — nothing to add
+          : ([item.title_japanese, item.title].filter((t, i, arr) => t && arr.indexOf(t) === i && t !== item.title_english).join(' / ') || ''),
+        meta: buildSuggestionMeta(item.type, studios, year, item.episodes),
+        score: item.score ? `★ ${item.score}` : null,
+        genres,
+        certification: shortCertification(legacy ? item.rated : item.rating),
+        mal_id: item.mal_id,
+        source: 'jikan',
+        year,
+        episodes: item.episodes,
+        status: item.status
+      };
+    });
   }
 
   /* ── FALLBACK #3: ANILIST GRAPHQL SEARCH ── */
@@ -3116,16 +3201,21 @@
     // Filter out items WITHOUT mal_id - we need consistent /jikan-{mal_id}/slug links
     const itemsWithMalId = items.filter(item => item.idMal);
     
+    // t155: exact s-mal card shape — studios join the meta line, MOVIE/TV_SHORT
+    // formats render proper-cased like s-mal ("Movie"/"TV"), and AniList's
+    // 100-point averageScore is normalized to the 10-point "★ 8.7" style every
+    // other source uses (the old "★ 87%" chip made anilist cards look foreign).
     return itemsWithMalId.map(item => ({
       poster: item.coverImage?.large || item.coverImage?.medium || '',
       title: item.title?.english || item.title?.romaji || 'Unknown Title',
       original: [item.title?.native, item.title?.romaji].filter(Boolean).join(' / ') || '',
-      meta: [
-        item.format?.replace(/_/g, ' '),
+      meta: buildSuggestionMeta(
+        item.format,
+        (item.studios?.nodes || []).map(n => n.name).filter(Boolean),
         item.seasonYear,
-        item.episodes ? `${item.episodes} eps` : null
-      ].filter(Boolean).join(' · '),
-      score: item.averageScore ? `★ ${item.averageScore}%` : null,
+        item.episodes
+      ),
+      score: item.averageScore ? `★ ${(item.averageScore / 10).toFixed(1)}` : null,
       genres: item.genres || [],
       mal_id: item.idMal, // Use idMal as mal_id for consistent link format
       anilistId: item.id,
