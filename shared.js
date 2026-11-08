@@ -4246,15 +4246,16 @@
   
   const MetadataManager = {
     // Base configuration
-    siteName: 'Rowana',
+    // t171 — brand unified to RuriStream everywhere (was Rowana/AniOcean mix)
+    siteName: 'RuriStream',
     siteUrl: 'https://ruristream.vercel.app',
     logoUrl: 'https://i.postimg.cc/BvwTjXgv/image-359e594e.png',
-    defaultImage: 'https://i.postimg.cc/BvwTjXgv/image-359e594e.png',
-    twitterHandle: '@rowana_official',
+    defaultImage: 'https://i.postimg.cc/Fs8y8Wqh/Follow-Ani-Wind-Zone-x-profile-banner.jpg',
+    twitterHandle: '',  // no verified handle — empty skips the twitter:site tag
     
     // ═══════════════════════════════════════════════════════
     // OG FLYER CARD IMAGES (Dynamic per page type)
-    // Your Canva-designed flyer with "Rowana" + cyan gradient + pink buttons
+    // Brand flyer used as the default OG image when a page has no art of its own
     // Size: 1200x630px (Facebook/Twitter standard OG image size)
     // ═══════════════════════════════════════════════════════
     flyerImages: {
@@ -4297,7 +4298,7 @@
       keywords: 'watch anime online, free anime streaming, anime HD, dubbed anime, subbed anime, anime subtitles, anime episodes, no ads anime, anime movies, anime streaming site, watch anime free, anime online, english dub anime, japanese anime, korean anime, chinese anime, donghua, latest anime, seasonal anime, popular anime, anime recommendations, 1080p anime, anime streaming platform, best anime site',
       ogTitle: 'RuriStream · Watch Anime Online Free in HD · Sub & Dub',
       ogDescription: 'Stream subbed and dubbed anime in HD — no ads, no signup walls, no geo-blocks. Just pick a show and watch. Seasonal hits, classics, movies & dongua updated daily.',
-      twitterTitle: 'Ruristream · Watch Anime Online Free in HD · Sub & Dub',
+      twitterTitle: 'RuriStream · Watch Anime Online Free in HD · Sub & Dub',
       twitterDescription: 'HD anime streaming that doesn\'t suck. No ad overload, no signup traps — just subbed & dubbed anime that plays when you click it.'
     },
     
@@ -4306,96 +4307,137 @@
       title: 'RuriStream · Watch Movies & TV Shows Online Free in HD',
       description: 'Watch movies and TV shows online free in HD quality. Stream the latest films, hit series, Netflix originals and blockbuster movies with no ads and no signup required. Your go-to destination for free movie streaming that actually works.',
       keywords: 'watch movies online, free movie streaming, movies HD, watch tv shows online, free tv series streaming, latest movies, new movies 2025 2026, netflix alternatives, free movies no signup, hd movies, tv shows streaming, binge watch, full movies online, movie streaming site, watch series free, cinema movies, action movies, comedy movies, drama series, best movie site',
-      ogTitle: 'Rowana · Watch Movies & TV Shows Online Free in HD',
+      ogTitle: 'RuriStream · Watch Movies & TV Shows Online Free in HD',
       ogDescription: 'Stream movies and TV shows in HD — no ads, no signup walls, no geo-blocks. Latest releases, hit series, blockbusters updated daily. The streaming site that actually works.',
-      twitterTitle: 'Rowana · Watch Movies & TV Shows Online Free in HD',
+      twitterTitle: 'RuriStream · Watch Movies & TV Shows Online Free in HD',
       twitterDescription: 'Free movie & TV streaming that works. No ad overload, no signup traps — just movies and shows that play when you click them.'
     },
     
     // Page-specific metadata configurations
     pages: {
       // HOME PAGE (index.html) - HYBRID: Targets BOTH anime AND movie/TV audiences
-      // Pattern inspired by Mapplee ("Stream movies, TV shows, anime...") + Cineby (comprehensive listing)
+      // t171 pattern: keyword-first (like MovieBox/AnimeSuge/Netnaija), ≤60 chars
       home: {
-        title: 'RuriStream · Watch Anime, Movies & TV Shows Online Free in HD',
-        description: 'Stream anime, movies and TV shows online free in HD. Watch the latest anime episodes in sub or dub, binge-watch hit TV series, and catch new release movies — all in one place with no ads and no signup required. Millions of titles, unlimited entertainment.',
-        keywords: 'watch anime online, free anime streaming, watch movies online, free movie streaming, watch tv shows online, free tv series, anime HD, movies HD, dubbed anime, subbed anime, latest movies, new tv series, no ads streaming, anime movies, tv shows 2025 2026, netflix alternative, free streaming site, Rowana, watch anime free, watch movies free, english dub anime, japanese anime, korean drama, chinese donghua, binge watch, 1080p streaming, hd movies online',
-        ogTitle: 'RuriStream · Watch Anime, Movies & TV Shows Online Free in HD',
-        ogDescription: 'Stream anime, movies and TV shows in HD — no ads, no signup walls, no geo-blocks. Anime (sub & dub), hit series, new releases. Millions of titles, one site.',
-        twitterTitle: 'RuriStream · Free Streaming: Anime, Movies & TV Shows in HD',
+        title: 'Watch Free Anime, Movies & TV Shows in HD - RuriStream',
+        description: 'Stream anime, movies and TV shows free in HD on RuriStream — sub & dub anime episodes, hit TV series and new movies in one place, no signup needed.',
+        keywords: 'watch anime online, free anime streaming, watch movies online, free movie streaming, watch tv shows online, free tv series, anime HD, movies HD, dubbed anime, subbed anime, latest movies, new tv series, no ads streaming, anime movies, tv shows 2025 2026, netflix alternative, free streaming site, RuriStream, watch anime free, watch movies free, english dub anime, japanese anime, korean drama, chinese donghua, binge watch, 1080p streaming, hd movies online',
+        ogTitle: 'Watch Free Anime, Movies & TV Shows in HD - RuriStream',
+        ogDescription: 'Stream anime, movies and TV shows in HD — no ads, no signup walls. Sub & dub anime episodes, hit TV series, new movies. Updated daily.',
+        twitterTitle: 'Watch Free Anime, Movies & TV Shows in HD - RuriStream',
         twitterDescription: 'The only streaming site you need. Anime (sub/dub), movies, TV shows — all free, all HD, no ads. Actually works.',
         type: 'website'
       },
       
       // ANIME SECTION PAGES (anime listings, genres, etc.)
       animeSection: {
-        title: 'Anime · Watch Anime Online Free | Rowana',
+        title: 'Anime · Watch Anime Online Free | RuriStream',
         description: 'Browse and watch thousands of anime series and movies online free in HD. Stream subbed and dubbed anime from Japan, Korea and China. Seasonal hits, classic series, and ongoing anime updated daily.',
         keywords: 'anime list, browse anime, anime genres, anime categories, subbed anime, dubbed anime, anime series, anime movies, japanese anime, korean anime, chinese anime donghua, seasonal anime, ongoing anime, completed anime, anime recommendations, watch anime free, anime streaming',
-        ogTitle: 'Anime · Watch Anime Online Free in HD | Rowana',
+        ogTitle: 'Anime · Watch Anime Online Free in HD | RuriStream',
         ogDescription: 'Thousands of free anime to stream in HD. Subbed, dubbed, movies, series — from Japan, Korea & China. Updated daily.',
-        twitterTitle: 'Free Anime Streaming · Sub & Dub HD | Rowana',
+        twitterTitle: 'Free Anime Streaming · Sub & Dub HD | RuriStream',
         twitterDescription: 'Browse thousands of anime. Subbed, dubbed, movies, series. All free, all HD. Start watching now.',
         type: 'website'
       },
       
       // MOVIES SECTION PAGES (movie listings, genres, etc.)
       moviesSection: {
-        title: 'Movies · Watch Movies Online Free | Rowana',
+        title: 'Movies · Watch Movies Online Free | RuriStream',
         description: 'Watch movies online free in HD. Stream the latest Hollywood blockbusters, action films, comedies, dramas, horror movies and international cinema. New releases added daily with no ads and no signup required.',
         keywords: 'watch movies online, free movies, latest movies, new movies 2025 2026, hollywood movies, action movies, comedy movies, drama movies, horror movies, thriller movies, romance movies, sci-fi movies, netflix movies, disney movies, marvel movies, dc movies, anime movies, animated movies, hd movies, cinema movies, full movies online',
-        ogTitle: 'Movies · Watch Movies Online Free in HD | Rowana',
+        ogTitle: 'Movies · Watch Movies Online Free in HD | RuriStream',
         ogDescription: 'Stream thousands of movies free in HD. New releases, blockbusters, classics, international films. No ads, no signup.',
-        twitterTitle: 'Free Movie Streaming · HD Movies Online | Rowana',
+        twitterTitle: 'Free Movie Streaming · HD Movies Online | RuriStream',
         twitterDescription: 'Latest movies, blockbusters, classics — all free in HD. No ads, no signup. Start watching now.',
         type: 'website'
       },
       
       // TV SHOWS SECTION PAGES
       tvSection: {
-        title: 'TV Shows · Watch Series Online Free | Rowana',
+        title: 'TV Shows · Watch Series Online Free | RuriStream',
         description: 'Watch TV shows and series online free in HD. Binge-watch the latest hit series, Netflix originals, HBO shows, crime dramas, sitcoms and reality TV. Full seasons with no ads and no signup required.',
         keywords: 'watch tv shows online, free tv series, tv shows streaming, binge watch, latest tv series, netflix shows, hbo series, crime dramas, sitcoms, reality tv, documentary series, anime series, korean drama, full seasons, tv episodes, watch series free, television shows, popular tv shows, new series 2025 2026',
-        ogTitle: 'TV Shows · Watch Series Online Free in HD | Rowana',
+        ogTitle: 'TV Shows · Watch Series Online Free in HD | RuriStream',
         ogDescription: 'Binge-watch hit TV series free in HD. Latest shows, full seasons, no ads, no signup. Start watching now.',
-        twitterTitle: 'Free TV Show Streaming · Binge Watch Series | Rowana',
+        twitterTitle: 'Free TV Show Streaming · Binge Watch Series | RuriStream',
         twitterDescription: 'Hit series, full seasons, latest episodes — all free in HD. Perfect for binge-watching.',
         type: 'website'
       },
       
-      // INFO PAGE (info.html) - Dynamic based on URL params
-      info: {
-        titleTemplate: '{title} - Watch {type} Online Free | Ruristream',
-        descriptionTemplate: 'Watch {title} online free in HD on Ruristream. {meta} Stream now with no ads and no signup required.',
-        keywordsTemplate: '{title}, watch {title} online, {title} streaming, {title} free, {title} HD, {title} episodes, {title} full, watch {type} online, free {type} streaming, Ruristream',
-        ogTitleTemplate: '{title} - Watch {type} Online Free | Ruristream',
-        ogDescriptionTemplate: 'Watch {title} online free in HD. {meta} No ads, no signup — just watch on Ruristream.',
-        twitterTitleTemplate: '{title} | Watch on Ruristream',
-        twitterDescriptionTemplate: 'Stream {title} free in HD on Ruristream. {meta}',
-        type: 'video.other' // For individual show/movie pages
+      // BROWSE PAGE (browse.html — serves /browse, /genre/*, /country/*, /type/*,
+      // /status/*, /latest-updates; t171)
+      browse: {
+        title: 'Browse Anime, Movies & TV Shows in HD - RuriStream',
+        description: 'Browse and filter every anime, TV show and movie on RuriStream by genre, season, year, studio, status and more. Free HD streaming, no signup.',
+        keywords: 'browse anime, browse movies, browse tv shows, anime list, movie catalog, tv series list, filter anime by genre, anime by year, watch anime free, RuriStream catalog',
+        ogTitle: 'Browse Anime, Movies & TV Shows in HD - RuriStream',
+        ogDescription: 'Every anime, TV show and movie on RuriStream — filter by genre, season, year, studio and status. Free in HD.',
+        twitterTitle: 'Browse Anime, Movies & TV Shows in HD - RuriStream',
+        twitterDescription: 'Filter the full RuriStream catalog — anime, TV shows and movies, free in HD.',
+        type: 'website'
       },
       
-      // SEARCH RESULTS PAGE
+      // SCHEDULE PAGE (schedule.html — /schedule; t171)
+      schedule: {
+        title: 'Airing Schedule - RuriStream',
+        description: 'Weekly anime airing schedule with exact broadcast times in your local timezone — filter by format, browse day by day, never miss an episode.',
+        keywords: 'anime schedule, anime airing schedule, anime calendar, today anime episodes, weekly anime schedule, new anime episodes, RuriStream schedule',
+        ogTitle: 'Airing Schedule - RuriStream',
+        ogDescription: 'What airs today and this week — the full anime airing schedule with countdowns, free in HD on RuriStream.',
+        twitterTitle: 'Airing Schedule - RuriStream',
+        twitterDescription: 'The full anime airing schedule — today and this week, free in HD on RuriStream.',
+        type: 'website'
+      },
+      
+      // LATEST UPDATES (direct latest-updates.html file; the /latest-updates
+      // route serves browse.html with view=latest-updates; t171)
+      latest: {
+        title: 'Latest Anime Updates - RuriStream',
+        description: 'Newly added anime, movies and TV shows on RuriStream — the newest episodes and releases, updated continuously. Watch free in HD.',
+        keywords: 'latest anime updates, new anime episodes, recently added anime, new releases, latest episodes, anime new season, RuriStream latest',
+        ogTitle: 'Latest Anime Updates - RuriStream',
+        ogDescription: 'The newest episodes and releases on RuriStream — updated continuously. Watch free in HD.',
+        twitterTitle: 'Latest Anime Updates - RuriStream',
+        twitterDescription: 'Newly added anime, movies and TV shows — updated continuously, free in HD.',
+        type: 'website'
+      },
+      
+      // INFO PAGE (info.html) - INTERIM metadata from the URL slug while the
+      // show payload loads; applyInfoMeta() in info.html writes the final
+      // metadata (real title, year, season, Anime/TV/Movie wording, real
+      // overview sentence, real art) once data is in. t171
+      info: {
+        titleTemplate: 'Watch {title} Online in HD - RuriStream',
+        descriptionTemplate: 'Watch {title} online in HD on RuriStream. Stream free with no ads and no signup required.',
+        keywordsTemplate: 'watch {title}, {title} online, watch {title} online free, {title} streaming, {title} HD, watch {type} online, free {type} streaming, RuriStream',
+        ogTitleTemplate: 'Watch {title} Online in HD - RuriStream',
+        ogDescriptionTemplate: 'Watch {title} online in HD on RuriStream — free, no ads, no signup.',
+        twitterTitleTemplate: 'Watch {title} Online in HD - RuriStream',
+        twitterDescriptionTemplate: 'Watch {title} online in HD on RuriStream. Free, no ads, no signup.',
+        type: 'video.other' // interim; applyInfoMeta refines to video.movie / video.tv_show
+      },
+      
+      // SEARCH RESULTS PAGE (browse.html at /search?q=…)
       search: {
-        titleTemplate: 'Search Results for "{query}" | RuriStream',
-        descriptionTemplate: 'Search results for "{query}" on Ruristream. Find and watch anime, movies and TV shows matching your search. Free HD streaming with no ads.',
-        keywordsTemplate: '{query}, watch {query} online, {query} streaming, {query} free, search anime, search movies, search tv shows, Rowana search',
+        titleTemplate: 'Search Results for "{query}" - RuriStream',
+        descriptionTemplate: 'Search results for "{query}" on RuriStream. Find and watch anime, movies and TV shows matching your search. Free HD streaming with no ads.',
+        keywordsTemplate: '{query}, watch {query} online, {query} streaming, {query} free, search anime, search movies, search tv shows, RuriStream search',
         ogTitleTemplate: '"{query}" - Search Results | RuriStream',
-        ogDescriptionTemplate: 'Find "{query}" and stream free on Ruristream. Anime, movies, TV shows — all in HD.',
+        ogDescriptionTemplate: 'Find "{query}" and stream free on RuriStream. Anime, movies, TV shows — all in HD.',
         twitterTitleTemplate: 'Search: "{query}" | RuriStream',
-        twitterDescriptionTemplate: 'Search results for "{query}" on Ruristream. Watch free in HD.',
+        twitterDescriptionTemplate: 'Search results for "{query}" on RuriStream. Watch free in HD.',
         type: 'website'
       },
       
       // GENERIC FALLBACK
       fallback: {
-        title: 'RuriStream · Watch Anime, Movies & TV Shows Online Free',
-        description: 'Stream anime, movies and TV shows online free in HD quality. No ads, no signup required. Your ultimate free streaming destination.',
-        keywords: 'streaming, watch online, free movies, free anime, free tv shows, HD streaming, Ruristream, no ads streaming',
-        ogTitle: 'RuriStream · Free Streaming: Anime, Movies & TV Shows',
-        ogDescription: 'Your ultimate free streaming destination. Anime, movies, TV shows in HD. No ads, no signup.',
-        twitterTitle: 'RuriStream · Free Online Streaming',
-        twitterDescription: 'Stream anime, movies and TV shows free on Ruristream. HD quality, no ads.',
+        title: 'Watch Free Anime, Movies & TV Shows in HD - RuriStream',
+        description: 'Stream anime, movies and TV shows free in HD on RuriStream — no ads, no signup required.',
+        keywords: 'streaming, watch online, free movies, free anime, free tv shows, HD streaming, RuriStream, no ads streaming',
+        ogTitle: 'Watch Free Anime, Movies & TV Shows in HD - RuriStream',
+        ogDescription: 'Your streaming destination. Anime, movies, TV shows in HD. No ads, no signup.',
+        twitterTitle: 'Watch Free Anime, Movies & TV Shows in HD - RuriStream',
+        twitterDescription: 'Stream anime, movies and TV shows free on RuriStream. HD quality, no ads.',
         type: 'website'
       }
     },
@@ -4418,6 +4460,21 @@
       // Individual content pages (info/watch)
       if (path.includes('info') || path.includes('watch') || path.includes('play')) {
         return 'info';
+      }
+      
+      // t171 — Browse page (also /genre/*, /country/*, /type/*, /status/*,
+      // /latest-updates; /search was matched above)
+      if (path.includes('browse')) {
+        return 'browse';
+      }
+      
+      // t171 — schedule + latest-updates pages (no longer falling through to
+      // the generic fallback title that masked them as the home page)
+      if (path.includes('schedule')) {
+        return 'schedule';
+      }
+      if (path.includes('latest')) {
+        return 'latest';
       }
       
       // Anime section pages
@@ -4473,8 +4530,10 @@
       
       // Fallback: try to get from page title element or h1
       if (!title) {
-        // Try document title first
-        if (document.title && !document.title.includes('Rowana') && document.title !== 'Aniocean - Show Details') {
+        // Try document title first — but never when it is a site-branded shell
+        // ("Loading... | RuriStream") or a final metadata title; the slug/h1
+        // below is the useful source then (t171)
+        if (document.title && !document.title.includes('RuriStream') && !document.title.includes('Loading')) {
           title = document.title.trim();
         }
         // Try h1 element
@@ -4721,7 +4780,7 @@
           '@context': 'https://schema.org',
           '@type': 'WebSite',
           name: this.siteName,
-          alternateName: ['Rowana', 'AniOcean', 'Rowana TV', 'Rowana Streaming'],
+          alternateName: ['RuriStream', 'Ruristream'],
           url: this.siteUrl,
           description: meta.description,
           inLanguage: ['en-US', 'ja', 'ko'],  // Multi-language support like Cineby
@@ -4760,12 +4819,10 @@
             '@type': 'Offer',
             price: '0',
             priceCurrency: 'USD'
-          },
-          aggregateRating: {
-            '@type': 'AggregateRating',
-            ratingValue: '4.8',
-            ratingCount: '15000'
           }
+          // t171 — fabricated aggregateRating (4.8/15000) removed: self-serving
+          // review markup without real, user-visible reviews violates Google's
+          // structured-data guidelines and risks a manual action
         }
       ];
     },
@@ -4798,10 +4855,22 @@
     
     // Main injection function
     inject: function() {
+      // t171 — pages that own their final metadata must not be clobbered by a
+      // late re-inject: info.html stamps dataset.infoMeta once applyInfoMeta()
+      // has written the per-show metadata; browse.html stamps dataset.browseTitle
+      // in updateHeading(). For those, only the title assignment is skipped —
+      // description/OG stay safe to refresh since browse/info keep them static.
+      const infoFinal = document.documentElement.dataset && document.documentElement.dataset.infoMeta === '1';
+      const browseFinal = document.documentElement.dataset && document.documentElement.dataset.browseTitle === '1';
+      const pt = this.detectPageType();
+      // browse.html owns the tab title on ALL its routes (/browse, /search,
+      // /latest-updates, /genre/* …) once updateHeading() has run
+      const skipTitle = (pt === 'info' && infoFinal) ||
+                        (browseFinal && (pt === 'browse' || pt === 'search' || pt === 'latest'));
       const meta = this.getMetadata();
       
       // Basic meta tags
-      document.title = meta.title;
+      if (!skipTitle) document.title = meta.title;
       this.setMetaTag('description', meta.description);
       this.setMetaTag('keywords', meta.keywords);
       this.setMetaTag('author', this.siteName);
@@ -4864,11 +4933,17 @@
   // Auto-inject metadata on DOM ready
   MetadataManager.inject();
   
-  // Also re-inject when page content changes (for SPA-like behavior)
+  // Also re-inject on SPA-style navigation, but never clobber a page that
+  // already wrote its own final metadata (t171 — browse pushes state on every
+  // filter/pagination change and then sets its own heading title)
   const originalPushState = history.pushState;
   history.pushState = function() {
     originalPushState.apply(this, arguments);
-    setTimeout(() => MetadataManager.inject(), 100);
+    setTimeout(() => {
+      const infoFinal = document.documentElement.dataset && document.documentElement.dataset.infoMeta === '1';
+      if (infoFinal) return;
+      MetadataManager.inject();
+    }, 100);
   };
 
   /* ═══════════════════════════════════════════════════════════

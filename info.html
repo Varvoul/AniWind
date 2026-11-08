@@ -16,8 +16,22 @@
   <link rel="preconnect" href="https://cdn.myanimelist.net" crossorigin>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <!-- Minimal fallback title (enhanced by shared.js MetadataManager with dynamic show info) -->
-  <title>Loading... | RuriStream</title>
+  <!-- Minimal fallback title — t171: full static metadata for non-JS crawlers
+       (Google renders JS, social scrapers do not). shared.js MetadataManager
+       refines these for JS browsers from the URL slug; applyInfoMeta() writes
+       the final per-show metadata once the show payload is in. -->
+  <title>Watch Anime, Movies & TV Shows Online in HD - RuriStream</title>
+  <meta name="description" content="Watch anime, movies and TV shows online in HD on RuriStream. Stream subbed & dubbed anime episodes, hit series and new movies free with no ads and no signup.">
+  <meta property="og:site_name" content="RuriStream">
+  <meta property="og:type" content="video.tv_show">
+  <meta property="og:title" content="Watch Anime, Movies & TV Shows Online in HD - RuriStream">
+  <meta property="og:description" content="Watch anime, movies and TV shows online in HD on RuriStream — free, no ads, no signup.">
+  <meta property="og:image" content="https://i.postimg.cc/Fs8y8Wqh/Follow-Ani-Wind-Zone-x-profile-banner.jpg">
+  <meta property="og:url" content="https://ruristream.vercel.app/">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Watch Anime, Movies & TV Shows Online in HD - RuriStream">
+  <meta name="twitter:description" content="Watch anime, movies and TV shows online in HD on RuriStream. Free, no ads, no signup.">
+  <meta name="twitter:image" content="https://i.postimg.cc/Fs8y8Wqh/Follow-Ani-Wind-Zone-x-profile-banner.jpg">
   
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -3839,6 +3853,110 @@ img { max-width: 100%; height: auto; display: block; }
         }
       }
 
+      /* ── t171 — final info-page metadata (tab title + meta description + OG) ──
+         Single owner for this page's browser-tab / SEO / social metadata.
+         Patterns follow the competitor set the owner picked (Netnaija/
+         AnimeSuge/Anikoto keyword-first style, Miruro/MKissa minimal style):
+           anime series : Watch {title} [Season N] Anime Online in HD - RuriStream
+           anime movie  : Watch {title} ({year}) Anime Movie Online in HD - RuriStream
+           TMDB movie   : Watch {title} ({year}) Online in HD - RuriStream
+           TMDB tv      : Watch {title} ({year}) Online in HD - RuriStream
+                          Watch {title} Season N Online in HD - RuriStream
+           TMDB Animation genre (id 16) → worded as Anime (distinguishable)
+         Description ≤160 chars, first sentence of the real overview. */
+      function firstSentence(text) {
+        if (!text) return '';
+        const s = String(text).replace(/\s+/g, ' ').trim();
+        const m = s.match(/^([\s\S]{20,150}?[.!?])(?:\s|$)/);
+        if (m) return m[1].trim();
+        let out = s.slice(0, 150);
+        if (s.length > 150) out = out.replace(/\s+\S*$/, '');
+        return out.trim();
+      }
+      function applyInfoMeta() {
+        try {
+          const d = currentState.data || {};
+          const t = String(currentState.title || '').trim();
+          if (!t || t === 'Unknown') return; // nothing real yet — keep the slug-based interim title
+          const isAnime = currentState.source !== 'tmdb';
+          const isAnimationTmdb = !isAnime && Array.isArray(d.genres) && d.genres.some(g =>
+            g && (g.id === 16 || String(g.name || '').toLowerCase() === 'animation'));
+          const animeMovie = (isAnime || isAnimationTmdb) && String(d.type || '').toLowerCase() === 'movie';
+          const isMovie = currentState.type === 'movie' || animeMovie;
+          const seasonN = (!isMovie && currentState.urlSeason) ? currentState.urlSeason : null;
+
+          // year
+          let year = null;
+          if (isAnime) {
+            year = (d.aired && d.aired.from ? String(d.aired.from).slice(0, 4) : null)
+                || (d.premiered ? String(d.premiered).slice(0, 4) : null)
+                || (d.year ? String(d.year) : null)
+                || (d.seasonYear ? String(d.seasonYear) : null);
+          } else {
+            year = ((isMovie ? d.release_date : d.first_air_date) || '').slice(0, 4) || null;
+          }
+
+          // title
+          const animeWord = isAnime || isAnimationTmdb;
+          let head = `Watch ${t}`;
+          if (isMovie) head += year ? ` (${year})` : '';
+          else if (seasonN) head += ` Season ${seasonN}`;
+          else if (!animeWord) head += year ? ` (${year})` : '';
+          head += animeWord ? (isMovie ? ' Anime Movie' : ' Anime') : '';
+          const title = `${head} Online in HD - RuriStream`;
+
+          // description (≤160, unique per page — real overview first sentence)
+          const kindDesc = (isAnime || isAnimationTmdb) ? (isMovie ? 'anime movie' : 'anime') : '';
+          let desc = `Watch ${t}${seasonN ? ` Season ${seasonN}` : ''}${kindDesc ? ` ${kindDesc}` : ''} online in HD on RuriStream.`;
+          const ov = firstSentence(d.synopsis || d.overview || '');
+          if (ov) desc += ` ${ov}`;
+          else desc += isMovie ? ' Stream the full movie free with no ads and no signup.' : ' Stream episodes free with no ads and no signup.';
+          if (kindDesc === 'anime' && ov && desc.length <= 150) desc += ' Sub & dub.';
+          desc = desc.replace(/\s+/g, ' ').trim();
+          if (desc.length > 160) desc = desc.slice(0, 157).replace(/[^ ]*$/, '').trim() + '...';
+
+          // og image: backdrop → trailer still → poster (landscape preferred)
+          let og = null;
+          if (d.backdrop_path) og = `https://image.tmdb.org/t/p/w780${d.backdrop_path}`;
+          else if (d.backdrop) og = d.backdrop;
+          else if (d.trailer && d.trailer.images && d.trailer.images.maximum_image_url) og = d.trailer.images.maximum_image_url;
+          else if (d.poster_path) og = `https://image.tmdb.org/t/p/w500${d.poster_path}`;
+          else if (d.images && d.images.jpg && d.images.jpg.large_image_url) og = d.images.jpg.large_image_url;
+          const ogType = isMovie ? 'video.movie' : 'video.tv_show';
+
+          const setMeta = (name, val) => {
+            if (!val) return;
+            let el = document.querySelector(`meta[name="${name}"]`);
+            if (!el) { el = document.createElement('meta'); el.setAttribute('name', name); document.head.appendChild(el); }
+            el.setAttribute('content', val);
+          };
+          const setOg = (prop, val) => {
+            if (!val) return;
+            let el = document.querySelector(`meta[property="${prop}"]`);
+            if (!el) { el = document.createElement('meta'); el.setAttribute('property', prop); document.head.appendChild(el); }
+            el.setAttribute('content', val);
+          };
+          const canonical = location.origin + location.pathname;
+
+          document.title = title;
+          setMeta('description', desc);
+          setOg('og:title', title);
+          setOg('og:description', desc);
+          setOg('og:type', ogType);
+          setOg('og:url', canonical);
+          if (og) { setOg('og:image', og); setMeta('twitter:image', og); }
+          setMeta('twitter:title', title);
+          setMeta('twitter:description', desc);
+          let c = document.querySelector('link[rel="canonical"]');
+          if (!c) { c = document.createElement('link'); c.rel = 'canonical'; document.head.appendChild(c); }
+          c.href = canonical;
+          document.documentElement.dataset.infoMeta = '1'; // t171 — final; shared.js re-injects must not clobber
+          console.log('[t171] info meta applied:', title);
+        } catch (e) {
+          console.warn('[t171] info meta failed:', e && e.message);
+        }
+      }
+
       /* ── ruri-aware helpers (anikoto-/anilist- pages + dead-MAL fallback) ──
          ruri serves both Supabase anime tables as jikan-v4-shaped objects:
            /s-mal/anime/jikan-{mal}/full | /s-mal/anime/anilist-{ali}/full
@@ -4591,7 +4709,7 @@ img { max-width: 100%; height: auto; display: block; }
                 currentState.title = dbShow.eng_title || dbShow.default_title || dbShow.title || 'Unknown';
               }
 
-              document.title = `${currentState.title} - Aniocean`;
+              applyInfoMeta();   // t171 — final metadata (title/desc/OG) replaces "- Aniocean"
               renderHero(); renderStats(); renderSynopsis(); renderDetails();
               renderSeasons(); _queueStage2(true);   // t110 — cache-rendered page: stage 2 starts sooner
               // If we only had sparse data, do a background API fetch to get complete data
@@ -4606,7 +4724,7 @@ img { max-width: 100%; height: auto; display: block; }
                     // Re-render sections that depend on full API data
                     renderHero(); renderStats(); renderSynopsis(); renderDetails();
                     renderSeasons();
-
+                    applyInfoMeta();   // t171 — full payload may add year/overview/art the sparse row lacked
                     // Save to shows table with the new complete data
                     if (window.AniCache && currentState.data) {
                       const d2 = currentState.data;
@@ -4673,7 +4791,7 @@ img { max-width: 100%; height: auto; display: block; }
               currentState.data = srv;
               currentState.isPermanent = !!(window.AniCache && window.AniCache.isPermanentStatus(srv.status));
               currentState.title = srv.title_english || srv.title || srv.name || 'Unknown';
-              document.title = `${currentState.title} - Aniocean`;
+              applyInfoMeta();   // t171 — server-cache path
               renderHero(); renderStats(); renderSynopsis(); renderDetails();
               renderSeasons(); _queueStage2(true);   // t110 — server-cache hit: page already painted
               // the cached copy's status now says finished/released → promote
@@ -4688,7 +4806,7 @@ img { max-width: 100%; height: auto; display: block; }
           if (_src === 'tmdb') await fetchTMDBData();
           else await fetchRuriData();
 
-          document.title = `${currentState.title} - Aniocean`;
+          applyInfoMeta();   // t171 — live-fetch path
           renderHero(); renderStats(); renderSynopsis(); renderDetails();
           renderSeasons(); _queueStage2();
 
@@ -6642,7 +6760,7 @@ img { max-width: 100%; height: auto; display: block; }
             try { 
               await navigator.share({ 
                 title: currentState.title, 
-                text: `Check out ${currentState.title} on Aniocean!`, 
+                text: `Check out ${currentState.title} on RuriStream!`, 
                 url: window.location.href 
               }); 
             } catch (err) { 

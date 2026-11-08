@@ -3,8 +3,20 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Browse — RuriStream</title>
-  <meta name="description" content="Browse and filter every anime, TV show and movie on RuriStream by genre, season, year, studio, status and more.">
+  <!-- t171 — static metadata; updateHeading() refines the tab title per filter -->
+  <title>Browse Anime, Movies & TV Shows in HD - RuriStream</title>
+  <meta name="description" content="Browse and filter every anime, TV show and movie on RuriStream by genre, season, year, studio, status and more. Free HD streaming, no signup.">
+  <link rel="canonical" href="https://ruristream.vercel.app/browse">
+  <meta property="og:site_name" content="RuriStream">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Browse Anime, Movies & TV Shows in HD - RuriStream">
+  <meta property="og:description" content="Every anime, TV show and movie on RuriStream — filter by genre, season, year, studio and status. Free in HD.">
+  <meta property="og:image" content="https://i.postimg.cc/Fs8y8Wqh/Follow-Ani-Wind-Zone-x-profile-banner.jpg">
+  <meta property="og:url" content="https://ruristream.vercel.app/browse">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Browse Anime, Movies & TV Shows in HD - RuriStream">
+  <meta name="twitter:description" content="Filter the full RuriStream catalog — anime, TV shows and movies, free in HD.">
+  <meta name="twitter:image" content="https://i.postimg.cc/Fs8y8Wqh/Follow-Ani-Wind-Zone-x-profile-banner.jpg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:opsz,wght@14..32,400..700&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
@@ -859,7 +871,13 @@
     else { h = 'Browse All'; }
     if (state.sort !== 'default' && !state.q && state.sort) h += ' · ' + sortLabel(state.sort);
     $('brH1').textContent = h;
-    document.title = h + ' — RuriStream';
+    // t171 — keyword-first tab title (Netnaija/AnimeSuge/Anikoto pattern);
+    // search keeps the minimal Miruro/MKissa style. The flag tells shared.js
+    // re-injects this page owns its tab title.
+    document.documentElement.dataset.browseTitle = '1';
+    // "Browse All" heading would read "Browse Browse All…" — reword to "All Titles"
+    var bh = h.replace(/^Browse All/, 'All Titles');
+    document.title = state.q ? (h + ' - RuriStream') : ('Browse ' + bh + ' in HD - RuriStream');
     var sub = 'Filter the full RuriStream catalog — anime, TV shows and movies.';
     if (state.service) sub = 'Movies & TV shows streaming on ' + serviceLabel(state.service) + ' — refine with the filters above.';
     else if (state.media === 'anime') sub = 'Browse every anime on RuriStream — refine with the filters above.';
