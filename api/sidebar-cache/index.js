@@ -26,7 +26,9 @@
 const TTL_MS = 12 * 60 * 60 * 1000; // 12 hours (owner spec 108-S)
 const store = new Map(); // key -> { data, source, cachedAt, expiresAt }
 
-const TMDB_TOKEN = 'eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI0Yjc0YzE4NjlkZGQxMWEzNTM1MDFlNGI0MjY4MzA3YyIsIm5iZiI6MTc2NDM5Mzg3MS4yNTEwMDAyLCJzdWIiOiI2OTJhODM4ZjNkNTVkM2Y1NzJiOGVlYjIiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.qN331VqKQ5rfgvkadaRLYG6fNXp4t_lOee3K15f4gCo';
+// t170: read token moved OUT of the repo into Vercel env (TMDB_READ_TOKEN) —
+// it used to be hardcoded here (public repo + serverless bundle).
+const TMDB_TOKEN = process.env.TMDB_READ_TOKEN || '';
 const MAPPLE = 'https://mapple-tmdb-proxy.vercel.app/api';
 const TUMI = ['https://t-umi.bionmovies47.workers.dev', 'https://t-umi.zeraf.workers.dev'];
 const TMDB_DIRECT = 'https://api.themoviedb.org/3';

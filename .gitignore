@@ -2,3 +2,4 @@ skills/
 node_modules/
 .vercel
 .env*
+backup/

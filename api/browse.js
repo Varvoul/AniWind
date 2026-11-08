@@ -281,7 +281,11 @@ function uniAnime(o) {
   const anilist = o.anilist_id != null ? parseInt(o.anilist_id, 10) || null : null;
   const title = o.title_english || o.title || o.title_japanese || 'Untitled';
   const img = (o.images && (o.images.jpg || o.images.webp)) || {};
-  const cover = img.large_image_url || img.image_url || (img.large ? img.large : null) || null;
+  // t170: the anikoto recent feed (/recent-anime) returns a FLAT `poster`
+  // URL (cdn.anipixcdn.co/...) instead of a jikan-shaped `images` object —
+  // map it too, otherwise every latest-updated card rendered as NO IMAGE.
+  const feedPoster = (typeof o.poster === 'string' && o.poster.startsWith('http')) ? o.poster : null;
+  const cover = img.large_image_url || img.image_url || (img.large ? img.large : null) || feedPoster || null;
   const genres = [...new Set([...parseGenresField(o.genres), ...parseGenresField(o.themes), ...parseGenresField(o.demographics)])];
   const studios = parseGenresField(o.studios);
   const hasSub = o.has_sub === true || (parseInt(o.is_sub, 10) || 0) > 0 || o.is_sub === true;

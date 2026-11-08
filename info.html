@@ -3287,8 +3287,10 @@ img { max-width: 100%; height: auto; display: block; }
         TMDB_WORKER: 'https://aniocen.bionmovies47.workers.dev', // DEAD (CF 1042, script removed) — kept only as historical reference
         TMDB_TUMI: 'https://t-umi.bionmovies47.workers.dev',     // CF TMDB proxy — prepends /3 itself, NEVER add /3 to paths here
         TMDB_TUMI_FB: 'https://t-umi.zeraf.workers.dev',         // same worker, second domain
-        TMDB_DIRECT: 'https://api.themoviedb.org/3',
-        TMDB_TOKEN: 'eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI0Yjc0YzE4NjlkZGQxMWEzNTM1MDFlNGI0MjY4MzA3YyIsIm5iZiI6MTc2NDM5Mzg3MS4yNTEwMDAyLCJzdWIiOiI2OTJhODM4ZjNkNTVkM2Y1NzJiOGVlYjIiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.qN331VqKQ5rfgvkadaRLYG6fNXp4t_lOee3K15f4gCo',
+        // t170: direct-TMDB tier + hardcoded v4 read token REMOVED — the token
+        // shipped to every browser. TMDB calls now end at the serverless
+        // passthrough below (token kept in a Vercel env var server-side).
+        TMDB_SERVERLESS: '/api/tmdb-proxy',
         ALLANIME_API: 'https://allanime-api.shashankbhake.codes',
         ANIMETHEMES_API: 'https://api.animethemes.moe/graphql',
         ANIMETHEMES_VIDEO: 'https://v.animethemes.moe',
@@ -4812,7 +4814,7 @@ img { max-width: 100%; height: auto; display: block; }
         const appendQs  = 'append_to_response=credits,videos,external_ids,images,content_ratings,release_dates,recommendations,similar&include_image_language=en,null';
         const tier2  = `${CONFIG.TMDB_TUMI}/${endpoint}/${id}?${appendQs}`;
         const tier2b = `${CONFIG.TMDB_TUMI_FB}/${endpoint}/${id}?${appendQs}`;
-        const tier3  = `${CONFIG.TMDB_DIRECT}/${endpoint}/${id}?${appendQs}`;
+        const tier3  = `${CONFIG.TMDB_SERVERLESS}/${endpoint}/${id}?${appendQs}`;
 
         async function tryUrl(url, headers={}) {
           const res = await fetch(url, {
@@ -4843,8 +4845,8 @@ img { max-width: 100%; height: auto; display: block; }
                 console.log('[TMDB] ✅ t-umi.zeraf fallback');
               } catch(e2b) {
                 console.warn('[TMDB] t-umi.zeraf failed:', e2b.message);
-                data = await tryUrl(tier3, { Authorization: `Bearer ${CONFIG.TMDB_TOKEN}` });
-                console.log('[TMDB] ✅ direct API fallback');
+                data = await tryUrl(tier3);
+                console.log('[TMDB] ✅ serverless proxy fallback');
               }
             }
           }
@@ -7286,13 +7288,13 @@ img { max-width: 100%; height: auto; display: block; }
 
       // Ordered source chain for one sidebar section. Anime pages (108-R):
       // ruri -> anilist-my-proxy -> self-hosted jikan -> public jikan.
-      // TMDB pages: mapple -> t-umi -> t-umi.zeraf -> direct TMDB.
+      // TMDB pages: mapple -> t-umi -> t-umi.zeraf -> serverless proxy.
       function _sidebarChain(section, isAnime, type) {
         const urls = [_sidebarUrl(section, isAnime, type)];
         if (!isAnime) {
           urls.push(_sidebarTumiUrl(section, type, CONFIG.TMDB_TUMI));
           urls.push(_sidebarTumiUrl(section, type, CONFIG.TMDB_TUMI_FB));
-          urls.push(_sidebarTumiUrl(section, type, CONFIG.TMDB_DIRECT));
+          urls.push(_sidebarTumiUrl(section, type, CONFIG.TMDB_SERVERLESS));
         } else {
           urls.push(_sidebarAnilistUrl(section, type));
           urls.push(_sidebarJikanUrl(section, type, true));
@@ -7301,12 +7303,12 @@ img { max-width: 100%; height: auto; display: block; }
         return urls;
       }
 
-      // One sidebar fetch + non-empty validation. Direct-TMDB tier carries the
-      // Bearer read token. Throws when a source returns an empty list so the
+      // One sidebar fetch + non-empty validation (t170: no credential headers
+      // anywhere — the final TMDB tier is the serverless passthrough).
+      // Throws when a source returns an empty list so the
       // caller can move to the next source in the chain.
       async function _sidebarFetchJson(url) {
         const headers = { Accept: 'application/json' };
-        if (url.startsWith(CONFIG.TMDB_DIRECT)) headers.Authorization = `Bearer ${CONFIG.TMDB_TOKEN}`;
         // 108-R: jikan tiers (self-hosted Render may cold-start) get a 25s budget
         const tmo = url.includes('jikan') ? 25000 : 12000;
         const res = await fetchWithRetry(url, 1, 800, headers, tmo);
@@ -7911,18 +7913,17 @@ img { max-width: 100%; height: auto; display: block; }
       // fetches top it up (computers keep the original no-extra-call path).
       const _RFY_CAP = 50;          // painter never needs more than 48
       function _rfyScore(a) { return (a.vote_average || 0) * Math.log10((a.vote_count || 1) + 1); }
-      // Recommendations source chain — mapple -> t-umi -> t-umi.zeraf -> direct
-      // TMDB. Returns the first non-empty results[] (TMDB append shape and
-      // mapple shape both expose .results on list endpoints). Empty array when
-      // every source fails or is exhausted.
+      // Recommendations source chain — mapple -> t-umi -> t-umi.zeraf ->
+      // serverless proxy. Returns the first non-empty results[] (TMDB append
+      // shape and mapple shape both expose .results on list endpoints). Empty
+      // array when every source fails or is exhausted.
       async function _rfyFetchRecs(mediaType, page, timeoutMs = 10000) {
         const q = `language=en-US&page=${page}`;
         const chain = [
           { url: `${CONFIG.MAPPLE_BASE}/tmdb/${mediaType}/${currentState.id}/recommendations?${q}` },
           { url: `${CONFIG.TMDB_TUMI}/${mediaType}/${currentState.id}/recommendations?${q}` },
           { url: `${CONFIG.TMDB_TUMI_FB}/${mediaType}/${currentState.id}/recommendations?${q}` },
-          { url: `${CONFIG.TMDB_DIRECT}/${mediaType}/${currentState.id}/recommendations?${q}`,
-            headers: { Authorization: `Bearer ${CONFIG.TMDB_TOKEN}` } }
+          { url: `${CONFIG.TMDB_SERVERLESS}/${mediaType}/${currentState.id}/recommendations?${q}` }
         ];
         for (const src of chain) {
           try {
@@ -7936,7 +7937,7 @@ img { max-width: 100%; height: auto; display: block; }
       }
 
       // Genre-discovery passthrough for the RFY fallback — SAME source chain
-      // as _rfyFetchRecs (mapple -> t-umi -> t-umi.zeraf -> direct TMDB).
+      // as _rfyFetchRecs (mapple -> t-umi -> t-umi.zeraf -> serverless proxy).
       // Returns raw TMDB /discover results[] ([] when every source fails).
       async function _rfyDiscover(mediaType, params, timeoutMs = 10000) {
         const qs = new URLSearchParams({ language: 'en-US', include_adult: 'false', ...params }).toString();
@@ -7944,8 +7945,7 @@ img { max-width: 100%; height: auto; display: block; }
           { url: `${CONFIG.MAPPLE_BASE}/tmdb/discover/${mediaType}?${qs}` },
           { url: `${CONFIG.TMDB_TUMI}/discover/${mediaType}?${qs}` },
           { url: `${CONFIG.TMDB_TUMI_FB}/discover/${mediaType}?${qs}` },
-          { url: `${CONFIG.TMDB_DIRECT}/discover/${mediaType}?${qs}`,
-            headers: { Authorization: `Bearer ${CONFIG.TMDB_TOKEN}` } }
+          { url: `${CONFIG.TMDB_SERVERLESS}/discover/${mediaType}?${qs}` }
         ];
         for (const src of chain) {
           try {

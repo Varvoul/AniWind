@@ -3058,24 +3058,23 @@
           console.warn(`[TMDB] ⚠️ Legacy failed: ${lastError}`);
         }
         
-        // 3) Direct TMDB API — guaranteed fallback with Bearer token, always fresh
+        // 3) Serverless TMDB passthrough — final authority with the read
+        //    token kept SERVER-SIDE (Vercel env). t170 removed the v4 Bearer
+        //    token that used to be hardcoded here and shipped to browsers.
         try {
-          const res = await fetch(`https://api.themoviedb.org/3${endpoint}${qs}`, {
-            headers: {
-              Authorization: 'Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI0Yjc0YzE4NjlkZGQxMWEzNTM1MDFlNGI0MjY4MzA3YyIsIm5iZiI6MTc2NDM5Mzg3MS4yNTEwMDAyLCJzdWIiOiI2OTJhODM4ZjNkNTVkM2Y1NzJiOGVlYjIiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.qN331VqKQ5rfgvkadaRLYG6fNXp4t_lOee3K15f4gCo',
-              Accept: 'application/json'
-            },
+          const res = await fetch(`/api/tmdb-proxy${endpoint}${qs}`, {
+            headers: { Accept: 'application/json' },
             signal: AbortSignal.timeout(10000)
           });
           if (res.ok) {
             const data = await res.json();
-            console.log(`[TMDB] ✅ Direct API success: ${endpoint} (page: ${data.page || 'N/A'})`);
+            console.log(`[TMDB] ✅ Serverless proxy success: ${endpoint} (page: ${data.page || 'N/A'})`);
             return data;
           }
-          lastError = `direct API returned ${res.status}`;
+          lastError = `serverless proxy returned ${res.status}`;
         } catch(e) {
-          lastError = `direct API: ${e.message}`;
-          console.warn(`[TMDB] ⚠️ Direct API failed: ${lastError}`);
+          lastError = `serverless proxy: ${e.message}`;
+          console.warn(`[TMDB] ⚠️ Serverless proxy failed: ${lastError}`);
         }
         
         // 4) rowana universal proxy (last resort — may not have TMDB_API_KEY set)
