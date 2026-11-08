@@ -2994,34 +2994,48 @@
       async function fetchTMDB(endpoint, params='') {
         const qs = params ? `?${params}` : '';
         let lastError = null;
-        
-        // DETECT if this is a PAGINATED request (has page parameter)
+
+        // Pagination awareness = correctness safety net only (NOT a skip).
+        // The old 2026-10-16 workaround skipped t-umi for page>1 because t-umi's
+        // cache ignored query params. FIXED in t166: t-umi now caches on the
+        // EXACT full URL (path + sorted params) — page=2/3/... gets its own key
+        // and ANY param/pagination/filter change fetches live. So t-umi is the
+        // primary tier for paginated requests again. Safety net: if any proxy
+        // tier ever returns a POPULATED list whose page differs from the
+        // requested one (a caching-regression signature), fall through to the
+        // next tier instead of serving wrong-page data.
         const requestedPage = new URLSearchParams(params).get('page');
         const isPaginated = requestedPage && parseInt(requestedPage) > 1;
-        
-        // 1) t-umi proxy — WORKS for page=1, but BROKEN for pagination (caching bug ignores query params)
-        //    Skip t-umi entirely for paginated requests to avoid stale cached data!
-        if (!isPaginated) {
-          try {
-            const res = await fetch(`${TMDB_PROXY}${endpoint}${qs}`, {
-              headers: { Accept: 'application/json' },
-              signal: AbortSignal.timeout(10000)
-            });
-            if (res.ok) {
-              console.log(`[TMDB] ✅ t-umi proxy success: ${endpoint}`);
-              return await res.json();
+        const wrongPage = (data) => isPaginated && data && data.page != null &&
+          parseInt(data.page) !== parseInt(requestedPage) &&
+          Array.isArray(data.results) && data.results.length > 0;
+
+        // 1) t-umi proxy — PRIMARY for ALL requests, paginated included
+        //    (exact-URL TTL cache since t166: 60m discover/feeds, 15m search)
+        try {
+          const res = await fetch(`${TMDB_PROXY}${endpoint}${qs}`, {
+            headers: { Accept: 'application/json' },
+            signal: AbortSignal.timeout(10000)
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (wrongPage(data)) {
+              lastError = `t-umi page mismatch (got ${data.page}, want ${requestedPage}) — falling through`;
+              console.warn(`[TMDB] ⚠️ ${lastError}`);
+            } else {
+              console.log(`[TMDB] ✅ t-umi proxy success: ${endpoint}${isPaginated ? ` (page ${requestedPage})` : ''}`);
+              return data;
             }
+          } else {
             lastError = `t-umi returned ${res.status}`;
-          } catch(e) {
-            lastError = `t-umi: ${e.message || 'CORS blocked or network error'}`;
-            console.warn(`[TMDB] ⚠️ t-umi failed: ${lastError}`);
           }
-        } else {
-          console.log(`[TMDB] ⏭️ Skipping t-umi for paginated request (page=${requestedPage}) - known caching bug`);
+        } catch(e) {
+          lastError = `t-umi: ${e.message || 'CORS blocked or network error'}`;
+          console.warn(`[TMDB] ⚠️ t-umi failed: ${lastError}`);
         }
-        
-        // 2) t-umi.zeraf — same worker as tier 1 on a second domain (handles
-        //    pagination + TMDB auth server-side). aniocen was deleted (CF 1042).
+
+        // 2) t-umi.zeraf — same worker as tier 1 on a second domain (same
+        //    exact-URL cache). aniocen was deleted (CF 1042).
         try {
           const res = await fetch(`${TMDB_LEGACY}${endpoint}${qs}`, {
             headers: { Accept: 'application/json' },
@@ -3029,14 +3043,16 @@
           });
           if (res.ok) {
             const data = await res.json();
-            // VALIDATION: Ensure returned page matches requested (catches caching bugs)
-            if (isPaginated && data.page && data.page !== parseInt(requestedPage)) {
-              console.warn(`[TMDB] ⚠️ Legacy proxy returned page ${data.page} but requested page ${requestedPage} - might be cached!`);
+            if (wrongPage(data)) {
+              lastError = `legacy page mismatch (got ${data.page}, want ${requestedPage}) — falling through`;
+              console.warn(`[TMDB] ⚠️ ${lastError}`);
+            } else {
+              console.log(`[TMDB] ✅ Legacy proxy success: ${endpoint} (returned page: ${data.page || 'N/A'})`);
+              return data;
             }
-            console.log(`[TMDB] ✅ Legacy proxy success: ${endpoint} (returned page: ${data.page || 'N/A'})`);
-            return data;
+          } else {
+            lastError = `legacy returned ${res.status}`;
           }
-          lastError = `legacy returned ${res.status}`;
         } catch(e) {
           lastError = `legacy: ${e.message || 'CORS blocked'}`;
           console.warn(`[TMDB] ⚠️ Legacy failed: ${lastError}`);
