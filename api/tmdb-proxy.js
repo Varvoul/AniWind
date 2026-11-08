@@ -1,5 +1,10 @@
 // ─────────────────────────────────────────────────────────────────────────
-// /api/tmdb-proxy/[...path] — server-side TMDB passthrough (t170)
+// /api/tmdb-proxy — server-side TMDB passthrough (t170)
+//
+// ROUTING: vercel.json rewrites /api/tmdb-proxy/:path* to
+// /api/tmdb-proxy?path=:path* (catch-all folders proved unreliable for
+// nested serverless functions), so the target arrives as req.query.path
+// — either "trending/tv/week" or ["trending","tv","week"].
 //
 // WHY: the TMDB v4 read token used to be hardcoded in index.html and
 // info.html — shipped to every visitor's browser AND public in the repo.
@@ -38,17 +43,24 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'TMDB_READ_TOKEN env var is not configured' });
   }
 
-  // [...path] arrives as req.query.path (array of segments)
-  const segs = req.query.path || [];
-  const path = '/' + (Array.isArray(segs) ? segs.join('/') : String(segs));
+  // Target arrives via rewrite as req.query.path (string or segment array)
+  const segs = req.query.path || '';
+  const path = '/' + (Array.isArray(segs) ? segs.join('/') : String(segs).replace(/^\/+/, ''));
+  if (path === '/') {
+    return res.status(400).json({
+      error: 'Missing TMDB route after /api/tmdb-proxy',
+      usage: '/api/tmdb-proxy/trending/tv/week?language=en-US'
+    });
+  }
   if (!ALLOWED.some(p => path === p || path.startsWith(p + '/'))) {
     return res.status(403).json({ error: 'Route not allowed', path });
   }
 
-  // Strip client credential params, keep everything else (language, page, ...)
+  // Strip credential params + the internal routing param, keep the rest
   const url = new URL(req.url, 'http://localhost');
   url.searchParams.delete('api_key');
   url.searchParams.delete('session_id');
+  url.searchParams.delete('path');
   const qs = url.searchParams.toString();
 
   try {
