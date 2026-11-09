@@ -878,6 +878,22 @@
     // "Browse All" heading would read "Browse Browse All…" — reword to "All Titles"
     var bh = h.replace(/^Browse All/, 'All Titles');
     document.title = state.q ? (h + ' - RuriStream') : ('Browse ' + bh + ' in HD - RuriStream');
+    // t171b — keep social-share (og) tags in sync with the dynamic tab title
+    // (was: og:title/og:description stayed on the static defaults while the
+    // tab title changed per filter)
+    var setOg = function(prop, val) {
+      if (!val) return;
+      var el = document.head.querySelector('meta[property="' + prop + '"]');
+      if (!el) { el = document.createElement('meta'); el.setAttribute('property', prop); document.head.appendChild(el); }
+      el.setAttribute('content', val);
+    };
+    var ogDesc;
+    if (state.q) ogDesc = 'Search results for "' + state.q + '" on RuriStream — find and watch anime, movies and TV shows in HD.';
+    else if (state.media === 'anime') ogDesc = 'Browse every anime on RuriStream — sub & dub, HD, filter by genre, season, year and studio.';
+    else if (state.media === 'tmdb') ogDesc = 'Browse movies and TV shows on RuriStream in HD — filter by genre, year, studio and rating.';
+    else ogDesc = 'Browse and filter every anime, TV show and movie on RuriStream — watch online in HD.';
+    setOg('og:title', document.title);
+    setOg('og:description', ogDesc);
     var sub = 'Filter the full RuriStream catalog — anime, TV shows and movies.';
     if (state.service) sub = 'Movies & TV shows streaming on ' + serviceLabel(state.service) + ' — refine with the filters above.';
     else if (state.media === 'anime') sub = 'Browse every anime on RuriStream — refine with the filters above.';

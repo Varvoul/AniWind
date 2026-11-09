@@ -3901,13 +3901,21 @@ img { max-width: 100%; height: auto; display: block; }
           let head = `Watch ${t}`;
           if (isMovie) head += year ? ` (${year})` : '';
           else if (seasonN) head += ` Season ${seasonN}`;
-          else if (!animeWord) head += year ? ` (${year})` : '';
+          // t171b — anime TV shows get the year too (was `else if (!animeWord)`,
+          // which silently dropped the extracted year from every anime TV title)
+          else head += year ? ` (${year})` : '';
           head += animeWord ? (isMovie ? ' Anime Movie' : ' Anime') : '';
-          const title = `${head} Online in HD - RuriStream`;
+          // t171b — brand-last clamp: browser tabs / Google show ~60 chars, so
+          // keep the head ≤65 total with " - RuriStream" always visible
+          let title = `${head} Online in HD - RuriStream`;
+          if (title.length > 65) {
+            const cut = head.slice(0, 65 - ' - RuriStream'.length).replace(/\s+\S*$/, '').trim();
+            title = `${cut}\u2026 - RuriStream`;
+          }
 
           // description (≤160, unique per page — real overview first sentence)
           const kindDesc = (isAnime || isAnimationTmdb) ? (isMovie ? 'anime movie' : 'anime') : '';
-          let desc = `Watch ${t}${seasonN ? ` Season ${seasonN}` : ''}${kindDesc ? ` ${kindDesc}` : ''} online in HD on RuriStream.`;
+          let desc = `Watch ${t}${year && !seasonN ? ` (${year})` : ''}${seasonN ? ` Season ${seasonN}` : ''}${kindDesc ? ` ${kindDesc}` : ''} online in HD on RuriStream.`;
           const ov = firstSentence(d.synopsis || d.overview || '');
           if (ov) desc += ` ${ov}`;
           else desc += isMovie ? ' Stream the full movie free with no ads and no signup.' : ' Stream episodes free with no ads and no signup.';
@@ -9126,6 +9134,7 @@ img { max-width: 100%; height: auto; display: block; }
       }
       
       function showError(message) { 
+        document.title = 'Content Not Found - RuriStream';   // t171b — error pages must not keep the interim slug title
         const main = document.querySelector('.main-content'); 
         main.innerHTML = `<div style="text-align: center; padding: 60px 20px; color: var(--text-muted);"><i class="fa-solid fa-triangle-exclamation" style="font-size: 3rem; margin-bottom: 16px; color: var(--accent-red);"></i><p style="font-size: 1.1rem;">${message}</p><a href="/" class="btn btn-primary" style="margin-top: 20px;">Return Home</a></div>`; 
       }
