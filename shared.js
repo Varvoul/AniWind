@@ -4405,15 +4405,18 @@
       // INFO PAGE (info.html) - INTERIM metadata from the URL slug while the
       // show payload loads; applyInfoMeta() in info.html writes the final
       // metadata (real title, year, season, Anime/TV/Movie wording, real
-      // overview sentence, real art) once data is in. t171
+      // overview sentence, real art) once data is in. t171.
+      // t172 — info pages must NOT say "Watch": a watch page does not exist
+      // yet and users/search engines must not be told this is one
+      // (tsukuyomi/mkissa reference pattern: "<title> - Anime Details").
       info: {
-        titleTemplate: 'Watch {title} Online in HD - RuriStream',
-        descriptionTemplate: 'Watch {title} online in HD on RuriStream. Stream free with no ads and no signup required.',
-        keywordsTemplate: 'watch {title}, {title} online, watch {title} online free, {title} streaming, {title} HD, watch {type} online, free {type} streaming, RuriStream',
-        ogTitleTemplate: 'Watch {title} Online in HD - RuriStream',
-        ogDescriptionTemplate: 'Watch {title} online in HD on RuriStream — free, no ads, no signup.',
-        twitterTitleTemplate: 'Watch {title} Online in HD - RuriStream',
-        twitterDescriptionTemplate: 'Watch {title} online in HD on RuriStream. Free, no ads, no signup.',
+        titleTemplate: '{title} - {type} Details & Cast - RuriStream',
+        descriptionTemplate: '{title} — {type} details, cast and characters on RuriStream.',
+        keywordsTemplate: '{title}, {title} details, {title} cast, {title} characters, {title} episodes, {type} details, RuriStream',
+        ogTitleTemplate: '{title} - {type} Details & Cast - RuriStream',
+        ogDescriptionTemplate: '{title} — {type} details, cast and characters on RuriStream.',
+        twitterTitleTemplate: '{title} - {type} Details & Cast - RuriStream',
+        twitterDescriptionTemplate: '{title} — {type} details, cast and characters on RuriStream.',
         type: 'video.other' // interim; applyInfoMeta refines to video.movie / video.tv_show
       },
       
@@ -4516,10 +4519,12 @@
       }
       
       // From URL slug (e.g., /info/anime/jikan-12345/my-hero-academia)
+      // t172 — capitalize at word starts only, so slug words like
+      // "journey-s-end" never render as "Journey'S End"
       if (pathParts.length > 0) {
         const lastPart = pathParts[pathParts.length - 1];
         if (lastPart && !lastPart.match(/^[0-9]+$/) && !lastPart.endsWith('.html')) {
-          title = lastPart.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+          title = lastPart.replace(/-/g, ' ').replace(/(^|[\s])(\S)/g, (m, p, c) => p + c.toUpperCase());
         }
       }
       
@@ -4548,16 +4553,16 @@
       if (title) {
         switch(type) {
           case 'Movie':
-            meta = `A must-watch ${title} available in HD. Stream it now with no interruptions.`;
+            meta = `${title} movie details, cast and synopsis on RuriStream.`;
             break;
           case 'TV Series':
-            meta = `One of the most popular TV series. Watch full episodes of ${title} in HD.`;
+            meta = `${title} TV series details, cast and episode guide on RuriStream.`;
             break;
           case 'Anime':
-            meta = `Highly-rated anime series. Stream ${title} in subbed or dubbed format.`;
+            meta = `${title} anime details, cast and characters on RuriStream.`;
             break;
           default:
-            meta = `Popular title available for streaming in HD quality.`;
+            meta = `Title details, cast and characters on RuriStream.`;
         }
       }
       

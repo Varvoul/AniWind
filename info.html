@@ -19,18 +19,20 @@
   <!-- Minimal fallback title — t171: full static metadata for non-JS crawlers
        (Google renders JS, social scrapers do not). shared.js MetadataManager
        refines these for JS browsers from the URL slug; applyInfoMeta() writes
-       the final per-show metadata once the show payload is in. -->
-  <title>Watch Anime, Movies & TV Shows Online in HD - RuriStream</title>
-  <meta name="description" content="Watch anime, movies and TV shows online in HD on RuriStream. Stream subbed & dubbed anime episodes, hit series and new movies free with no ads and no signup.">
+       the final per-show metadata once the show payload is in.
+       t172 — no "Watch" wording: this is an info/details page and a watch
+       page does not exist yet; users/search engines must not be told otherwise. -->
+  <title>Anime, Movies & TV Shows - Details & Cast - RuriStream</title>
+  <meta name="description" content="Details, cast, characters and ratings for anime, movies and TV shows on RuriStream — synopsis, trailer, score and season info.">
   <meta property="og:site_name" content="RuriStream">
   <meta property="og:type" content="video.tv_show">
-  <meta property="og:title" content="Watch Anime, Movies & TV Shows Online in HD - RuriStream">
-  <meta property="og:description" content="Watch anime, movies and TV shows online in HD on RuriStream — free, no ads, no signup.">
+  <meta property="og:title" content="Anime, Movies & TV Shows - Details & Cast - RuriStream">
+  <meta property="og:description" content="Details, cast, characters and ratings for anime, movies and TV shows on RuriStream.">
   <meta property="og:image" content="https://i.postimg.cc/Fs8y8Wqh/Follow-Ani-Wind-Zone-x-profile-banner.jpg">
   <meta property="og:url" content="https://ruristream.vercel.app/">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Watch Anime, Movies & TV Shows Online in HD - RuriStream">
-  <meta name="twitter:description" content="Watch anime, movies and TV shows online in HD on RuriStream. Free, no ads, no signup.">
+  <meta name="twitter:title" content="Anime, Movies & TV Shows - Details & Cast - RuriStream">
+  <meta name="twitter:description" content="Details, cast, characters and ratings for anime, movies and TV shows on RuriStream.">
   <meta name="twitter:image" content="https://i.postimg.cc/Fs8y8Wqh/Follow-Ani-Wind-Zone-x-profile-banner.jpg">
   
   <!-- Fonts -->
@@ -3853,15 +3855,17 @@ img { max-width: 100%; height: auto; display: block; }
         }
       }
 
-      /* ── t171 — final info-page metadata (tab title + meta description + OG) ──
+      /* ── t171/t172 — final info-page metadata (tab title + meta description + OG) ──
          Single owner for this page's browser-tab / SEO / social metadata.
-         Patterns follow the competitor set the owner picked (Netnaija/
-         AnimeSuge/Anikoto keyword-first style, Miruro/MKissa minimal style):
-           anime series : Watch {title} [Season N] Anime Online in HD - RuriStream
-           anime movie  : Watch {title} ({year}) Anime Movie Online in HD - RuriStream
-           TMDB movie   : Watch {title} ({year}) Online in HD - RuriStream
-           TMDB tv      : Watch {title} ({year}) Online in HD - RuriStream
-                          Watch {title} Season N Online in HD - RuriStream
+         t172 — info pages must NOT say "Watch": a watch page does not exist
+         yet and users/search engines must not be told this is one (the owner
+         flagged it after seeing the t171 wording; tsukuyomi/mkissa reference
+         pattern is "<title> · Anime details" / discover-style). Patterns:
+           anime series : {title} [{Season N}] ({year}) Anime - Details & Cast - RuriStream
+           anime movie  : {title} ({year}) Anime Movie - Details & Cast - RuriStream
+           TMDB movie   : {title} ({year}) Movie - Details & Cast - RuriStream
+           TMDB tv      : {title} ({year}) TV Series - Details & Cast - RuriStream
+           TMDB tv+season : {title} Season N TV Series - Details & Cast - RuriStream
            TMDB Animation genre (id 16) → worded as Anime (distinguishable)
          Description ≤160 chars, first sentence of the real overview. */
       function firstSentence(text) {
@@ -3898,28 +3902,38 @@ img { max-width: 100%; height: auto; display: block; }
 
           // title
           const animeWord = isAnime || isAnimationTmdb;
-          let head = `Watch ${t}`;
+          const typeWord = animeWord ? (isMovie ? 'Anime Movie' : 'Anime')
+                        : (isMovie ? 'Movie' : 'TV Series');
+          // t172 — no "Watch"; keyword-first, type word, details tail
+          let head = t;
           if (isMovie) head += year ? ` (${year})` : '';
+          // season info pages omit the year: the extracted year is the show's
+          // first-air year, which would mislabel the specific season
           else if (seasonN) head += ` Season ${seasonN}`;
           // t171b — anime TV shows get the year too (was `else if (!animeWord)`,
           // which silently dropped the extracted year from every anime TV title)
           else head += year ? ` (${year})` : '';
-          head += animeWord ? (isMovie ? ' Anime Movie' : ' Anime') : '';
-          // t171b — brand-last clamp: browser tabs / Google show ~60 chars, so
-          // keep the head ≤65 total with " - RuriStream" always visible
-          let title = `${head} Online in HD - RuriStream`;
+          head += ` ${typeWord} - Details & Cast`;
+          // t171b/t172 — brand-last clamp: browser tabs / Google show ~60 chars,
+          // so keep the title ≤65 total with " - RuriStream" always visible
+          const BRAND = ' - RuriStream';
+          let title = head + BRAND;
           if (title.length > 65) {
-            const cut = head.slice(0, 65 - ' - RuriStream'.length).replace(/\s+\S*$/, '').trim();
-            title = `${cut}\u2026 - RuriStream`;
+            const cut = head.slice(0, 65 - BRAND.length).replace(/\s+\S*$/, '').trim()
+                          .replace(/[\s\-–—|·,]+$/, '');   // no dangling separators before the ellipsis
+            title = `${cut}\u2026${BRAND}`;
           }
 
           // description (≤160, unique per page — real overview first sentence)
-          const kindDesc = (isAnime || isAnimationTmdb) ? (isMovie ? 'anime movie' : 'anime') : '';
-          let desc = `Watch ${t}${year && !seasonN ? ` (${year})` : ''}${seasonN ? ` Season ${seasonN}` : ''}${kindDesc ? ` ${kindDesc}` : ''} online in HD on RuriStream.`;
+          const kindLabel = animeWord ? (isMovie ? 'anime movie' : 'anime')
+                          : (isMovie ? 'movie' : 'TV series');
+          const detailWord = (kindLabel === 'movie' || kindLabel === 'anime movie') ? 'synopsis'
+                           : (kindLabel === 'TV series' ? 'episode guide' : 'characters');
+          let desc = `${t}${seasonN ? ` Season ${seasonN}` : ''}${year && !seasonN ? ` (${year})` : ''} ${kindLabel} details, cast and ${detailWord} on RuriStream.`;
           const ov = firstSentence(d.synopsis || d.overview || '');
           if (ov) desc += ` ${ov}`;
-          else desc += isMovie ? ' Stream the full movie free with no ads and no signup.' : ' Stream episodes free with no ads and no signup.';
-          if (kindDesc === 'anime' && ov && desc.length <= 150) desc += ' Sub & dub.';
+          else desc += ' See the full synopsis, score and more on RuriStream.';
+          if (kindLabel === 'anime' && ov && desc.length <= 150) desc += ' Sub & dub.';
           desc = desc.replace(/\s+/g, ' ').trim();
           if (desc.length > 160) desc = desc.slice(0, 157).replace(/[^ ]*$/, '').trim() + '...';
 
@@ -3959,9 +3973,9 @@ img { max-width: 100%; height: auto; display: block; }
           if (!c) { c = document.createElement('link'); c.rel = 'canonical'; document.head.appendChild(c); }
           c.href = canonical;
           document.documentElement.dataset.infoMeta = '1'; // t171 — final; shared.js re-injects must not clobber
-          console.log('[t171] info meta applied:', title);
+          console.log('[t172] info meta applied:', title);
         } catch (e) {
-          console.warn('[t171] info meta failed:', e && e.message);
+          console.warn('[t172] info meta failed:', e && e.message);
         }
       }
 
