@@ -3888,6 +3888,16 @@ img { max-width: 100%; height: auto; display: block; }
           const animeMovie = (isAnime || isAnimationTmdb) && String(d.type || '').toLowerCase() === 'movie';
           const isMovie = currentState.type === 'movie' || animeMovie;
           const seasonN = (!isMovie && currentState.urlSeason) ? currentState.urlSeason : null;
+          /* t173 — the display title itself often carries the season ("Black
+             Clover Season 2", "Attack on Titan Season 2", "Sousou no Frieren
+             3rd Season"); card URLs are slugify(title) so they end "-season-N"
+             and urlSeason = N — the old code appended "Season N" a SECOND time
+             → tab showed "Black Clover Season 2 Season 2 Anime …" (25+ catalog
+             rows affected). Same class: titles containing the word "Movie"
+             (15 rows) rendered "… The Movie … Anime Movie …". */
+          const seasonInTitle = (n) => !n ? false :
+            new RegExp(`(?:\\bseason\\s*${n}\\b|\\b${n}(?:st|nd|rd|th)\\s+season\\b|\\bs\\s*${n}\\b|\\bpart\\s*${n}\\b)`, 'i').test(t);
+          const titleHasMovieWord = /\bmovie\b/i.test(t);
 
           // year
           let year = null;
@@ -3902,14 +3912,19 @@ img { max-width: 100%; height: auto; display: block; }
 
           // title
           const animeWord = isAnime || isAnimationTmdb;
-          const typeWord = animeWord ? (isMovie ? 'Anime Movie' : 'Anime')
+          const typeWord = animeWord ? (isMovie && !titleHasMovieWord ? 'Anime Movie' : 'Anime')
                         : (isMovie ? 'Movie' : 'TV Series');
           // t172 — no "Watch"; keyword-first, type word, details tail
           let head = t;
           if (isMovie) head += year ? ` (${year})` : '';
-          // season info pages omit the year: the extracted year is the show's
-          // first-air year, which would mislabel the specific season
-          else if (seasonN) head += ` Season ${seasonN}`;
+          // t173 — append "Season N" only when the title doesn't already carry it
+          else if (seasonN) {
+            if (!seasonInTitle(seasonN)) head += ` Season ${seasonN}`;
+            // anime rows are per-season entries (the row year IS that season's
+            // year); TMDB rows are whole shows (first-air year would mislabel
+            // the season), so only anime seasons take the year here
+            if (year && (isAnime || seasonInTitle(seasonN))) head += ` (${year})`;
+          }
           // t171b — anime TV shows get the year too (was `else if (!animeWord)`,
           // which silently dropped the extracted year from every anime TV title)
           else head += year ? ` (${year})` : '';
@@ -3920,16 +3935,16 @@ img { max-width: 100%; height: auto; display: block; }
           let title = head + BRAND;
           if (title.length > 65) {
             const cut = head.slice(0, 65 - BRAND.length).replace(/\s+\S*$/, '').trim()
-                          .replace(/[\s\-–—|·,]+$/, '');   // no dangling separators before the ellipsis
+                          .replace(/[\s\-–—|·,&]+$/, '');   // no dangling separators before the ellipsis
             title = `${cut}\u2026${BRAND}`;
           }
 
           // description (≤160, unique per page — real overview first sentence)
-          const kindLabel = animeWord ? (isMovie ? 'anime movie' : 'anime')
+          const kindLabel = animeWord ? (isMovie && !titleHasMovieWord ? 'anime movie' : 'anime')
                           : (isMovie ? 'movie' : 'TV series');
           const detailWord = (kindLabel === 'movie' || kindLabel === 'anime movie') ? 'synopsis'
                            : (kindLabel === 'TV series' ? 'episode guide' : 'characters');
-          let desc = `${t}${seasonN ? ` Season ${seasonN}` : ''}${year && !seasonN ? ` (${year})` : ''} ${kindLabel} details, cast and ${detailWord} on RuriStream.`;
+          let desc = `${t}${seasonN && !seasonInTitle(seasonN) ? ` Season ${seasonN}` : ''}${year && (!seasonN || isAnime) ? ` (${year})` : ''} ${kindLabel} details, cast and ${detailWord} on RuriStream.`;
           const ov = firstSentence(d.synopsis || d.overview || '');
           if (ov) desc += ` ${ov}`;
           else desc += ' See the full synopsis, score and more on RuriStream.';
