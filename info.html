@@ -681,6 +681,31 @@ img { max-width: 100%; height: auto; display: block; }
   background: rgba(255,255,255,0.1);
   color: var(--text-primary);
 }
+/* t174 — smooth lift movement on the info action buttons (Watch Now + Add to
+   List; same template serves anime and TMDB info pages). Owner reference
+   (Filmyfo): button moves up on hover. Existing hover colors above are kept;
+   this adds the motion: smooth transition + translateY(-2px) + soft shadow
+   tinted per button (site palette #2b6cb0 for primary, dark depth for
+   secondary). Scoped to .action-buttons so other .btn uses are untouched. */
+.action-buttons .btn-primary,
+.action-buttons .btn-secondary {
+  transition: transform 0.25s ease, box-shadow 0.25s ease,
+              background 0.18s ease, color 0.18s ease;
+}
+.action-buttons .btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(43, 108, 176, 0.45);
+}
+.action-buttons .btn-secondary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.45);
+}
+@media (prefers-reduced-motion: reduce) {
+  .action-buttons .btn-primary,
+  .action-buttons .btn-secondary { transition: none; }
+  .action-buttons .btn-primary:hover,
+  .action-buttons .btn-secondary:hover { transform: none; }
+}
 .btn-icon-only {
   width: 40px;
   height: 40px;
