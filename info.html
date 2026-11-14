@@ -64,11 +64,14 @@
   --gutter: 16px;
   --content-padding: 16px;
   
-  --bg-body: #0a1929;
-  --bg-header: #0f2440;
-  --bg-card: #132f4c;
-  --bg-surface: #1a3a5c;
-  --bg-popup: #102a44;
+  --bg-body: #0B0E19;
+  --bg-header: #0B0E19;
+  --bg-card: #151926;
+  --bg-surface: #1A1D29;
+  --bg-popup: #151926;
+  --bg-input: #1F2937;
+  --bg-footer: #0C0E14;
+  --pill-primary: #498BBB;
   --text-primary: #ffffff;
   --text-secondary: #b0c7e3;
   --text-muted: #94a3b8;
@@ -86,8 +89,8 @@
   --accent-gold: #ecc94b;
   --star-icon-color: #f5b942;
   --accent-blue: #4299e1;
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-medium: rgba(255, 255, 255, 0.16);
+  --border-subtle: #1F2937;
+  --border-medium: #374151;
   --font-title: 'Archivo Black', sans-serif;
   --font-body: 'Inter', sans-serif;
   --font-meta: 'Poppins', sans-serif;
@@ -194,7 +197,7 @@ img { max-width: 100%; height: auto; display: block; }
   background: linear-gradient(
     180deg,
     transparent 0%,
-    rgba(10, 25, 41, 0.4) 40%,
+    rgba(11, 14, 25, 0.4) 40%,
     var(--bg-body) 100%
   );
   pointer-events: none;
@@ -261,13 +264,13 @@ img { max-width: 100%; height: auto; display: block; }
 .sidebar-combined {
   /* t140 (owner ask): the sidebar card no longer ends on a hard edge —
      its card-blue background fades smoothly into the page background
-     (--bg-body #0a1929) toward the bottom, so the box "blends" into the
+     (--bg-body #0B0E19) toward the bottom, so the box "blends" into the
      info page instead of sitting on it as a solid block. */
   background: linear-gradient(180deg,
     var(--bg-card) 0%,
-    rgba(19, 47, 76, 0.82) 38%,
-    rgba(19, 47, 76, 0.40) 70%,
-    rgba(19, 47, 76, 0.08) 100%);
+    rgba(21, 25, 38, 0.82) 38%,
+    rgba(21, 25, 38, 0.40) 70%,
+    rgba(21, 25, 38, 0.08) 100%);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   /* t113: clip instead of hidden — overflow:hidden would trap position:sticky
@@ -1650,7 +1653,7 @@ img { max-width: 100%; height: auto; display: block; }
   height: 38px;
   border-radius: 50%;
   border: 1px solid var(--border-medium);
-  background: rgba(10, 25, 41, 0.72);
+  background: rgba(11, 14, 25, 0.72);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   display: flex;
@@ -2440,9 +2443,9 @@ img { max-width: 100%; height: auto; display: block; }
        each stacked section fades from card blue into the page bg */
     background: linear-gradient(180deg,
       var(--bg-card) 0%,
-      rgba(19, 47, 76, 0.82) 38%,
-      rgba(19, 47, 76, 0.40) 70%,
-      rgba(19, 47, 76, 0.08) 100%);
+      rgba(21, 25, 38, 0.82) 38%,
+      rgba(21, 25, 38, 0.40) 70%,
+      rgba(21, 25, 38, 0.08) 100%);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-md);
     margin: 0;
@@ -2866,7 +2869,7 @@ img { max-width: 100%; height: auto; display: block; }
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--bg-surface, #1a3a5c);
+  background: var(--bg-surface, #1A1D29);
   z-index: 0;
 }
 
@@ -2917,7 +2920,7 @@ img { max-width: 100%; height: auto; display: block; }
 }
 
     /* ═══════════════════════════════════════════════════════
-       SKELETON SCREENS — site color schema (#0a1929 body, #132f4c card)
+       SKELETON SCREENS — site color schema (#0B0E19 body, #151926 card)
        Wave sweeps left→right using --bg-surface highlights
     ═══════════════════════════════════════════════════════ */
     @keyframes sk-wave {
@@ -2929,10 +2932,10 @@ img { max-width: 100%; height: auto; display: block; }
       border-radius: 6px;
       background: linear-gradient(
         90deg,
-        #132f4c 25%,
-        #1a3a5c 45%,
-        #1f4468 55%,
-        #132f4c 75%
+        #151926 25%,
+        #1A1D29 45%,
+        #212636 55%,
+        #151926 75%
       );
       background-size: 1200px 100%;
       animation: sk-wave 1.6s ease-in-out infinite;
@@ -2987,7 +2990,7 @@ img { max-width: 100%; height: auto; display: block; }
       display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
     }
     @media(min-width:600px) { .sk-recs-grid { grid-template-columns: repeat(4,1fr); } }
-    .sk-rec-card   { border-radius: 8px; overflow: hidden; background: #132f4c; }
+    .sk-rec-card   { border-radius: 8px; overflow: hidden; background: #151926; }
     .sk-rec-poster { width: 100%; aspect-ratio: 2/3; }
     .sk-rec-title  { height: 10px; margin: 7px 8px 4px; width: 80%; border-radius: 3px; }
     .sk-rec-meta   { height: 9px; margin: 0 8px 8px; width: 55%; border-radius: 3px; opacity:.6; }
@@ -3435,7 +3438,7 @@ img { max-width: 100%; height: auto; display: block; }
         const ov = document.createElement('div');
         ov.className = SK_CLASS;
         ov.style.cssText = `position:absolute;inset:0;z-index:10;border-radius:inherit;
-          background:linear-gradient(90deg,#132f4c 25%,#1a3a5c 45%,#1f4468 55%,#132f4c 75%);
+          background:linear-gradient(90deg,#151926 25%,#1A1D29 45%,#212636 55%,#151926 75%);
           background-size:1200px 100%;animation:sk-wave 1.6s ease-in-out infinite;
           pointer-events:none;${extraCss}`;
         target.appendChild(ov);
@@ -3447,7 +3450,7 @@ img { max-width: 100%; height: auto; display: block; }
         const b = document.createElement('div');
         b.className = SK_CLASS + ' sk-block';
         b.style.cssText = `height:${h};width:${w};margin-top:${mt};border-radius:5px;
-          background:linear-gradient(90deg,#132f4c 25%,#1a3a5c 45%,#1f4468 55%,#132f4c 75%);
+          background:linear-gradient(90deg,#151926 25%,#1A1D29 45%,#212636 55%,#151926 75%);
           background-size:1200px 100%;animation:sk-wave 1.6s ease-in-out infinite;`;
         parent.appendChild(b);
         return b;
@@ -3502,7 +3505,7 @@ img { max-width: 100%; height: auto; display: block; }
             wrap.style.cssText = 'display:flex;gap:12px;overflow:hidden;padding:6px 2px;';
             for (let i=0;i<9;i++) {
               const card = document.createElement('div');
-              card.style.cssText = 'flex-shrink:0;width:152px;aspect-ratio:2/3;border-radius:14px;background:linear-gradient(90deg,#132f4c 25%,#1a3a5c 45%,#1f4468 55%,#132f4c 75%);background-size:1200px 100%;animation:sk-wave 1.6s ease-in-out infinite;';
+              card.style.cssText = 'flex-shrink:0;width:152px;aspect-ratio:2/3;border-radius:14px;background:linear-gradient(90deg,#151926 25%,#1A1D29 45%,#212636 55%,#151926 75%);background-size:1200px 100%;animation:sk-wave 1.6s ease-in-out infinite;';
               wrap.appendChild(card);
             }
           } else {
@@ -3512,7 +3515,7 @@ img { max-width: 100%; height: auto; display: block; }
               card.style.cssText = 'flex-shrink:0;width:80px;display:flex;flex-direction:column;align-items:center;gap:7px;';
               const circ = document.createElement('div');
               circ.className = SK_CLASS;
-              circ.style.cssText = 'width:72px;height:72px;border-radius:50%;background:linear-gradient(90deg,#132f4c 25%,#1a3a5c 45%,#1f4468 55%,#132f4c 75%);background-size:1200px 100%;animation:sk-wave 1.6s ease-in-out infinite;';
+              circ.style.cssText = 'width:72px;height:72px;border-radius:50%;background:linear-gradient(90deg,#151926 25%,#1A1D29 45%,#212636 55%,#151926 75%);background-size:1200px 100%;animation:sk-wave 1.6s ease-in-out infinite;';
               addSkBlock(card, '10px', '80%');
               addSkBlock(card, '9px', '60%', '2px');
               card.insertBefore(circ, card.firstChild);
@@ -3532,10 +3535,10 @@ img { max-width: 100%; height: auto; display: block; }
           wrap.style.cssText = 'display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:100%;';
           for (let i=0;i<8;i++) {
             const card = document.createElement('div');
-            card.style.cssText = 'border-radius:8px;overflow:hidden;background:#132f4c;';
+            card.style.cssText = 'border-radius:8px;overflow:hidden;background:#151926;';
             const poster = document.createElement('div');
             poster.className = SK_CLASS;
-            poster.style.cssText = 'width:100%;aspect-ratio:2/3;background:linear-gradient(90deg,#132f4c 25%,#1a3a5c 45%,#1f4468 55%,#132f4c 75%);background-size:1200px 100%;animation:sk-wave 1.6s ease-in-out infinite;';
+            poster.style.cssText = 'width:100%;aspect-ratio:2/3;background:linear-gradient(90deg,#151926 25%,#1A1D29 45%,#212636 55%,#151926 75%);background-size:1200px 100%;animation:sk-wave 1.6s ease-in-out infinite;';
             card.appendChild(poster);
             addSkBlock(card, '10px', '80%', '7px');
             addSkBlock(card, '9px', '55%', '4px');
@@ -3554,7 +3557,7 @@ img { max-width: 100%; height: auto; display: block; }
             row.style.cssText = 'display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.06);';
             const img = document.createElement('div');
             img.className = SK_CLASS;
-            img.style.cssText = 'width:44px;height:62px;flex-shrink:0;border-radius:6px;background:linear-gradient(90deg,#132f4c 25%,#1a3a5c 45%,#1f4468 55%,#132f4c 75%);background-size:1200px 100%;animation:sk-wave 1.6s ease-in-out infinite;';
+            img.style.cssText = 'width:44px;height:62px;flex-shrink:0;border-radius:6px;background:linear-gradient(90deg,#151926 25%,#1A1D29 45%,#212636 55%,#151926 75%);background-size:1200px 100%;animation:sk-wave 1.6s ease-in-out infinite;';
             const body = document.createElement('div');
             body.style.cssText = 'flex:1;display:flex;flex-direction:column;gap:6px;';
             addSkBlock(body, '11px', '80%');

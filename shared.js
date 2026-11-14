@@ -298,7 +298,10 @@
 
     /* ── HEADER ── */
     .site-header{
-      background:var(--bg-header,#0d1117);
+      /* t192 owner palette: fixed header = page background #0B0E19 at 95% + blur */
+      background:rgba(11,14,25,0.95);
+      backdrop-filter:blur(12px);
+      -webkit-backdrop-filter:blur(12px);
       padding:0 20px;display:flex;align-items:center;gap:10px;
       border-bottom:1px solid var(--border-subtle,rgba(255,255,255,0.08));
       position:sticky;top:0;z-index:200;height:64px;flex-wrap:nowrap;
@@ -365,7 +368,7 @@
     /* Desktop dropdown: ONLY shown on hover of parent wrapper */
     .nav-dropdown{
       display:none;position:absolute;top:calc(100% + 4px);left:0;
-      background:var(--bg-body,#13191f);
+      background:var(--bg-surface,#1A1D29);
       border:1px solid var(--border-medium,rgba(255,255,255,0.12));
       border-radius:14px;padding:14px;z-index:300;
       box-shadow:0 16px 48px rgba(0,0,0,.6);
@@ -380,6 +383,23 @@
       transition:background .15s,color .15s;
     }
     .nav-dropdown a:hover{background:rgba(255,255,255,0.08);color:#fff;}
+
+    /* t192 owner request: horizontal pill line inside each DESKTOP dropdown
+       item card (Genre / Country / Top IMDB nav dropdowns). PC-only by design:
+       .nav-dropdown exists solely in the desktop nav - the mobile menu uses
+       .mobile-nav-panel / .mob-sub-menu, which stay untouched. Pill uses the
+       owner's primary fill #498BBB; on hover it brightens and grows to the
+       same 58%-of-text endpoint as the t138 nav pill underline. */
+    .nav-dropdown a{position:relative;}
+    .nav-dropdown a::after{
+      content:'';position:absolute;left:10px;bottom:2px;height:2px;width:26px;
+      border-radius:999px;background:var(--pill-primary,#498BBB);opacity:.55;
+      transform-origin:left center;pointer-events:none;
+      transition:opacity .18s,width .28s cubic-bezier(.33,0,.2,1);
+    }
+    .nav-dropdown a:hover::after,.nav-dropdown a:focus::after{
+      opacity:1;width:calc((100% - 20px) * .58);
+    }
 
     /* ── SEARCH (Optimized Responsive) ── */
     .header-search-wrap{
@@ -404,7 +424,7 @@
     }
     .header-search-bar{
       display:flex;align-items:center;
-      background:var(--bg-surface,rgba(255,255,255,0.05));
+      background:var(--bg-input,#1F2937);
       border-radius:50px;overflow:hidden;
       transition:box-shadow .2s;
     }
@@ -429,7 +449,7 @@
       top:calc(100% + 6px);
       left:0;
       right:0;
-      background:var(--bg-body,#13191f);
+      background:var(--bg-surface,#1A1D29);
       border:1px solid var(--border-medium,rgba(255,255,255,0.1));
       border-radius:12px;
       max-height:380px;
@@ -572,7 +592,7 @@
     }
     .profile-dropdown{
       display:none;position:absolute;top:calc(100% + 10px);right:0;
-      background:var(--bg-body,#13191f);
+      background:var(--bg-surface,#1A1D29);
       border:1px solid var(--border-medium,rgba(255,255,255,0.1));
       border-radius:14px;min-width:210px;padding:8px;
       z-index:350;box-shadow:0 16px 40px rgba(0,0,0,.6);
@@ -629,7 +649,7 @@
     .mobile-nav-panel{
       position:fixed;top:0;left:0;bottom:0;
       width:min(300px,80vw);
-      background:var(--bg-header,#0d1117);
+      background:var(--bg-card,#151926);
       border-right:1px solid var(--border-subtle,rgba(255,255,255,0.08));
       z-index:401;padding:16px;overflow-y:auto;
       transform:translateX(-100%);transition:transform .3s cubic-bezier(.4,0,.2,1);
@@ -711,7 +731,7 @@
     .mob-search-panel{
       display:none;position:fixed;
       top:64px;left:0;right:0;
-      background:var(--bg-body,#13191f);
+      background:var(--bg-body,#13191f); /* t192: mobile search stays page background #0B0E19 */
       border-bottom:1px solid var(--border-medium,rgba(255,255,255,0.1));
       padding:14px 5%;z-index:300;
       box-shadow:0 10px 30px rgba(0,0,0,.5);
@@ -719,7 +739,7 @@
     .mob-search-panel.open{display:block;}
     .mob-search-bar{
       display:flex;align-items:center;
-      background:var(--bg-surface,rgba(255,255,255,0.06));
+      background:var(--bg-input,#1F2937);
       border-radius:50px;overflow:hidden;margin-bottom:10px;
     }
     .mob-search-bar .search-toggle-tabs{padding:3px;}
@@ -759,7 +779,7 @@
       left:0;right:0;top:0;bottom:0;
     }
     .auth-modal{
-      background:var(--bg-body,#13191f);
+      background:var(--bg-surface,#1A1D29);
       border:1px solid var(--border-medium,rgba(255,255,255,0.1));
       border-radius:18px;
       width:100%;max-width:840px;
@@ -1092,7 +1112,7 @@
     }
     .avatar-popup-overlay.open{display:flex;}
     .avatar-popup{
-      background:var(--bg-body,#13191f);
+      background:var(--bg-surface,#1A1D29);
       border:1px solid var(--border-medium,rgba(255,255,255,0.12));
       border-radius:16px;padding:16px;
       width:min(320px,90vw);max-height:400px;
@@ -1457,7 +1477,7 @@
      FOOTER HTML
   ═══════════════════════════════════════════════════════════ */
   const FOOTER = `
-<footer style="background:var(--bg-header,#0d1117);padding:28px 20px;margin-top:50px;border-top:1px solid var(--border-subtle,rgba(255,255,255,0.07));display:flex;flex-wrap:wrap;gap:24px;justify-content:space-between;align-items:flex-start;">
+<footer style="background:var(--bg-footer,#0C0E14);padding:28px 20px;margin-top:50px;border-top:1px solid var(--border-subtle,rgba(255,255,255,0.07));display:flex;flex-wrap:wrap;gap:24px;justify-content:space-between;align-items:flex-start;">
   <div style="flex:1;min-width:260px;">
         <img src="https://i.postimg.cc/X7d0fPtJ/1778142012237-removebg-preview.png" alt="Rowana" style="max-width:190px; height:auto; margin-bottom:8px;">
     <p style="font-size:0.82rem;color:var(--text-muted,#888);margin-bottom:12px;line-height:1.6;">Stream free anime, movies, and TV shows on AniOcean. Enjoy fast, high-quality streaming with multi-language subtitles and real-time updates.</p>
@@ -4882,8 +4902,8 @@
       this.setMetaTag('robots', 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1');
       
       // Theme colors
-      this.setMetaTag('theme-color', '#0a1929');
-      this.setMetaTag('msapplication-TileColor', '#0a1929');
+      this.setMetaTag('theme-color', '#0B0E19');
+      this.setMetaTag('msapplication-TileColor', '#0B0E19');
       this.setMetaTag('color-scheme', 'dark light');
       
       // Mobile web app

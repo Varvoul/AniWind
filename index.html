@@ -34,11 +34,14 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <style>
     :root {
-      --bg-body: #0a1929;
-      --bg-header: #0f2440;
-      --bg-card: #132f4c;
-      --bg-surface: #1a3a5c;
-      --bg-popup: #102a44;
+      --bg-body: #0B0E19;
+      --bg-header: #0B0E19;
+      --bg-card: #151926;
+      --bg-surface: #1A1D29;
+      --bg-popup: #151926;
+      --bg-input: #1F2937;
+      --bg-footer: #0C0E14;
+      --pill-primary: #498BBB;
       --text-primary: #ffffff;
       --text-secondary: #b0c7e3;
       --text-muted: #94a3b8;
@@ -57,8 +60,8 @@
       --star-icon-color: #f5b942;
       --fire-icon-color: #e0622e;
       --accent-blue: #4299e1;
-      --border-subtle: rgba(255, 255, 255, 0.08);
-      --border-medium: rgba(255, 255, 255, 0.16);
+      --border-subtle: #1F2937;
+      --border-medium: #374151;
       --font-title: 'Archivo Black', sans-serif;
       --font-body: 'Inter', sans-serif;
       --font-meta: 'Poppins', sans-serif;
@@ -168,8 +171,8 @@
       background: linear-gradient(
         to top,
         var(--bg-body) 0%,
-        rgba(10, 25, 41, 0.95) 30%,
-        rgba(10, 25, 41, 0.7) 60%,
+        rgba(11, 14, 25, 0.95) 30%,
+        rgba(11, 14, 25, 0.7) 60%,
         transparent 100%
       );
       z-index: 1;
@@ -196,7 +199,7 @@
       top: 0; left: 0; right: 0; bottom: 0;
       background:
         linear-gradient(to top, var(--bg-body) 0%, transparent 22%),
-        linear-gradient(to right, rgba(10,25,41,0.55) 0%, rgba(10,25,41,0.15) 45%, rgba(10,25,41,0.55) 100%);
+        linear-gradient(to right, rgba(11,14,25,0.55) 0%, rgba(11,14,25,0.15) 45%, rgba(11,14,25,0.55) 100%);
       z-index: 1;
     }
     @keyframes kenburns {
@@ -241,7 +244,7 @@
       max-width: 650px;
       width: 100%;
       margin-bottom: 6%;
-      background: rgba(15, 36, 64, 0.38);
+      background: rgba(11, 14, 25, 0.38);
       backdrop-filter: blur(18px) saturate(140%);
       -webkit-backdrop-filter: blur(18px) saturate(140%);
       border: 1px solid rgba(255,255,255,0.12);
@@ -542,13 +545,13 @@
     .bys-card:hover { transform:translateY(-4px); border-color:var(--svc-color, var(--link-accent)); box-shadow:0 10px 26px rgba(0,0,0,.45); }
     .bys-backdrop { position:absolute; inset:0; background-image:var(--bys-img); background-size:cover; background-position:center; transition:transform .35s ease; }
     .bys-card:hover .bys-backdrop { transform:scale(1.06); }
-    .bys-grad { position:absolute; inset:0; background:linear-gradient(to top, rgba(10,25,41,.94) 0%, rgba(10,25,41,.5) 42%, rgba(10,25,41,.1) 100%); }
+    .bys-grad { position:absolute; inset:0; background:linear-gradient(to top, rgba(11,14,25,.94) 0%, rgba(11,14,25,.5) 42%, rgba(11,14,25,.1) 100%); }
     .bys-logo { position:absolute; top:10px; left:12px; right:12px; font-family:var(--font-title); font-weight:700; font-size:1rem; color:#fff; text-shadow:0 2px 10px rgba(0,0,0,.85); letter-spacing:.3px; z-index:2; display:flex; align-items:center; gap:7px; min-width:0; }
     .bys-logo span.bys-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .bys-dot { flex:0 0 auto; width:9px; height:9px; border-radius:50%; background:var(--svc-color, var(--accent-blue)); box-shadow:0 0 9px var(--svc-color, var(--accent-blue)); }
     .bys-btns { position:absolute; left:12px; right:12px; bottom:12px; display:flex; gap:8px; z-index:2; flex-wrap:wrap; }
-    .bys-btn { font-size:.72rem; font-weight:600; color:#fff; text-decoration:none; background:rgba(15,36,64,.72); border:1px solid rgba(255,255,255,.22); backdrop-filter:blur(8px); border-radius:var(--radius-pill); padding:6px 13px; transition:all var(--transition-fast); display:inline-flex; align-items:center; gap:6px; }
-    .bys-btn:hover { background:var(--accent-gold); border-color:var(--accent-gold); color:#0a1929; }
+    .bys-btn { font-size:.72rem; font-weight:600; color:#fff; text-decoration:none; background:rgba(11,14,25,.72); border:1px solid rgba(255,255,255,.22); backdrop-filter:blur(8px); border-radius:var(--radius-pill); padding:6px 13px; transition:all var(--transition-fast); display:inline-flex; align-items:center; gap:6px; }
+    .bys-btn:hover { background:var(--accent-gold); border-color:var(--accent-gold); color:#0B0E19; }
     .bys-btn i { font-size:.66rem; }
     @media (max-width:1024px) { .bys-grid { grid-template-columns:repeat(2, 1fr); } }
     @media (max-width:480px) { .bys-grid { gap:10px; } .bys-btns { left:8px; right:8px; bottom:8px; gap:5px; flex-wrap:nowrap; } .bys-btn { padding:4px 8px; font-size:.62rem; white-space:nowrap; } .bys-btn i { font-size:.6rem; } .bys-logo { font-size:.85rem; top:8px; left:9px; } }
@@ -2436,7 +2439,7 @@
        backdrop image is visibly see-through, matching the desktop card's
        glassmorphism style (desktop uses 0.38). 0.55 keeps text readable
        on small screens while restoring the intended translucent look. */
-    background: rgba(15, 36, 64, 0.55) !important;
+    background: rgba(11, 14, 25, 0.55) !important;
     backdrop-filter: blur(14px) saturate(130%) !important;
     -webkit-backdrop-filter: blur(14px) saturate(130%) !important;
     border-radius: var(--radius-md) !important;
@@ -4102,7 +4105,7 @@ async function loadNewAniocean() {
            onmouseleave="_onCardLeave()">
           <div class="aniocean-poster">
             <img src="${anime.poster}" alt="${anime.title}" 
-                 onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22300%22%3E%3Crect fill=%22%23132f4c%22 width=%22200%22 height=%22300%22/%3E%3Ctext fill=%22%2394a3b8%22 font-family=%22sans-serif%22 font-size=%2214%22 x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22%3ENo Image%3C/text%3E%3C/svg%3E'">
+                 onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22300%22%3E%3Crect fill=%22%23151926%22 width=%22200%22 height=%22300%22/%3E%3Ctext fill=%22%2394a3b8%22 font-family=%22sans-serif%22 font-size=%2214%22 x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22%3ENo Image%3C/text%3E%3C/svg%3E'">
             <!-- Score Badge - Top Right -->
             <div class="aniocean-badge-score">
               <i class="fas fa-star"></i> ${score}
