@@ -872,8 +872,13 @@ img { max-width: 100%; height: auto; display: block; }
   line-height: 1.7;
 }
 
-/* Details Section */
+/* Details Section — t193: same card surface treatment as .stats-container
+   (owner request: Show Details background must match stats container #151926) */
 .details-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  padding: 16px 20px;
   margin-bottom: 32px;
 }
 .details-section h3 {
@@ -2512,6 +2517,8 @@ img { max-width: 100%; height: auto; display: block; }
     grid-template-columns: repeat(4, 1fr);
     padding: 12px;
   }
+  /* t193: keep Show Details card padding in step with the stats container on mobile */
+  .details-section { padding: 12px; }
   .stat-column { padding: 4px; }
   .stat-value { font-size: 1rem; }
   .stat-column:last-child { grid-column: span 1; }
