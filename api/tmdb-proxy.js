@@ -33,7 +33,17 @@ const ALLOWED = [
   '/genre', '/person', '/network', '/watch', '/company', '/collection'
 ];
 
+import animethemesHandler from './_lib/animethemes.js';
+
 export default async function handler(req, res) {
+  // t194 dispatch — the AnimeThemes scraper API shares this function file
+  // (Vercel Hobby caps deployments at 12 functions; a 13th fails the build).
+  // vercel.json rewrites /api/animethemes/:path* -> here as at_path, so the
+  // public surface stays /api/animethemes/anime?... exactly like the official API.
+  const atPath = req.query.at_path;
+  if (atPath !== undefined) {
+    return animethemesHandler(req, res, Array.isArray(atPath) ? atPath.join('/') : atPath);
+  }
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed. Use GET.' });
   }

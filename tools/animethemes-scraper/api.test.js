@@ -9,7 +9,8 @@ const fs = require('fs');
 const path = require('path');
 
 const DATASET = '/home/z/my-project/download/t194/dataset';
-const HANDLER_PATH = '/home/z/my-project/aniwind/api/animethemes.js';
+const HANDLER_PATH = '/home/z/my-project/aniwind/api/_lib/animethemes.js';
+const DISPATCH_PATH = '/home/z/my-project/aniwind/api/tmdb-proxy.js';
 
 function startStatic(dir, port) {
   return new Promise(resolve => {
@@ -24,7 +25,11 @@ function startStatic(dir, port) {
 }
 
 function makeReq(url, pathSegs) {
-  return { url, query: { path: pathSegs }, headers: { host: 'localhost' } };
+  // parse the query string like Vercel would (at_path/path arrive decoded)
+  const sp = new URL(url).searchParams;
+  const query = { path: pathSegs };
+  for (const [k, v] of sp) query[k] = v;
+  return { url, query, headers: { host: 'localhost' }, method: 'GET' };
 }
 function makeRes() {
   let code = null, body = null;
@@ -37,10 +42,16 @@ function makeRes() {
   };
 }
 
-async function call(handler, pathStr, qs = '') {
-  const segs = pathStr ? pathStr.split('/') : [];
+async function call(handler, pathStr, qs = '', viaDispatch = false) {
   const res = makeRes();
-  await handler(makeReq(`http://localhost/api/animethemes${pathStr ? '/' + pathStr : ''}${qs}`, segs), res);
+  if (viaDispatch) {
+    // simulate the vercel.json rewrite: /api/animethemes/:path* -> tmdb-proxy?at_path=:path*
+    const url = `http://localhost/api/tmdb-proxy?at_path=${encodeURIComponent(pathStr || 'anime')}${qs}`;
+    await handler(makeReq(url, []), res);
+  } else {
+    const segs = pathStr ? pathStr.split('/') : [];
+    await handler(makeReq(`http://localhost/api/animethemes${pathStr ? '/' + pathStr : ''}${qs}`, segs), res);
+  }
   return res._result();
 }
 
@@ -55,6 +66,7 @@ function check(name, cond, detail) {
   const srv = await startStatic(DATASET, 8899);
   process.env.AT_DATASET_BASE = 'http://127.0.0.1:8899';
   const handler = require(HANDLER_PATH);
+  const dispatchHandler = (await import(DISPATCH_PATH)).default;
 
   console.log('== site-critical path: MAL id lookup with include chain ==');
   {
@@ -196,6 +208,19 @@ function check(name, cond, detail) {
     check('501 auth-only resource', r6.code === 501, r6.code);
     const r7 = await call(handler, 'no_such_endpoint');
     check('404 unknown endpoint', r7.code === 404, r7.code);
+  }
+
+  console.log('== dispatch chain (tmdb-proxy at_path -> core) ==');
+  {
+    const r = await call(dispatchHandler, 'anime',
+      '&filter%5Bsite%5D=MyAnimeList&filter%5Bexternal_id%5D=61987&include=animethemes.song,animethemes.animethemeentries.videos', true);
+    const a = r.body && r.body.anime && r.body.anime[0];
+    check('dispatch: MAL 61987 through tmdb-proxy', r.code === 200 && a && a.slug === 'kusuriya_no_hitorigoto_3rd_season',
+      r.code + ' ' + JSON.stringify(r.body).slice(0, 120));
+    const r2 = await call(dispatchHandler, 'theme', '&filter[type]=OP&page[size]=2', true);
+    check('dispatch: theme index', r2.code === 200 && r2.body.theme.length === 2, r2.code);
+    const r3 = await call(dispatchHandler, 'search', '&q=kusuriya', true);
+    check('dispatch: search', r3.code === 200 && r3.body.search.anime.length >= 1, r3.code);
   }
 
   srv.close();

@@ -37,6 +37,14 @@
   ],
   "rewrites": [
     {
+      "source": "/api/animethemes/:path*",
+      "destination": "/api/tmdb-proxy?at_path=:path*"
+    },
+    {
+      "source": "/api/animethemes",
+      "destination": "/api/tmdb-proxy?at_path=anime"
+    },
+    {
       "source": "/api/tmdb-proxy/:path*",
       "destination": "/api/tmdb-proxy?path=:path*"
     },

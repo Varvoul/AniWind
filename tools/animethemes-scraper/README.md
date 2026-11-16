@@ -10,8 +10,16 @@ the official APIs are down (api.animethemes.moe → 503, graphql.animethemes.moe
 - **Coverage**: 5,022 anime · 14,773 themes · 20,024 videos · 5,021 with MAL id ·
   5,016 with AniList id (crawl 2026-11-16, buildId nQtDWU29EFZEDmbrsjLwh).
 - **Live deployment**: `https://ruristream.vercel.app/api/animethemes/*` (Vercel
-  serverless, same-origin with the site — no CORS needed). The full API handler
-  lives at `api/animethemes/[[...path]].js` in this repo.
+  serverless, same-origin with the site — no CORS needed).
+- **HOW IT IS DEPLOYED (t194d)**: the owner's Vercel project is on the Hobby
+  plan, which caps deployments at **12 serverless functions** — a 13th function
+  file fails the whole build (this broke every deployment during t194 until
+  bisected). The scraper therefore lives as a LIBRARY at `api/_lib/animethemes.js`
+  and is dispatched from the existing `api/tmdb-proxy.js` function via
+  `vercel.json` rewrites:
+  `/api/animethemes/:path*` → `/api/tmdb-proxy?at_path=:path*`. The public URL
+  surface stays `/api/animethemes/...` exactly like the official API. **Do NOT
+  add a 13th api/*.js function file on the Hobby plan.**
 - **Cloudflare variant**: `workers/animethemes-scraper.js` — identical surface,
   deployable by the owner with one command:
   `npx wrangler deploy workers/animethemes-scraper.js --name animethemes-scraper --compatibility-date 2024-01-01`
