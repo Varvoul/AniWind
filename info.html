@@ -6288,7 +6288,14 @@ img { max-width: 100%; height: auto; display: block; }
             const _castOk = dbDet.cast_crew ? _renderCastFromDB(dbDet.cast_crew) : false;
             const _artOk  = dbDet.artwork   ? _renderArtworkFromDB(dbDet.artwork)  : false;
             if (dbDet.trailers)         _renderTrailersFromDB(dbDet.trailers);
-            const _themesOk = (dbDet.themes && _isAnimePage) ? _renderThemesFromDB(dbDet.themes) : false;
+            let _themesOk = (dbDet.themes && _isAnimePage) ? _renderThemesFromDB(dbDet.themes) : false;
+            // t194b — PERMANENT dedicated themes key: read it when the details
+            // blob itself has expired (airing shows keep a 24h details TTL but
+            // their themes never expire) or carried no themes section.
+            if (!_themesOk && _isAnimePage && window.AniCache) {
+              const _tp = await window.AniCache.get(`info:themes:${_mid}`).catch(() => null);
+              if (_tp && _tp.v === 2) _themesOk = _renderThemesFromDB(_tp);
+            }
             // t110 — loaders are collected and awaited so the stage-2
             // completion signal (stage-3 fast arm) covers the real fetches;
             // they still paint their own containers the moment each lands.
@@ -6296,7 +6303,11 @@ img { max-width: 100%; height: auto; display: block; }
             if (!_castOk)                   _tabLoaders.push(loadCastData());
             if (!_artOk)                    _tabLoaders.push(loadArtworkData());
             if (!dbDet.trailers)            _tabLoaders.push(loadTrailerData());
-            if (!_themesOk && _isAnimePage) _tabLoaders.push(loadThemesData());
+            // t194b — themes ALWAYS refresh in the background: the cache-first
+            // paint stays; a successful refresh re-renders fresh data and
+            // re-saves; a failed refresh keeps the cached render (see the
+            // background guard inside loadThemesData).
+            if (_isAnimePage) _tabLoaders.push(loadThemesData({ background: _themesOk }));
             await Promise.allSettled(_tabLoaders);
             return;
           }
@@ -6702,6 +6713,11 @@ img { max-width: 100%; height: auto; display: block; }
         const items = (themeObj && themeObj.v === 2 && Array.isArray(themeObj.items)) ? themeObj.items : null;
         if (!items || !items.length) return false;
         container.innerHTML = buildThemesHtml(items);
+        // t194b — mark the container as showing a PERMANENT-cache render and
+        // register the same shape the live loader uses, so a failed background
+        // refresh never replaces a good cached render with the error state.
+        container.dataset.themesRendered = '1';
+        window._lastThemesData = items;
         return true;
       }
 
@@ -8965,8 +8981,9 @@ img { max-width: 100%; height: auto; display: block; }
         }
       }
 
-      async function loadThemesData() {
+      async function loadThemesData(opts) {
         const container = document.getElementById('themesContainer');
+        const _bg = !!(opts && opts.background);   // t194b: cache-first refresh mode
         if (currentState.source === 'tmdb') {
           container.innerHTML = '<p class="loading-text">Theme songs only available for anime</p>';
           return;
@@ -9018,6 +9035,14 @@ img { max-width: 100%; height: auto; display: block; }
           if (window.AniCache && window._lastThemesData.length) {
             window.AniCache.saveDetails(mediaKeyOf(), { themes: { v: 2, items: window._lastThemesData } },
               { permanent: currentState.isPermanent }).catch(() => {});
+            // t194b — PERMANENT dedicated themes key (owner requirement: the
+            // theme cache in browser localStorage never expires — theme lists
+            // are snapshot data and stay valid across sessions). Stored IN
+            // ADDITION to the details blob so airing shows keep their 24h
+            // details TTL while their themes stay cached forever; read by the
+            // tab-init block when the details blob itself has expired.
+            window.AniCache.set({ cacheKey: `info:themes:${mediaKeyOf()}`,
+              data: { v: 2, items: window._lastThemesData }, permanent: true }).catch(() => {});
           }
           // Render through the shared builder — identical markup to the
           // cached render by construction

@@ -33,12 +33,13 @@ function makeReq(url, pathSegs) {
 }
 function makeRes() {
   let code = null, body = null;
+  const headers = {};
   return {
-    headers: {},
-    setHeader(k, v) { this.headers[k] = v; },
+    headers,
+    setHeader(k, v) { headers[k] = v; },
     status(c) { code = c; return this; },
     json(b) { body = b; return this; },
-    _result: () => ({ code, body }),
+    _result: () => ({ code, body, headers }),
   };
 }
 
@@ -221,6 +222,64 @@ function check(name, cond, detail) {
     check('dispatch: theme index', r2.code === 200 && r2.body.theme.length === 2, r2.code);
     const r3 = await call(dispatchHandler, 'search', '&q=kusuriya', true);
     check('dispatch: search', r3.code === 200 && r3.body.search.anime.length >= 1, r3.code);
+  }
+
+
+  console.log('== t194b cache: exact-URL keying + status/TTL behavior ==');
+  {
+    const rc = handler._respCache;
+    check('resp cache hook exported', !!rc && rc.map instanceof Map && rc.ttlMs > 0, String(rc && typeof rc));
+
+    const qs1 = '?filter[site]=MyAnimeList&filter[external_id]=61987&include=animethemes&z=t194bA';
+    const rA1 = await call(handler, 'anime', qs1);
+    const rA2 = await call(handler, 'anime', qs1);
+    const hA1 = rA1.headers || {}, hA2 = rA2.headers || {};
+    check('first compute = miss (no X-AT-Cache)', rA1.code === 200 && !hA1['X-AT-Cache'],
+      rA1.code + ' ' + JSON.stringify(hA1['X-AT-Cache']));
+    check('same URL twice -> fresh-hit', rA2.code === 200 &&
+      String(hA2['X-AT-Cache'] || '').startsWith('fresh-hit'), JSON.stringify(hA2));
+    check('fresh-hit body identical to compute', JSON.stringify(rA1.body) === JSON.stringify(rA2.body), 'body diff');
+    check('X-AT-Url-Key present + stable', hA1['X-AT-Url-Key'] && hA1['X-AT-Url-Key'] === hA2['X-AT-Url-Key'],
+      hA1['X-AT-Url-Key'] + ' vs ' + hA2['X-AT-Url-Key']);
+    check('Cache-Control raised (6h edge + SWR 7d)', String(hA1['Cache-Control']).includes('s-maxage=21600') &&
+      String(hA1['Cache-Control']).includes('stale-while-revalidate=604800'), String(hA1['Cache-Control']));
+
+    // one character different in the URL -> different key -> fresh compute
+    const qs2 = '?filter[site]=MyAnimeList&filter[external_id]=61988&include=animethemes&z=t194bA';
+    const rB = await call(handler, 'anime', qs2);
+    check('URL differing by one char -> cache miss (fresh scrape)', rB.code === 200 && !rB.headers['X-AT-Cache'],
+      rB.code + ' hdr=' + JSON.stringify(rB.headers['X-AT-Cache']));
+    check('different URL-key for different URL', rB.headers['X-AT-Url-Key'] !== hA1['X-AT-Url-Key'], 'key collision');
+
+    // extra param = its own cache entry (exact-URL semantics)
+    const rC = await call(handler, 'anime', qs1 + '&sort=id');
+    check('extra param -> own fresh entry (exact key)', rC.code === 200 && !rC.headers['X-AT-Cache'], rC.code);
+    check('extra param -> different URL-key', rC.headers['X-AT-Url-Key'] !== hA1['X-AT-Url-Key'], 'key collision');
+
+    // TTL expiry: age every entry past the fresh window, then re-request —
+    // upstream is alive, so the entry must RECOMPUTE (not serve stale)
+    rc.map.forEach((v) => { v.at -= (rc.ttlMs + 1000); });
+    const rD = await call(handler, 'anime', qs1);
+    check('expired entry recomputes (no stale while upstream alive)',
+      rD.code === 200 && !rD.headers['X-AT-Cache'], rD.code + ' ' + JSON.stringify(rD.headers['X-AT-Cache']));
+
+    // stale-serve on upstream failure: fresh module instance over a dead
+    // dataset, with a pre-seeded EXPIRED entry for the exact URL
+    process.env.AT_DATASET_BASE = 'http://127.0.0.1:1';
+    delete require.cache[HANDLER_PATH];
+    const handler2 = require(HANDLER_PATH);
+    const rc2 = handler2._respCache;
+    const deadKey = '/anime?dead=t194b';
+    rc2.set(deadKey, 200, { seeded: 'stale-body' });
+    rc2.map.get(deadKey).at -= (rc2.ttlMs + 1000);
+    const rE = await call(handler2, 'anime', '?dead=t194b');
+    check('STALE served when upstream fails (status-based cache)',
+      rE.code === 200 && rE.body.seeded === 'stale-body' &&
+      String(rE.headers['X-AT-Cache']).startsWith('stale-upstream-fail'),
+      rE.code + ' ' + JSON.stringify(rE.headers));
+    const rF = await call(handler2, 'anime', '?nothing_cached=t194b');
+    check('503 when upstream fails AND no cache entry', rF.code === 503, rF.code);
+    process.env.AT_DATASET_BASE = 'http://127.0.0.1:8899';
   }
 
   srv.close();

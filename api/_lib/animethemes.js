@@ -45,8 +45,19 @@
 //   /year           → { years: [ { year, seasons: [...] } ] }
 // Video links point at https://v.animethemes.moe/{basename} — the real CDN.
 //
-// CACHE: dataset chunks cached in instance memory (10 min TTL); responses
-// carry s-maxage=300 + stale-while-revalidate so Vercel edge caches them.
+// CACHE (t194b — 4 layers, exact-URL keyed):
+//   L1 browser localStorage  — the site caches themes permanently (AniCache
+//                              dedicated key, ttl 0) and renders cache-first.
+//   L2 browser HTTP          — Cache-Control max-age=600.
+//   L3 Vercel edge CDN       — s-maxage=21600 (6h) + stale-while-revalidate
+//                              7d; the CDN cache key is the public URL
+//                              byte-for-byte, so ANY character difference
+//                              (param, value, order) is a different entry.
+//   L4 instance response map — key = request URL minus the internal at_path
+//                              routing param, byte-for-byte; FRESH for
+//                              RESP_TTL_MS (6h), then STALE (served ONLY when
+//                              the dataset upstream fails) → next successful
+//                              compute returns to FRESH. Misses scrape fresh.
 // ─────────────────────────────────────────────────────────────────────────
 
 const VERSION = 'animethemes v1 scraper (t194)';
@@ -60,6 +71,50 @@ const VIDEO_HOST = 'https://v.animethemes.moe';
 const TTL_MS = 10 * 60 * 1000;
 let _index = null, _indexAt = 0, _indexPromise = null;
 const _chunks = new Map(); // k -> { at, data }
+
+// ── response cache (t194b): exact-URL keyed, status-based TTL ──────────
+// Key = the request URL (path + query) byte for byte, minus the internal
+// at_path routing param. Any different character → different key → cache
+// miss → fresh scrape. Statuses: FRESH (within TTL) → STALE (expired; only
+// served when the upstream dataset is unreachable) → FRESH again on the
+// next successful compute.
+const RESP_TTL_MS = 6 * 60 * 60 * 1000; // fresh window: 6h
+const RESP_MAX = 400;                   // bounded instance memory
+const _resp = new Map();                // exactUrlKey -> { at, code, body }
+
+function respCacheGet(k) {
+  const hit = _resp.get(k);
+  if (!hit) return null;
+  const ageMs = Date.now() - hit.at;
+  return { ...hit, state: ageMs < RESP_TTL_MS ? 'fresh' : 'stale',
+           ageSec: Math.round(ageMs / 1000) };
+}
+
+function respCacheSet(k, code, body) {
+  if (_resp.size >= RESP_MAX && !_resp.has(k)) {
+    const first = _resp.keys().next().value;
+    _resp.delete(first);
+  }
+  _resp.set(k, { at: Date.now(), code, body });
+}
+
+// strip the internal routing param (added by the vercel.json rewrite);
+// everything else is the visitor's EXACT query string, byte for byte
+function urlKeyOf(req, path) {
+  const raw = String(req.url || '');
+  const qi = raw.indexOf('?');
+  if (qi === -1) return `/${path}`;
+  const qs = raw.slice(qi + 1)
+    .replace(/(^|&)at_path=[^&]*/g, (m, amp) => amp || '')
+    .replace(/^&+|&+$/g, '');
+  return `/${path}${qs ? '?' + qs : ''}`;
+}
+
+function keyHash(key) { // short verifiable fingerprint of the exact cache key
+  let h = 5381;
+  for (let i = 0; i < key.length; i++) h = ((h << 5) + h + key.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(16).padStart(8, '0');
+}
 
 async function fetchJson(url, timeoutMs = 12000) {
   const ctrl = new AbortController();
@@ -347,14 +402,32 @@ module.exports = async function animethemesHandler(req, res, pathOverride) {
   const proto = req.headers['x-forwarded-proto'] || 'https';
   const host = req.headers['x-forwarded-host'] || req.headers.host || 'ruristream.vercel.app';
   const self = `${proto}://${host}/api/animethemes`;
+  const urlKey = urlKeyOf(req, path);
+  const isGet = !req.method || req.method === 'GET';
+  let cacheState = 'miss'; // miss | fresh-hit | stale-upstream-fail
 
   const jsonOut = (code, body) => {
     res.setHeader('Content-Type', 'application/json');
-    res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=86400');
+    res.setHeader('Cache-Control',
+      'public, max-age=600, s-maxage=21600, stale-while-revalidate=604800');
     res.setHeader('X-Data-Source', VERSION);
+    res.setHeader('X-AT-Url-Key', keyHash(urlKey));
     res.setHeader('Access-Control-Allow-Origin', '*');
+    if (cacheState !== 'miss') res.setHeader('X-AT-Cache', cacheState);
+    if (code === 200 && isGet && cacheState === 'miss') respCacheSet(urlKey, code, body);
     res.status(code).json(body);
   };
+
+  // t194b fast path — exact-URL FRESH hit serves instantly, before any
+  // dataset work. STALE entries never short-circuit: they are only served
+  // when a fresh compute is impossible (upstream failure) in the catch below.
+  if (isGet) {
+    const hit = respCacheGet(urlKey);
+    if (hit && hit.state === 'fresh') {
+      cacheState = `fresh-hit; age=${hit.ageSec}s`;
+      return jsonOut(hit.code, hit.body);
+    }
+  }
 
   try {
     const index = await loadIndex();
@@ -701,8 +774,21 @@ module.exports = async function animethemesHandler(req, res, pathOverride) {
         'artist/{slug}', 'video', 'series', 'studio', 'audio', 'image', 'search?q=',
         'year', 'year/{year}', 'resource'] });
   } catch (e) {
+    // t194b status-based resilience: when the upstream dataset is down,
+    // serve the previously computed response for this exact URL (STALE)
+    // instead of failing — the same behavior as the official API's CDN
+    // stale-while-revalidate, implemented at the function layer.
+    const hit = isGet ? respCacheGet(urlKey) : null;
+    if (hit) {
+      cacheState = `stale-upstream-fail; age=${hit.ageSec}s`;
+      return jsonOut(hit.code, hit.body);
+    }
     return jsonOut(503, { error: 'dataset temporarily unavailable',
       detail: String(e && e.message || e).slice(0, 200),
       hint: 'the crawled AnimeThemes dataset (GitHub raw) did not respond — retry shortly' });
   }
 };
+
+// test/ops hook — lets the local suite exercise TTL + exact-key behavior
+module.exports._respCache = { get: respCacheGet, set: respCacheSet,
+  map: _resp, ttlMs: RESP_TTL_MS, keyOf: urlKeyOf, hash: keyHash };

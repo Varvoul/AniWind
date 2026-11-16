@@ -16,6 +16,39 @@ const DATASET_BASE = 'https://raw.githubusercontent.com/Varvoul/AniWind/main/dat
 const VIDEO_HOST = 'https://v.animethemes.moe';
 const VERSION = 'animethemes v1 scraper CF (t194)';
 
+// -- response cache (t194b): exact-URL keyed, status-based TTL ------------
+// Same policy as the Vercel library: the cache key is the request URL
+// (path + query) byte for byte - ANY character difference is a different
+// key -> fresh scrape. FRESH within RESP_TTL_MS (6h); STALE entries are
+// served only when the upstream dataset fails; CF edge (caches.default)
+// sits in front keyed by the exact request URL with the same TTL.
+const RESP_TTL_MS = 6 * 60 * 60 * 1000;
+const RESP_MAX = 400;
+const _resp = new Map();
+
+function respCacheGet(k) {
+  const hit = _resp.get(k);
+  if (!hit) return null;
+  const ageMs = Date.now() - hit.at;
+  return { ...hit, state: ageMs < RESP_TTL_MS ? 'fresh' : 'stale', ageSec: Math.round(ageMs / 1000) };
+}
+
+function respCacheSet(k, code, body) {
+  if (_resp.size >= RESP_MAX && !_resp.has(k)) {
+    const first = _resp.keys().next().value;
+    _resp.delete(first);
+  }
+  _resp.set(k, { at: Date.now(), code, body });
+}
+
+function keyHash(key) {
+  let h = 5381;
+  for (let i = 0; i < key.length; i++) h = ((h << 5) + h + key.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(16).padStart(8, '0');
+}
+
+let _storeHook = null; // set per request; jsonOut calls it for computed 200s
+
 const TTL_MS = 10 * 60 * 1000;
 let _index = null, _indexAt = 0;
 const _chunks = new Map();
@@ -185,18 +218,61 @@ function themeView(t) {
     anime: t.anime || undefined };
 }
 
-function jsonOut(code, body) {
-  return new Response(JSON.stringify(body), { status: code, headers: {
+function jsonOut(code, body, cacheState, urlKey) {
+  const headers = {
     'Content-Type': 'application/json',
-    'Cache-Control': 's-maxage=300, stale-while-revalidate=86400',
-    'X-Data-Source': VERSION, 'Access-Control-Allow-Origin': '*' } });
+    'Cache-Control': 'public, max-age=600, s-maxage=21600, stale-while-revalidate=604800',
+    'X-Data-Source': VERSION, 'Access-Control-Allow-Origin': '*',
+  };
+  if (urlKey !== undefined) headers['X-AT-Url-Key'] = keyHash(urlKey);
+  if (cacheState && cacheState !== 'miss') headers['X-AT-Cache'] = cacheState;
+  // computed (non-cached-path) 200s populate both cache layers; cached-path
+  // responses carry a cacheState and never re-store
+  if (code === 200 && !cacheState && _storeHook) { try { _storeHook(body); } catch (_e) {} }
+  return new Response(JSON.stringify(body), { status: code, headers });
 }
 
 export default {
-  async fetch(req) {
+  async fetch(req, _env, ctx) {
     const u = new URL(req.url);
     const sp = u.searchParams;
     const path = decodeURIComponent(u.pathname.replace(/^\/+/, '')).replace(/\/+$/, '');
+    const exactKey = `${u.pathname}${u.search}`; // byte-exact URL cache key
+    const isGet = req.method === 'GET';
+
+    // L3 - CF edge cache keyed by the exact request URL (TTL from s-maxage)
+    if (isGet) {
+      try {
+        const edge = await caches.default.match(req);
+        if (edge) return jsonOut(edge.status, await edge.json(), 'edge-hit', exactKey);
+      } catch (_e) { /* cache API unavailable - continue */ }
+    }
+
+    // L4 - isolate-level FRESH hit (exact URL), before any dataset work
+    if (isGet) {
+      const hit = respCacheGet(exactKey);
+      if (hit && hit.state === 'fresh') {
+        return jsonOut(hit.code, hit.body, `fresh-hit; age=${hit.ageSec}s`, exactKey);
+      }
+    }
+
+    let cacheState = 'miss';
+    const store = (body) => {
+      if (!isGet) return;
+      respCacheSet(exactKey, 200, body);
+      if (ctx && ctx.waitUntil) {
+        try {
+          ctx.waitUntil(caches.default.put(req, new Response(JSON.stringify(body), {
+            status: 200,
+            headers: {
+              'Content-Type': 'application/json',
+              'Cache-Control': 'public, max-age=600, s-maxage=21600, stale-while-revalidate=604800',
+            },
+          })));
+        } catch (_e) { /* non-cacheable URL - ignore */ }
+      }
+    };
+    _storeHook = store;
     try {
       const index = await loadIndex();
       const rowsAll = index.anime.map((r, pos) => ({ ...r, _pos: pos }));
@@ -393,6 +469,11 @@ export default {
         endpoints: ['anime', 'anime/{slug|id}', 'theme', 'song', 'artist', 'video', 'audio',
           'series', 'studio', 'search?q=', 'year', 'year/{year}', 'resource'] });
     } catch (e) {
+      _storeHook = null;
+      const hit = isGet ? respCacheGet(exactKey) : null;
+      if (hit) {
+        return jsonOut(hit.code, hit.body, `stale-upstream-fail; age=${hit.ageSec}s`, exactKey);
+      }
       return jsonOut(503, { error: 'dataset temporarily unavailable',
         detail: String(e && e.message || e).slice(0, 200) });
     }
