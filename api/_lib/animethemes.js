@@ -98,14 +98,15 @@ function respCacheSet(k, code, body) {
   _resp.set(k, { at: Date.now(), code, body });
 }
 
-// strip the internal routing param (added by the vercel.json rewrite);
-// everything else is the visitor's EXACT query string, byte for byte
+// strip the internal routing params added by the vercel.json rewrite
+// (at_path + the path capture Vercel appends); everything else is the
+// visitor's EXACT query string, byte for byte
 function urlKeyOf(req, path) {
   const raw = String(req.url || '');
   const qi = raw.indexOf('?');
   if (qi === -1) return `/${path}`;
   const qs = raw.slice(qi + 1)
-    .replace(/(^|&)at_path=[^&]*/g, (m, amp) => amp || '')
+    .replace(/(^|&)(at_path|path)=[^&]*/g, (m, amp) => amp || '')
     .replace(/^&+|&+$/g, '');
   return `/${path}${qs ? '?' + qs : ''}`;
 }
@@ -276,6 +277,10 @@ function paginate(list, searchParams, path) {
   num = Math.min(num, lastPage);
   const slice = list.slice((num - 1) * size, num * size);
   const qs = new URLSearchParams(searchParams);
+  // t194c — pagination links must match the official API surface: strip the
+  // internal routing params the rewrite injected before emitting links
+  qs.delete('at_path');
+  qs.delete('path');
   const pageUrl = n => {
     qs.set('page[size]', String(size)); qs.set('page[number]', String(n));
     return `${path}?${qs.toString()}`;

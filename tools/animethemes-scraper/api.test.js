@@ -87,6 +87,9 @@ function check(name, cond, detail) {
       t0.animethemeentries && JSON.stringify(t0.animethemeentries[0].videos[0]));
     check('meta/links pagination keys', body.meta && body.links &&
       body.meta.total === 1 && typeof body.links.first === 'string', JSON.stringify(body.meta));
+    check('t194c links carry no internal routing params', body.links.first &&
+      !body.links.first.includes('at_path=') && !body.links.first.includes('path=anime'),
+      body.links.first);
   }
 
   console.log('== AniList id lookup ==');
