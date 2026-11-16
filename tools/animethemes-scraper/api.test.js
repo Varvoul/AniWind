@@ -9,7 +9,7 @@ const fs = require('fs');
 const path = require('path');
 
 const DATASET = '/home/z/my-project/download/t194/dataset';
-const HANDLER_PATH = '/home/z/my-project/aniwind/api/animethemes/[[...path]].js';
+const HANDLER_PATH = '/home/z/my-project/aniwind/api/animethemes.js';
 
 function startStatic(dir, port) {
   return new Promise(resolve => {

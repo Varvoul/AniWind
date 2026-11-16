@@ -335,7 +335,11 @@ function hashId(s) { // stable pseudo-id for slug-keyed entities
 // ── request entry ────────────────────────────────────────────────────────
 module.exports = async function handler(req, res) {
   const sp = new URL(req.url, 'https://x').searchParams;
-  const path = (req.query.path || []).join('/'); // [[...path]] catch-all
+  // path arrives as a string via the /api/animethemes/:path* rewrite, or as an
+  // array when the function is mounted with a catch-all file name
+  const rawPath = req.query.path;
+  const path = (Array.isArray(rawPath) ? rawPath.join('/') : (rawPath || ''))
+    .replace(/\/+$/, '');
   const proto = req.headers['x-forwarded-proto'] || 'https';
   const host = req.headers['x-forwarded-host'] || req.headers.host || 'ruristream.vercel.app';
   const self = `${proto}://${host}/api/animethemes`;
