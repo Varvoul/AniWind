@@ -8979,26 +8979,10 @@ img { max-width: 100%; height: auto; display: block; }
 
         try {
           // Correct REST endpoint — filter by MAL site + external_id, include song + entries + videos
-          // t194: official API first; on failure fall back to the self-hosted
-          // AnimeThemes scraper proxy (same v1 response shape, same params) so
-          // themes keep working while api.animethemes.moe is down (503).
-          // (The pre-t194 line carried a long-standing `filteras]` typo that the
-          // official API silently ignored — the scraper fixes it to filter[has].)
-          const atQuery = `filter[has]=resources&filter[site]=MyAnimeList&filter[external_id]=${malId}&include=animethemes.song,animethemes.animethemeentries.videos`;
-          const atAttempts = [
-            `https://api.animethemes.moe/anime?${atQuery}`,
-            `/api/animethemes/anime?${atQuery}`,
-          ];
-          let json = null, lastAtError = null;
-          for (const url of atAttempts) {
-            try {
-              const res = await fetch(url, { signal: AbortSignal.timeout(10000) });   // t110 — hung responses delayed the stage-2 completion signal
-              if (!res.ok) throw new Error(`AnimThemes error: ${res.status}`);
-              json = await res.json();
-              break;
-            } catch (e) { lastAtError = e; console.warn('AnimeThemes source failed:', url, e.message); }
-          }
-          if (!json) throw lastAtError || new Error('AnimeThemes unavailable');
+          const url = `https://api.animethemes.moe/anime?filter[has]=resources&filter[site]=MyAnimeList&filter[external_id]=${malId}&include=animethemes.song,animethemes.animethemeentries.videos`;
+          const res = await fetch(url, { signal: AbortSignal.timeout(10000) });   // t110 — hung responses delayed the stage-2 completion signal
+          if (!res.ok) throw new Error(`AnimThemes error: ${res.status}`);
+          const json = await res.json();
           const animeEntry = (json.anime || [])[0];
 
           if (!animeEntry?.animethemes?.length) {
