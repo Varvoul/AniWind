@@ -37,10 +37,6 @@
   ],
   "rewrites": [
     {
-      "source": "/api/animethemes/:path*",
-      "destination": "/api/animethemes?path=:path*"
-    },
-    {
       "source": "/api/tmdb-proxy/:path*",
       "destination": "/api/tmdb-proxy?path=:path*"
     },
