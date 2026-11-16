@@ -9050,6 +9050,18 @@ img { max-width: 100%; height: auto; display: block; }
 
         } catch (e) {
           console.warn('AnimeThemes error:', e);
+          // t194b - NEVER overwrite an already-rendered themes tab with the
+          // error state: the permanent localStorage render stays and the
+          // failed refresh is logged only. This protects against EVERY caller
+          // (tab-init background refresh, missing-sections refill, no-cache
+          // first load) so cached theme data is never lost to a transient
+          // outage. The retry button only exists inside the error state (the
+          // marker is cleared below), so the honest error stays reachable.
+          if (container && container.dataset.themesRendered === '1') {
+            console.warn('[Themes] refresh failed - keeping permanent-cache render');
+            return;
+          }
+          container.dataset.themesRendered = '';
           // t161 — honest outage copy: the upstream has been down for days,
           // "try again in a moment" was misleading
           showTabState('themesContainer', 'error', 'AnimeThemes is temporarily unavailable', 'The AnimeThemes API is down at the moment, so theme songs cannot be fetched right now — please try again later.', loadThemesData);
