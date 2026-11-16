@@ -8992,7 +8992,12 @@ img { max-width: 100%; height: auto; display: block; }
         const malId = currentState.data?.mal_id || currentState.id;
         if (!malId) { container.innerHTML = '<p class="loading-text">No MAL ID available</p>'; return; }
 
-        container.innerHTML = '<p class="loading-text" style="padding:20px 0;">Loading themes...</p>';
+        // t194b - a permanent-cache render (marker) must survive the refresh:
+        // keep the cached markup on screen while the fetch runs instead of
+        // flashing "Loading themes..." over good data
+        if (!(container && container.dataset.themesRendered === '1')) {
+          container.innerHTML = '<p class="loading-text" style="padding:20px 0;">Loading themes...</p>';
+        }
 
         try {
           // Correct REST endpoint — filter by MAL site + external_id, include song + entries + videos
