@@ -321,8 +321,11 @@
        #2b6cb0 in the same palette family). Text still brightens #fff on
        hover. */
     .main-nav{display:flex;align-items:center;gap:2px;flex-shrink:0;}
+    /* t197 owner request: main nav items bumped 0.78 -> 0.82rem so the top-level
+       menu (Home / Genre / Country / Type / Ongoing / Updates / Schedule / News /
+       Forum) reads a step larger than the dropdown menu items (still 0.74rem). */
     .nav-link-item{
-      padding:7px 10px;font-size:0.78rem;font-weight:500;
+      padding:7px 10px;font-size:0.82rem;font-weight:500;
       color:var(--text-secondary,#ccc);border-radius:6px;
       transition:color .18s;white-space:nowrap;display:block;position:relative;
     }
@@ -336,7 +339,7 @@
       content:'';position:absolute;left:0;right:0;top:100%;height:8px;
     }
     .nav-dd-label{
-      padding:7px 10px;font-size:0.78rem;color:var(--text-secondary,#ccc);
+      padding:7px 10px;font-size:0.82rem;color:var(--text-secondary,#ccc);
       border-radius:6px;transition:color .18s;
       white-space:nowrap;user-select:none;cursor:default;display:flex;align-items:center;gap:3px;
       position:relative;
@@ -391,9 +394,15 @@
        owner's primary fill #498BBB; on hover it brightens and grows to the
        same 58%-of-text endpoint as the t138 nav pill underline. */
     .nav-dropdown a{position:relative;}
+    /* t197 owner request: the horizontal pill line inside each DESKTOP dropdown
+       item (Genre / Country / Type / Top IMDB) is now HOVER-ONLY - invisible at
+       rest (opacity:0), slides in with the same 58%-of-text grow + brighten on
+       hover/focus. Everything else (geometry, fill #498BBB, easing) unchanged
+       from t192. PC-only by design: .nav-dropdown exists solely in the desktop
+       nav; the mobile menu (.mobile-nav-panel / .mob-sub-menu) is untouched. */
     .nav-dropdown a::after{
       content:'';position:absolute;left:10px;bottom:2px;height:2px;width:26px;
-      border-radius:999px;background:var(--pill-primary,#498BBB);opacity:.55;
+      border-radius:999px;background:var(--pill-primary,#498BBB);opacity:0;
       transform-origin:left center;pointer-events:none;
       transition:opacity .18s,width .28s cubic-bezier(.33,0,.2,1);
     }
@@ -1359,7 +1368,7 @@
     <a href="/status/ongoing" class="nav-link-item">Ongoing</a>
     <a href="/latest-updates" class="nav-link-item">Updates</a>
     <a href="/schedule" class="nav-link-item"><i class="fa-solid fa-calendar-days"></i>Schedule</a>
-    <a href="#" class="nav-link-item"><i class="fa-solid fa-newspaper"></i>News</a>
+    <a href="#" class="nav-link-item"><i class="fa-solid fa-rss"></i>News</a>
     <a href="#" class="nav-link-item"><i class="fa-solid fa-comments"></i>Forum</a>
   </nav>
 
@@ -1468,7 +1477,7 @@
     <a href="/status/ongoing" class="mob-nav-item">Ongoing</a>
     <a href="/latest-updates" class="mob-nav-item">Updates</a>
     <a href="/schedule" class="mob-nav-item"><i class="fa-solid fa-calendar-days"></i>Schedule</a>
-    <a href="#" class="mob-nav-item"><i class="fa-solid fa-newspaper"></i>News</a>
+    <a href="#" class="mob-nav-item"><i class="fa-solid fa-rss"></i>News</a>
   </div>
 </div>
 `;
