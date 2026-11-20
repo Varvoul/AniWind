@@ -1374,7 +1374,7 @@
 
   <!-- Desktop Socials (left of search) -->
   <div class="header-socials">
-    <a href="https://discord.com" target="_blank" class="social-icon-btn" title="Discord">${SVG.discord}</a>
+    <a href="https://discord.gg/Bqge9nBezG" target="_blank" rel="noopener" class="social-icon-btn" title="Join our Discord">${SVG.discord}</a>
     <a href="https://tumblr.com" target="_blank" class="social-icon-btn" title="Tumblr">${SVG.tumblr}</a>
     <a href="https://bsky.app" target="_blank" class="social-icon-btn" title="Bluesky">${SVG.bluesky}</a>
   </div>
@@ -1413,7 +1413,7 @@
 
   <!-- Mobile right controls -->
   <div class="mobile-right" id="mobileRight">
-    <a href="https://discord.com" target="_blank" class="mob-icon-btn">${SVG.discord}</a>
+    <a href="https://discord.gg/Bqge9nBezG" target="_blank" rel="noopener" class="mob-icon-btn" title="Join our Discord" aria-label="Join our Discord">${SVG.discord}</a>
     <a href="https://tumblr.com" target="_blank" class="mob-icon-btn">${SVG.tumblr}</a>
     <a href="https://bsky.app" target="_blank" class="mob-icon-btn">${SVG.bluesky}</a>
     <button class="mob-icon-btn" id="mobSearchBtn" aria-label="Search">${SVG.search}</button>
@@ -1494,7 +1494,7 @@
       <span style="font-size:0.78rem;color:#fff;font-weight:600;">Follow us!</span>
       <a href="https://t.me" target="_blank" class="social-icon-btn"><svg fill="currentColor" viewBox="0 0 24 24" width="20" height="20"><path d="M19.2,4.4L2.9,10.7c-1.1,0.4-1.1,1.1-0.2,1.3l4.1,1.3l1.6,4.8c0.2,0.5,0.1,0.7,0.6,0.7c0.4,0,0.6-0.2,0.8-0.4c0.1-0.1,1-1,2-2l4.2,3.1c0.8,0.4,1.3,0.2,1.5-0.7l2.8-13.1C20.6,4.6,19.9,4,19.2,4.4z M17.1,7.4l-7.8,7.1L9,17.8L7.4,13l9.2-5.8C17,6.9,17.4,7.1,17.1,7.4z"/></svg></a>
       <a href="https://bsky.app" target="_blank" class="social-icon-btn"><svg viewBox="0 0 16 16" fill="currentColor" width="20" height="20"><path d="M3 1H0V5C0 6.65685 1.34315 8 3 8L2.03553 8.96447C1.37249 9.62751 1 10.5268 1 11.4645C1 13.4171 2.58291 15 4.53553 15C5.47322 15 6.37249 14.6275 7.03553 13.9645L8 13L8.96447 13.9645C9.62751 14.6275 10.5268 15 11.4645 15C13.4171 15 15 13.4171 15 11.4645C15 10.5268 14.6275 9.62751 13.9645 8.96447L13 8C14.6569 8 16 6.65685 16 5V1H13L8 6L3 1Z"/></svg></a>
-      <a href="https://discord.com" target="_blank" class="social-icon-btn">${SVG.discord}</a>
+      <a href="https://discord.gg/Bqge9nBezG" target="_blank" rel="noopener" class="social-icon-btn" title="Join our Discord">${SVG.discord}</a>
       <a href="https://x.com" target="_blank" class="social-icon-btn"><svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.73-8.835L1.254 2.25H8.08l4.253 5.622 5.911-5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></a>
       <a href="https://tumblr.com" target="_blank" class="social-icon-btn">${SVG.tumblr}</a>
     </div>
