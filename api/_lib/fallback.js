@@ -38,8 +38,14 @@ const BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
 const ANILIST_PROXY = 'https://anilist-my-proxy.vercel.app/api';
 const ANIKOTO_PRIMARY = 'https://anikotoapi.site/recent-anime';
 const ANIKOTO_FALLBACK = 'https://anikoto.bionmovies47.workers.dev/recent-anime';
+// t-umi bases are still referenced for /tv/airing (special pool endpoint) and
+// as documentation; the actual authed calls go through tumiFetchJson below.
 const T_UMI_PRIMARY = 'https://t-umi.bionmovies47.workers.dev';
 const T_UMI_FALLBACK = 'https://t-umi.zeraf.workers.dev';
+
+// t-umi auth helper (added 2026-11-23 — t-umi workers now require
+// X-Proxy-Key header + /p/<URL_PATH_SECRET>/ prefix; secrets in Vercel env).
+import { tumiFetchJson, tumiFetch } from './tumi-auth.js';
 
 const REQ_TIMEOUT_MS = 6000;
 const FALLBACK_TTL_MS = 30 * 60 * 1000; // 30 min per warm instance
@@ -91,15 +97,15 @@ async function getAnikoto(perPage = 100) {
   } catch (e) { return []; }
 }
 
-/** One TMDB page via t-umi chain (bionmovies47 -> zeraf). Raw page or null. */
+/** One TMDB page via t-umi chain (bionmovies47 -> zeraf). Raw page or null.
+ *  Uses the authed tumiFetchJson helper (X-Proxy-Key + /p/<secret>/ prefix). */
 async function getTmdbPage(path, params = {}) {
   const qs = new URLSearchParams(params).toString();
-  for (const base of [T_UMI_PRIMARY, T_UMI_FALLBACK]) {
-    try {
-      return await fetchJson(`${base}${path}${qs ? '?' + qs : ''}`);
-    } catch (e) { /* try next */ }
+  try {
+    return await tumiFetchJson(path, { qs, signal: AbortSignal.timeout(REQ_TIMEOUT_MS) });
+  } catch (e) {
+    return null;
   }
-  return null;
 }
 
 /** TMDB results array (page flattened), [] on failure. */
@@ -165,12 +171,14 @@ const TUMI_AIRING_TIMEOUT_MS = 25000; // first hit after isolate cold start scan
  * 12h pool cache makes every call after the first in a 12h window instant.
  */
 async function getTumiAiringResults(page) {
-  for (const base of TUMI_AIRING_BASES) {
-    try {
-      const j = await fetchJson(`${base}/tv/airing?page=${page}&sort_by=first_air_date.desc`, TUMI_AIRING_TIMEOUT_MS);
-      if (Array.isArray(j?.results) && j.results.length) return j.results;
-    } catch (e) { /* try the next domain */ }
-  }
+  // t-umi /tv/airing — authed via tumiFetchJson (handles tier fallback)
+  try {
+    const j = await tumiFetchJson('/tv/airing', {
+      qs: `page=${page}&sort_by=first_air_date.desc`,
+      signal: AbortSignal.timeout(TUMI_AIRING_TIMEOUT_MS),
+    });
+    if (Array.isArray(j?.results) && j.results.length) return j.results;
+  } catch (e) { /* fall through to empty */ }
   return [];
 }
 

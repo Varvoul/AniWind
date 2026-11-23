@@ -5,7 +5,6 @@
   <link rel="icon" type="image/png" href="https://i.postimg.cc/BvwTjXgv/image-359e594e.png">
   <!-- Priority preconnects — data + image origins used by stage-1 rendering -->
   <link rel="preconnect" href="https://ruri.bionmovies47.workers.dev" crossorigin>
-  <link rel="preconnect" href="https://t-umi.bionmovies47.workers.dev" crossorigin>
   <link rel="dns-prefetch" href="https://anilist-my-proxy.vercel.app">
   <link rel="dns-prefetch" href="https://api.themoviedb.org">
   <!-- t113: mapple is the PRIMARY data origin for tmdb-tv/movie pages; self-jikan
@@ -3336,8 +3335,8 @@ img { max-width: 100%; height: auto; display: block; }
 
       const CONFIG = {
         TMDB_WORKER: 'https://aniocen.bionmovies47.workers.dev', // DEAD (CF 1042, script removed) — kept only as historical reference
-        TMDB_TUMI: 'https://t-umi.bionmovies47.workers.dev',     // CF TMDB proxy — prepends /3 itself, NEVER add /3 to paths here
-        TMDB_TUMI_FB: 'https://t-umi.zeraf.workers.dev',         // same worker, second domain
+        TMDB_TUMI: '/api/tumi',     // authed t-umi proxy (server-side, secrets in Vercel env)
+        TMDB_TUMI_FB: '/api/tumi',  // same route — server handles bionmovies→zeraf fallback
         // t170: direct-TMDB tier + hardcoded v4 read token REMOVED — the token
         // shipped to every browser. TMDB calls now end at the serverless
         // passthrough below (token kept in a Vercel env var server-side).

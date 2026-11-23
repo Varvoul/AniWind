@@ -32,8 +32,11 @@ const RECENT_BASE    = 'https://anikoto.bionmovies47.workers.dev/recent-anime';
 const PROXY_BASE     = 'https://anilist-my-proxy.vercel.app';
 const SCRAPER_BASE   = 'https://anilist-scraper-steel.vercel.app';
 const JIKAN_BASE     = 'https://jikan-api-bohb.onrender.com/v4';
+// t-umi bases kept for documentation only — actual fetches go through the
+// authed helper (X-Proxy-Key + /p/<URL_PATH_SECRET>/ prefix; secrets in env).
 const TUMI_PRIMARY   = 'https://t-umi.bionmovies47.workers.dev';
 const TUMI_BACKUP    = 'https://t-umi.zeraf.workers.dev';
+import { tumiFetchJson } from './_lib/tumi-auth.js';
 const MAPPLE_BASE    = 'https://mapple-tmdb-proxy.vercel.app';
 const TMDB_IMG       = 'https://image.tmdb.org/t/p';
 
@@ -619,7 +622,7 @@ async function fetchTmdb(base, f, page, perPage, kind, sort, warnings) {
     p.set('query', f.q);
     if (f.year) { // search has no year filter — hint via year cannot apply; post-filter instead
     }
-    const j = await fetchJson(`${base}/search/${kind}?${p}`, {}, 12000);
+    const j = await tumiFetchJson(`/search/${kind}`, { qs: p.toString(), signal: AbortSignal.timeout(12000) });
     let results = j.results || [];
     if (f.year) results = results.filter(r => (r.release_date || r.first_air_date || '').startsWith(String(f.year)));
     if (f.genres && f.genres.length) {
@@ -647,7 +650,7 @@ async function fetchTmdb(base, f, page, perPage, kind, sort, warnings) {
   if (f.country) p.set('with_origin_country', COUNTRY_ISO[f.country] || '');
   if (f.studio && f.studioName) {
     const known = TMDB_COMPANY_ID[f.studio];
-    const companyId = known || await resolveCompanyId(base, f.studio, f.studioName);
+    const companyId = known || await resolveCompanyId(f.studio, f.studioName);
     if (!companyId) return { items: [], rawTotal: 0, hasNext: false, lastPage: 0, legitEmpty: true };
     p.set('with_companies', String(companyId));
   }
@@ -663,18 +666,18 @@ async function fetchTmdb(base, f, page, perPage, kind, sort, warnings) {
   const sb = TMDB_SORT[sort] || TMDB_SORT['default'];
   p.set('sort_by', sb[kind] || 'popularity.desc');
   if (sort === 'score') p.set('vote_count.gte', '300');
-  const j = await fetchJson(`${base}/discover/${kind}?${p}`, {}, 12000);
+  const j = await tumiFetchJson(`/discover/${kind}`, { qs: p.toString(), signal: AbortSignal.timeout(12000) });
   const items = (j.results || []).map(r => uniTmdb(r, kind, statusHint));
   return { items, rawTotal: j.total_results || items.length, hasNext: !!j.has_next_page, lastPage: j.total_pages || null };
 }
 // resolve arbitrary TMDB studio/company slugs (from info-page links) to
 // company ids via TMDB /search/company, cached for the process lifetime
 const COMPANY_ID_CACHE = new Map();
-async function resolveCompanyId(base, slug, name) {
+async function resolveCompanyId(slug, name) {
   const key = String(slug || name || '').toLowerCase();
   if (COMPANY_ID_CACHE.has(key)) return COMPANY_ID_CACHE.get(key);
   try {
-    const j = await fetchJson(`${base}/search/company?query=${encodeURIComponent(name || titleCaseSlug(slug))}`, {}, 10000);
+    const j = await tumiFetchJson('/search/company', { qs: `query=${encodeURIComponent(name || titleCaseSlug(slug))}`, signal: AbortSignal.timeout(10000) });
     const id = (j.results && j.results[0] && j.results[0].id) || null;
     COMPANY_ID_CACHE.set(key, id);
     return id;
@@ -813,7 +816,8 @@ function buildAnimePlan(f, sort, warnings) {
 function buildTmdbPlan(f, sort, warnings) {
   const plan = [];
   const kinds = tmdbKindSplit(f);
-  const bases = [TUMI_PRIMARY, TUMI_BACKUP];
+  // t-umi: single plan entry per kind — the auth helper handles bionmovies→zeraf
+  // tier fallback internally (no need to duplicate plan entries per domain).
   if (f.studio && STUDIO_NAME[f.studio]) {
     // an ANIME studio was requested — TMDB has no equivalent; empty is the
     // honest answer (unfiltered results would mislead)
@@ -826,16 +830,14 @@ function buildTmdbPlan(f, sort, warnings) {
     }
     return plan;
   }
-  bases.forEach((base, i) => {
-    for (const kind of (kinds.length ? kinds : ['tv','movie'])) {
-      plan.push({
-        name:`t-umi${i === 0 ? '' : ':zeraf'}:${kind}`,
-        kind,
-        call:(p, pp)=>fetchTmdb(base, f, p, pp, kind, sort, warnings),
-        post:{}
-      });
-    }
-  });
+  for (const kind of (kinds.length ? kinds : ['tv','movie'])) {
+    plan.push({
+      name:`t-umi:${kind}`,
+      kind,
+      call:(p, pp)=>fetchTmdb(null, f, p, pp, kind, sort, warnings),
+      post:{}
+    });
+  }
   if (f.rating || f.language || f.source || f.season) warnings.push('Rating/Language/Source/Season filters only apply to anime; ignored for TMDB results.');
   return plan;
 }

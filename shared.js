@@ -98,7 +98,7 @@
   }
   window.getTVMazeScheduleDay = getTVMazeScheduleDay;
 
-  const CF_WORKER_URL     = 'https://t-umi.bionmovies47.workers.dev'; // Fallback TMDB proxy (used when mapplee fails/rate-limits)
+  const CF_WORKER_URL     = '/api/tumi'; // Authed t-umi proxy (server-side, secrets in Vercel env)
   const MAPLEE_API_URL    = 'https://mapplee.com/api/tmdb'; // Primary TMDB proxy
 
   // ── Edge-rate-limited proxy for anime_data/anikoto_data search RPCs ──

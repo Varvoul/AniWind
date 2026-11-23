@@ -1538,7 +1538,7 @@
   /* TMDB list payloads carry NO production companies — hydrate the popup's
      Studio row lazily per hovered item (t-umi chain, CORS open for this site,
      verified t125/t137). Results cached per tmdb id for the session. */
-  var TMDB_DETAIL_BASES = ['https://t-umi.bionmovies47.workers.dev', 'https://t-umi.zeraf.workers.dev'];
+  var TMDB_DETAIL_BASES = ['/api/tumi']; // authed t-umi proxy (server-side, secrets in Vercel env)
   var tmdbStudioCache = new Map();
   var popItemKey = '';                 // identity of the item the popup currently shows
   function tmdbStudioKey(it) { return it.kind + ':' + it.tmdb_id; }

@@ -49,6 +49,10 @@
       "destination": "/api/tmdb-proxy?path=:path*"
     },
     {
+      "source": "/api/tumi/:path*",
+      "destination": "/api/tumi?path=:path*"
+    },
+    {
       "source": "/latest-updates",
       "destination": "/browse.html"
     },

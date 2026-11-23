@@ -31,6 +31,10 @@ const store = new Map(); // key -> { data, source, cachedAt, expiresAt }
 const TMDB_TOKEN = process.env.TMDB_READ_TOKEN || '';
 const MAPPLE = 'https://mapple-tmdb-proxy.vercel.app/api';
 const TUMI = ['https://t-umi.bionmovies47.workers.dev', 'https://t-umi.zeraf.workers.dev'];
+// t-umi auth helper — the TUMI array above is kept for label fallback only;
+// all t-umi fetches go through tumiFetchJson (X-Proxy-Key + /p/<secret>/
+// prefix; secrets in Vercel env vars).
+import { tumiFetchJson } from '../_lib/tumi-auth.js';
 const TMDB_DIRECT = 'https://api.themoviedb.org/3';
 const RURI = 'https://ruri.bionmovies47.workers.dev';
 const ANILIST_PROXY = 'https://anilist-my-proxy.vercel.app/api';
@@ -76,10 +80,7 @@ async function fetchTmdbSection(section, type) {
   const pageCount = SIDEBAR_PAGES[section] || 1;
   const tiers = [
     { label: 'mapple-tmdb-proxy.vercel.app', fetch: (p) => fetchJson(mappleSidebarUrl(section, type, p), 15000) },
-    ...TUMI.map(b => ({
-      label: new URL(b).host,
-      fetch: (p) => fetchJson(`${b}${tumiSidebarUrl(section, type, p)}`, 15000),
-    })),
+    { label: 't-umi.bionmovies47.workers.dev', fetch: (p) => tumiFetchJson(tumiSidebarUrl(section, type, p), { signal: AbortSignal.timeout(15000) }) },
     { label: 'api.themoviedb.org', fetch: (p) => fetchJson(`${TMDB_DIRECT}${tumiSidebarUrl(section, type, p)}`, 15000, { Authorization: `Bearer ${TMDB_TOKEN}` }) },
   ];
   for (const tier of tiers) {

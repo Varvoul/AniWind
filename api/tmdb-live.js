@@ -33,13 +33,16 @@
 // ─────────────────────────────────────────────────────────────────────────
 
 import { setCacheHeaders } from './_lib/cache.js';
+import { tumiFetch } from './_lib/tumi-auth.js';
 
 // ── CONFIGURATION ──
 const LIVE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours in milliseconds (aligned with _lib/cache.js policy)
 const LIVE_TTL_SECONDS = LIVE_TTL_MS / 1000;
 
 // ⚡ USE SAME ENDPOINTS AS AUTOMATION WORKER (T-UMI PROXY)
-// Your automation uses: https://t-umi.zeraf.workers.dev/{tv|movie}/popular?watch_region={CODE}
+// t-umi workers now require auth (X-Proxy-Key header + /p/<secret>/ URL prefix).
+// The tumiFetch helper handles both — secrets live in Vercel env vars.
+// Kept for documentation; not used directly:
 const T_UMI_BASE = 'https://t-umi.zeraf.workers.dev';
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p';
 const MAX_PAGES = 4; // Paginate deeper: posterless items get dropped below, so
@@ -139,12 +142,12 @@ async function fetchTMDBPopular(type, countryCode, maxPages = MAX_PAGES) {
       // with_origin_country=KR returns Korean content, PK returns Pakistani, etc.
       // Date filter ensures we get CURRENT YEAR releases only!
       // Sort by release date (NOT popularity) to get NEWEST content first!
-      const sortBy = isMovie ? 'release_date.desc' : 'first_air_date.desc';
-      const url = `${T_UMI_BASE}${endpoint}?with_origin_country=${countryCode}&${dateFilter}&sort_by=${sortBy}&page=${page}`;
+            const sortBy = isMovie ? 'release_date.desc' : 'first_air_date.desc';
+      const qs = `with_origin_country=${countryCode}&${dateField}&sort_by=${sortBy}&page=${page}`;
       console.log(`[TMDB-Live] 📡 Fetching: ${type}/${countryCode} page ${page} (${currentYear})`);
-      console.log(`[TMDB-Live] 🔗 URL: ${url}`);
-      
-      const response = await fetch(url);
+      console.log(`[TMDB-Live] 🔗 t-umi ${endpoint}?${qs}`);
+
+      const response = await tumiFetch(endpoint, { qs, signal: AbortSignal.timeout(12000) });
       
       if (!response.ok) {
         console.warn(`[TMDB-Live] ⚠️ ${type}/${countryCode} p${page}: HTTP ${response.status}`);
