@@ -79,8 +79,11 @@ export default async function handler(req, res) {
       const zerafConfigured = !!(process.env.T_UMI_ZERAF_HEADER_SECRET && process.env.T_UMI_ZERAF_URL_PATH_SECRET);
       return res.status(200).json({
         debug: true,
+        req_url: req.url,
         path,
         qs,
+        tumi_path_raw: req.query.tumi_path,
+        all_query: req.query,
         envs: {
           T_UMI_BIONMOVIES_HEADER_SECRET:   process.env.T_UMI_BIONMOVIES_HEADER_SECRET   ? 'set' : 'MISSING',
           T_UMI_BIONMOVIES_URL_PATH_SECRET: process.env.T_UMI_BIONMOVIES_URL_PATH_SECRET ? 'set' : 'MISSING',
