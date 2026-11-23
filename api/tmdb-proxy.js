@@ -34,6 +34,7 @@ const ALLOWED = [
 ];
 
 import animethemesHandler from './_lib/animethemes.js';
+import { tumiFetch } from './_lib/tumi-auth.js';
 
 export default async function handler(req, res) {
   // t194 dispatch — the AnimeThemes scraper API shares this function file
@@ -44,6 +45,50 @@ export default async function handler(req, res) {
   if (atPath !== undefined) {
     return animethemesHandler(req, res, Array.isArray(atPath) ? atPath.join('/') : atPath);
   }
+
+  // 2026-11-23: t-umi auth proxy shares this function file too (same Hobby
+  // cap reason). vercel.json rewrites /api/tumi/:path* → here as tumi_path.
+  // The authed t-umi fetch (X-Proxy-Key + /p/<secret>/ prefix) is handled by
+  // tumiFetch; secrets live in Vercel env, never reach the browser.
+  const tumiPath = req.query.tumi_path;
+  if (tumiPath !== undefined) {
+    if (req.method === 'OPTIONS') {
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+      return res.status(204).end();
+    }
+    if (req.method !== 'GET') {
+      return res.status(405).json({ error: 'Method not allowed. Use GET.' });
+    }
+    const segs = tumiPath;
+    const path = '/' + (Array.isArray(segs) ? segs.join('/') : String(segs).replace(/^\/+/, ''));
+    if (path === '/' || path === '/undefined') {
+      return res.status(400).json({
+        error: 'Missing t-umi route after /api/tumi',
+        usage: '/api/tumi/movie/155?append_to_response=credits',
+      });
+    }
+    // Strip our internal routing param, keep everything else
+    const url = new URL(req.url, 'http://localhost');
+    url.searchParams.delete('tumi_path');
+    const qs = url.searchParams.toString();
+    try {
+      const upstream = await tumiFetch(path, { qs, signal: AbortSignal.timeout(15000) });
+      const body = await upstream.text();
+      const ct = upstream.headers.get('Content-Type') || 'application/json';
+      const cc = upstream.headers.get('Cache-Control') || 'public, max-age=300';
+      res.setHeader('Content-Type', ct);
+      res.setHeader('Cache-Control', cc);
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      const xCache = upstream.headers.get('X-Tmdb-Cache');
+      if (xCache) res.setHeader('X-Tmdb-Cache', xCache);
+      return res.status(upstream.status).send(body);
+    } catch (e) {
+      return res.status(502).json({ error: 't-umi upstream failed', detail: e.message });
+    }
+  }
+
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed. Use GET.' });
   }

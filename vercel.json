@@ -50,7 +50,7 @@
     },
     {
       "source": "/api/tumi/:path*",
-      "destination": "/api/tumi?path=:path*"
+      "destination": "/api/tmdb-proxy?tumi_path=:path*"
     },
     {
       "source": "/latest-updates",
