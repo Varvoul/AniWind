@@ -73,6 +73,26 @@ export default async function handler(req, res) {
     const url = new URL(req.url, 'http://localhost');
     url.searchParams.delete('tumi_path');
     const qs = url.searchParams.toString();
+    // Debug mode — returns the constructed URL + env presence without calling t-umi
+    if (url.searchParams.has('debug')) {
+      const bionmoviesConfigured = !!(process.env.T_UMI_BIONMOVIES_HEADER_SECRET && process.env.T_UMI_BIONMOVIES_URL_PATH_SECRET);
+      const zerafConfigured = !!(process.env.T_UMI_ZERAF_HEADER_SECRET && process.env.T_UMI_ZERAF_URL_PATH_SECRET);
+      return res.status(200).json({
+        debug: true,
+        path,
+        qs,
+        envs: {
+          T_UMI_BIONMOVIES_HEADER_SECRET:   process.env.T_UMI_BIONMOVIES_HEADER_SECRET   ? 'set' : 'MISSING',
+          T_UMI_BIONMOVIES_URL_PATH_SECRET: process.env.T_UMI_BIONMOVIES_URL_PATH_SECRET ? 'set' : 'MISSING',
+          T_UMI_ZERAF_HEADER_SECRET:        process.env.T_UMI_ZERAF_HEADER_SECRET        ? 'set' : 'MISSING',
+          T_UMI_ZERAF_URL_PATH_SECRET:      process.env.T_UMI_ZERAF_URL_PATH_SECRET      ? 'set' : 'MISSING',
+        },
+        tiers: [
+          { base: 'https://t-umi.bionmovies47.workers.dev', configured: bionmoviesConfigured },
+          { base: 'https://t-umi.zeraf.workers.dev',        configured: zerafConfigured },
+        ],
+      });
+    }
     try {
       const upstream = await tumiFetch(path, { qs, signal: AbortSignal.timeout(15000) });
       const body = await upstream.text();
