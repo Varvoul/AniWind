@@ -36,7 +36,7 @@ const TUMI = ['https://t-umi.bionmovies47.workers.dev', 'https://t-umi.zeraf.wor
 // prefix; secrets in Vercel env vars).
 import { tumiFetchJson } from '../_lib/tumi-auth.js';
 const TMDB_DIRECT = 'https://api.themoviedb.org/3';
-const RURI = 'https://ruri.bionmovies47.workers.dev';
+const RURI = 'https://ruristream.vercel.app/api/ruri';
 const ANILIST_PROXY = 'https://anilist-my-proxy.vercel.app/api';
 const JIKAN_SELF = 'https://jikan-api-bohb.onrender.com/v4';
 

@@ -37,7 +37,7 @@ const BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
 
 const ANILIST_PROXY = 'https://anilist-my-proxy.vercel.app/api';
 const ANIKOTO_PRIMARY = 'https://anikotoapi.site/recent-anime';
-const ANIKOTO_FALLBACK = 'https://anikoto.bionmovies47.workers.dev/recent-anime';
+const ANIKOTO_FALLBACK = 'https://ruristream.vercel.app/api/anikoto/recent-anime';
 // t-umi bases are still referenced for /tv/airing (special pool endpoint) and
 // as documentation; the actual authed calls go through tumiFetchJson below.
 const T_UMI_PRIMARY = 'https://t-umi.bionmovies47.workers.dev';

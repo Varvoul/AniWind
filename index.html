@@ -2771,7 +2771,7 @@
       const JIKAN_BASE    = 'https://api.jikan.moe/v4';
       const TMDB_PROXY    = '/api/tumi'; // authed t-umi proxy (server-side, secrets in Vercel env)
       const TMDB_LEGACY   = '/api/tumi'; // same route — server handles bionmovies→zeraf fallback
-      const ANIKOTO_API   = 'https://anikoto.bionmovies47.workers.dev'; // direct anikoto fallback
+      const ANIKOTO_API   = '/api/anikoto'; // direct anikoto fallback
       const TMDB_IMAGE = 'https://image.tmdb.org/t/p';
       const tmdbImg = (p,s='w500') => p ? `${TMDB_IMAGE}/${s}${p}` : '';
       const tmdbBack = (p) => p ? `${TMDB_IMAGE}/w1280${p}` : '';
@@ -4821,7 +4821,7 @@ async function loadNewAniocean() {
       const T130_CHAIN = {
         proxy:   'https://anilist-my-proxy.vercel.app',
         scraper: 'https://anilist-scraper-steel.vercel.app',
-        ruri:    'https://ruri.bionmovies47.workers.dev',
+        ruri:    '/api/ruri',
       };
       const _t130Memo = {};   // chain-name → Promise<media[]>
 

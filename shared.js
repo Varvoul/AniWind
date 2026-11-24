@@ -105,7 +105,7 @@
   // Deployed Cloudflare Worker (supabase-search-proxy) - whitelists only
   // search_anime_data / get_anime_data_by_mal_ids / search_anikoto_fuzzy
   // and rate-limits per IP before anything reaches Supabase.
-  const SEARCH_PROXY_URL  = 'https://supabase-search-proxy.bionmovies47.workers.dev';
+  const SEARCH_PROXY_URL  = '/api/supabase-search-proxy';
 
   // ── ruri: jikan-v4-style anime data API over the SAME Supabase tables ──
   // Cloudflare Worker (ruri.bionmovies47.workers.dev) serving anime_data
@@ -114,7 +114,7 @@
   // one endpoint covers both DBs and keeps search traffic off Supabase.
   // If ruri is slow or down, the existing chain below takes over unchanged
   // (edge proxy -> direct RPC -> anikoto RPC -> AniList -> Jikan).
-  const RURI_URL          = 'https://ruri.bionmovies47.workers.dev';
+  const RURI_URL          = '/api/ruri';
   // Both ruri search profiles race in PARALLEL (see ruriSearch), so the outer
   // budget must fit the SLOWEST single profile (cold s-mal ~1.1s at the edge +
   // user RTT) instead of their sequential sum - the old 1200ms window is what
@@ -230,7 +230,7 @@
     };
     try {
       // ipapi.co via Cloudflare Worker proxy — no CORS issues
-      const res = await fetch('https://ipapi-proxy.bionmovies47.workers.dev/json/', { cache: 'no-store' });
+      const res = await fetch('/api/ipapi-proxy/json/', { cache: 'no-store' });
       if (res.ok) {
         const j = await res.json();
         if (j.success !== false && !j.error) {

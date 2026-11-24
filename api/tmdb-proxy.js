@@ -35,6 +35,7 @@ const ALLOWED = [
 
 import animethemesHandler from './_lib/animethemes.js';
 import { tumiFetch } from './_lib/tumi-auth.js';
+import { cfWorkerFetch, WORKERS } from './_lib/cf-worker-auth.js';
 
 export default async function handler(req, res) {
   // t194 dispatch — the AnimeThemes scraper API shares this function file
@@ -44,6 +45,44 @@ export default async function handler(req, res) {
   const atPath = req.query.at_path;
   if (atPath !== undefined) {
     return animethemesHandler(req, res, Array.isArray(atPath) ? atPath.join('/') : atPath);
+  }
+
+  // 2026-11-24: Generic CF worker proxy dispatch — handles ruri, anikoto,
+  // ipapi-proxy, supabase-search-proxy, ani-pm-proxy, aniumi-data-proxy,
+  // anikoto-proxy. vercel.json rewrites /api/<worker>/:path* → here as cf_path.
+  // The cf_worker query param identifies which worker to proxy to.
+  const cfWorker = req.query.cf_worker;
+  const cfPath = req.query.cf_path;
+  if (cfWorker !== undefined && cfPath !== undefined) {
+    if (req.method === 'OPTIONS') {
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+      return res.status(204).end();
+    }
+    const path = '/' + (Array.isArray(cfPath) ? cfPath.join('/') : String(cfPath).replace(/^\/+/, ''));
+    // Strip internal routing params, keep everything else
+    const url = new URL(req.url, 'http://localhost');
+    url.searchParams.delete('cf_worker');
+    url.searchParams.delete('cf_path');
+    const qs = url.searchParams.toString();
+    const fullPath = path + (qs ? '?' + qs : '');
+    try {
+      const upstream = await cfWorkerFetch(cfWorker, fullPath, {
+        signal: AbortSignal.timeout(15000),
+        method: req.method,
+        headers: req.method !== 'GET' ? { 'Content-Type': req.headers['content-type'] || 'application/json' } : undefined,
+        body: req.method !== 'GET' && req.method !== 'HEAD' ? (typeof req.body === 'string' ? req.body : JSON.stringify(req.body || {})) : undefined,
+      });
+      const body = await upstream.text();
+      const ct = upstream.headers.get('Content-Type') || 'application/json';
+      res.setHeader('Content-Type', ct);
+      res.setHeader('Cache-Control', upstream.headers.get('Cache-Control') || 'public, max-age=60');
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      return res.status(upstream.status).send(body);
+    } catch (e) {
+      return res.status(502).json({ error: `CF worker ${cfWorker} upstream failed`, detail: e.message });
+    }
   }
 
   // 2026-11-23: t-umi auth proxy shares this function file too (same Hobby

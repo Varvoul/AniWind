@@ -28,7 +28,7 @@
 const VERSION = 'browse v1';
 
 const RURI_BASE      = 'https://ruri.bionmovies47.workers.dev';
-const RECENT_BASE    = 'https://anikoto.bionmovies47.workers.dev/recent-anime';
+const RECENT_BASE    = 'https://ruristream.vercel.app/api/anikoto/recent-anime';
 const PROXY_BASE     = 'https://anilist-my-proxy.vercel.app';
 const SCRAPER_BASE   = 'https://anilist-scraper-steel.vercel.app';
 const JIKAN_BASE     = 'https://jikan-api-bohb.onrender.com/v4';
@@ -37,6 +37,7 @@ const JIKAN_BASE     = 'https://jikan-api-bohb.onrender.com/v4';
 const TUMI_PRIMARY   = 'https://t-umi.bionmovies47.workers.dev';
 const TUMI_BACKUP    = 'https://t-umi.zeraf.workers.dev';
 import { tumiFetchJson } from './_lib/tumi-auth.js';
+import { cfWorkerFetchJson } from './_lib/cf-worker-auth.js';
 const MAPPLE_BASE    = 'https://mapple-tmdb-proxy.vercel.app';
 const TMDB_IMG       = 'https://image.tmdb.org/t/p';
 
