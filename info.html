@@ -3553,6 +3553,68 @@ img { max-width: 100%; height: auto; display: block; }
           recGrid.appendChild(wrap);
         }
 
+        // 7a) Water Temple — inject skeleton cards (anime pages only).
+        //     On TMDB pages this section stays display:none (no Water Temple).
+        const wtGrid = $('waterTempleGrid');
+        const wtSec  = $('waterTempleSection');
+        const _isAnimePage = (typeof currentState !== 'undefined' && currentState.source !== 'tmdb');
+        if (wtGrid && wtGrid.children.length <= 1 && _isAnimePage) {
+          if (wtSec) wtSec.style.display = 'block';
+          // Remove the "Loading recommendations..." text
+          wtGrid.innerHTML = '';
+          const wtWrap = document.createElement('div');
+          wtWrap.className = SK_CLASS + ' recs-grid';
+          wtWrap.style.cssText = 'display:grid;gap:16px;';
+          // Match .recs-grid responsive columns via inline (can't use CSS class
+          // because the grid columns are media-query driven; use the same
+          // breakpoints as .recs-grid)
+          wtWrap.style.gridTemplateColumns = 'repeat(2,1fr)'; // mobile default
+          const wtColCount = window.matchMedia('(min-width:1201px)').matches ? 7
+                           : window.matchMedia('(min-width:769px)').matches ? 6
+                           : window.matchMedia('(max-width:768px) and (orientation:landscape)').matches ? 4
+                           : 2;
+          wtWrap.style.gridTemplateColumns = `repeat(${wtColCount},1fr)`;
+          for (let i=0;i<wtColCount*2;i++) { // 2 rows worth
+            const card = document.createElement('div');
+            card.style.cssText = 'border-radius:8px;overflow:hidden;background:#151926;';
+            const poster = document.createElement('div');
+            poster.className = SK_CLASS;
+            poster.style.cssText = 'width:100%;aspect-ratio:2/3;background:linear-gradient(90deg,#151926 25%,#1A1D29 45%,#212636 55%,#151926 75%);background-size:1200px 100%;animation:sk-wave 1.6s ease-in-out infinite;';
+            card.appendChild(poster);
+            addSkBlock(card, '10px', '80%', '7px');
+            addSkBlock(card, '9px', '55%', '4px');
+            wtWrap.appendChild(card);
+          }
+          wtGrid.appendChild(wtWrap);
+        }
+
+        // 7b) Sunken Treasures — inject skeleton cards (same pattern)
+        const stGrid = $('sunkenTreasuresGrid');
+        if (stGrid && stGrid.children.length <= 1) {
+          // Remove the "Loading recommendations..." text
+          stGrid.innerHTML = '';
+          const stWrap = document.createElement('div');
+          stWrap.className = SK_CLASS + ' recs-grid';
+          stWrap.style.cssText = 'display:grid;gap:16px;';
+          const stColCount = window.matchMedia('(min-width:1201px)').matches ? 7
+                           : window.matchMedia('(min-width:769px)').matches ? 6
+                           : window.matchMedia('(max-width:768px) and (orientation:landscape)').matches ? 4
+                           : 2;
+          stWrap.style.gridTemplateColumns = `repeat(${stColCount},1fr)`;
+          for (let i=0;i<stColCount*2;i++) {
+            const card = document.createElement('div');
+            card.style.cssText = 'border-radius:8px;overflow:hidden;background:#151926;';
+            const poster = document.createElement('div');
+            poster.className = SK_CLASS;
+            poster.style.cssText = 'width:100%;aspect-ratio:2/3;background:linear-gradient(90deg,#151926 25%,#1A1D29 45%,#212636 55%,#151926 75%);background-size:1200px 100%;animation:sk-wave 1.6s ease-in-out infinite;';
+            card.appendChild(poster);
+            addSkBlock(card, '10px', '80%', '7px');
+            addSkBlock(card, '9px', '55%', '4px');
+            stWrap.appendChild(card);
+          }
+          stGrid.appendChild(stWrap);
+        }
+
         // 8) Sidebar lists — inject rows inside empty lists
         [$('hiddenGemList'), $('topRankingList'), $('mostFavouriteList')].forEach(el => {
           if (!el || el.children.length > 0) return;
@@ -8018,7 +8080,11 @@ img { max-width: 100%; height: auto; display: block; }
         if (currentState.source === 'tmdb') { section.style.display = 'none'; return; }
 
         section.style.display = 'block';
-        gridContainer.innerHTML = '<div class="loading-text">Loading recommendations...</div>';
+        // Keep skeleton in place (already injected by injectInfoSkeletons) —
+        // only show loading text if no skeleton is present
+        if (!gridContainer.querySelector('.sk-overlay')) {
+          gridContainer.innerHTML = '<div class="loading-text">Loading recommendations...</div>';
+        }
 
         try {
           // PRIMARY — ruri recommendations by genre, all id forms accepted:
@@ -8324,7 +8390,11 @@ img { max-width: 100%; height: auto; display: block; }
         if (currentState.source !== 'tmdb') { section.style.display = 'none'; return; }
 
         section.style.display = 'block';
-        gridContainer.innerHTML = '<div class="loading-text">Loading recommendations...</div>';
+        // Keep skeleton in place (already injected by injectInfoSkeletons) —
+        // only show loading text if no skeleton is present
+        if (!gridContainer.querySelector('.sk-overlay')) {
+          gridContainer.innerHTML = '<div class="loading-text">Loading recommendations...</div>';
+        }
 
         try {
           const data = currentState.data;
@@ -8526,7 +8596,11 @@ img { max-width: 100%; height: auto; display: block; }
         } catch (e) { /* fall through to live */ }
 
         gridContainer.style.opacity = '0.6';
-        gridContainer.innerHTML = `<div class="loading-text" style="grid-column:1/-1;text-align:center;padding:40px 0;">Loading page ${page}...</div>`;
+        // Keep skeleton in place (already injected by injectInfoSkeletons) —
+        // only show loading text if no skeleton is present
+        if (!gridContainer.querySelector('.sk-overlay')) {
+          gridContainer.innerHTML = `<div class="loading-text" style="grid-column:1/-1;text-align:center;padding:40px 0;">Loading page ${page}...</div>`;
+        }
 
         const currentMal = currentState.source !== 'tmdb' ? jikanIdOf() : null;
         let items = [];
