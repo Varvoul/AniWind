@@ -2991,17 +2991,30 @@ img { max-width: 100%; height: auto; display: block; }
     .sk-cast-name  { height: 10px; width: 80%; border-radius: 3px; }
     .sk-cast-role  { height: 9px; width: 60%; border-radius: 3px; opacity: .6; }
 
-    /* ── Recommendations grid skeleton ── EXACT same breakpoints as .recs-grid */
-    .sk-recs-grid {
-      display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;
+    /* ── Recommendations grid skeleton — cards are injected as DIRECT
+       children of the SAME .recs-grid container real cards use, so
+       columns / card sizes / gaps match the loaded layout exactly
+       (same pattern as index.html main-body grids, browse, schedule).
+       NEVER wrap skeleton cards in a nested grid: a wrapper div inside
+       the CSS grid collapses every card into one column track (7-col
+       desktop => 1/7-width cards — the "tiny skeleton cards" bug). ── */
+    .sk-rec-card {
+      position: relative;
+      border-radius: var(--radius-md, 8px);
+      overflow: hidden;
+      background: var(--bg-card, #151926);
     }
-    @media (max-width: 768px) and (orientation: landscape) { .sk-recs-grid { grid-template-columns: repeat(4, 1fr); } }
-    @media (min-width: 769px) and (max-width: 1200px) { .sk-recs-grid { grid-template-columns: repeat(6, 1fr); } }
-    @media (min-width: 1201px) { .sk-recs-grid { grid-template-columns: repeat(7, 1fr); } }
-    .sk-rec-card   { border-radius: var(--radius-md, 8px); overflow: hidden; background: linear-gradient(90deg,#151926 25%,#1A1D29 45%,#212636 55%,#151926 75%); background-size:1200px 100%; animation:sk-wave 1.6s ease-in-out infinite; position: relative; }
-    .sk-rec-poster { width: 100%; aspect-ratio: 2/3; }
-    .sk-rec-title  { height: 10px; margin: 7px 8px 4px; width: 80%; border-radius: 3px; background:#212636; }
-    .sk-rec-meta   { height: 9px; margin: 0 8px 8px; width: 55%; border-radius: 3px; opacity:.6; background:#1A1D29; }
+    .sk-rec-poster { width:100%; aspect-ratio:3/4.5; border-radius:0; }
+    .sk-rec-info {
+      position:absolute; bottom:0; left:0; right:0;
+      padding:24px 8px 8px;
+      background:linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%);
+      display:flex; flex-direction:column; gap:5px;
+      border-radius:0 0 var(--radius-md, 8px) var(--radius-md, 8px);
+      pointer-events:none;
+    }
+    .sk-rec-meta  { height:9px;  width:60%; border-radius:3px; }
+    .sk-rec-title { height:11px; width:85%; border-radius:3px; }
 
     /* ── Sidebar skeleton ── */
     .sk-sidebar-item {
@@ -3251,25 +3264,25 @@ img { max-width: 100%; height: auto; display: block; }
         <!-- Water Temple (replaces More Like This, only on anime pages) -->
         <section class="recommendations-section" id="waterTempleSection" style="display:none;">
           <h3><i class="fa-sharp-duotone fa-solid fa-torii-gate" style="--fa-primary-color: rgb(132, 175, 208); --fa-secondary-color: rgb(132, 175, 208);"></i> Water Temple</h3>
-          <div class="recs-grid" id="waterTempleGrid">
-            <div class="loading-text">Loading recommendations...</div>
-          </div>
+          <!-- No static text loading (owner rule): injectInfoSkeletons fills
+               this grid with skeleton cards immediately on init -->
+          <div class="recs-grid" id="waterTempleGrid"></div>
         </section>
 
         <!-- Recommend for You (TMDB movie/tv only) -->
         <section class="recommendations-section" id="recommendForYouSection" style="display:none;">
           <h3><i class="fa-solid fa-wand-magic-sparkles" style="color:#a78bfa;"></i> Recommend for You</h3>
-          <div class="recs-grid" id="recommendForYouGrid">
-            <div class="loading-text">Loading recommendations...</div>
-          </div>
+          <!-- No static text loading (owner rule): injectInfoSkeletons fills
+               this grid with skeleton cards immediately on init -->
+          <div class="recs-grid" id="recommendForYouGrid"></div>
         </section>
 
         <!-- Sunken Treasures -->
         <section class="recommendations-section">
           <h3>Sunken Treasures</h3>
-          <div class="recs-grid" id="sunkenTreasuresGrid">
-            <div class="loading-text" id="jikanRecLoading">Loading recommendations...</div>
-          </div>
+          <!-- No static text loading (owner rule): injectInfoSkeletons fills
+               this grid with skeleton cards immediately on init -->
+          <div class="recs-grid" id="sunkenTreasuresGrid"></div>
           <!-- Pagination will be inserted here dynamically -->
           <div id="sunkenPagination" class="pagination-nav"></div>
         </section>
@@ -3419,15 +3432,17 @@ img { max-width: 100%; height: auto; display: block; }
         }</div>`;
       }
       function skRecCards(n=8) {
-        return `<div class="sk-recs-grid">${
-          Array.from({length:n}, () =>
-            `<div class="sk-rec-card">
-               <div class="sk sk-rec-poster"></div>
-               <div class="sk sk-rec-title"></div>
+        // DIRECT grid children only — same shape as _injectRecGridSkeletons.
+        // Never wrap in a nested grid (collapses cards into one column track).
+        return Array.from({length:n}, () =>
+          `<div class="sk-rec-card">
+             <div class="sk sk-rec-poster"></div>
+             <div class="sk-rec-info">
                <div class="sk sk-rec-meta"></div>
-             </div>`
-          ).join('')
-        }</div>`;
+               <div class="sk sk-rec-title"></div>
+             </div>
+           </div>`
+        ).join('');
       }
 
       // ── SKELETON OVERLAY SYSTEM ───────────────────────────────────────────
@@ -3462,6 +3477,38 @@ img { max-width: 100%; height: auto; display: block; }
           background-size:1200px 100%;animation:sk-wave 1.6s ease-in-out infinite;`;
         parent.appendChild(b);
         return b;
+      }
+
+      // ── Rec-grid skeleton helper (index.html / browse / schedule pattern):
+      // skeleton cards are DIRECT children of the .recs-grid container the
+      // real cards use, so columns / card sizes / gaps are identical to the
+      // loaded layout. Card count mirrors _recPaint (desktop 4 full rows,
+      // phones up to 12) so the skeleton matches what will actually render.
+      function _recSkeletonCols(grid) {
+        let cols = 0;
+        try {
+          cols = getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean).length;
+        } catch (e) { /* display:none or detached */ }
+        if (!cols) cols = (_recIsPhone && _recIsPhone()) ? 2 : 7;
+        return cols;
+      }
+      function _injectRecGridSkeletons(grid) {
+        if (!grid) return;
+        grid.innerHTML = '';                       // clear any text loading
+        const cols = _recSkeletonCols(grid);
+        const rows = (_recIsPhone && _recIsPhone()) ? 12 : 4;
+        const count = Math.min(cols * rows, 48);
+        let html = '';
+        for (let i = 0; i < count; i++) {
+          html += '<div class="sk-rec-card">' +
+                    '<div class="sk sk-rec-poster"></div>' +
+                    '<div class="sk-rec-info">' +
+                      '<div class="sk sk-rec-meta"></div>' +
+                      '<div class="sk sk-rec-title"></div>' +
+                    '</div>' +
+                  '</div>';
+        }
+        grid.innerHTML = html;
       }
 
       function injectInfoSkeletons() {
@@ -3533,86 +3580,30 @@ img { max-width: 100%; height: auto; display: block; }
           castList.appendChild(wrap);
         }
 
-        // 7) Recommend for You — inject skeleton cards into the grid
-        //    TMDB movie/TV pages only. On anime pages this section must stay
-        //    display:none — loadRecommendForYou() is never called there, so an
-        //    unguarded display:block would leave the skeleton visible forever.
+        // 7) Recommend for You — TMDB movie/TV pages only. On anime pages
+        //    this section must stay display:none — loadRecommendForYou() is
+        //    never called there, so an unguarded display:block would leave
+        //    the skeleton visible forever.
         const _isTMDBPage = (typeof currentState !== 'undefined' && currentState.source === 'tmdb');
         const recGrid = $('recommendForYouGrid');
-        const recSec  = $('recommendForYouSection');
         if (recGrid && recGrid.children.length <= 1 && _isTMDBPage) {
+          const recSec = $('recommendForYouSection');
           if (recSec) recSec.style.display = 'block';
-          recGrid.innerHTML = ''; // Remove "Loading recommendations..." text
-          // Inject skeleton cards DIRECTLY into the grid container
-          // .sk-recs-grid class handles responsive columns (matches .recs-grid)
-          const wtWrap = document.createElement('div');
-          wtWrap.className = SK_CLASS + ' sk-recs-grid';
-          for (let i=0;i<14;i++) {
-            const card = document.createElement('div');
-            card.className = 'sk-rec-card';
-            const poster = document.createElement('div');
-            poster.className = 'sk-rec-poster';
-            card.appendChild(poster);
-            const title = document.createElement('div');
-            title.className = 'sk-rec-title';
-            card.appendChild(title);
-            const meta = document.createElement('div');
-            meta.className = 'sk-rec-meta';
-            card.appendChild(meta);
-            wtWrap.appendChild(card);
-          }
-          recGrid.appendChild(wtWrap);
+          _injectRecGridSkeletons(recGrid);
         }
 
-        // 7a) Water Temple — inject skeleton cards (anime pages only).
+        // 7a) Water Temple — anime pages only.
         //     On TMDB pages this section stays display:none (no Water Temple).
         const wtGrid = $('waterTempleGrid');
-        const wtSec  = $('waterTempleSection');
-        const _isAnimePage = !_isTMDBPage;
-        if (wtGrid && wtGrid.children.length <= 1 && _isAnimePage) {
+        if (wtGrid && wtGrid.children.length <= 1 && !_isTMDBPage) {
+          const wtSec = $('waterTempleSection');
           if (wtSec) wtSec.style.display = 'block';
-          wtGrid.innerHTML = ''; // Remove "Loading recommendations..." text
-          const wtWrap = document.createElement('div');
-          wtWrap.className = SK_CLASS + ' sk-recs-grid';
-          for (let i=0;i<14;i++) {
-            const card = document.createElement('div');
-            card.className = 'sk-rec-card';
-            const poster = document.createElement('div');
-            poster.className = 'sk-rec-poster';
-            card.appendChild(poster);
-            const title = document.createElement('div');
-            title.className = 'sk-rec-title';
-            card.appendChild(title);
-            const meta = document.createElement('div');
-            meta.className = 'sk-rec-meta';
-            card.appendChild(meta);
-            wtWrap.appendChild(card);
-          }
-          wtGrid.appendChild(wtWrap);
+          _injectRecGridSkeletons(wtGrid);
         }
 
-        // 7b) Sunken Treasures — inject skeleton cards (same pattern)
+        // 7b) Sunken Treasures — every page
         const stGrid = $('sunkenTreasuresGrid');
-        if (stGrid && stGrid.children.length <= 1) {
-          stGrid.innerHTML = ''; // Remove "Loading recommendations..." text
-          const stWrap = document.createElement('div');
-          stWrap.className = SK_CLASS + ' sk-recs-grid';
-          for (let i=0;i<14;i++) {
-            const card = document.createElement('div');
-            card.className = 'sk-rec-card';
-            const poster = document.createElement('div');
-            poster.className = 'sk-rec-poster';
-            card.appendChild(poster);
-            const title = document.createElement('div');
-            title.className = 'sk-rec-title';
-            card.appendChild(title);
-            const meta = document.createElement('div');
-            meta.className = 'sk-rec-meta';
-            card.appendChild(meta);
-            stWrap.appendChild(card);
-          }
-          stGrid.appendChild(stWrap);
-        }
+        if (stGrid && stGrid.children.length <= 1) _injectRecGridSkeletons(stGrid);
 
         // 8) Sidebar lists — inject rows inside empty lists
         [$('hiddenGemList'), $('topRankingList'), $('mostFavouriteList')].forEach(el => {
@@ -8079,11 +8070,11 @@ img { max-width: 100%; height: auto; display: block; }
         if (currentState.source === 'tmdb') { section.style.display = 'none'; return; }
 
         section.style.display = 'block';
-        // Keep skeleton in place (already injected by injectInfoSkeletons) —
-        // only show loading text if no skeleton is present
-        if (!gridContainer.querySelector('.sk-overlay')) {
-          gridContainer.innerHTML = '<div class="loading-text">Loading recommendations...</div>';
-        }
+        // Keep skeleton in place (injected by injectInfoSkeletons). If it was
+        // already consumed by the stage-1 cleanup, re-inject skeleton cards —
+        // NEVER text loading (owner rule: skeleton UI only, consistent with
+        // index.html main-body / browse / schedule).
+        if (!gridContainer.querySelector('.sk-rec-card')) _injectRecGridSkeletons(gridContainer);
 
         try {
           // PRIMARY — ruri recommendations by genre, all id forms accepted:
@@ -8389,11 +8380,11 @@ img { max-width: 100%; height: auto; display: block; }
         if (currentState.source !== 'tmdb') { section.style.display = 'none'; return; }
 
         section.style.display = 'block';
-        // Keep skeleton in place (already injected by injectInfoSkeletons) —
-        // only show loading text if no skeleton is present
-        if (!gridContainer.querySelector('.sk-overlay')) {
-          gridContainer.innerHTML = '<div class="loading-text">Loading recommendations...</div>';
-        }
+        // Keep skeleton in place (injected by injectInfoSkeletons). If it was
+        // already consumed by the stage-1 cleanup, re-inject skeleton cards —
+        // NEVER text loading (owner rule: skeleton UI only, consistent with
+        // index.html main-body / browse / schedule).
+        if (!gridContainer.querySelector('.sk-rec-card')) _injectRecGridSkeletons(gridContainer);
 
         try {
           const data = currentState.data;
@@ -8595,11 +8586,10 @@ img { max-width: 100%; height: auto; display: block; }
         } catch (e) { /* fall through to live */ }
 
         gridContainer.style.opacity = '0.6';
-        // Keep skeleton in place (already injected by injectInfoSkeletons) —
-        // only show loading text if no skeleton is present
-        if (!gridContainer.querySelector('.sk-overlay')) {
-          gridContainer.innerHTML = `<div class="loading-text" style="grid-column:1/-1;text-align:center;padding:40px 0;">Loading page ${page}...</div>`;
-        }
+        // Skeleton while fetching (pagination transitions included) — NEVER
+        // text loading (owner rule: skeleton UI only, consistent with
+        // index.html main-body / browse / schedule).
+        if (!gridContainer.querySelector('.sk-rec-card')) _injectRecGridSkeletons(gridContainer);
 
         const currentMal = currentState.source !== 'tmdb' ? jikanIdOf() : null;
         let items = [];
