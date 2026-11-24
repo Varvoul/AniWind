@@ -2991,15 +2991,17 @@ img { max-width: 100%; height: auto; display: block; }
     .sk-cast-name  { height: 10px; width: 80%; border-radius: 3px; }
     .sk-cast-role  { height: 9px; width: 60%; border-radius: 3px; opacity: .6; }
 
-    /* ── Recommendations grid skeleton ── */
+    /* ── Recommendations grid skeleton ── EXACT same breakpoints as .recs-grid */
     .sk-recs-grid {
-      display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;
     }
-    @media(min-width:600px) { .sk-recs-grid { grid-template-columns: repeat(4,1fr); } }
-    .sk-rec-card   { border-radius: 8px; overflow: hidden; background: #151926; }
+    @media (max-width: 768px) and (orientation: landscape) { .sk-recs-grid { grid-template-columns: repeat(4, 1fr); } }
+    @media (min-width: 769px) and (max-width: 1200px) { .sk-recs-grid { grid-template-columns: repeat(6, 1fr); } }
+    @media (min-width: 1201px) { .sk-recs-grid { grid-template-columns: repeat(7, 1fr); } }
+    .sk-rec-card   { border-radius: var(--radius-md, 8px); overflow: hidden; background: linear-gradient(90deg,#151926 25%,#1A1D29 45%,#212636 55%,#151926 75%); background-size:1200px 100%; animation:sk-wave 1.6s ease-in-out infinite; position: relative; }
     .sk-rec-poster { width: 100%; aspect-ratio: 2/3; }
-    .sk-rec-title  { height: 10px; margin: 7px 8px 4px; width: 80%; border-radius: 3px; }
-    .sk-rec-meta   { height: 9px; margin: 0 8px 8px; width: 55%; border-radius: 3px; opacity:.6; }
+    .sk-rec-title  { height: 10px; margin: 7px 8px 4px; width: 80%; border-radius: 3px; background:#212636; }
+    .sk-rec-meta   { height: 9px; margin: 0 8px 8px; width: 55%; border-radius: 3px; opacity:.6; background:#1A1D29; }
 
     /* ── Sidebar skeleton ── */
     .sk-sidebar-item {
@@ -3531,26 +3533,31 @@ img { max-width: 100%; height: auto; display: block; }
           castList.appendChild(wrap);
         }
 
-        // 7) Recommendations — inject cards inside the grid (initially empty/hidden)
+        // 7) Recommend for You — inject skeleton cards into the grid
         const recGrid = $('recommendForYouGrid');
         const recSec  = $('recommendForYouSection');
-        if (recGrid && recGrid.children.length === 0) {
+        if (recGrid && recGrid.children.length <= 1) {
           if (recSec) recSec.style.display = 'block';
-          const wrap = document.createElement('div');
-          wrap.className = SK_CLASS;
-          wrap.style.cssText = 'display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:100%;';
-          for (let i=0;i<8;i++) {
+          recGrid.innerHTML = ''; // Remove "Loading recommendations..." text
+          // Inject skeleton cards DIRECTLY into the grid container
+          // .sk-recs-grid class handles responsive columns (matches .recs-grid)
+          const wtWrap = document.createElement('div');
+          wtWrap.className = SK_CLASS + ' sk-recs-grid';
+          for (let i=0;i<14;i++) {
             const card = document.createElement('div');
-            card.style.cssText = 'border-radius:8px;overflow:hidden;background:#151926;';
+            card.className = 'sk-rec-card';
             const poster = document.createElement('div');
-            poster.className = SK_CLASS;
-            poster.style.cssText = 'width:100%;aspect-ratio:2/3;background:linear-gradient(90deg,#151926 25%,#1A1D29 45%,#212636 55%,#151926 75%);background-size:1200px 100%;animation:sk-wave 1.6s ease-in-out infinite;';
+            poster.className = 'sk-rec-poster';
             card.appendChild(poster);
-            addSkBlock(card, '10px', '80%', '7px');
-            addSkBlock(card, '9px', '55%', '4px');
-            wrap.appendChild(card);
+            const title = document.createElement('div');
+            title.className = 'sk-rec-title';
+            card.appendChild(title);
+            const meta = document.createElement('div');
+            meta.className = 'sk-rec-meta';
+            card.appendChild(meta);
+            wtWrap.appendChild(card);
           }
-          recGrid.appendChild(wrap);
+          recGrid.appendChild(wtWrap);
         }
 
         // 7a) Water Temple — inject skeleton cards (anime pages only).
@@ -3560,29 +3567,21 @@ img { max-width: 100%; height: auto; display: block; }
         const _isAnimePage = (typeof currentState !== 'undefined' && currentState.source !== 'tmdb');
         if (wtGrid && wtGrid.children.length <= 1 && _isAnimePage) {
           if (wtSec) wtSec.style.display = 'block';
-          // Remove the "Loading recommendations..." text
-          wtGrid.innerHTML = '';
+          wtGrid.innerHTML = ''; // Remove "Loading recommendations..." text
           const wtWrap = document.createElement('div');
-          wtWrap.className = SK_CLASS + ' recs-grid';
-          wtWrap.style.cssText = 'display:grid;gap:16px;';
-          // Match .recs-grid responsive columns via inline (can't use CSS class
-          // because the grid columns are media-query driven; use the same
-          // breakpoints as .recs-grid)
-          wtWrap.style.gridTemplateColumns = 'repeat(2,1fr)'; // mobile default
-          const wtColCount = window.matchMedia('(min-width:1201px)').matches ? 7
-                           : window.matchMedia('(min-width:769px)').matches ? 6
-                           : window.matchMedia('(max-width:768px) and (orientation:landscape)').matches ? 4
-                           : 2;
-          wtWrap.style.gridTemplateColumns = `repeat(${wtColCount},1fr)`;
-          for (let i=0;i<wtColCount*2;i++) { // 2 rows worth
+          wtWrap.className = SK_CLASS + ' sk-recs-grid';
+          for (let i=0;i<14;i++) {
             const card = document.createElement('div');
-            card.style.cssText = 'border-radius:8px;overflow:hidden;background:#151926;';
+            card.className = 'sk-rec-card';
             const poster = document.createElement('div');
-            poster.className = SK_CLASS;
-            poster.style.cssText = 'width:100%;aspect-ratio:2/3;background:linear-gradient(90deg,#151926 25%,#1A1D29 45%,#212636 55%,#151926 75%);background-size:1200px 100%;animation:sk-wave 1.6s ease-in-out infinite;';
+            poster.className = 'sk-rec-poster';
             card.appendChild(poster);
-            addSkBlock(card, '10px', '80%', '7px');
-            addSkBlock(card, '9px', '55%', '4px');
+            const title = document.createElement('div');
+            title.className = 'sk-rec-title';
+            card.appendChild(title);
+            const meta = document.createElement('div');
+            meta.className = 'sk-rec-meta';
+            card.appendChild(meta);
             wtWrap.appendChild(card);
           }
           wtGrid.appendChild(wtWrap);
@@ -3591,25 +3590,21 @@ img { max-width: 100%; height: auto; display: block; }
         // 7b) Sunken Treasures — inject skeleton cards (same pattern)
         const stGrid = $('sunkenTreasuresGrid');
         if (stGrid && stGrid.children.length <= 1) {
-          // Remove the "Loading recommendations..." text
-          stGrid.innerHTML = '';
+          stGrid.innerHTML = ''; // Remove "Loading recommendations..." text
           const stWrap = document.createElement('div');
-          stWrap.className = SK_CLASS + ' recs-grid';
-          stWrap.style.cssText = 'display:grid;gap:16px;';
-          const stColCount = window.matchMedia('(min-width:1201px)').matches ? 7
-                           : window.matchMedia('(min-width:769px)').matches ? 6
-                           : window.matchMedia('(max-width:768px) and (orientation:landscape)').matches ? 4
-                           : 2;
-          stWrap.style.gridTemplateColumns = `repeat(${stColCount},1fr)`;
-          for (let i=0;i<stColCount*2;i++) {
+          stWrap.className = SK_CLASS + ' sk-recs-grid';
+          for (let i=0;i<14;i++) {
             const card = document.createElement('div');
-            card.style.cssText = 'border-radius:8px;overflow:hidden;background:#151926;';
+            card.className = 'sk-rec-card';
             const poster = document.createElement('div');
-            poster.className = SK_CLASS;
-            poster.style.cssText = 'width:100%;aspect-ratio:2/3;background:linear-gradient(90deg,#151926 25%,#1A1D29 45%,#212636 55%,#151926 75%);background-size:1200px 100%;animation:sk-wave 1.6s ease-in-out infinite;';
+            poster.className = 'sk-rec-poster';
             card.appendChild(poster);
-            addSkBlock(card, '10px', '80%', '7px');
-            addSkBlock(card, '9px', '55%', '4px');
+            const title = document.createElement('div');
+            title.className = 'sk-rec-title';
+            card.appendChild(title);
+            const meta = document.createElement('div');
+            meta.className = 'sk-rec-meta';
+            card.appendChild(meta);
             stWrap.appendChild(card);
           }
           stGrid.appendChild(stWrap);
