@@ -37,7 +37,8 @@ export async function cfWorkerFetch(workerKey, path, opts = {}) {
     throw new Error(`Missing env vars for ${workerKey}: ${w.envPrefix}_HEADER_SECRET / ${w.envPrefix}_URL_PATH_SECRET`);
   }
   const cleanPath = path.replace(/^\/+/, '');
-  const url = `${w.base}/p/${urlSecret}/${cleanPath}`;
+  const fullPath = w.pathPrefix ? `${w.pathPrefix}/${cleanPath}` : cleanPath;
+  const url = `${w.base}/p/${urlSecret}/${fullPath}`;
   return fetch(url, {
     method: opts.method || 'GET',
     headers: {
