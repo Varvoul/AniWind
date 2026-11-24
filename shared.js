@@ -230,7 +230,7 @@
     };
     try {
       // ipapi.co via Cloudflare Worker proxy — no CORS issues
-      const res = await fetch('/api/ipapi/json/', { cache: 'no-store' });
+      const res = await fetch('/api/ipapi/json', { cache: 'no-store' });
       if (res.ok) {
         const j = await res.json();
         if (j.success !== false && !j.error) {
