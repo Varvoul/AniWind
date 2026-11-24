@@ -48,6 +48,16 @@ const CF_DISPATCH = [
 ];
 
 export default async function handler(req, res) {
+  // ── Public doc endpoints for /api/<route> base paths — no auth, no secrets ──
+  const docReq = req.query.doc;
+  if (docReq !== undefined) {
+    const routeName = Array.isArray(docReq) ? docReq[0] : String(docReq);
+    const docHtml = `<!doctype html><html><head><meta charset="utf-8"><title>${routeName} Proxy</title><style>body{font:14px/1.55 sans-serif;max-width:700px;margin:32px auto;padding:0 20px;color:#1a1a1a}h1{font-size:22px;margin:0 0 4px}.tag{display:inline-block;font-size:11px;background:#e8e8ec;padding:2px 7px;border-radius:3px;color:#444}.warn{background:#fff4e5;border-left:3px solid #f59e0b;padding:10px 14px;margin:14px 0;font-size:13px}code,pre{font-family:ui-monospace,monospace}pre{background:#f5f5f7;padding:12px;border-radius:6px;overflow-x:auto;font-size:12.5px}</style></head><body><h1>${routeName} Proxy <span class="tag">authenticated</span></h1><p>This Vercel route proxies requests to an authed Cloudflare Worker. Authentication is handled server-side — no credentials are exposed to the browser.</p><div class="warn"><b>Usage:</b> <code>GET /api/${routeName}/&lt;path&gt;</code> — no auth headers needed from the client. The server injects X-Proxy-Key and URL path prefix automatically.</div><h2>Example</h2><pre>fetch("/api/${routeName}/your-endpoint-path")</pre><p>This doc page is public and contains no credentials.</p></body></html>`;
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'public, max-age=300');
+    return res.status(200).send(docHtml);
+  }
+
   // t194 dispatch — the AnimeThemes scraper API shares this function file
   // (Vercel Hobby caps deployments at 12 functions; a 13th fails the build).
   // vercel.json rewrites /api/animethemes/:path* -> here as at_path, so the

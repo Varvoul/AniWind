@@ -49,6 +49,26 @@
       "destination": "/api/tmdb-proxy?path=:path*"
     },
     {
+      "source": "/api/tumi",
+      "destination": "/api/tmdb-proxy?doc=tumi"
+    },
+    {
+      "source": "/api/ruri",
+      "destination": "/api/tmdb-proxy?doc=ruri"
+    },
+    {
+      "source": "/api/anikoto",
+      "destination": "/api/tmdb-proxy?doc=anikoto"
+    },
+    {
+      "source": "/api/ipapi",
+      "destination": "/api/tmdb-proxy?doc=ipapi"
+    },
+    {
+      "source": "/api/supabase-search",
+      "destination": "/api/tmdb-proxy?doc=supabase-search"
+    },
+    {
       "source": "/api/tumi/:path*",
       "destination": "/api/tmdb-proxy?tumi_path=:path*"
     },
