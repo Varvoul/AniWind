@@ -27,8 +27,8 @@
 
 const VERSION = 'browse v1';
 
-const RURI_BASE      = 'https://ruri.bionmovies47.workers.dev';
-const RECENT_BASE    = 'https://ruristream.vercel.app/api/anikoto/recent-anime';
+const RURI_BASE      = 'https://ruristream.vercel.app/api/ruri';
+const RECENT_BASE    = '/api/anikoto/recent-anime';
 const PROXY_BASE     = 'https://anilist-my-proxy.vercel.app';
 const SCRAPER_BASE   = 'https://anilist-scraper-steel.vercel.app';
 const JIKAN_BASE     = 'https://jikan-api-bohb.onrender.com/v4';

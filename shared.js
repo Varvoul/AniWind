@@ -105,7 +105,7 @@
   // Deployed Cloudflare Worker (supabase-search-proxy) - whitelists only
   // search_anime_data / get_anime_data_by_mal_ids / search_anikoto_fuzzy
   // and rate-limits per IP before anything reaches Supabase.
-  const SEARCH_PROXY_URL  = '/api/supabase-search-proxy';
+  const SEARCH_PROXY_URL  = '/api/supabase-search';
 
   // ── ruri: jikan-v4-style anime data API over the SAME Supabase tables ──
   // Cloudflare Worker (ruri.bionmovies47.workers.dev) serving anime_data
@@ -230,7 +230,7 @@
     };
     try {
       // ipapi.co via Cloudflare Worker proxy — no CORS issues
-      const res = await fetch('/api/ipapi-proxy/json/', { cache: 'no-store' });
+      const res = await fetch('/api/ipapi/json/', { cache: 'no-store' });
       if (res.ok) {
         const j = await res.json();
         if (j.success !== false && !j.error) {

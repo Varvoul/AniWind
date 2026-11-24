@@ -54,27 +54,19 @@
     },
     {
       "source": "/api/ruri/:path*",
-      "destination": "/api/tmdb-proxy?cf_worker=ruri&cf_path=:path*"
+      "destination": "/api/tmdb-proxy?ruri_path=:path*"
     },
     {
       "source": "/api/anikoto/:path*",
-      "destination": "/api/tmdb-proxy?cf_worker=anikoto&cf_path=:path*"
+      "destination": "/api/tmdb-proxy?anikoto_path=:path*"
     },
     {
-      "source": "/api/ipapi-proxy/:path*",
-      "destination": "/api/tmdb-proxy?cf_worker=ipapi-proxy&cf_path=:path*"
+      "source": "/api/ipapi/:path*",
+      "destination": "/api/tmdb-proxy?ipapi_path=:path*"
     },
     {
-      "source": "/api/supabase-search-proxy/:path*",
-      "destination": "/api/tmdb-proxy?cf_worker=supabase-search-proxy&cf_path=:path*"
-    },
-    {
-      "source": "/api/ani-pm-proxy/:path*",
-      "destination": "/api/tmdb-proxy?cf_worker=ani-pm-proxy&cf_path=:path*"
-    },
-    {
-      "source": "/api/aniumi-data-proxy/:path*",
-      "destination": "/api/tmdb-proxy?cf_worker=aniumi-data-proxy&cf_path=:path*"
+      "source": "/api/supabase-search/:path*",
+      "destination": "/api/tmdb-proxy?supabase_search_path=:path*"
     },
     {
       "source": "/latest-updates",

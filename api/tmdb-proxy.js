@@ -35,7 +35,17 @@ const ALLOWED = [
 
 import animethemesHandler from './_lib/animethemes.js';
 import { tumiFetch } from './_lib/tumi-auth.js';
-import { cfWorkerFetch, WORKERS } from './_lib/cf-worker-auth.js';
+import { cfWorkerFetch } from './_lib/cf-worker-auth.js';
+
+// ── CF worker proxy dispatch table ──
+// Each entry: { param: query param name, worker: cf-worker-auth.js worker key }
+// vercel.json rewrites /api/<route>/:path* → /api/tmdb-proxy?<param>=:path*
+const CF_DISPATCH = [
+  { param: 'ruri_path',              worker: 'ruri' },
+  { param: 'anikoto_path',           worker: 'anikoto' },
+  { param: 'ipapi_path',             worker: 'ipapi-proxy' },
+  { param: 'supabase_search_path',   worker: 'supabase-search-proxy' },
+];
 
 export default async function handler(req, res) {
   // t194 dispatch — the AnimeThemes scraper API shares this function file
@@ -47,41 +57,40 @@ export default async function handler(req, res) {
     return animethemesHandler(req, res, Array.isArray(atPath) ? atPath.join('/') : atPath);
   }
 
-  // 2026-11-24: Generic CF worker proxy dispatch — handles ruri, anikoto,
-  // ipapi-proxy, supabase-search-proxy, ani-pm-proxy, aniumi-data-proxy,
-  // anikoto-proxy. vercel.json rewrites /api/<worker>/:path* → here as cf_path.
-  // The cf_worker query param identifies which worker to proxy to.
-  const cfWorker = req.query.cf_worker;
-  const cfPath = req.query.cf_path;
-  if (cfWorker !== undefined && cfPath !== undefined) {
-    if (req.method === 'OPTIONS') {
-      res.setHeader('Access-Control-Allow-Origin', '*');
-      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-      return res.status(204).end();
-    }
-    const path = '/' + (Array.isArray(cfPath) ? cfPath.join('/') : String(cfPath).replace(/^\/+/, ''));
-    // Strip internal routing params, keep everything else
-    const url = new URL(req.url, 'http://localhost');
-    url.searchParams.delete('cf_worker');
-    url.searchParams.delete('cf_path');
-    const qs = url.searchParams.toString();
-    const fullPath = path + (qs ? '?' + qs : '');
-    try {
-      const upstream = await cfWorkerFetch(cfWorker, fullPath, {
-        signal: AbortSignal.timeout(15000),
-        method: req.method,
-        headers: req.method !== 'GET' ? { 'Content-Type': req.headers['content-type'] || 'application/json' } : undefined,
-        body: req.method !== 'GET' && req.method !== 'HEAD' ? (typeof req.body === 'string' ? req.body : JSON.stringify(req.body || {})) : undefined,
-      });
-      const body = await upstream.text();
-      const ct = upstream.headers.get('Content-Type') || 'application/json';
-      res.setHeader('Content-Type', ct);
-      res.setHeader('Cache-Control', upstream.headers.get('Cache-Control') || 'public, max-age=60');
-      res.setHeader('Access-Control-Allow-Origin', '*');
-      return res.status(upstream.status).send(body);
-    } catch (e) {
-      return res.status(502).json({ error: `CF worker ${cfWorker} upstream failed`, detail: e.message });
+  // 2026-11-24: CF worker proxy dispatch — single-param-per-worker pattern
+  // (same as the working tumi_path dispatch). Each rewrite uses ONE query param,
+  // avoiding the Vercel rewrite engine bug with `&` in destinations.
+  for (const { param, worker } of CF_DISPATCH) {
+    const pathParam = req.query[param];
+    if (pathParam !== undefined) {
+      if (req.method === 'OPTIONS') {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+        return res.status(204).end();
+      }
+      const path = '/' + (Array.isArray(pathParam) ? pathParam.join('/') : String(pathParam).replace(/^\/+/, ''));
+      // Strip the routing param, keep all client-supplied query params
+      const url = new URL(req.url, 'http://localhost');
+      url.searchParams.delete(param);
+      const qs = url.searchParams.toString();
+      const fullPath = path + (qs ? '?' + qs : '');
+      try {
+        const upstream = await cfWorkerFetch(worker, fullPath, {
+          signal: AbortSignal.timeout(15000),
+          method: req.method,
+          headers: req.method !== 'GET' ? { 'Content-Type': req.headers['content-type'] || 'application/json' } : undefined,
+          body: req.method !== 'GET' && req.method !== 'HEAD' ? (typeof req.body === 'string' ? req.body : JSON.stringify(req.body || {})) : undefined,
+        });
+        const body = await upstream.text();
+        const ct = upstream.headers.get('Content-Type') || 'application/json';
+        res.setHeader('Content-Type', ct);
+        res.setHeader('Cache-Control', upstream.headers.get('Cache-Control') || 'public, max-age=60');
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        return res.status(upstream.status).send(body);
+      } catch (e) {
+        return res.status(502).json({ error: `CF worker ${worker} upstream failed`, detail: e.message });
+      }
     }
   }
 
