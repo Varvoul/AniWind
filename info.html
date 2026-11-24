@@ -3016,6 +3016,94 @@ img { max-width: 100%; height: auto; display: block; }
     .sk-rec-meta  { height:9px;  width:60%; border-radius:3px; }
     .sk-rec-title { height:11px; width:85%; border-radius:3px; }
 
+    /* ── TAB SKELETONS (Cast / Artwork / Trailer / Themes / Statistics) ──
+       Each mirrors its tab's LOADED layout: same wrapper classes, same card
+       geometry, same breakpoints — a faithful preview of what will render.
+       No hover states on skeletons (they are transient; hover belongs to the
+       loaded UI, consistent with index/browse/schedule skeleton behaviour). ── */
+
+    /* Cast — anime character/VA rows (mirror .cast-row geometry) */
+    .sk-cast-portrait { width:46px; height:66px; border-radius:var(--radius-sm,6px); flex-shrink:0; }
+    @media (max-width: 480px) {
+      .sk-cast-portrait { width:38px; height:56px; }
+    }
+
+    /* Cast — TMDB credits deck (mirror .cc-card / .cc-chip / .cc-dept) */
+    .sk-cc-card {
+      position:relative; flex:0 0 152px; aspect-ratio:2/3;
+      border-radius:14px; overflow:hidden;
+      background:var(--bg-card); border:1px solid var(--border-subtle);
+      scroll-snap-align:start;
+    }
+    @media (max-width: 768px) { .sk-cc-card { flex-basis:128px; } }
+    .sk-cc-shade {
+      position:absolute; inset:0; pointer-events:none;
+      background:linear-gradient(180deg, rgba(4,10,20,0) 42%, rgba(4,10,20,0.38) 64%, rgba(4,10,20,0.93) 100%);
+    }
+    .sk-cc-txt {
+      position:absolute; left:0; right:0; bottom:0;
+      padding:10px; display:flex; flex-direction:column; gap:4px; pointer-events:none;
+    }
+    .sk-chip {
+      display:flex; align-items:center; gap:10px; min-width:0;
+      padding:7px 14px 7px 7px; border-radius:12px;
+      background:rgba(255,255,255,0.05); border:1px solid var(--border-subtle);
+    }
+    .sk-ava { width:42px; height:42px; border-radius:50%; flex-shrink:0; }
+    @media (max-width: 768px) { .sk-ava { width:36px; height:36px; } }
+    .sk-dept {
+      background:rgba(255,255,255,0.04); border:1px solid var(--border-subtle);
+      border-radius:12px; padding:13px 15px;
+    }
+
+    /* Artwork — masonry tiles (flow through the real .artwork-grid columns;
+       inline aspect-ratio variety mimics natural poster/backdrop ratios) */
+    .sk-art-tile {
+      display:inline-block; width:100%; margin:0 0 10px;
+      break-inside:avoid; -webkit-column-break-inside:avoid;
+      border-radius:10px; overflow:hidden;
+      background:var(--bg-card); border:1px solid var(--border-subtle);
+    }
+    .sk-art-tile .sk { width:100%; border-radius:0; }
+    @media (max-width: 768px) {
+      .sk-art-tile { margin-bottom:8px; border-radius:8px; }
+    }
+
+    /* Trailer — title line + 16:9 player box with centre play disc
+       (mirror .video-title + .video-wrapper) */
+    .sk-trailer-title { height:16px; width:40%; margin-bottom:10px; }
+    .sk-trailer-box {
+      position:relative; padding-bottom:56.25%; height:0;
+      border-radius:12px; overflow:hidden;
+      background:var(--bg-card); border:1px solid var(--border-subtle);
+    }
+    .sk-trailer-inner { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
+    .sk-trailer-play { width:56px; height:56px; border-radius:50%; }
+
+    /* Themes — section heading + theme cards (mirror .theme-card geometry) */
+    .sk-themes-heading { height:16px; width:200px; border-radius:4px; margin:2px 0 12px; }
+    .sk-theme-card {
+      background:var(--bg-card); border:1px solid var(--border-subtle);
+      border-radius:var(--radius-md); overflow:hidden; margin-bottom:12px;
+    }
+    .sk-theme-card:last-child { margin-bottom:0; }
+    .sk-theme-header {
+      display:flex; align-items:center; gap:12px; padding:10px 14px;
+      background:var(--bg-surface); border-bottom:1px solid var(--border-subtle);
+    }
+    .sk-theme-pill { width:44px; height:22px; border-radius:20px; flex-shrink:0; }
+    .sk-theme-body { padding:12px 14px; display:flex; flex-direction:column; gap:8px; }
+
+    /* Statistics — fills the three static .stats-module containers */
+    .sk-hist-bar { flex:1; border-radius:4px 4px 0 0; min-width:12px; }
+    .sk-status-seg { height:24px; }
+    .sk-metric {
+      text-align:center; padding:12px 8px;
+      display:flex; flex-direction:column; align-items:center; gap:6px;
+    }
+    .sk-metric-val { height:26px; width:60%; }
+    .sk-metric-label { height:10px; width:45%; }
+
     /* ── Sidebar skeleton ── */
     .sk-sidebar-item {
       display: flex; gap: 10px; align-items: center;
@@ -3511,6 +3599,120 @@ img { max-width: 100%; height: auto; display: block; }
         grid.innerHTML = html;
       }
 
+      // ── TAB SKELETONS (owner request 2026-11-24): Cast / Artwork / Trailer /
+      // Themes / Statistics. Every tab gets a skeleton that mirrors its LOADED
+      // layout — same wrapper classes (.cast-row, .cc-rail, .artwork-grid,
+      // .video-wrapper, .theme-card, .histogram/.segmented-bar/.metric-cards)
+      // and same card geometry — so the placeholder is a faithful preview of
+      // the data view. Injected ONCE at page init (injectInfoSkeletons) and
+      // re-checked at renderTabs() start, so cache hits simply overwrite the
+      // skeleton instantly while live fetches keep it visible: identical
+      // behaviour on both serving paths. Skeletons carry NO hover states —
+      // they are transient; hover belongs to the loaded UI (cast-row bg,
+      // cc-card raise, hist-bar opacity...), consistent with index/browse/
+      // schedule where skeletons have no hover either.
+      function _skLines(w1='70%', w2='45%') {
+        return '<div style="flex:1;display:flex;flex-direction:column;gap:6px;min-width:0;">' +
+                 `<div class="sk" style="height:11px;width:${w1};border-radius:3px;"></div>` +
+                 `<div class="sk" style="height:9px;width:${w2};border-radius:3px;opacity:.6;"></div>` +
+               '</div>';
+      }
+      function _castSkeletonHTML() {
+        const isTMDB = (typeof currentState !== 'undefined' && currentState.source === 'tmdb');
+        if (isTMDB) {
+          // Mirror buildTmdbCreditsHTML(): cc-cast (head + rail of portrait
+          // cards) + cc-crew (key chips + department cards)
+          const card = i => '<div class="sk-cc-card sk">' +
+              '<div class="sk-cc-shade"></div>' +
+              '<div class="sk-cc-txt">' +
+                `<div class="sk" style="height:10px;width:${75 + (i % 3) * 8}%;border-radius:3px;"></div>` +
+                `<div class="sk" style="height:8px;width:${50 + (i % 4) * 10}%;border-radius:3px;opacity:.7;"></div>` +
+              '</div></div>';
+          const chip = '<div class="sk-chip"><div class="sk sk-ava"></div>' + _skLines('70%', '45%') + '</div>';
+          const dept = '<div class="sk-dept">' +
+              '<div class="sk" style="height:12px;width:40%;border-radius:3px;margin-bottom:10px;"></div>' +
+              `<div style="display:flex;flex-wrap:wrap;gap:8px;">${chip}${chip}</div>` +
+            '</div>';
+          const head = '<div class="cc-head">' +
+              '<div class="sk" style="height:16px;width:90px;border-radius:4px;"></div>' +
+              '<div class="sk" style="height:20px;width:44px;border-radius:20px;"></div>' +
+            '</div>';
+          return `<section class="cc-cast">${head}
+              <div class="cc-railbox"><div class="cc-rail">${Array.from({length:8}, (_, i) => card(i)).join('')}</div></div>
+            </section>
+            <section class="cc-crew">${head}
+              <div class="cc-key">${chip.repeat(4)}</div>
+              <div class="cc-depts">${dept}${dept}</div>
+            </section>`;
+        }
+        // Anime — mirror buildCastRowsHTML(): character side (portrait + name
+        // + role badge) | voice-actor side (name + portrait)
+        const portrait = '<div class="sk sk-cast-portrait"></div>';
+        const badge = '<div class="sk" style="height:16px;width:52px;border-radius:20px;"></div>';
+        const row = '<div class="cast-row">' +
+            `<div class="cast-char-side">${portrait}<div style="flex:1;display:flex;flex-direction:column;gap:6px;min-width:0;">${badge}${_skLines('65%', '')}</div></div>` +
+            `<div class="cast-va-side">${_skLines('70%', '45%')}${portrait}</div>` +
+          '</div>';
+        return `<div class="cast-warp-container"><div class="cast-list-grid">${row.repeat(6)}</div></div>`;
+      }
+      function _artworkSkeletonHTML() {
+        // Masonry tiles flow through the real .artwork-grid CSS columns;
+        // mixed aspect ratios mimic the natural poster/backdrop mix
+        const ratios = ['3/4.5','16/9','1/1','3/4.5','16/9','3/4.5','1/1','16/9','3/4.5','16/9'];
+        return ratios.map(r => `<div class="sk-art-tile"><div class="sk" style="aspect-ratio:${r};"></div></div>`).join('');
+      }
+      function _trailerSkeletonHTML() {
+        return '<div class="sk sk-trailer-title"></div>' +
+            '<div class="sk-trailer-box"><div class="sk-trailer-inner"><div class="sk sk-trailer-play"></div></div></div>';
+      }
+      function _themesSkeletonHTML() {
+        const card = '<div class="sk-theme-card">' +
+            '<div class="sk-theme-header"><div class="sk sk-theme-pill"></div>' + _skLines('70%', '45%') + '</div>' +
+            '<div class="sk-theme-body">' +
+              '<div style="display:flex;align-items:center;gap:8px;">' +
+                '<div class="sk" style="height:18px;width:64px;border-radius:20px;flex-shrink:0;"></div>' +
+                '<div class="sk" style="height:9px;width:30%;border-radius:3px;"></div>' +
+              '</div>' +
+            '</div></div>';
+        const heading = '<div class="sk sk-themes-heading"></div>';
+        return heading + card + card + heading + card + card;
+      }
+      function _injectTabSkeletons() {
+        const $ = id => document.getElementById(id);
+        const isTMDB = (typeof currentState !== 'undefined' && currentState.source === 'tmdb');
+        // Guard = container has NO children: real renders overwrite innerHTML
+        // wholesale, so anything present means data already painted (or an
+        // error/empty state the loaders own) — never touch it.
+        const cast = $('castList');
+        if (cast && cast.children.length === 0) cast.innerHTML = _castSkeletonHTML();
+        const art = $('artworkGrid');
+        if (art && art.children.length === 0) art.innerHTML = _artworkSkeletonHTML();
+        const tr = $('trailerContainer');
+        if (tr && tr.children.length === 0) tr.innerHTML = _trailerSkeletonHTML();
+        if (!isTMDB) {   // Themes tab exists on anime pages only
+          const th = $('themesContainer');
+          if (th && th.children.length === 0) th.innerHTML = _themesSkeletonHTML();
+        }
+        // Statistics — three static .stats-module boxes: fill their inner
+        // containers with bar/segment/metric skeletons shaped like the real
+        // graph (bell-ish histogram heights, status segments, 3 metric cards)
+        const hist = $('scoreHistogram');
+        if (hist && hist.children.length === 0) {
+          hist.innerHTML = [18,30,46,64,88,100,72,44,24,10]
+            .map(h => `<div class="sk sk-hist-bar" style="height:${h}%;"></div>`).join('');
+        }
+        const bar = $('statusBar');
+        if (bar && bar.children.length === 0) {
+          bar.innerHTML = [42,24,14,10,10]
+            .map(w => `<div class="sk sk-status-seg" style="width:${w}%;"></div>`).join('');
+        }
+        const mc = $('metricCards');
+        if (mc && mc.children.length === 0) {
+          const metric = '<div class="sk-metric"><div class="sk sk-metric-val"></div><div class="sk sk-metric-label"></div></div>';
+          mc.innerHTML = metric.repeat(3);
+        }
+      }
+
       function injectInfoSkeletons() {
         const $ = id => document.getElementById(id);
 
@@ -3549,36 +3751,13 @@ img { max-width: 100%; height: auto; display: block; }
           dg.appendChild(wrap);
         }
 
-        // 6) Cast list — inject cards INSIDE castList (it's empty until render).
-        //    TMDB pages get portrait-card placeholders (t146 deck shape);
-        //    anime keeps the circle+text row placeholders.
-        const castList = $('castList');
-        if (castList && castList.children.length === 0) {
-          const wrap = document.createElement('div');
-          wrap.className = SK_CLASS;
-          if (typeof currentState !== 'undefined' && currentState.source === 'tmdb') {
-            wrap.style.cssText = 'display:flex;gap:12px;overflow:hidden;padding:6px 2px;';
-            for (let i=0;i<9;i++) {
-              const card = document.createElement('div');
-              card.style.cssText = 'flex-shrink:0;width:152px;aspect-ratio:2/3;border-radius:14px;background:linear-gradient(90deg,#151926 25%,#1A1D29 45%,#212636 55%,#151926 75%);background-size:1200px 100%;animation:sk-wave 1.6s ease-in-out infinite;';
-              wrap.appendChild(card);
-            }
-          } else {
-            wrap.style.cssText = 'display:flex;gap:12px;overflow:hidden;padding:4px 0;';
-            for (let i=0;i<10;i++) {
-              const card = document.createElement('div');
-              card.style.cssText = 'flex-shrink:0;width:80px;display:flex;flex-direction:column;align-items:center;gap:7px;';
-              const circ = document.createElement('div');
-              circ.className = SK_CLASS;
-              circ.style.cssText = 'width:72px;height:72px;border-radius:50%;background:linear-gradient(90deg,#151926 25%,#1A1D29 45%,#212636 55%,#151926 75%);background-size:1200px 100%;animation:sk-wave 1.6s ease-in-out infinite;';
-              addSkBlock(card, '10px', '80%');
-              addSkBlock(card, '9px', '60%', '2px');
-              card.insertBefore(circ, card.firstChild);
-              wrap.appendChild(card);
-            }
-          }
-          castList.appendChild(wrap);
-        }
+        // 6) All toggle-tab skeletons — Cast / Artwork / Trailer / Themes /
+        //    Statistics, each mirroring its tab's LOADED layout (see
+        //    _injectTabSkeletons). No SK_CLASS here: these skeletons SURVIVE
+        //    the stage-1 removeInfoSkeletons() cleanup and stay visible until
+        //    each tab's real renderer paints (cache hit = instant overwrite,
+        //    live fetch = skeleton shown meanwhile).
+        _injectTabSkeletons();
 
         // 7) Recommend for You — TMDB movie/TV pages only. On anime pages
         //    this section must stay display:none — loadRecommendForYou() is
@@ -6337,12 +6516,16 @@ img { max-width: 100%; height: auto; display: block; }
         el.innerHTML = _tabEmptyHTML(kind, title, sub, !!retryFn);
         const btn = el.querySelector('.tes-retry');
         if (btn && retryFn) btn.addEventListener('click', () => {
-          el.innerHTML = skCastCards(8);
+          el.innerHTML = _castSkeletonHTML();   // tab-shaped skeleton, not text
           retryFn();
         });
       }
 
       async function renderTabs() {
+        // Defensive skeleton fill (idempotent): containers already filled at
+        // page init; anything a previous render emptied gets its tab-shaped
+        // skeleton back before the cache check / loaders run.
+        _injectTabSkeletons();
         // Themes tab only exists on anime pages — hide it on TMDB movie/tv
         const _isAnimePage = currentState.source !== 'tmdb';
         const _themesLabel = document.getElementById('tabLabelThemes');
@@ -8787,7 +8970,10 @@ img { max-width: 100%; height: auto; display: block; }
             }
             return;
           }
-          container.innerHTML = '<p class="loading-text" style="padding:20px 0;">Loading cast...</p>';
+          // Live jikan fetch starting — keep/restore the tab-shaped cast
+          // skeleton (never text loading); _injectTabSkeletons is a no-op when
+          // the init-time skeleton is still in place
+          if (!container.children.length) _injectTabSkeletons();
           try {
             const jikanId = jikanIdOf();
             if (!jikanId) {
@@ -8934,7 +9120,9 @@ img { max-width: 100%; height: auto; display: block; }
         const data = currentState.data;
         const isAnime = currentState.source !== 'tmdb';
 
-        container.innerHTML = '<p class="loading-text" style="grid-column:1/-1;padding:20px 0;">Loading artwork...</p>';
+        // Live artwork fetch starting — keep/restore the masonry skeleton
+        // (never text loading); no-op when the init-time skeleton is present
+        if (!container.children.length) _injectTabSkeletons();
 
         let images = []; // { type, url (full), alts[] (fallback urls), thumb (display) }
 
@@ -9083,9 +9271,9 @@ img { max-width: 100%; height: auto; display: block; }
 
         // t194b - a permanent-cache render (marker) must survive the refresh:
         // keep the cached markup on screen while the fetch runs instead of
-        // flashing "Loading themes..." over good data
-        if (!(container && container.dataset.themesRendered === '1')) {
-          container.innerHTML = '<p class="loading-text" style="padding:20px 0;">Loading themes...</p>';
+        // flashing a skeleton over good data
+        if (!(container && container.dataset.themesRendered === '1') && !container.children.length) {
+          _injectTabSkeletons();   // theme-card-shaped skeleton (never text)
         }
 
         try {
