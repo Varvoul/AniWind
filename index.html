@@ -3529,7 +3529,7 @@
          mapWithConcurrency workers — to a minimum spacing, regardless
          of how many anime are being backfilled at once.
          ══════════════════════════════════════════════════════════════ */
-      const JIKAN_SEARCH_BASE = 'https://jikan-api-bohb.onrender.com/v4/anime';
+      const JIKAN_SEARCH_BASE = '/api/jikan/anime';
       const _malBackfillCache = new Map(); // session cache: "title::year" -> mal_id | null
       const MAL_BACKFILL_MAX_PAGES = 4;    // safety cap — stop paginating after this many pages
       const MAL_BACKFILL_MIN_SIMILARITY = 0.88; // title must be at least this close (0-1) to accept
@@ -5107,7 +5107,7 @@ async function loadNewAniocean() {
 
       /* ── Jikan leg: owner's self-hosted instance → aniumi edge proxy → public ── */
       const T131_JIKAN_BASES = [
-        'https://jikan-api-bohb.onrender.com/v4',               // self-hosted (owner)
+        '/api/jikan',               // self-hosted (owner)
         `${ROWANA_PROXY}/jikan`.replace(/\/jikan\/?$/, '/jikan'), // aniumi worker proxy
         'https://api.jikan.moe/v4',                             // public last resort
       ];
@@ -9425,7 +9425,7 @@ titleEl.style.color = '#ffffff';
          ════════════════════════════════════════════════════════════ */
       
       // Configuration
-      const JIKAN_SCHEDULE_BASE = 'https://jikan-api-bohb.onrender.com/v4/schedule';
+      const JIKAN_SCHEDULE_BASE = '/api/jikan/schedule';
       // V5 PRIMARY: anilist-my-proxy schedule endpoint (AniList airingSchedules)
       const SCHEDULE_PROXY_ALL = 'https://anilist-my-proxy.vercel.app/api/schedule/all';
       // t129 FALLBACK1: Supabase-backed schedule endpoint (anilist-scraper project)

@@ -18,6 +18,7 @@ const WORKERS = {
   'supabase-search-proxy': { base: 'https://supabase-search-proxy.bionmovies47.workers.dev', envPrefix: 'SUPABASE_SEARCH_PROXY' },
   'ani-pm-proxy':        { base: 'https://ani-pm-proxy.bionmovies47.workers.dev',          envPrefix: 'ANI_PM_PROXY' },
   'aniumi-data-proxy':   { base: 'https://aniumi-data-proxy.bionmovies47.workers.dev',     envPrefix: 'ANIUMI_DATA_PROXY' },
+  jikan:                 { base: 'https://jikan-api-bohb.onrender.com',                    envPrefix: 'JIKAN', pathPrefix: 'v4' },
 };
 
 /**

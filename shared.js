@@ -2297,7 +2297,7 @@
   const JIKAN_TIMEOUT_MS = 9000;   // Max wait for Jikan (last resort, public API)
   
   // API endpoints
-  const JIKAN_API_BASE = 'https://jikan-api-bohb.onrender.com/v4/search/anime';
+  const JIKAN_API_BASE = '/api/jikan/search/anime';
   
   /**
    * Race a promise against a timeout

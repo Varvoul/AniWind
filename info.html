@@ -10,7 +10,7 @@
   <!-- t113: mapple is the PRIMARY data origin for tmdb-tv/movie pages; self-jikan
          is the first live tier for anime pages — both were missing here -->
   <link rel="preconnect" href="https://mapple-tmdb-proxy.vercel.app" crossorigin>
-  <link rel="dns-prefetch" href="https://jikan-api-bohb.onrender.com">
+  <link rel="dns-prefetch" href="/api/jikan">
   <link rel="preconnect" href="https://image.tmdb.org" crossorigin>
   <link rel="preconnect" href="https://cdn.myanimelist.net" crossorigin>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -3345,7 +3345,7 @@ img { max-width: 100%; height: auto; display: block; }
         ANIMETHEMES_API: 'https://api.animethemes.moe/graphql',
         ANIMETHEMES_VIDEO: 'https://v.animethemes.moe',
         RURI_BASE: '/api/ruri',
-        JIKAN_SELF: 'https://jikan-api-bohb.onrender.com/v4',
+        JIKAN_SELF: '/api/jikan',
         ANILIST_MY_PROXY: 'https://anilist-my-proxy.vercel.app/api',      // owner proxy: /mal/{id}/full, /anilist/{id}/full, /anime/recommendations (4h exact-URL cache)
         ANILIST_KOTO: 'https://anilist-koto-graphql.vercel.app/api/anilist', // owner proxy: POST GraphQL passthrough
         ANIKOTO_WORKER: '/api/anikoto',       // owner CF mirror of the anikoto catalog (CORS: allows this origin; anikotoapi.site serves NO CORS headers - verified 2026-10-16, not fixable client-side)
