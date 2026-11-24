@@ -3534,9 +3534,13 @@ img { max-width: 100%; height: auto; display: block; }
         }
 
         // 7) Recommend for You — inject skeleton cards into the grid
+        //    TMDB movie/TV pages only. On anime pages this section must stay
+        //    display:none — loadRecommendForYou() is never called there, so an
+        //    unguarded display:block would leave the skeleton visible forever.
+        const _isTMDBPage = (typeof currentState !== 'undefined' && currentState.source === 'tmdb');
         const recGrid = $('recommendForYouGrid');
         const recSec  = $('recommendForYouSection');
-        if (recGrid && recGrid.children.length <= 1) {
+        if (recGrid && recGrid.children.length <= 1 && _isTMDBPage) {
           if (recSec) recSec.style.display = 'block';
           recGrid.innerHTML = ''; // Remove "Loading recommendations..." text
           // Inject skeleton cards DIRECTLY into the grid container
@@ -3564,7 +3568,7 @@ img { max-width: 100%; height: auto; display: block; }
         //     On TMDB pages this section stays display:none (no Water Temple).
         const wtGrid = $('waterTempleGrid');
         const wtSec  = $('waterTempleSection');
-        const _isAnimePage = (typeof currentState !== 'undefined' && currentState.source !== 'tmdb');
+        const _isAnimePage = !_isTMDBPage;
         if (wtGrid && wtGrid.children.length <= 1 && _isAnimePage) {
           if (wtSec) wtSec.style.display = 'block';
           wtGrid.innerHTML = ''; // Remove "Loading recommendations..." text
