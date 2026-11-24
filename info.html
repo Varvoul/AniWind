@@ -5349,12 +5349,37 @@ img { max-width: 100%; height: auto; display: block; }
       }
 
       function buildEpisodeDetailHtml() {
+        // 2026-11-24: ruri s-mal returns has_sub/has_dub (boolean flags), NOT episode counts.
+        // Logic (per owner spec):
+        //   - Sub: ALWAYS mirror total episode number (show CC icon + total)
+        //   - Dub: if has_dub===true → mirror total (show mic icon + total)
+        //          if has_dub===false → show "N/A" WITHOUT any icon
+        //          if has_dub===undefined → don't show dub yet (waiting for data)
+        //   - If anikoto/explicit counts exist, use those instead of mirroring.
         const data = currentState.data || {};
         const total = data.episodes || '?';
+        const totalNum = (typeof total === 'number') ? total : null;
         const L = currentState.episodeLang || {};
+        const sep = '<span style="color:var(--text-muted);font-size:0.8em;">|</span>';
+
+        // Sub count: explicit count > mirror total > '?'
+        const subCount = (L.subCount > 0) ? L.subCount : (totalNum !== null ? totalNum : '?');
+
         let html = `<span>${total}</span>`;
-        html += _epLangPart('fa-closed-captioning', 'Subtitled', L.subCount, L.hasSub);
-        html += _epLangPart('fa-microphone', 'Dubbed', L.dubCount, L.hasDub);
+        // Sub: always show with CC icon (mirrors total per owner spec)
+        html += ` ${sep} <i class="fa-solid fa-closed-captioning" style="color:#7ec8f7;" title="Subtitled: ${subCount}"></i> ${subCount}`;
+
+        // Dub: only render when hasDub is explicitly true or false
+        if (L.hasDub === true || L.dubCount > 0) {
+          // Dub available → mirror total (or use explicit count)
+          const dubCount = (L.dubCount > 0) ? L.dubCount : (totalNum !== null ? totalNum : '?');
+          html += ` ${sep} <i class="fa-solid fa-microphone" style="color:#7ec8f7;" title="Dubbed: ${dubCount}"></i> ${dubCount}`;
+        } else if (L.hasDub === false) {
+          // Dub not available → show "N/A" WITHOUT any icon
+          html += ` ${sep} <span style="color:var(--text-muted);">N/A</span>`;
+        }
+        // If hasDub is undefined (data not loaded yet), don't show dub — it will appear when the ruri s-mal response arrives
+
         return html;
       }
 
