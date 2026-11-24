@@ -94,7 +94,7 @@
     },
     {
       "source": "/api/jikan/:path*",
-      "destination": "/api/tmdb-proxy?jikan_path=:path*"
+      "destination": "/api/tmdb-proxy?jk=:path*"
     },
     {
       "source": "/latest-updates",

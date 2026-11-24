@@ -18,7 +18,7 @@ const WORKERS = {
   'supabase-search-proxy': { base: 'https://supabase-search-proxy.bionmovies47.workers.dev', envPrefix: 'SUPABASE_SEARCH_PROXY' },
   'ani-pm-proxy':        { base: 'https://ani-pm-proxy.bionmovies47.workers.dev',          envPrefix: 'ANI_PM_PROXY' },
   'aniumi-data-proxy':   { base: 'https://aniumi-data-proxy.bionmovies47.workers.dev',     envPrefix: 'ANIUMI_DATA_PROXY' },
-  jikan:                 { base: 'https://jikan-api-bohb.onrender.com',                    envPrefix: 'JIKAN', pathPrefix: 'v4' },
+  jikan:                 { base: 'https://jikan-api-bohb.onrender.com',                    envPrefix: 'JIKAN', pathPrefix: 'v4', headerOnly: true },
 };
 
 /**
@@ -38,7 +38,8 @@ export async function cfWorkerFetch(workerKey, path, opts = {}) {
   }
   const cleanPath = path.replace(/^\/+/, '');
   const fullPath = w.pathPrefix ? `${w.pathPrefix}/${cleanPath}` : cleanPath;
-  const url = `${w.base}/p/${urlSecret}/${fullPath}`;
+  // For header-only auth (e.g. Jikan on Render), don't add /p/<secret>/ prefix
+  const url = w.headerOnly ? `${w.base}/${fullPath}` : `${w.base}/p/${urlSecret}/${fullPath}`;
   return fetch(url, {
     method: opts.method || 'GET',
     headers: {

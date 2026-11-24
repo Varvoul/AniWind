@@ -48,6 +48,39 @@ const CF_DISPATCH = [
 ];
 
 export default async function handler(req, res) {
+  // ── Jikan proxy (Render) — checked FIRST to avoid interference from
+  //    the /api/tmdb-proxy/:path* rewrite which can strip query params ──
+  const jkPath = req.query.jk;
+  if (jkPath !== undefined) {
+    if (req.method === 'OPTIONS') {
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+      return res.status(204).end();
+    }
+    const jpath = '/' + (Array.isArray(jkPath) ? jkPath.join('/') : String(jkPath).replace(/^\/+/, ''));
+    const jurl = new URL(req.url, 'http://localhost');
+    jurl.searchParams.delete('jk');
+    const jqs = jurl.searchParams.toString();
+    const jFullPath = jpath + (jqs ? '?' + jqs : '');
+    try {
+      const { cfWorkerFetch } = await import('./_lib/cf-worker-auth.js');
+      const upstream = await cfWorkerFetch('jikan', jFullPath, {
+        signal: AbortSignal.timeout(20000),
+        method: req.method,
+      });
+      const jbody = await upstream.text();
+      const jct = upstream.headers.get('Content-Type') || 'application/json';
+      const jcc = upstream.headers.get('Cache-Control') || 'public, max-age=300';
+      res.setHeader('Content-Type', jct);
+      res.setHeader('Cache-Control', jcc);
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      return res.status(upstream.status).send(jbody);
+    } catch (e) {
+      return res.status(502).json({ error: 'Jikan upstream failed', detail: e.message });
+    }
+  }
+
   // ── Public doc endpoints for /api/<route> base paths — no auth, no secrets ──
   const docReq = req.query.doc;
   if (docReq !== undefined) {
