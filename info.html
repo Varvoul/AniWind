@@ -1193,151 +1193,213 @@ img { max-width: 100%; height: auto; display: block; }
 .tab-content { display: none; }
 .tab-content.active { display: block; }
 
-/* ── Cast — character × voice-actor duo cards (2026-11-25 redesign) ──
-   Replaces the old vertical text-row list. ONE design language:
-   PC (>768px): responsive auto-fill grid — all 20 characters scannable.
-   Mobile (≤768px): the SAME cards in a horizontal snap rail (cards keep a
-   readable size, matches the TMDB cast rail behaviour on phones).
-   Card: character portrait (aspect 2/3) with role badge + name gradient,
-   voice-actor chip bar below (JP chip + optional EN line). */
-.duo-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(205px, 1fr));
-  gap: 12px;
-}
-.duo-card {
+/* ── Cast — "Cast Wall" (2026-11-25 v2 redesign — honours the t224 demo
+   recommendation: Variant 3, the poster-ratio wall that reuses the exact
+   visual language of the show-card grids: poster tiles, bottom gradient,
+   lift hover) ──
+   ONE design language, ONE responsive grid (auto-fill 140px min → 2 cols on
+   phones, 5-8 cols on PC). Composition per the recommendation: production
+   crew chips (demo Option A) on top, role filter + load-more toolbar, then
+   the wall: character portrait (3/4.5) with role badge + gradient overlay
+   carrying the character name and the voice-actor chip row (+ optional EN
+   line). The skeleton mirrors these same classes. */
+.cw-crew {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-bottom: 14px;
+}
+.cw-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  padding: 7px 15px 7px 8px;
+  font-size: 0.82rem;
+  transition: all 0.2s ease;
+  cursor: default;
+}
+.cw-chip:hover { border-color: rgba(66, 153, 225, 0.5); transform: translateY(-2px); }
+.cw-chip .ic {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.62rem;
+  font-weight: 800;
+  color: #fff;
+  flex-shrink: 0;
+}
+.cw-chip .rl { color: var(--text-muted); font-size: 0.72rem; margin-left: 2px; }
+
+.cw-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.cw-fchip {
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+.cw-fchip:hover { color: var(--text-primary); border-color: var(--border-medium); }
+.cw-fchip.on {
+  background: rgba(43, 108, 176, 0.3);
+  border-color: var(--btn-primary);
+  color: #7ec8f7;
+}
+.cw-count { font-size: 0.78rem; color: var(--text-muted); margin-left: auto; }
+
+.cw-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+}
+.cw-t {
+  position: relative;
+  aspect-ratio: 3 / 4.5;
   border-radius: var(--radius-md);
   overflow: hidden;
-  transition: transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
-}
-.duo-card:hover {
-  transform: translateY(-3px);
-  border-color: rgba(126, 200, 247, 0.4);
-  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.45);
-}
-.duo-char {
-  position: relative;
-  display: block;
-  aspect-ratio: 2 / 3;
+  cursor: pointer;
   background: var(--bg-surface);
-  text-decoration: none;
-  color: inherit;
+  border: 1px solid var(--border-subtle);
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
 }
-.duo-char-img {
+.cw-t.nolink { cursor: default; }
+.cw-t:hover {
+  transform: translateY(-3px);
+  border-color: rgba(66, 153, 225, 0.55);
+  box-shadow: 0 12px 26px -10px rgba(66, 153, 225, 0.35);
+}
+.cw-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
+  transition: transform 0.4s ease;
 }
-.duo-role {
+.cw-t:hover .cw-img { transform: scale(1.06); }
+.cw-link {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: block;
+}
+.cw-ov {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: linear-gradient(to top, rgba(11, 14, 25, 0.94) 0%, rgba(11, 14, 25, 0.55) 34%, transparent 62%);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 10px 10px 11px;
+  transition: background 0.3s ease;
+}
+.cw-t:hover .cw-ov {
+  background: linear-gradient(to top, rgba(11, 14, 25, 0.96) 0%, rgba(11, 14, 25, 0.68) 42%, transparent 70%);
+}
+.cw-role {
   position: absolute;
   top: 8px;
   left: 8px;
-  z-index: 2;
+  z-index: 3;
   font-size: 0.62rem;
   font-weight: 700;
-  letter-spacing: 0.06em;
-  padding: 3px 9px;
-  border-radius: 20px;
+  letter-spacing: 0.07em;
+  padding: 2px 8px;
+  border-radius: 4px;
+  backdrop-filter: blur(4px);
   pointer-events: none;
 }
-.duo-role.role-main {
-  background: rgba(23, 60, 98, 0.72);
+.cw-role.role-main {
+  background: rgba(43, 108, 176, 0.25);
   color: #7ec8f7;
-  border: 1px solid rgba(126, 200, 247, 0.45);
+  border: 1px solid rgba(43, 108, 176, 0.45);
 }
-.duo-role.role-supporting {
-  background: rgba(10, 14, 24, 0.66);
-  color: #cbd5e1;
-  border: 1px solid rgba(148, 163, 184, 0.35);
+.cw-role.role-supporting {
+  background: rgba(148, 163, 184, 0.12);
+  color: var(--text-muted);
+  border: 1px solid rgba(148, 163, 184, 0.2);
 }
-.duo-char-name {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 2;
-  padding: 22px 10px 9px;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.88), rgba(0, 0, 0, 0));
-  font-size: 0.88rem;
+.cw-role.role-actor {
+  background: rgba(236, 201, 75, 0.18);
+  color: var(--accent-gold);
+  border: 1px solid rgba(236, 201, 75, 0.4);
+}
+.cw-nm {
+  font-size: 0.82rem;
   font-weight: 700;
   color: #fff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  pointer-events: none;
 }
-.duo-va-bar {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 8px 10px 9px;
-  border-top: 1px solid var(--border-subtle);
-}
-.duo-va-chip {
+.cw-va {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  margin-top: 6px;
   min-width: 0;
-  padding: 2px;
-  border-radius: 8px;
+  pointer-events: auto;
   text-decoration: none;
   color: inherit;
-  transition: background var(--transition-fast);
 }
-a.duo-va-chip:hover { background: rgba(255, 255, 255, 0.06); }
-.duo-va-chip img {
-  width: 30px;
-  height: 30px;
+.cw-va img {
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   object-fit: cover;
   flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.25);
   background: var(--bg-surface);
 }
-.duo-va-meta { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-.duo-va-name {
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--text-primary);
+.cw-va span {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  transition: color 0.25s ease;
 }
-.duo-va-lang {
-  font-size: 0.6rem;
-  color: var(--text-muted);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-.duo-va-en {
-  font-size: 0.68rem;
+.cw-t:hover .cw-va span { color: var(--accent-blue); }
+.cw-va-en {
+  font-size: 0.66rem;
   color: var(--text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  padding-left: 2px;
+  margin-top: 4px;
 }
-
-/* Mobile — same duo cards in a horizontal snap rail */
-@media (max-width: 768px) {
-  .duo-grid {
-    display: flex;
-    overflow-x: auto;
-    scroll-snap-type: x proximity;
-    gap: 10px;
-    padding: 2px 2px 10px;
-    scrollbar-width: thin;
-    scrollbar-color: var(--btn-primary, #2b6cb0) rgba(255,255,255,0.05);
-  }
-  .duo-grid::-webkit-scrollbar { height: 5px; }
-  .duo-grid::-webkit-scrollbar-track { background: rgba(255,255,255,0.04); border-radius: 3px; }
-  .duo-grid::-webkit-scrollbar-thumb { background: var(--btn-primary, #2b6cb0); border-radius: 3px; }
-  .duo-card { flex: 0 0 150px; scroll-snap-align: start; }
+.cw-more {
+  display: block;
+  margin: 18px auto 0;
+  padding: 9px 26px;
+  border-radius: 999px;
+  background: var(--bg-card);
+  border: 1px solid var(--btn-primary);
+  color: #7ec8f7;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
 }
+.cw-more:hover { background: var(--btn-primary); color: #fff; transform: translateY(-2px); }
 
 /* Season placeholder */
 .season-img-placeholder {
@@ -2995,9 +3057,10 @@ a.duo-va-chip:hover { background: rgba(255, 255, 255, 0.06); }
        No hover states on skeletons (they are transient; hover belongs to the
        loaded UI, consistent with index/browse/schedule skeleton behaviour). ── */
 
-    /* Cast — anime duo cards: the skeleton uses the REAL .duo-grid/.duo-card
-       classes with .sk shimmer blocks (see _castSkeletonHTML), so it inherits
-       the same PC-grid / mobile-snap-rail breakpoints as the loaded layout. */
+    /* Cast — anime Cast Wall: the skeleton uses the REAL .cw-crew/.cw-bar/
+       .cw-grid/.cw-t classes with .sk shimmer blocks (see _castSkeletonHTML),
+       so it inherits the same responsive-wall breakpoints as the loaded
+       layout (2 cols on phones, 5-8 cols on PC). */
 
     /* Cast — TMDB credits deck (mirror .cc-card / .cc-chip / .cc-dept) */
     .sk-cc-card {
@@ -3561,15 +3624,15 @@ a.duo-va-chip:hover { background: rgba(255, 255, 255, 0.06); }
 
       // ── TAB SKELETONS (owner request 2026-11-24): Cast / Artwork / Trailer /
       // Themes / Statistics. Every tab gets a skeleton that mirrors its LOADED
-      // layout — same wrapper classes (.duo-grid/.duo-card, .cc-rail,
-      // .artwork-grid, .video-wrapper, .theme-card,
+      // layout — same wrapper classes (.cw-crew/.cw-bar/.cw-grid/.cw-t,
+      // .cc-rail, .artwork-grid, .video-wrapper, .theme-card,
       // .histogram/.segmented-bar/.metric-cards)
       // and same card geometry — so the placeholder is a faithful preview of
       // the data view. Injected ONCE at page init (injectInfoSkeletons) and
       // re-checked at renderTabs() start, so cache hits simply overwrite the
       // skeleton instantly while live fetches keep it visible: identical
       // behaviour on both serving paths. Skeletons carry NO hover states —
-      // they are transient; hover belongs to the loaded UI (duo-card raise,
+      // they are transient; hover belongs to the loaded UI (cast-wall tile raise,
       // cc-card raise, hist-bar opacity...), consistent with index/browse/
       // schedule where skeletons have no hover either.
       function _skLines(w1='70%', w2='45%') {
@@ -3606,25 +3669,34 @@ a.duo-va-chip:hover { background: rgba(255, 255, 255, 0.06); }
               <div class="cc-depts">${dept}${dept}</div>
             </section>`;
         }
-        // Anime — mirror buildCastDuoHTML(): character portrait card (2/3
-        // image + role badge + name gradient) over a voice-actor chip bar.
-        // Uses the REAL .duo-grid/.duo-card classes, so the skeleton is a
-        // PC grid / mobile snap rail exactly like the loaded layout.
-        const duoCard = i => '<div class="duo-card">' +
-            '<div class="duo-char">' +
-              '<div class="sk" style="position:absolute;inset:0;border-radius:0;"></div>' +
-              `<div class="sk" style="position:absolute;top:8px;left:8px;height:21px;width:${(i % 3) ? 62 : 52}px;border-radius:20px;"></div>` +
-              '<div class="duo-char-name"><div class="sk" style="height:12px;width:74%;border-radius:3px;"></div></div>' +
-            '</div>' +
-            '<div class="duo-va-bar">' +
-              '<div class="duo-va-chip">' +
-                '<div class="sk" style="width:30px;height:30px;border-radius:50%;flex-shrink:0;"></div>' +
-                _skLines('68%', '42%') +
+        // Anime — mirror buildCastWallHTML(): production crew chips + role
+        // filter toolbar + poster tiles (3/4.5 image + role badge + gradient
+        // overlay with name and VA row). Uses the REAL .cw-crew/.cw-bar/
+        // .cw-grid/.cw-t classes, so the skeleton is the same responsive wall
+        // (2 cols on phones, 5-8 cols on PC) exactly like the loaded layout.
+        const cwCrewChip = '<div class="cw-chip">' +
+            '<div class="sk" style="width:26px;height:26px;border-radius:50%;flex-shrink:0;"></div>' +
+            '<div class="sk" style="height:10px;width:58px;border-radius:3px;"></div>' +
+          '</div>';
+        const cwTile = i => '<div class="cw-t">' +
+            '<div class="sk" style="position:absolute;inset:0;border-radius:0;"></div>' +
+            `<div class="sk" style="position:absolute;top:8px;left:8px;height:20px;width:${(i % 3) ? 66 : 44}px;border-radius:4px;"></div>` +
+            '<div class="cw-ov">' +
+              '<div class="cw-nm"><div class="sk" style="height:11px;width:76%;border-radius:3px;"></div></div>' +
+              '<div class="cw-va">' +
+                '<div class="sk" style="width:22px;height:22px;border-radius:50%;flex-shrink:0;"></div>' +
+                '<div class="sk" style="height:9px;width:56%;border-radius:3px;"></div>' +
               '</div>' +
-              ((i % 2) ? '<div class="duo-va-en"><div class="sk" style="height:9px;width:58%;border-radius:3px;"></div></div>' : '') +
+              ((i % 2) ? '<div class="cw-va-en"><div class="sk" style="height:8px;width:52%;border-radius:3px;"></div></div>' : '') +
             '</div>' +
           '</div>';
-        return `<div class="duo-grid">${Array.from({length:10}, (_, i) => duoCard(i)).join('')}</div>`;
+        return '<div class="cw-crew">' + cwCrewChip.repeat(4) + '</div>' +
+            '<div class="cw-bar">' +
+              '<div class="sk" style="height:29px;width:52px;border-radius:999px;"></div>' +
+              '<div class="sk" style="height:29px;width:44px;border-radius:999px;"></div>' +
+              '<div class="sk" style="height:29px;width:78px;border-radius:999px;"></div>' +
+            '</div>' +
+            `<div class="cw-grid">${Array.from({length:12}, (_, i) => cwTile(i)).join('')}</div>`;
       }
       function _artworkSkeletonHTML() {
         // Masonry tiles flow through the real .artwork-grid CSS columns;
@@ -6571,65 +6643,134 @@ a.duo-va-chip:hover { background: rgba(255, 255, 255, 0.06); }
       }
       const _castImgFallback = "this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 60 90%22><rect fill=%22%231e2633%22 width=%2260%22 height=%2290%22/></svg>'";
 
-      // ── Cast — character × voice-actor "duo" cards (2026-11-25 redesign).
-      // ONE builder renders the anime live payload, AniCache array blobs AND
-      // legacy TMDB-era array saves, so a cached tab is pixel-identical to a
-      // live-fetched one by construction. Card: character portrait (aspect
-      // 2/3, role badge + name gradient) over a voice-actor chip bar; the
-      // .duo-grid wrapper is a PC grid and a mobile snap rail via CSS. ──
-      function _duoCardHTML(c) {
+      // ── Cast — "Cast Wall" (2026-11-25 v2 redesign — honours the t224 demo
+      // recommendation: Variant 3). ONE builder renders the anime live payload,
+      // AniCache array blobs AND legacy TMDB-era array saves, so a cached tab
+      // is pixel-identical to a live-fetched one by construction. Composition:
+      // production crew chips (demo Option A, sourced from the SAME full
+      // payload on both serving paths) + role filter / load-more toolbar +
+      // poster-ratio tiles reusing the show-card visual language. The INITIAL
+      // render is deterministic (filter 'all', first 12 tiles) — both the live
+      // loaders and the AniCache renderer enter through buildCastWallHTML, so
+      // cached and live tabs start byte-identical; filter/load-more clicks
+      // re-render through _castWallRender only. ──
+      window._castWallState = { filter: 'all', shown: 12, list: [] };
+
+      // Poster tile: character portrait (3/4.5) + role badge + gradient
+      // overlay (character name + voice-actor chip row + optional EN line).
+      // Whole-tile click = character page (when mal_id known), VA row click =
+      // person page; Jikan names flip "Last, First" via _castDisplayTop.
+      function _cwTileHTML(c) {
         const role = c.role || 'Supporting';
+        const roleCls = role === 'Main' ? 'role-main' : (role === 'Actor' ? 'role-actor' : 'role-supporting');
         const charName = c.char_name || 'Unknown';
-        const roleCls = role === 'Main' ? 'role-main' : 'role-supporting';
-        const open  = c.char_mal_id ? `<a href="/character/${c.char_mal_id}/${slugify(charName)}" class="duo-char">`
-                                    : '<div class="duo-char" style="cursor:default;">';
-        const close = c.char_mal_id ? '</a>' : '</div>';
-        const va = (c.va_name || c.va_img) ? `
-            ${c.va_mal_id ? `<a href="/person/${c.va_mal_id}/${slugify(_castDisplayTop(c.va_name))}" class="duo-va-chip">` : '<div class="duo-va-chip">'}
-              <img src="${escapeHtml(c.va_img || '')}" alt="${escapeHtml(_castDisplayTop(c.va_name))}" loading="lazy" onerror="${_castImgFallback}">
-              <span class="duo-va-meta">
-                <span class="duo-va-name">${escapeHtml(_castDisplayTop(c.va_name))}</span>
-                <span class="duo-va-lang">${escapeHtml(c.va_lang || 'Japanese')}</span>
-              </span>
-            ${c.va_mal_id ? '</a>' : '</div>'}` : '';
-        const en = (c.en_va_name || c.en_va_img)
-          ? `<span class="duo-va-en" title="${escapeHtml(_castDisplayTop(c.en_va_name))}">EN · ${escapeHtml(_castDisplayTop(c.en_va_name))}</span>`
+        const charTop = _castDisplayTop(charName);
+        const img = `<img class="cw-img" src="${escapeHtml(c.char_img || '')}" alt="${escapeHtml(charTop)}" loading="lazy" onerror="${_castImgFallback}">`;
+        const link = c.char_mal_id
+          ? `<a href="/character/${c.char_mal_id}/${slugify(charName)}" class="cw-link" aria-label="${escapeHtml(charTop)}"></a>`
           : '';
-        const bar = (va || en)
-          ? `<div class="duo-va-bar">${va}${en}</div>`
-          : '<div class="duo-va-bar"><span class="duo-va-en" style="opacity:.6;">No voice actor listed</span></div>';
-        return `
-          <div class="duo-card">
-            ${open}
-              <img class="duo-char-img" src="${escapeHtml(c.char_img || '')}" alt="${escapeHtml(charName)}" loading="lazy" onerror="${_castImgFallback}">
-              <span class="duo-role ${roleCls}">${escapeHtml(role.toUpperCase())}</span>
-              <span class="duo-char-name">${escapeHtml(charName)}</span>
-            ${close}
-            ${bar}
-          </div>`;
-      }
-      function buildCastDuoHTML(list) {
-        return '<div class="duo-grid">' + (list || []).map(c => {
-          if (!c) return '';
-          // TMDB-era array saves (fmt:2 / role:'Actor') — actor portrait card
-          // with the character name as the caption chip (legacy compat; the
-          // cache path upgrades these blobs to the fmt:3 deck on next visit)
-          if (c.fmt === 2 || c.role === 'Actor') {
-            const isLegacy = c.fmt !== 2;
-            const actorName = isLegacy ? (c.va_name || '') : (c.char_name || '');
-            const actorImg  = isLegacy ? (c.char_img || c.va_img || '') : (c.char_img || '');
-            const charName  = isLegacy ? (c.char_name || '') : (c.va_name || '');
-            return _duoCardHTML({
-              char_img: actorImg, char_name: actorName || 'Unknown', role: 'Actor',
-              va_name: charName, va_img: '', va_lang: 'Character',
-            });
-          }
-          return _duoCardHTML(c);
-        }).join('') + '</div>';
+        const va = (c.va_name || c.va_img) ? (
+          c.va_mal_id
+            ? `<a href="/person/${c.va_mal_id}/${slugify(_castDisplayTop(c.va_name))}" class="cw-va"><img src="${escapeHtml(c.va_img || '')}" alt="${escapeHtml(_castDisplayTop(c.va_name))}" loading="lazy" onerror="${_castImgFallback}"><span title="${escapeHtml(_castDisplayTop(c.va_name))}">${escapeHtml(_castDisplayTop(c.va_name))}</span></a>`
+            : `<div class="cw-va">${c.va_img ? `<img src="${escapeHtml(c.va_img)}" alt="" loading="lazy" onerror="${_castImgFallback}">` : ''}<span>${escapeHtml(_castDisplayTop(c.va_name))}</span></div>`
+        ) : '';
+        const vaRow = va || '<div class="cw-va"><span style="opacity:.6;">No voice actor listed</span></div>';
+        const en = (c.en_va_name || c.en_va_img)
+          ? `<span class="cw-va-en" title="EN · ${escapeHtml(_castDisplayTop(c.en_va_name))}">EN · ${escapeHtml(_castDisplayTop(c.en_va_name))}</span>`
+          : '';
+        return `<div class="cw-t${c.char_mal_id ? '' : ' nolink'}">${img}${link}<span class="cw-role ${roleCls}">${escapeHtml(role.toUpperCase())}</span><div class="cw-ov"><div class="cw-nm" title="${escapeHtml(charTop)}">${escapeHtml(charTop)}</div>${vaRow}${en}</div></div>`;
       }
 
+      // Crew production chips (demo Option A) — studio(s) first, then
+      // producers, deduped, capped at 6 like the demo strip. Data comes from
+      // currentState.data (the same full payload serves the live fetch AND
+      // the cache-restored page), so the strip is identical on both paths.
+      const _CW_ICOLORS = ['#2b6cb0', '#6b46c1', '#2f855a', '#b7791f', '#c05621', '#4a5568'];
+      function _castCrewChipsHTML() {
+        const d = (typeof currentState !== 'undefined' && currentState.data) || {};
+        const names = [];
+        (d.studios || []).slice(0, 2).forEach(s => {
+          if (s && s.name && !names.some(x => x.n === s.name)) names.push({ n: s.name, r: 'Studio' });
+        });
+        (d.producers || []).forEach(p => {
+          if (!p || !p.name || names.length >= 6 || names.some(x => x.n === p.name)) return;
+          names.push({ n: p.name, r: 'Producer' });
+        });
+        if (!names.length) return '';
+        return '<div class="cw-crew">' + names.map((c, i) =>
+          `<span class="cw-chip"><span class="ic" style="background:${_CW_ICOLORS[i % _CW_ICOLORS.length]}">${escapeHtml(c.n.slice(0, 3).toUpperCase())}</span>${escapeHtml(c.n)}<span class="rl">${escapeHtml(c.r)}</span></span>`
+        ).join('') + '</div>';
+      }
+
+      // Legacy TMDB-era array rows (fmt:2 / role 'Actor') → actor tile with
+      // the character name as the caption (the cache path upgrades these
+      // blobs to the fmt:3 deck on next visit, guard unchanged).
+      function _cwNormalize(list) {
+        return (list || []).filter(Boolean).map(c => {
+          if (c.fmt === 2 || c.role === 'Actor') {
+            const isLegacy = c.fmt !== 2;
+            return {
+              char_img: isLegacy ? (c.char_img || c.va_img || '') : (c.char_img || ''),
+              char_name: (isLegacy ? (c.va_name || '') : (c.char_name || '')) || 'Unknown',
+              role: 'Actor',
+              va_name: isLegacy ? (c.char_name || '') : (c.va_name || ''),
+              va_img: '',
+              char_mal_id: null,
+              va_mal_id: null,
+            };
+          }
+          return c;
+        });
+      }
+
+      function _castWallRender() {
+        const st = window._castWallState;
+        const all = _cwNormalize(st.list);
+        const mainN = all.filter(c => c.role === 'Main').length;
+        const supN  = all.filter(c => c.role === 'Supporting').length;
+        const flt = st.filter === 'all' ? all : all.filter(c => c.role === st.filter);
+        const shown = flt.slice(0, st.shown);
+        const chip = (f, label, n) =>
+          `<button type="button" class="cw-fchip${st.filter === f ? ' on' : ''}" data-cw-filter="${f}">${label} ${n}</button>`;
+        const bar = '<div class="cw-bar">' +
+            chip('all', 'All', all.length) +
+            (mainN ? chip('Main', 'Main', mainN) : '') +
+            (supN ? chip('Supporting', 'Supporting', supN) : '') +
+            `<span class="cw-count">Showing ${Math.min(st.shown, flt.length)} of ${flt.length}</span>` +
+          '</div>';
+        const grid = `<div class="cw-grid">${shown.map(_cwTileHTML).join('')}</div>`;
+        const more = st.shown < flt.length
+          ? `<button type="button" class="cw-more" data-cw-more>Load more (${flt.length - st.shown} remaining)</button>`
+          : '';
+        return _castCrewChipsHTML() + bar + grid + more;
+      }
+
+      function buildCastWallHTML(list) {
+        window._castWallState = { filter: 'all', shown: 12, list: list || [] };
+        return _castWallRender();
+      }
+
+      // Toolbar interactions — delegated ONCE at document level (the cast tab
+      // is the only markup carrying .cw-fchip/.cw-more), mirroring the demo's
+      // filter + load-more behaviour (first page 12, +14 per Load more).
+      (function () {
+        if (window._castWallWired) return;
+        window._castWallWired = true;
+        document.addEventListener('click', (e) => {
+          const chipEl = e.target.closest('.cw-fchip[data-cw-filter]');
+          const moreEl = e.target.closest('.cw-more[data-cw-more]');
+          if (!chipEl && !moreEl) return;
+          const st = window._castWallState;
+          if (!st || !(st.list || []).length) return;
+          if (chipEl) { st.filter = chipEl.dataset.cwFilter; st.shown = 12; }
+          else { st.shown += 14; }
+          const el = document.getElementById('castList');
+          if (el) el.innerHTML = _castWallRender();
+        });
+      })();
+
       // ── t146 — TMDB Cast & Crew credits deck (movie/tv info pages only;
-      // anime pages keep the duo cards above). ONE builder renders
+      // anime pages keep the Cast Wall above). ONE builder renders
       // BOTH the live payload and the AniCache fmt:3 blob, so a cached tab
       // is pixel-identical to a live-fetched one by construction. ──
       const CC_RAIL_CAP = 14;   // cast cards in the horizontal rail before "View all"
@@ -6883,10 +7024,10 @@ a.duo-va-chip:hover { background: rgba(255, 255, 255, 0.06); }
         // predate the crew-inclusive deck — return false so the live loader
         // runs once and re-saves in fmt:3 (one-time upgrade, keeps
         // cache==live rendering). Anime arrays (role Main/Supporting) still
-        // render through the duo-card builder below, unchanged.
+        // render through the Cast Wall builder below, unchanged.
         if (castArr.length && castArr.some(c => c && (c.fmt === 2 || c.role === 'Actor'))) return false;
         if (!castArr.length) return false;
-        container.innerHTML = buildCastDuoHTML(castArr);
+        container.innerHTML = buildCastWallHTML(castArr);
         return true;
       }
 
@@ -8913,7 +9054,7 @@ a.duo-va-chip:hover { background: rgba(255, 255, 255, 0.06); }
             });
             // Render through the shared builder — identical markup to the
             // cached render by construction
-            container.innerHTML = buildCastDuoHTML(window._lastCastData);
+            container.innerHTML = buildCastWallHTML(window._lastCastData);
             // Save cast to DB
             if (window.AniCache && window._lastCastData?.length) {
               const _mid = mediaKeyOf();
@@ -8987,7 +9128,7 @@ a.duo-va-chip:hover { background: rgba(255, 255, 255, 0.06); }
             });
             // Render through the shared builder — identical markup to the
             // cached render by construction
-            container.innerHTML = buildCastDuoHTML(window._lastCastData);
+            container.innerHTML = buildCastWallHTML(window._lastCastData);
             // AniCache: save cast to show_details (the jikan path never
             // persisted cast — derive-once here so repeat visits skip this
             // builder entirely)
