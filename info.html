@@ -1193,162 +1193,150 @@ img { max-width: 100%; height: auto; display: block; }
 .tab-content { display: none; }
 .tab-content.active { display: block; }
 
-/* ── Cast List Grid (image-3 style) ─────────────────── */
-.cast-list-grid {
+/* ── Cast — character × voice-actor duo cards (2026-11-25 redesign) ──
+   Replaces the old vertical text-row list. ONE design language:
+   PC (>768px): responsive auto-fill grid — all 20 characters scannable.
+   Mobile (≤768px): the SAME cards in a horizontal snap rail (cards keep a
+   readable size, matches the TMDB cast rail behaviour on phones).
+   Card: character portrait (aspect 2/3) with role badge + name gradient,
+   voice-actor chip bar below (JP chip + optional EN line). */
+.duo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(205px, 1fr));
+  gap: 12px;
+}
+.duo-card {
   display: flex;
   flex-direction: column;
-  gap: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   overflow: hidden;
-  border: 1px solid var(--border-subtle);
+  transition: transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
-
-    /* Vertically scrolling warp container for Cast/Crew tab */
-    /* Vertically scrolling warp container for Cast/Crew tab – no borders */
-.cast-warp-container {
-  max-height: 500px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  border-radius: var(--radius-md, 12px);
-  border: none;                    /* removes outer border */
-  scrollbar-width: thin;
-  scrollbar-color: var(--btn-primary, #2b6cb0) rgba(255,255,255,0.05);
+.duo-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(126, 200, 247, 0.4);
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.45);
 }
-
-.cast-warp-container::-webkit-scrollbar {
-  width: 5px;
-}
-.cast-warp-container::-webkit-scrollbar-track {
-  background: rgba(255,255,255,0.04);
-  border-radius: 3px;
-}
-.cast-warp-container::-webkit-scrollbar-thumb {
-  background: var(--btn-primary, #2b6cb0);
-  border-radius: 3px;
-}
-
-/* Remove all inner borders (row separators and vertical divider) */
-.cast-warp-container .cast-list-grid {
-  border: none;
-}
-
-.cast-warp-container .cast-row {
-  border-bottom: none;
-}
-
-.cast-warp-container .cast-va-side,
-.cast-warp-container .cast-va-empty {
-  border-left: none;
-}
-
-.cast-row {
-  display: flex;
-  align-items: stretch;
-  background: var(--bg-card);
-  border-bottom: 1px solid var(--border-subtle);
-  min-height: 72px;
-  transition: background var(--transition-fast);
-}
-.cast-row:last-child { border-bottom: none; }
-.cast-row:hover { background: var(--bg-surface); }
-
-/* Left side: character */
-.cast-char-side {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex: 1;
-  padding: 10px 12px;
-  text-decoration: none;
-  color: inherit;
-  min-width: 0;
-}
-
-/* Right side: voice actor */
-.cast-va-side {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex: 1;
-  padding: 10px 12px;
-  text-decoration: none;
-  color: inherit;
-  justify-content: flex-end;
-  min-width: 0;
-  border-left: 1px solid var(--border-subtle);
-}
-.cast-va-empty { border-left: 1px solid var(--border-subtle); }
-
-/* English VA row — subtle separator when stacked under Japanese VA */
-.cast-va-side[style*="border-top"] {
-  border-left: none !important;
-  padding-top: 6px !important;
-  margin-top: 4px;
-}
-
-.cast-portrait {
-  width: 46px;
-  height: 66px;
-  object-fit: cover;
-  border-radius: var(--radius-sm);
-  flex-shrink: 0;
+.duo-char {
+  position: relative;
+  display: block;
+  aspect-ratio: 2 / 3;
   background: var(--bg-surface);
+  text-decoration: none;
+  color: inherit;
 }
-
-/* Character info (left-aligned) */
-.cast-char-info {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
+.duo-char-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
-.cast-char-name {
-  font-size: 0.9rem;
+.duo-role {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 2;
+  font-size: 0.62rem;
   font-weight: 700;
-  color: var(--text-primary);
+  letter-spacing: 0.06em;
+  padding: 3px 9px;
+  border-radius: 20px;
+  pointer-events: none;
+}
+.duo-role.role-main {
+  background: rgba(23, 60, 98, 0.72);
+  color: #7ec8f7;
+  border: 1px solid rgba(126, 200, 247, 0.45);
+}
+.duo-role.role-supporting {
+  background: rgba(10, 14, 24, 0.66);
+  color: #cbd5e1;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+}
+.duo-char-name {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  padding: 22px 10px 9px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.88), rgba(0, 0, 0, 0));
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #fff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  pointer-events: none;
 }
-.cast-role-badge {
-  font-size: 0.65rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  padding: 2px 7px;
-  border-radius: 4px;
-  display: inline-block;
-  width: fit-content;
-}
-.role-main {
-  background: rgba(43, 108, 176, 0.25);
-  color: #7ec8f7;
-  border: 1px solid rgba(43, 108, 176, 0.45);
-}
-.role-supporting {
-  background: rgba(148, 163, 184, 0.12);
-  color: var(--text-muted);
-  border: 1px solid rgba(148, 163, 184, 0.2);
-}
-
-/* VA info (right-aligned) */
-.cast-va-info {
+.duo-va-bar {
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  text-align: right;
-  min-width: 0;
+  gap: 6px;
+  padding: 8px 10px 9px;
+  border-top: 1px solid var(--border-subtle);
 }
-.cast-va-name {
-  font-size: 0.85rem;
+.duo-va-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 2px;
+  border-radius: 8px;
+  text-decoration: none;
+  color: inherit;
+  transition: background var(--transition-fast);
+}
+a.duo-va-chip:hover { background: rgba(255, 255, 255, 0.06); }
+.duo-va-chip img {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--bg-surface);
+}
+.duo-va-meta { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.duo-va-name {
+  font-size: 0.78rem;
   font-weight: 600;
   color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.cast-va-lang {
-  font-size: 0.72rem;
+.duo-va-lang {
+  font-size: 0.6rem;
   color: var(--text-muted);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.duo-va-en {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-left: 2px;
+}
+
+/* Mobile — same duo cards in a horizontal snap rail */
+@media (max-width: 768px) {
+  .duo-grid {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    gap: 10px;
+    padding: 2px 2px 10px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--btn-primary, #2b6cb0) rgba(255,255,255,0.05);
+  }
+  .duo-grid::-webkit-scrollbar { height: 5px; }
+  .duo-grid::-webkit-scrollbar-track { background: rgba(255,255,255,0.04); border-radius: 3px; }
+  .duo-grid::-webkit-scrollbar-thumb { background: var(--btn-primary, #2b6cb0); border-radius: 3px; }
+  .duo-card { flex: 0 0 150px; scroll-snap-align: start; }
 }
 
 /* Season placeholder */
@@ -1385,12 +1373,6 @@ img { max-width: 100%; height: auto; display: block; }
   border: 1px solid rgba(236, 201, 75, 0.5);
   color: var(--accent-gold);
   text-transform: uppercase;
-}
-
-@media (max-width: 480px) {
-  .cast-portrait { width: 38px; height: 56px; }
-  .cast-char-side, .cast-va-side { padding: 8px 10px; gap: 8px; }
-  .cast-char-name, .cast-va-name { font-size: 0.8rem; }
 }
 
 /* ── Legacy cast card styles (kept for any remaining references) ── */
@@ -2982,15 +2964,6 @@ img { max-width: 100%; height: auto; display: block; }
     .sk-detail-label { height: 9px; width: 40%; border-radius: 3px; opacity: .5; }
     .sk-detail-val   { height: 13px; width: 70%; border-radius: 4px; }
 
-    /* ── Cast skeleton ── */
-    .sk-cast-wrap {
-      display: flex; gap: 12px; overflow: hidden; padding: 4px 0;
-    }
-    .sk-cast-card  { flex-shrink: 0; width: 80px; display: flex; flex-direction: column; align-items: center; gap: 7px; }
-    .sk-cast-img   { width: 72px; height: 72px; border-radius: 50%; }
-    .sk-cast-name  { height: 10px; width: 80%; border-radius: 3px; }
-    .sk-cast-role  { height: 9px; width: 60%; border-radius: 3px; opacity: .6; }
-
     /* ── Recommendations grid skeleton — cards are injected as DIRECT
        children of the SAME .recs-grid container real cards use, so
        columns / card sizes / gaps match the loaded layout exactly
@@ -3022,11 +2995,9 @@ img { max-width: 100%; height: auto; display: block; }
        No hover states on skeletons (they are transient; hover belongs to the
        loaded UI, consistent with index/browse/schedule skeleton behaviour). ── */
 
-    /* Cast — anime character/VA rows (mirror .cast-row geometry) */
-    .sk-cast-portrait { width:46px; height:66px; border-radius:var(--radius-sm,6px); flex-shrink:0; }
-    @media (max-width: 480px) {
-      .sk-cast-portrait { width:38px; height:56px; }
-    }
+    /* Cast — anime duo cards: the skeleton uses the REAL .duo-grid/.duo-card
+       classes with .sk shimmer blocks (see _castSkeletonHTML), so it inherits
+       the same PC-grid / mobile-snap-rail breakpoints as the loaded layout. */
 
     /* Cast — TMDB credits deck (mirror .cc-card / .cc-chip / .cc-dept) */
     .sk-cc-card {
@@ -3508,17 +3479,6 @@ img { max-width: 100%; height: auto; display: block; }
            </div>`
         ).join('');
       }
-      function skCastCards(n=8) {
-        return `<div class="sk-cast-wrap">${
-          Array.from({length:n}, () =>
-            `<div class="sk-cast-card">
-               <div class="sk sk-cast-img"></div>
-               <div class="sk sk-cast-name"></div>
-               <div class="sk sk-cast-role"></div>
-             </div>`
-          ).join('')
-        }</div>`;
-      }
       function skRecCards(n=8) {
         // DIRECT grid children only — same shape as _injectRecGridSkeletons.
         // Never wrap in a nested grid (collapses cards into one column track).
@@ -3601,14 +3561,15 @@ img { max-width: 100%; height: auto; display: block; }
 
       // ── TAB SKELETONS (owner request 2026-11-24): Cast / Artwork / Trailer /
       // Themes / Statistics. Every tab gets a skeleton that mirrors its LOADED
-      // layout — same wrapper classes (.cast-row, .cc-rail, .artwork-grid,
-      // .video-wrapper, .theme-card, .histogram/.segmented-bar/.metric-cards)
+      // layout — same wrapper classes (.duo-grid/.duo-card, .cc-rail,
+      // .artwork-grid, .video-wrapper, .theme-card,
+      // .histogram/.segmented-bar/.metric-cards)
       // and same card geometry — so the placeholder is a faithful preview of
       // the data view. Injected ONCE at page init (injectInfoSkeletons) and
       // re-checked at renderTabs() start, so cache hits simply overwrite the
       // skeleton instantly while live fetches keep it visible: identical
       // behaviour on both serving paths. Skeletons carry NO hover states —
-      // they are transient; hover belongs to the loaded UI (cast-row bg,
+      // they are transient; hover belongs to the loaded UI (duo-card raise,
       // cc-card raise, hist-bar opacity...), consistent with index/browse/
       // schedule where skeletons have no hover either.
       function _skLines(w1='70%', w2='45%') {
@@ -3645,15 +3606,25 @@ img { max-width: 100%; height: auto; display: block; }
               <div class="cc-depts">${dept}${dept}</div>
             </section>`;
         }
-        // Anime — mirror buildCastRowsHTML(): character side (portrait + name
-        // + role badge) | voice-actor side (name + portrait)
-        const portrait = '<div class="sk sk-cast-portrait"></div>';
-        const badge = '<div class="sk" style="height:16px;width:52px;border-radius:20px;"></div>';
-        const row = '<div class="cast-row">' +
-            `<div class="cast-char-side">${portrait}<div style="flex:1;display:flex;flex-direction:column;gap:6px;min-width:0;">${badge}${_skLines('65%', '')}</div></div>` +
-            `<div class="cast-va-side">${_skLines('70%', '45%')}${portrait}</div>` +
+        // Anime — mirror buildCastDuoHTML(): character portrait card (2/3
+        // image + role badge + name gradient) over a voice-actor chip bar.
+        // Uses the REAL .duo-grid/.duo-card classes, so the skeleton is a
+        // PC grid / mobile snap rail exactly like the loaded layout.
+        const duoCard = i => '<div class="duo-card">' +
+            '<div class="duo-char">' +
+              '<div class="sk" style="position:absolute;inset:0;border-radius:0;"></div>' +
+              `<div class="sk" style="position:absolute;top:8px;left:8px;height:21px;width:${(i % 3) ? 62 : 52}px;border-radius:20px;"></div>` +
+              '<div class="duo-char-name"><div class="sk" style="height:12px;width:74%;border-radius:3px;"></div></div>' +
+            '</div>' +
+            '<div class="duo-va-bar">' +
+              '<div class="duo-va-chip">' +
+                '<div class="sk" style="width:30px;height:30px;border-radius:50%;flex-shrink:0;"></div>' +
+                _skLines('68%', '42%') +
+              '</div>' +
+              ((i % 2) ? '<div class="duo-va-en"><div class="sk" style="height:9px;width:58%;border-radius:3px;"></div></div>' : '') +
+            '</div>' +
           '</div>';
-        return `<div class="cast-warp-container"><div class="cast-list-grid">${row.repeat(6)}</div></div>`;
+        return `<div class="duo-grid">${Array.from({length:10}, (_, i) => duoCard(i)).join('')}</div>`;
       }
       function _artworkSkeletonHTML() {
         // Masonry tiles flow through the real .artwork-grid CSS columns;
@@ -6589,96 +6560,76 @@ img { max-width: 100%; height: auto; display: block; }
       // and the AniCache cached renderers below both emit through them, so a
       // cached tab is pixel-identical to a live-fetched one by construction.
 
-      // Jikan/AniList store people as "Last, First" — the live cast rows have
-      // always displayed "First Last". TMDB actor names are already natural
-      // order and are only ever rendered through the TMDB branch (no reversal).
+      // Jikan stores people as "Last, First" — flip when a comma is present.
+      // AniList person names are already natural order (no comma) and now
+      // pass through untouched (the old always-reverse behaviour garbled the
+      // English VA names coming from the AniList extras path).
       function _castDisplayTop(n) {
-        return String(n || '').replace(/,\s*/, ' ').split(' ').reverse().join(' ');
+        const s = String(n || '').trim();
+        if (!s || !s.includes(',')) return s;
+        return s.replace(/,\s*/, ' ').split(' ').reverse().join(' ');
       }
       const _castImgFallback = "this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 60 90%22><rect fill=%22%231e2633%22 width=%2260%22 height=%2290%22/></svg>'";
 
-      function buildCastRowsHTML(list) {
-        return (list || []).map(c => {
+      // ── Cast — character × voice-actor "duo" cards (2026-11-25 redesign).
+      // ONE builder renders the anime live payload, AniCache array blobs AND
+      // legacy TMDB-era array saves, so a cached tab is pixel-identical to a
+      // live-fetched one by construction. Card: character portrait (aspect
+      // 2/3, role badge + name gradient) over a voice-actor chip bar; the
+      // .duo-grid wrapper is a PC grid and a mobile snap rail via CSS. ──
+      function _duoCardHTML(c) {
+        const role = c.role || 'Supporting';
+        const charName = c.char_name || 'Unknown';
+        const roleCls = role === 'Main' ? 'role-main' : 'role-supporting';
+        const open  = c.char_mal_id ? `<a href="/character/${c.char_mal_id}/${slugify(charName)}" class="duo-char">`
+                                    : '<div class="duo-char" style="cursor:default;">';
+        const close = c.char_mal_id ? '</a>' : '</div>';
+        const va = (c.va_name || c.va_img) ? `
+            ${c.va_mal_id ? `<a href="/person/${c.va_mal_id}/${slugify(_castDisplayTop(c.va_name))}" class="duo-va-chip">` : '<div class="duo-va-chip">'}
+              <img src="${escapeHtml(c.va_img || '')}" alt="${escapeHtml(_castDisplayTop(c.va_name))}" loading="lazy" onerror="${_castImgFallback}">
+              <span class="duo-va-meta">
+                <span class="duo-va-name">${escapeHtml(_castDisplayTop(c.va_name))}</span>
+                <span class="duo-va-lang">${escapeHtml(c.va_lang || 'Japanese')}</span>
+              </span>
+            ${c.va_mal_id ? '</a>' : '</div>'}` : '';
+        const en = (c.en_va_name || c.en_va_img)
+          ? `<span class="duo-va-en" title="${escapeHtml(_castDisplayTop(c.en_va_name))}">EN · ${escapeHtml(_castDisplayTop(c.en_va_name))}</span>`
+          : '';
+        const bar = (va || en)
+          ? `<div class="duo-va-bar">${va}${en}</div>`
+          : '<div class="duo-va-bar"><span class="duo-va-en" style="opacity:.6;">No voice actor listed</span></div>';
+        return `
+          <div class="duo-card">
+            ${open}
+              <img class="duo-char-img" src="${escapeHtml(c.char_img || '')}" alt="${escapeHtml(charName)}" loading="lazy" onerror="${_castImgFallback}">
+              <span class="duo-role ${roleCls}">${escapeHtml(role.toUpperCase())}</span>
+              <span class="duo-char-name">${escapeHtml(charName)}</span>
+            ${close}
+            ${bar}
+          </div>`;
+      }
+      function buildCastDuoHTML(list) {
+        return '<div class="duo-grid">' + (list || []).map(c => {
           if (!c) return '';
-          // TMDB rows — faithful v2 shape (fmt:2) renders as-is; legacy saves
-          // (role 'Actor', actor name/photo split across fields) are mapped
-          // into the same faithful layout so old blobs still render correctly.
+          // TMDB-era array saves (fmt:2 / role:'Actor') — actor portrait card
+          // with the character name as the caption chip (legacy compat; the
+          // cache path upgrades these blobs to the fmt:3 deck on next visit)
           if (c.fmt === 2 || c.role === 'Actor') {
             const isLegacy = c.fmt !== 2;
             const actorName = isLegacy ? (c.va_name || '') : (c.char_name || '');
             const actorImg  = isLegacy ? (c.char_img || c.va_img || '') : (c.char_img || '');
             const charName  = isLegacy ? (c.char_name || '') : (c.va_name || '');
-            return `
-              <div class="cast-row">
-                <div class="cast-char-side" style="cursor:default;">
-                  <img class="cast-portrait cast-char-portrait" src="${escapeHtml(actorImg)}" alt="${escapeHtml(actorName)}"
-                    loading="lazy"
-                    onerror="${_castImgFallback}">
-                  <div class="cast-char-info">
-                    <span class="cast-char-name">${escapeHtml(actorName)}</span>
-                    <span class="cast-role-badge role-supporting">ACTOR</span>
-                  </div>
-                </div>
-                <div class="cast-va-side">
-                  <div class="cast-va-info">
-                    <span class="cast-va-name">${escapeHtml(charName)}</span>
-                    <span class="cast-va-lang">Character</span>
-                  </div>
-                </div>
-              </div>
-            `;
+            return _duoCardHTML({
+              char_img: actorImg, char_name: actorName || 'Unknown', role: 'Actor',
+              va_name: charName, va_img: '', va_lang: 'Character',
+            });
           }
-          // Anime rows — character left (portrait + name + role badge), voice
-          // actor right (name + language + portrait), optional English VA row
-          // below (AniList-sourced data), matching the live layout exactly.
-          const role = c.role || 'Supporting';
-          const charName = c.char_name || 'Unknown';
-          const hasVa = !!(c.va_name || c.va_img);
-          const enBlock = (c.en_va_name || c.en_va_img) ? `
-                  <div class="cast-va-side" style="border-left:none;border-top:1px solid var(--border-subtle);">
-                    <div class="cast-va-info">
-                      <span class="cast-va-name" style="font-size:0.8rem;">${escapeHtml(_castDisplayTop(c.en_va_name))}</span>
-                      <span class="cast-va-lang">English</span>
-                    </div>
-                    <img class="cast-portrait cast-va-portrait" src="${escapeHtml(c.en_va_img || '')}" alt="${escapeHtml(_castDisplayTop(c.en_va_name))}"
-                      loading="lazy"
-                      onerror="${_castImgFallback}">
-                  </div>` : '';
-          const charOpen  = c.char_mal_id ? `<a href="/character/${c.char_mal_id}/${slugify(charName)}" class="cast-char-side">`
-                                          : `<div class="cast-char-side" style="cursor:default;">`;
-          const vaOpen    = c.va_mal_id   ? `<a href="/person/${c.va_mal_id}/${slugify(_castDisplayTop(c.va_name))}" class="cast-va-side">`
-                                          : `<div class="cast-va-side">`;
-          return `
-                <div class="cast-row">
-                  ${charOpen}
-                    <img class="cast-portrait cast-char-portrait" src="${escapeHtml(c.char_img || '')}" alt="${escapeHtml(charName)}"
-                      loading="lazy"
-                      onerror="${_castImgFallback}">
-                    <div class="cast-char-info">
-                      <span class="cast-char-name">${escapeHtml(charName)}</span>
-                      <span class="cast-role-badge ${role === 'Main' ? 'role-main' : 'role-supporting'}">${role.toUpperCase()}</span>
-                    </div>
-                  ${c.char_mal_id ? '</a>' : '</div>'}
-                  ${hasVa ? `
-                  ${vaOpen}
-                    <div class="cast-va-info">
-                      <span class="cast-va-name">${escapeHtml(_castDisplayTop(c.va_name))}</span>
-                      <span class="cast-va-lang">${escapeHtml(c.va_lang || 'Japanese')}</span>
-                    </div>
-                    <img class="cast-portrait cast-va-portrait" src="${escapeHtml(c.va_img || '')}" alt="${escapeHtml(_castDisplayTop(c.va_name))}"
-                      loading="lazy"
-                      onerror="${_castImgFallback}">
-                  ${c.va_mal_id ? '</a>' : '</div>'}${enBlock}` : (enBlock || '<div class="cast-va-side cast-va-empty"></div>')}
-                </div>
-              `;
-        }).join('');
-      }
-      function castWarpHTML(rows) {
-        return `<div class="cast-warp-container"><div class="cast-list-grid">${rows}</div>`;
+          return _duoCardHTML(c);
+        }).join('') + '</div>';
       }
 
       // ── t146 — TMDB Cast & Crew credits deck (movie/tv info pages only;
-      // anime pages keep the character/VA rows above). ONE builder renders
+      // anime pages keep the duo cards above). ONE builder renders
       // BOTH the live payload and the AniCache fmt:3 blob, so a cached tab
       // is pixel-identical to a live-fetched one by construction. ──
       const CC_RAIL_CAP = 14;   // cast cards in the horizontal rail before "View all"
@@ -6931,11 +6882,11 @@ img { max-width: 100%; height: auto; display: block; }
         // Legacy ARRAY blobs: TMDB-era saves (fmt:2 / role:'Actor' rows)
         // predate the crew-inclusive deck — return false so the live loader
         // runs once and re-saves in fmt:3 (one-time upgrade, keeps
-        // cache==live rendering). Anime rows (role Main/Supporting) still
-        // render through the row builder below, unchanged.
+        // cache==live rendering). Anime arrays (role Main/Supporting) still
+        // render through the duo-card builder below, unchanged.
         if (castArr.length && castArr.some(c => c && (c.fmt === 2 || c.role === 'Actor'))) return false;
         if (!castArr.length) return false;
-        container.innerHTML = castWarpHTML(buildCastRowsHTML(castArr));
+        container.innerHTML = buildCastDuoHTML(castArr);
         return true;
       }
 
@@ -8962,7 +8913,7 @@ img { max-width: 100%; height: auto; display: block; }
             });
             // Render through the shared builder — identical markup to the
             // cached render by construction
-            container.innerHTML = castWarpHTML(buildCastRowsHTML(window._lastCastData));
+            container.innerHTML = buildCastDuoHTML(window._lastCastData);
             // Save cast to DB
             if (window.AniCache && window._lastCastData?.length) {
               const _mid = mediaKeyOf();
@@ -9036,7 +8987,7 @@ img { max-width: 100%; height: auto; display: block; }
             });
             // Render through the shared builder — identical markup to the
             // cached render by construction
-            container.innerHTML = castWarpHTML(buildCastRowsHTML(window._lastCastData));
+            container.innerHTML = buildCastDuoHTML(window._lastCastData);
             // AniCache: save cast to show_details (the jikan path never
             // persisted cast — derive-once here so repeat visits skip this
             // builder entirely)
