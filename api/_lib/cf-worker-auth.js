@@ -19,6 +19,12 @@ const WORKERS = {
   'ani-pm-proxy':        { base: 'https://ani-pm-proxy.bionmovies47.workers.dev',          envPrefix: 'ANI_PM_PROXY' },
   'aniumi-data-proxy':   { base: 'https://aniumi-data-proxy.bionmovies47.workers.dev',     envPrefix: 'ANIUMI_DATA_PROXY' },
   jikan:                 { base: 'https://jikan-api-bohb.onrender.com',                    envPrefix: 'JIKAN', pathPrefix: 'v4', headerOnly: true },
+  // t227: authed OWNER VERCEL PROJECTS (same X-Proxy-Key + /p/<secret>/ scheme
+  // as the CF workers — verified against the vault, 2026-11-25). These were
+  // previously called DIRECTLY from the browser, which started 401-ing once
+  // their auth middleware went live (broken /schedule anime tab + t130 legs).
+  'anilist-my-proxy':    { base: 'https://anilist-my-proxy.vercel.app',                    envPrefix: 'ANILIST_MY_PROXY' },
+  'anilist-scraper':     { base: 'https://anilist-scraper-steel.vercel.app',               envPrefix: 'ANILIST_SCRAPER' },
 };
 
 /**

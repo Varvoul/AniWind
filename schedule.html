@@ -284,15 +284,15 @@
 
   /* ════════════════════════════════════════════════════════════
      CONFIG
-     PRIMARY: anilist-my-proxy /api/schedule/all — AniList
+     PRIMARY: /api/anilist-proxy (anilist-my-proxy) /api/schedule/all — AniList
      airingSchedules with TRUE episode numbers + exact broadcast
      instants (4h server TTL + 2h edge TTL). Times are rendered in
      the visitor's LOCAL timezone.
    ════════════════════════════════════════════════════════════ */
-  var SCHEDULE_ALL = 'https://anilist-my-proxy.vercel.app/api/schedule/all';
+  var SCHEDULE_ALL = '/api/anilist-proxy/api/schedule/all'; // t227: site authed proxy (creds server-side; direct browser call 401s)
   // t129 fallback chain legs:
-  var SCHEDULE_DB_ALL = 'https://anilist-scraper-steel.vercel.app/v4/schedule/all'; // Supabase-backed (own DB)
-  var JIKAN_SCHEDULE_BASE = 'https://jikan-api-bohb.onrender.com/v4/schedule';       // last resort (degraded)
+  var SCHEDULE_DB_ALL = '/api/anilist-scraper/v4/schedule/all'; // t227: site authed proxy — Supabase-backed (own DB)
+  var JIKAN_SCHEDULE_BASE = '/api/jikan/schedule';                  // t227: site authed Jikan proxy (last resort, degraded)
   var TIMEOUT_MS = 15000;
   var JIKAN_DAY_TIMEOUT_MS = 20000;
   var FORMAT_LABELS = { TV_SHORT: 'TV Short', ONA: 'ONA', OVA: 'OVA', MOVIE: 'Movie', SPECIAL: 'Special', MUSIC: 'Music' };

@@ -2765,9 +2765,9 @@
 
   <script>
     (function() {
-      /* ── Universal proxy — single CF Worker for all API traffic ── */
-      const ROWANA_PROXY  = 'https://aniumi.bionmovies47.workers.dev';
-      /* Direct fallback URLs (used if proxy is unavailable) */
+      /* ── Direct fallback URLs (t227: the old 'aniumi' universal worker was
+         deleted from CF — every dead universal-proxy leg 404'd; legs now use
+         the site's own authed /api/ routes) ── */
       const JIKAN_BASE    = 'https://api.jikan.moe/v4';
       const TMDB_PROXY    = '/api/tumi'; // authed t-umi proxy (server-side, secrets in Vercel env)
       const TMDB_LEGACY   = '/api/tumi'; // same route — server handles bionmovies→zeraf fallback
@@ -2982,19 +2982,8 @@
       };
 
       async function fetchAnikoto(endpoint) {
-        // 1) Try universal proxy (cached, CORS-safe)
-        try {
-          const proxyPath = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-          const res = await fetch(`${ROWANA_PROXY}/anikoto${proxyPath}`, {
-            headers: { Accept: 'application/json' },
-            signal: AbortSignal.timeout(8000)
-          });
-          if (res.ok) {
-            const json = await res.json();
-            return { ok: true, data: json.data || json };
-          }
-        } catch(e) { /* proxy down — fall through */ }
-        // 2) Direct Anikoto fallback
+        // 1) Anikoto via the site's authed /api/anikoto route (t227: the dead
+        //    aniumi universal-proxy leg was removed)
         try {
           const res = await fetch(`${ANIKOTO_API}${endpoint}`, {
             headers: { Accept: 'application/json' }
@@ -3094,29 +3083,17 @@
           console.warn(`[TMDB] ⚠️ Serverless proxy failed: ${lastError}`);
         }
         
-        // 4) rowana universal proxy (last resort — may not have TMDB_API_KEY set)
-        try {
-          const res = await fetch(`${ROWANA_PROXY}/tmdb${endpoint}${qs}`, {
-            headers: { Accept: 'application/json' },
-            signal: AbortSignal.timeout(5000)
-          });
-          if (res.ok) {
-            console.log(`[TMDB] ✅ Rowana proxy success: ${endpoint}`);
-            return await res.json();
-          }
-        } catch(e) {
-          console.warn(`[TMDB] ⚠️ Rowana proxy also failed`);
-        }
-        
+        // (t227: the dead 'aniumi' rowana leg was removed — it 404'd forever)
         // All sources failed - return empty result
         console.error(`[TMDB] ❌ All sources failed for ${endpoint}:`, lastError);
         return { results: [] };
       }
       async function fetchJikan(endpoint, params='', retries=2) {
         const qs = params ? `?${params}` : '';
-        // 1) Universal proxy — cached 5 min at CF edge, absorbs 429s server-side
+        // 1) Site's authed Jikan proxy — self-hosted Render upstream, creds
+        //    server-side (t227: replaces the dead aniumi universal proxy)
         try {
-          const res = await fetch(`${ROWANA_PROXY}/jikan/${endpoint}${qs}`, {
+          const res = await fetch(`/api/jikan/${endpoint}${qs}`, {
             headers: { Accept: 'application/json' },
             signal: AbortSignal.timeout(10000)
           });
@@ -3125,7 +3102,7 @@
             // Proxy also rate-limited — wait and retry once via proxy
             await new Promise(r => setTimeout(r, 2000));
             try {
-              const r2 = await fetch(`${ROWANA_PROXY}/jikan/${endpoint}${qs}`, {
+              const r2 = await fetch(`/api/jikan/${endpoint}${qs}`, {
                 headers: { Accept: 'application/json' },
                 signal: AbortSignal.timeout(10000)
               });
@@ -3211,9 +3188,9 @@
           console.warn('[AniList] Direct fetch failed:', e);
         }
         
-        // Fallback via proxy
+        // Fallback via the site's /api/anilist GraphQL passthrough
         try {
-          const res = await fetch(`${ROWANA_PROXY}/anilist`, {
+          const res = await fetch('/api/anilist', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ query, variables }),
@@ -4818,9 +4795,9 @@ async function loadNewAniocean() {
          proxy leg answer first again — auto flip-back, no reload logic.
          Results are memoized per page load so sections share one fetch.
          ════════════════════════════════════════════════════════════════ */
-      const T130_CHAIN = {
-        proxy:   'https://anilist-my-proxy.vercel.app',
-        scraper: 'https://anilist-scraper-steel.vercel.app',
+      const T130_CHAIN = { // t227: legs 1+2 go through the site's authed proxies (direct browser calls 401)
+        proxy:   '/api/anilist-proxy',
+        scraper: '/api/anilist-scraper',
         ruri:    '/api/ruri',
       };
       const _t130Memo = {};   // chain-name → Promise<media[]>
@@ -5105,11 +5082,10 @@ async function loadNewAniocean() {
         return _t131Memo[key];
       }
 
-      /* ── Jikan leg: owner's self-hosted instance → aniumi edge proxy → public ── */
+      /* ── Jikan leg: owner's self-hosted instance (authed site proxy) → public ── */
       const T131_JIKAN_BASES = [
-        '/api/jikan',               // self-hosted (owner)
-        `${ROWANA_PROXY}/jikan`.replace(/\/jikan\/?$/, '/jikan'), // aniumi worker proxy
-        'https://api.jikan.moe/v4',                             // public last resort
+        '/api/jikan',               // self-hosted (owner) via authed site proxy
+        'https://api.jikan.moe/v4', // public last resort
       ];
       async function _t131JikanGet(path, ms = 15000) {
         const clean = String(path || '').replace(/^\/+/, ''); // avoid "/jikan//seasons" double slash
@@ -9427,10 +9403,10 @@ titleEl.style.color = '#ffffff';
       // Configuration
       const JIKAN_SCHEDULE_BASE = '/api/jikan/schedule';
       // V5 PRIMARY: anilist-my-proxy schedule endpoint (AniList airingSchedules)
-      const SCHEDULE_PROXY_ALL = 'https://anilist-my-proxy.vercel.app/api/schedule/all';
+      const SCHEDULE_PROXY_ALL = '/api/anilist-proxy/api/schedule/all'; // t227: site authed proxy
       // t129 FALLBACK1: Supabase-backed schedule endpoint (anilist-scraper project)
       // — identical data.Page.days shape, built from anikoto_data.anilist_full_cached
-      const SCHEDULE_DB_ALL = 'https://anilist-scraper-steel.vercel.app/v4/schedule/all';
+      const SCHEDULE_DB_ALL = '/api/anilist-scraper/v4/schedule/all'; // t227: site authed proxy
       const SCHEDULE_PROXY_TIMEOUT_MS = 15000;
       const ANILIST_FORMAT_LABELS = { TV_SHORT: 'TV Short', ONA: 'ONA', OVA: 'OVA', MOVIE: 'Movie', SPECIAL: 'Special', MUSIC: 'Music' };
       const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];

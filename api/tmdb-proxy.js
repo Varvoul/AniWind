@@ -45,6 +45,12 @@ const CF_DISPATCH = [
   { param: 'anikoto_path',           worker: 'anikoto' },
   { param: 'ipapi_path',             worker: 'ipapi-proxy' },
   { param: 'supabase_search_path',   worker: 'supabase-search-proxy' },
+  // t227: owner Vercel projects (schedule legs + t130 fallback legs + info
+  // /full tiers). vercel.json rewrites /api/anilist-proxy/:path* and
+  // /api/anilist-scraper/:path* → here, so browser pages never hit the
+  // authed upstreams directly (they 401 without server-side creds).
+  { param: 'alproxy_path',           worker: 'anilist-my-proxy' },
+  { param: 'alscraper_path',         worker: 'anilist-scraper' },
 ];
 
 export default async function handler(req, res) {

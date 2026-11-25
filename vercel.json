@@ -89,6 +89,22 @@
       "destination": "/api/tmdb-proxy?supabase_search_path=:path*"
     },
     {
+      "source": "/api/anilist-proxy",
+      "destination": "/api/tmdb-proxy?doc=anilist-proxy"
+    },
+    {
+      "source": "/api/anilist-proxy/:path*",
+      "destination": "/api/tmdb-proxy?alproxy_path=:path*"
+    },
+    {
+      "source": "/api/anilist-scraper",
+      "destination": "/api/tmdb-proxy?doc=anilist-scraper"
+    },
+    {
+      "source": "/api/anilist-scraper/:path*",
+      "destination": "/api/tmdb-proxy?alscraper_path=:path*"
+    },
+    {
       "source": "/api/jikan",
       "destination": "/api/tmdb-proxy?doc=jikan"
     },
