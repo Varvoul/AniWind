@@ -6641,6 +6641,15 @@ img { max-width: 100%; height: auto; display: block; }
         if (!s || !s.includes(',')) return s;
         return s.replace(/,\s*/, ' ').split(' ').reverse().join(' ');
       }
+      // Characters: Jikan stores "Monkey D., Luffy" / "Nico, Robin" — flipping
+      // multi-word surnames mangles them ("Luffy D. Monkey"), so character
+      // names only get the comma STRIPPED, keeping part order (the natural
+      // "Monkey D. Luffy" / "Nico Robin" style). Voice actors keep the flip
+      // (_castDisplayTop): MAL person names are 2-part "Surname, Given" and
+      // read naturally reversed ("Mayumi Tanaka").
+      function _castDisplayChar(n) {
+        return String(n || '').trim().replace(/,\s*/, ' ').replace(/\s{2,}/g, ' ');
+      }
       const _castImgFallback = "this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 60 90%22><rect fill=%22%231e2633%22 width=%2260%22 height=%2290%22/></svg>'";
 
       // ── Cast — "Cast Wall" (2026-11-25 v2 redesign — honours the t224 demo
@@ -6659,12 +6668,14 @@ img { max-width: 100%; height: auto; display: block; }
       // Poster tile: character portrait (3/4.5) + role badge + gradient
       // overlay (character name + voice-actor chip row + optional EN line).
       // Whole-tile click = character page (when mal_id known), VA row click =
-      // person page; Jikan names flip "Last, First" via _castDisplayTop.
+      // person page; Jikan person names flip "Last, First" via
+      // _castDisplayTop, character names get the comma stripped
+      // (_castDisplayChar — keeps "Monkey D., Luffy" reading "Monkey D. Luffy").
       function _cwTileHTML(c) {
         const role = c.role || 'Supporting';
         const roleCls = role === 'Main' ? 'role-main' : (role === 'Actor' ? 'role-actor' : 'role-supporting');
         const charName = c.char_name || 'Unknown';
-        const charTop = _castDisplayTop(charName);
+        const charTop = _castDisplayChar(charName);
         const img = `<img class="cw-img" src="${escapeHtml(c.char_img || '')}" alt="${escapeHtml(charTop)}" loading="lazy" onerror="${_castImgFallback}">`;
         const link = c.char_mal_id
           ? `<a href="/character/${c.char_mal_id}/${slugify(charName)}" class="cw-link" aria-label="${escapeHtml(charTop)}"></a>`
