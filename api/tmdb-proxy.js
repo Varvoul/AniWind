@@ -168,41 +168,13 @@ export default async function handler(req, res) {
     }
     // Strip our internal routing param AND the leaked `path` param (Vercel
     // applies both rewrites, leaving a stray path= from /api/tmdb-proxy/:path*).
-    // Also strip debug (internal). Keep everything else the client intended.
+    // Also strip `debug` (t228: the old ?debug=1 diagnostic response — env
+    // presence flags + upstream body preview — was publicly callable; removed).
     const url = new URL(req.url, 'http://localhost');
     url.searchParams.delete('tumi_path');
     url.searchParams.delete('path');      // leaked from /api/tmdb-proxy/:path* rewrite
-    url.searchParams.delete('debug');     // internal
+    url.searchParams.delete('debug');     // removed t228 — no debug output anymore
     const qs = url.searchParams.toString();
-    // Debug mode — returns the constructed URL + env presence without calling t-umi
-    if (req.query.debug !== undefined || url.searchParams.has('debug')) {
-      const bionmoviesConfigured = !!(process.env.T_UMI_BIONMOVIES_HEADER_SECRET && process.env.T_UMI_BIONMOVIES_URL_PATH_SECRET);
-      const zerafConfigured = !!(process.env.T_UMI_ZERAF_HEADER_SECRET && process.env.T_UMI_ZERAF_URL_PATH_SECRET);
-      // Try the actual t-umi call and capture the response for debugging
-      let upstreamStatus = null, upstreamBody = null, upstreamErr = null;
-      try {
-        const upstream = await tumiFetch(path, { qs, signal: AbortSignal.timeout(15000) });
-        upstreamStatus = upstream.status;
-        upstreamBody = (await upstream.text()).slice(0, 300);
-      } catch (e) {
-        upstreamErr = e.message;
-      }
-      return res.status(200).json({
-        debug: true,
-        req_url: req.url,
-        path,
-        qs_after_strip: qs,
-        envs: {
-          T_UMI_BIONMOVIES_HEADER_SECRET:   process.env.T_UMI_BIONMOVIES_HEADER_SECRET   ? 'set' : 'MISSING',
-          T_UMI_BIONMOVIES_URL_PATH_SECRET: process.env.T_UMI_BIONMOVIES_URL_PATH_SECRET ? 'set' : 'MISSING',
-          T_UMI_ZERAF_HEADER_SECRET:        process.env.T_UMI_ZERAF_HEADER_SECRET        ? 'set' : 'MISSING',
-          T_UMI_ZERAF_URL_PATH_SECRET:      process.env.T_UMI_ZERAF_URL_PATH_SECRET      ? 'set' : 'MISSING',
-        },
-        upstream_status: upstreamStatus,
-        upstream_body_preview: upstreamBody,
-        upstream_error: upstreamErr,
-      });
-    }
     try {
       const upstream = await tumiFetch(path, { qs, signal: AbortSignal.timeout(15000) });
       const body = await upstream.text();
