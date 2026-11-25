@@ -46,6 +46,9 @@ const T_UMI_FALLBACK = 'https://t-umi.zeraf.workers.dev';
 // t-umi auth helper (added 2026-11-23 — t-umi workers now require
 // X-Proxy-Key header + /p/<URL_PATH_SECRET>/ prefix; secrets in Vercel env).
 import { tumiFetchJson, tumiFetch } from './tumi-auth.js';
+// t229: anilist-my-proxy now requires the same auth — route through the
+// shared helper (X-Proxy-Key + /p/<URL_PATH_SECRET>/ prefix, env secrets).
+import { cfWorkerFetchJson } from './cf-worker-auth.js';
 
 const REQ_TIMEOUT_MS = 6000;
 const FALLBACK_TTL_MS = 30 * 60 * 1000; // 30 min per warm instance
@@ -66,7 +69,7 @@ async function fetchJson(url, timeoutMs = REQ_TIMEOUT_MS) {
 async function getAni(name, params = {}) {
   try {
     const qs = new URLSearchParams({ perPage: '50', ...params }).toString();
-    const j = await fetchJson(`${ANILIST_PROXY}/${name}${qs ? '?' + qs : ''}`);
+    const j = await cfWorkerFetchJson('anilist-my-proxy', `/api/${name}${qs ? '?' + qs : ''}`, { signal: AbortSignal.timeout(REQ_TIMEOUT_MS + 4000) });
     const arr = Array.isArray(j?.data) ? j.data : [];
     return arr.filter(Boolean);
   } catch (e) { return []; }
@@ -78,7 +81,7 @@ async function getAniPages(name, pageCount = 2, params = {}) {
   await Promise.all(Array.from({ length: pageCount }, (_, i) => (async () => {
     try {
       const qs = new URLSearchParams({ perPage: '50', page: String(i + 1), ...params }).toString();
-      const j = await fetchJson(`${ANILIST_PROXY}/${name}?${qs}`);
+      const j = await cfWorkerFetchJson('anilist-my-proxy', `/api/${name}?${qs}`, { signal: AbortSignal.timeout(REQ_TIMEOUT_MS + 4000) });
       if (Array.isArray(j?.data)) out.push(...j.data.filter(Boolean));
     } catch (e) { /* page lost; remaining pool still usable */ }
   })()));

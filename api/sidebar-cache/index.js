@@ -35,6 +35,9 @@ const TUMI = ['https://t-umi.bionmovies47.workers.dev', 'https://t-umi.zeraf.wor
 // all t-umi fetches go through tumiFetchJson (X-Proxy-Key + /p/<secret>/
 // prefix; secrets in Vercel env vars).
 import { tumiFetchJson } from '../_lib/tumi-auth.js';
+// t229: anilist-my-proxy tier goes through the shared authed helper
+// (X-Proxy-Key + /p/<URL_PATH_SECRET>/ prefix, secrets in env).
+import { cfWorkerFetchJson } from '../_lib/cf-worker-auth.js';
 const TMDB_DIRECT = 'https://api.themoviedb.org/3';
 const RURI = 'https://ruristream.vercel.app/api/ruri';
 const ANILIST_PROXY = 'https://anilist-my-proxy.vercel.app/api';
@@ -117,12 +120,14 @@ async function fetchAnimeSection(section, type) {
   // self-hosted jikan. Self-hosted jikan (Render) may cold-start → 25s.
   const chain = [
     { url: ruriPath, tmo: 15000, kind: 'ruri worker' },
-    { url: anilistSectionUrl(section, type), tmo: 15000, kind: 'anilist-my-proxy' },
+    { url: anilistSectionUrl(section, type), tmo: 15000, kind: 'anilist-my-proxy', authed: true },
     { url: jikanSectionUrl(section, type), tmo: 25000, kind: 'jikan-self' },
   ];
   for (const src of chain) {
     try {
-      const j = await fetchJson(src.url, src.tmo);
+      const j = src.authed
+        ? await cfWorkerFetchJson('anilist-my-proxy', src.url.replace(ANILIST_PROXY, '/api'), { signal: AbortSignal.timeout(src.tmo) })
+        : await fetchJson(src.url, src.tmo);
       let rows = j.data || j.results || [];
       if (src.kind === 'anilist-my-proxy') rows = rows.map(anilistMediaToListItem).filter(Boolean);
       if (validate(rows)) {

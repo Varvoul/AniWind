@@ -457,7 +457,7 @@ async function fetchProxyCategory(f, page, perPage, sort) {
     if (al.length) p.set('genre', al[0]); // categories accept a single genre
   }
   if (forcedSort) p.set('sort', forcedSort);
-  const j = await fetchJson(`${PROXY_BASE}/api/${cat}?${p}`, {}, 12000);
+  const j = await cfWorkerFetchJson('anilist-my-proxy', `/api/${cat}?${p}`, { signal: AbortSignal.timeout(12000) });
   const items = (Array.isArray(j.data) ? j.data : ((j.data && j.data.Page && j.data.Page.media) || [])).map(uniAnilist);
   const info = j.pagination || (j.data && j.data.Page && j.data.Page.pageInfo) || {};
   return { items, rawTotal: info.total || items.length, hasNext: !!info.hasNextPage, lastPage: info.lastPage || null, totalBogus: (info.total || 0) >= ANILIST_TOTAL_CAP };
@@ -486,7 +486,7 @@ async function fetchProxySeason(f, page, perPage, sort) {
     const map = { 'score':'SCORE_DESC','most-viewed':'POPULARITY_DESC','release-date':'START_DATE_DESC','name':'TITLE_ROMAJI','latest-added':'ID_DESC','latest-updated':'UPDATED_AT_DESC','episodes':'EPISODES_DESC' };
     if (map[sort]) p.set('sort', map[sort]);
   }
-  const j = await fetchJson(`${PROXY_BASE}/api/season/${f.season}/${f.year}?${p}`, {}, 12000);
+  const j = await cfWorkerFetchJson('anilist-my-proxy', `/api/season/${f.season}/${f.year}?${p}`, { signal: AbortSignal.timeout(12000) });
   const page_ = (j.data && j.data.Page) || {};
   const items = (page_.media || []).map(uniAnilist);
   const info = page_.pageInfo || {};
@@ -495,7 +495,7 @@ async function fetchProxySeason(f, page, perPage, sort) {
 async function fetchProxySearch(f, page, perPage) {
   const p = new URLSearchParams();
   p.set('q', f.q); p.set('page', page); p.set('perPage', Math.min(perPage, 50));
-  const j = await fetchJson(`${PROXY_BASE}/api/search/anime?${p}`, {}, 12000);
+  const j = await cfWorkerFetchJson('anilist-my-proxy', `/api/search/anime?${p}`, { signal: AbortSignal.timeout(12000) });
   const items = (Array.isArray(j.data) ? j.data : ((j.data && j.data.Page && j.data.Page.media) || [])).map(uniAnilist);
   const info = j.pagination || (j.data && j.data.Page && j.data.Page.pageInfo) || {};
   return { items, rawTotal: info.total || items.length, hasNext: !!info.hasNextPage, lastPage: info.lastPage || null, totalBogus: (info.total || 0) >= ANILIST_TOTAL_CAP };
@@ -508,7 +508,7 @@ async function fetchProxyStudio(f, page, perPage, sort) {
   if (sort === 'most-viewed') p.set('sort', 'POPULARITY_DESC');
   if (sort === 'release-date') p.set('sort', 'START_DATE_DESC');
   if (sort === 'latest-added') p.set('sort', 'ID_DESC');
-  const j = await fetchJson(`${PROXY_BASE}/api/studio/${encodeURIComponent(name)}?${p}`, {}, 12000);
+  const j = await cfWorkerFetchJson('anilist-my-proxy', `/api/studio/${encodeURIComponent(name)}?${p}`, { signal: AbortSignal.timeout(12000) });
   const st = j.data && j.data.Studio ? j.data.Studio.media : null;
   const edges = (st && (st.edges || st.media)) || [];
   const items = edges.map(e => uniAnilist(e.node || e)).filter(Boolean);
@@ -528,7 +528,9 @@ async function fetchScraper(f, page, perPage, sort) {
   p.set('order_by', ob);
   p.set('sort', ob === 'title' ? 'asc' : 'desc');
   if (f.sfw && f.rating !== 'rx') p.set('sfw', 'true');
-  const j = await fetchJson(`${SCRAPER_BASE}/v4/anime?${p}`, {}, 12000);
+  // t229: anilist-my-proxy + scraper now REQUIRE auth (X-Proxy-Key + /p/<secret>/).
+  // All direct SCRAPER_BASE/PROXY_BASE calls go through the authed helper.
+  const j = await cfWorkerFetchJson('anilist-scraper', `/v4/anime?${p}`, { signal: AbortSignal.timeout(12000) });
   const items = (j.data || []).map(uniAnime);
   const pg = j.pagination || {};
   return { items, rawTotal: (pg.items && pg.items.total) || items.length, hasNext: !!pg.has_next_page, lastPage: pg.last_visible_page || null };
@@ -546,7 +548,7 @@ async function fetchScraperSeason(f, page, perPage, sort) {
     const names = f.genres.map(g => GENRE_NAME[g]).filter(Boolean);
     if (names.length) p.set('genres', names.slice(0, 6).join(','));
   }
-  const j = await fetchJson(`${SCRAPER_BASE}/v4/seasons/${f.year}/${f.season}?${p}`, {}, 12000);
+  const j = await cfWorkerFetchJson('anilist-scraper', `/v4/seasons/${f.year}/${f.season}?${p}`, { signal: AbortSignal.timeout(12000) });
   const items = (j.data || []).map(uniAnime);
   const pg = j.pagination || {};
   return { items, rawTotal: (pg.items && pg.items.total) || items.length, hasNext: !!pg.has_next_page, lastPage: pg.last_visible_page || null };
@@ -555,7 +557,7 @@ async function fetchScraperStudio(f, page, perPage, sort) {
   const name = STUDIO_NAME[f.studio] || titleCaseSlug(f.studio);
   const p = new URLSearchParams();
   p.set('page', page); p.set('limit', Math.min(perPage, 25));
-  const j = await fetchJson(`${SCRAPER_BASE}/v4/studios/${encodeURIComponent(name)}?${p}`, {}, 12000);
+  const j = await cfWorkerFetchJson('anilist-scraper', `/v4/studios/${encodeURIComponent(name)}?${p}`, { signal: AbortSignal.timeout(12000) });
   const items = (j.data || []).map(uniAnime);
   const pg = j.pagination || {};
   return { items, rawTotal: (pg.items && pg.items.total) || items.length, hasNext: !!pg.has_next_page, lastPage: pg.last_visible_page || null };
