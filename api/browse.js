@@ -371,9 +371,9 @@ function matchesUni(it, f) {
     if (have && !TYPE_POST_OK[f.type].includes(have)) return false;
   }
   if (f.rating) {
-    const r = String(it.rating || '').toUpperCase();
-    const map = { 'g':'G', 'pg':'PG', 'pg13':'PG-13', 'r17':'R - 17', 'r17b':'R - 17', 'r_plus':'R+', 'rx':'RX' };
-    if (!r.startsWith(map[f.rating] || '')) return false;
+    // t234e: class-based match — MAL long form AND anikoto short codes both map
+    const want = ratingClass(it.rating);
+    if (want && want !== f.rating) return false;
   }
   if (f.language) {
     const want = f.language.split(',');
@@ -760,6 +760,21 @@ const TYPE_POST_OK = {
   'tv': ['tv'], 'movie': ['movie'], 'ova': ['ova'], 'ona': ['ona'],
   'tv-special': ['tv-special', 'special'], 'tv-short': ['tv-short'], 'music': ['music']
 };
+// map ANY rating string (MAL long form "R - 17+ (Violence & Profanity)",
+// anikoto short codes "R" / "PG-13", AniList "R+ - Mild Nudity") to the
+// browse rating slug — t234e: the old startsWith check matched MAL strings
+// only, so anikoto-served rating pages (r17 / r_plus) post-filtered to ZERO.
+function ratingClass(s) {
+  const t = String(s || '').toUpperCase();
+  if (!t) return null;
+  if (t.includes('RX') || t.includes('HENTAI')) return 'rx';
+  if (/R\+|^R\s*[-–]?\s*\+/.test(t) || t.includes('MILD NUDITY')) return 'r_plus';
+  if (/^R\b|R\s*[-–]\s*17|^R17/.test(t) || (t.includes('R') && t.includes('17'))) return 'r17';
+  if (/PG\s*[-–]?\s*13|TEENS?\s*13/.test(t)) return 'pg13';
+  if (/^PG\b|CHILDREN/.test(t)) return 'pg';
+  if (/^G\b|ALL AGES/.test(t)) return 'g';
+  return null;
+}
 const genreNamesLower = f => (f.genres || []).map(g => GENRE_NAME[g]).filter(Boolean).map(n => n.toLowerCase());
 
 function buildAnimePlan(f, sort, warnings) {
@@ -818,9 +833,9 @@ function buildAnimePlan(f, sort, warnings) {
   // tv-short only exists on AniList — route there first for that type
   if (f.type === 'tv-short') {
     plan.push(f.q
-      ? { name:'anilist-proxy:search', call:(p,pp)=>fetchProxySearch(f, p, pp), post:mkPost(f, { extraGenres:genreNamesLower(f), years:f.year?[f.year]:null }) }
-      : { name:'anilist-proxy:category', call:(p,pp)=>fetchProxyCategory(f, p, pp, sort), post:mkPost(f, { extraGenres:genreNamesLower(f) }) });
-    plan.push({ name:'anilist-scraper', call:(p,pp)=>fetchScraper(f, p, pp, sort), post:mkPost(f, { extraGenres:genreNamesLower(f) }) });
+      ? { name:'anilist-proxy:search', call:(p,pp)=>fetchProxySearch(f, p, pp), post:mkPost(f, { extraGenres:genreNamesLower(f), years:f.year?[f.year]:null, postType:true }) }
+      : { name:'anilist-proxy:category', call:(p,pp)=>fetchProxyCategory(f, p, pp, sort), post:mkPost(f, { extraGenres:genreNamesLower(f), postType:true }) });
+    plan.push({ name:'anilist-scraper', call:(p,pp)=>fetchScraper(f, p, pp, sort), post:mkPost(f, { extraGenres:genreNamesLower(f), postType:true }) });
     warnings.push('TV Short type is served by AniList sources.');
     if (languageRestricted) return [];
     return plan;
@@ -948,6 +963,7 @@ function rememberServed(fSig, page, items) {
 }
 
 async function runPlan(plan, f, page, perPage, warnings, sigNs = '') {
+  if (!plan.length) return { items: [], total: 0, hasNext: false, lastPage: null, source: null, errors: [], approx: false };
   const errors = [];
   // t133: leg stickiness — consecutive pages of the same filter set continue on
   // the SAME source whenever it can still fill the page (stable ordering, no
@@ -1123,6 +1139,7 @@ async function runPlan(plan, f, page, perPage, warnings, sigNs = '') {
           if (sticky === leg.name) STICKY_LEG.delete(fSig);  // exhausted stickiness — free the ordering
           continue;
         }
+        if (fallback) break;   // t234e: a stashed thin result beats a final clean-zero
         LAST_SERVED.set(fSig, { page, seen: lastServedSeen(fSig), at: Date.now() });
         return { items, total, hasNext: false, lastPage, source: leg.name, approx: approx || needsWalk, moreLegs: false };
       }
@@ -1180,13 +1197,27 @@ async function runMixed(animePlan, tmdbPlan, f, page, perPage, warnings) {
     runPlan(animePlan, f, page, anN, warnings, 'anime'),
     runPlan(tmdbPlan, f, page, tmN, warnings, 'tmdb')
   ]);
+  // t234e: the anime and TMDB halves BOTH catalog mainstream anime — the same
+  // show surfaced twice on one page (once per source, different ids).
+  // Drop a TMDB item when an anime item with the same normalized title AND the
+  // same year is already on the page (year guard keeps genuine remakes/reboots).
+  const titleKey = it => 'T' + String(it.title || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const anTitles = new Map();
+  for (const it of an.items) {
+    const k = titleKey(it);
+    if (it.year) { if (!anTitles.has(k)) anTitles.set(k, new Set()); anTitles.get(k).add(it.year); }
+  }
+  const tmItems = tm.items.filter(it => {
+    const ys = anTitles.get(titleKey(it));
+    return !(ys && it.year && ys.has(it.year));
+  });
   // interleave 2 anime : 1 tmdb
   const items = [];
   let a = 0, t = 0;
-  while (items.length < perPage && (a < an.items.length || t < tm.items.length)) {
+  while (items.length < perPage && (a < an.items.length || t < tmItems.length)) {
     for (let k = 0; k < 2 && a < an.items.length && items.length < perPage; k++) items.push(an.items[a++]);
-    if (t < tm.items.length && items.length < perPage) items.push(tm.items[t++]);
-    if (a >= an.items.length && t >= tm.items.length) break;
+    if (t < tmItems.length && items.length < perPage) items.push(tmItems[t++]);
+    if (a >= an.items.length && t >= tmItems.length) break;
   }
   const total = (an.total || 0) + (tm.total || 0);
   const anLP = an.lastPage || Math.ceil((an.total || 0) / anN);
