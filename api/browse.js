@@ -25,7 +25,7 @@
 // responses are never cached over a good copy. `?refresh=1` bypasses.
 // ─────────────────────────────────────────────────────────────────────────
 
-const VERSION = 'browse v1';
+const VERSION = 'browse v2 (t234 studio-dedup)';
 
 const RURI_BASE      = 'https://ruristream.vercel.app/api/ruri';
 const RECENT_BASE    = '/api/anikoto/recent-anime';
@@ -366,6 +366,10 @@ function matchesUni(it, f) {
     const names = (it.studios || []).map(s => String(s).toLowerCase());
     if (!names.some(n => n.includes(f.studioName.toLowerCase()))) return false;
   }
+  if (f.type && TYPE_POST_OK[f.type]) {
+    const have = String(it.type || '').toLowerCase().replace(/\s+/g, '-');
+    if (have && !TYPE_POST_OK[f.type].includes(have)) return false;
+  }
   if (f.rating) {
     const r = String(it.rating || '').toUpperCase();
     const map = { 'g':'G', 'pg':'PG', 'pg13':'PG-13', 'r17':'R - 17', 'r17b':'R - 17', 'r_plus':'R+', 'rx':'RX' };
@@ -423,6 +427,12 @@ async function fetchRuriStudio(profile, f, page, perPage, sortMap) {
   const name = STUDIO_NAME[f.studio] || titleCaseSlug(f.studio);
   const p = new URLSearchParams();
   p.set('page', page); p.set('limit', Math.min(perPage, 25));
+  // t234: ruri filters status/type natively — apply upstream instead of a
+  // slow post-filter walk (type was previously SILENTLY DROPPED here: Movies
+  // and OVAs leaked into TYPE=TV + STUDIO results)
+  if (f.status && ANIME_STATUS[f.status] && ANIME_STATUS[f.status].ruri) p.set('status', ANIME_STATUS[f.status].ruri);
+  if (f.type && RURI_TYPE[f.type]) p.set('type', RURI_TYPE[f.type]);
+  if (sortMap) { p.set('order_by', sortMap[0]); p.set('sort', sortMap[1]); }
   const j = await fetchJson(`${RURI_BASE}/${profile}/anime/studio/${encodeURIComponent(name)}?${p}`, {}, 12000);
   const items = (j.data || []).map(uniAnime);
   const pg = j.pagination || {};
@@ -511,9 +521,27 @@ async function fetchProxyStudio(f, page, perPage, sort) {
   const j = await cfWorkerFetchJson('anilist-my-proxy', `/api/studio/${encodeURIComponent(name)}?${p}`, { signal: AbortSignal.timeout(12000) });
   const st = j.data && j.data.Studio ? j.data.Studio.media : null;
   const edges = (st && (st.edges || st.media)) || [];
-  const items = edges.map(e => uniAnilist(e.node || e)).filter(Boolean);
+  // t234 FIX (the "duplicate anime" bug): AniList Studio connections return
+  // the SAME media TWICE when the studio is both the MAIN studio and a
+  // co-production studio (two StudioEdge rows, isMainStudio true+false).
+  // Prefer the main-studio edge, keep first-seen order otherwise.
+  const byId = new Map();
+  let dupEdges = 0;
+  for (const e of edges) {
+    const node = e && (e.node || e);
+    const k = node && node.id != null ? 'n' + node.id : null;
+    if (k === null) continue;
+    const prev = byId.get(k);
+    if (!prev) byId.set(k, e);
+    else {
+      dupEdges++;
+      if (e.isMainStudio && !(prev && prev.isMainStudio)) byId.set(k, e);
+    }
+  }
+  const uniqEdges = [...byId.values()];
+  const items = uniqEdges.map(e => uniAnilist(e.node || e)).filter(Boolean);
   const info = (st && st.pageInfo) || {};
-  return { items, rawTotal: info.total || items.length, hasNext: !!info.hasNextPage, lastPage: info.lastPage || null, totalBogus: (info.total || 0) >= ANILIST_TOTAL_CAP };
+  return { items, rawTotal: info.total || items.length, hasNext: !!info.hasNextPage, lastPage: info.lastPage || null, totalBogus: (info.total || 0) >= ANILIST_TOTAL_CAP, approx: dupEdges > 0 };
 }
 const SCRAPER_ORDER = { 'default':'score','score':'score','most-viewed':'popularity','release-date':'start_date','name':'title','latest-added':'start_date' };
 async function fetchScraper(f, page, perPage, sort) {
@@ -697,7 +725,7 @@ async function fetchMappleHidden(f, page, perPage, kind) {
 
 // ── planner: order the legs for this exact query ─────────────────────────
 // post-filter objects are FLAT: { years, season, status, source, rating,
-// language, extraGenres, studioName } — consumed by matchesUni().
+// language, extraGenres, studioName, type } — consumed by matchesUni().
 function mkPost(f, opts = {}) {
   const post = {};
   const statusNative = f.status && ANIME_STATUS[f.status] && ANIME_STATUS[f.status].ruri; // ruri supports the 3 basic statuses natively
@@ -718,8 +746,18 @@ function mkPost(f, opts = {}) {
     if (exact.length) post.extraGenres = exact;
   }
   if (opts.studioName) post.studioName = opts.studioName;
+  // t234: opt-in type post-filter for legs that cannot filter type natively
+  // (studio legs on AniList/scraper sources have no format param) — generic
+  // legs keep their native type params and are untouched
+  if (opts.postType && f.type) post.type = f.type;
   return post;
 }
+// type slug -> acceptable normalized it.type values (ruri stores "TV Special",
+// AniList displays "Special" — both must pass a tv-special post-filter)
+const TYPE_POST_OK = {
+  'tv': ['tv'], 'movie': ['movie'], 'ova': ['ova'], 'ona': ['ona'],
+  'tv-special': ['tv-special', 'special'], 'tv-short': ['tv-short'], 'music': ['music']
+};
 const genreNamesLower = f => (f.genres || []).map(g => GENRE_NAME[g]).filter(Boolean).map(n => n.toLowerCase());
 
 function buildAnimePlan(f, sort, warnings) {
@@ -735,13 +773,14 @@ function buildAnimePlan(f, sort, warnings) {
   if (f.type === 'series' || f.type === 'drama') return [];
 
   if (f.studio) {
-    plan.push({ name:'ruri-s-mal:studio', call:(p,pp)=>fetchRuriStudio('s-mal', f, p, pp), post:mkPost(f) });
-    plan.push({ name:'anilist-proxy:studio', call:(p,pp)=>fetchProxyStudio(f, p, pp, sort), post:mkPost(f, { extraGenres:genreNamesLower(f) }) });
-    plan.push({ name:'anilist-scraper:studio', call:(p,pp)=>fetchScraperStudio(f, p, pp, sort), post:mkPost(f, { extraGenres:genreNamesLower(f) }) });
+    const ruriSort = RURI_SORTS[sort] || RURI_SORTS['default'];
+    plan.push({ name:'ruri-s-mal:studio', call:(p,pp)=>fetchRuriStudio('s-mal', f, p, pp, ruriSort), post:mkPost(f, { nativeStatus:true, nativeType:true }) });
+    plan.push({ name:'anilist-proxy:studio', call:(p,pp)=>fetchProxyStudio(f, p, pp, sort), post:mkPost(f, { extraGenres:genreNamesLower(f), postType:true }) });
+    plan.push({ name:'anilist-scraper:studio', call:(p,pp)=>fetchScraperStudio(f, p, pp, sort), post:mkPost(f, { extraGenres:genreNamesLower(f), postType:true }) });
     if (f.language) {
       plan.length = 0;
-      plan.push({ name:'ruri-s-mal:studio', call:(p,pp)=>fetchRuriStudio('s-mal', f, p, pp), post:mkPost(f) });
-      plan.push({ name:'ruri-anikoto:studio', call:(p,pp)=>fetchRuriStudio('anikoto', f, p, pp), post:mkPost(f) });
+      plan.push({ name:'ruri-s-mal:studio', call:(p,pp)=>fetchRuriStudio('s-mal', f, p, pp, ruriSort), post:mkPost(f, { nativeStatus:true, nativeType:true }) });
+      plan.push({ name:'ruri-anikoto:studio', call:(p,pp)=>fetchRuriStudio('anikoto', f, p, pp, ruriSort), post:mkPost(f, { nativeStatus:true, nativeType:true }) });
       warnings.push('Language filter restricts this query to ruri sources.');
     }
     return plan;
@@ -991,8 +1030,26 @@ async function runPlan(plan, f, page, perPage, warnings, sigNs = '') {
       // ── shape the page ──
       let items, total, outHasNext;
       if (!needsWalk) {
+        // t234: native legs get the same overlap-trim + within-request dedupe
+        // the walked branch always had — a source whose rows repeat (AniList
+        // studio main+co-production edges, unstable upstream ordering) must
+        // never hand the same card to the same page twice
+        let pool = collected;
+        const lastServed = LAST_SERVED.get(fSig);
+        if (page === (lastServed && lastServed.page) + 1 && lastServed.seen && lastServed.seen.size) {
+          pool = pool.filter(it => !lastServed.seen.has(fuzzyKey(it)));
+        }
+        const seenN = new Set();
+        const uniq = [];
+        for (const it of pool) {
+          const k = itemKey(it);
+          if (seenN.has(k)) continue;
+          seenN.add(k);
+          uniq.push(it);
+        }
         const sliceFrom = Math.max(0, offset - (startPage - 1) * S);
-        items = collected.slice(sliceFrom, sliceFrom + perPage);
+        items = uniq.slice(sliceFrom, sliceFrom + perPage);
+        if (uniq.length < collected.length) approx = true;   // upstream rows were deduped
         if (totalBogus && rawTotal >= ANILIST_TOTAL_CAP) {
           // AniList's total is a display cap (real pages run dry much earlier) —
           // only claim what is proven plus one lookahead page
@@ -1252,7 +1309,14 @@ async function handle(q) {
     result = await runPlan(plan, tmF, f.page, f.perPage, warnings);
   } else if (f.media === 'all' && !f.hidden) {
     const animePlan = buildAnimePlan(anF, f.sort, warnings);
-    const tmdbPlan = buildTmdbPlan(tmF, f.sort, warnings);
+    let tmdbPlan = buildTmdbPlan(tmF, f.sort, warnings);
+    if (f.studio && STUDIO_NAME[f.studio]) {
+      // t234: an ANIME studio was selected — the TMDB half cannot honor it and
+      // would otherwise fill pages with unfiltered popular titles under the
+      // studio filter (same honesty rule as tmdb-only mode)
+      tmdbPlan = [];
+      warnings.push('Anime studio selected — no TMDB equivalent for the non-anime half.');
+    }
     result = await runMixed(animePlan, tmdbPlan, f, f.page, f.perPage, warnings);
   } else if (wantAnime && (f.media === 'anime' || f.hidden === false)) {
     const plan = buildAnimePlan(anF, f.sort, warnings);
