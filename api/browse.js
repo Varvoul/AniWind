@@ -25,7 +25,7 @@
 // responses are never cached over a good copy. `?refresh=1` bypasses.
 // ─────────────────────────────────────────────────────────────────────────
 
-const VERSION = 'browse v2 (t234 studio-dedup)';
+const VERSION = 'browse v3 (t234 sticky+capped-total)';
 
 const RURI_BASE      = 'https://ruristream.vercel.app/api/ruri';
 const RECENT_BASE    = '/api/anikoto/recent-anime';
@@ -541,7 +541,9 @@ async function fetchProxyStudio(f, page, perPage, sort) {
   const uniqEdges = [...byId.values()];
   const items = uniqEdges.map(e => uniAnilist(e.node || e)).filter(Boolean);
   const info = (st && st.pageInfo) || {};
-  return { items, rawTotal: info.total || items.length, hasNext: !!info.hasNextPage, lastPage: info.lastPage || null, totalBogus: (info.total || 0) >= ANILIST_TOTAL_CAP, approx: dupEdges > 0 };
+  // t234: AniList Studio connections cap pageInfo.total at 500 — treat any
+  // 500 as the cap, not a real count (Wit Studio reports 500, real ≈ 116)
+  return { items, rawTotal: info.total || items.length, hasNext: !!info.hasNextPage, lastPage: info.lastPage || null, totalBogus: (info.total || 0) >= ANILIST_TOTAL_CAP, totalCapped: (info.total || 0) >= 500, approx: dupEdges > 0 };
 }
 const SCRAPER_ORDER = { 'default':'score','score':'score','most-viewed':'popularity','release-date':'start_date','name':'title','latest-added':'start_date' };
 async function fetchScraper(f, page, perPage, sort) {
@@ -952,8 +954,15 @@ async function runPlan(plan, f, page, perPage, warnings, sigNs = '') {
   // duplicated cards at leg-switch boundaries)
   const fSig = filterSig(f) + (sigNs ? '|' + sigNs : '');
   const sticky = STICKY_LEG.get(fSig) || null;
+  // t234: stickiness applies to SEQUENTIAL continuation only (page N+1 of the
+  // same filter set continues page N's source). Fresh page-1 requests (new
+  // visit, reload, shared link) must always follow plan order — otherwise the
+  // sticky leg keeps winning page 1 and the SAME URL shows a different list
+  // between visits (owner's two Wit Studio screenshots 5 min apart).
+  const lastServedMem = LAST_SERVED.get(fSig);
+  const stickySequential = !!sticky && page === ((lastServedMem && lastServedMem.page) || 0) + 1;
   let ordered = plan;
-  if (sticky) {
+  if (stickySequential) {
     const i = plan.findIndex(L => L.name === sticky);
     if (i > 0) ordered = [plan[i], ...plan.slice(0, i), ...plan.slice(i + 1)];
   }
@@ -1002,7 +1011,7 @@ async function runPlan(plan, f, page, perPage, warnings, sigNs = '') {
 
       // ── fetch the window (batches of 3, walk may extend while underfull) ──
       let collected = [];
-      let rawTotal = 0, hasNext = false, lastPage = null, approx = false, sourceExhausted = false, totalBogus = false;
+      let rawTotal = 0, hasNext = false, lastPage = null, approx = false, sourceExhausted = false, totalBogus = false, rawCapped = false;
       let p = startPage;
       while (p <= Math.min(endPage, hardEnd)) {
         const batchEnd = Math.min(p + 2, endPage, hardEnd);
@@ -1016,6 +1025,7 @@ async function runPlan(plan, f, page, perPage, warnings, sigNs = '') {
           lastPage = r.lastPage || lastPage;
           approx = approx || r.approx;
           totalBogus = totalBogus || !!r.totalBogus;
+          rawCapped = rawCapped || !!r.totalCapped;
           if (r.items.length < S || !r.hasNext) sourceExhausted = true;
         }
         p = batchEnd + 1;
@@ -1050,9 +1060,11 @@ async function runPlan(plan, f, page, perPage, warnings, sigNs = '') {
         const sliceFrom = Math.max(0, offset - (startPage - 1) * S);
         items = uniq.slice(sliceFrom, sliceFrom + perPage);
         if (uniq.length < collected.length) approx = true;   // upstream rows were deduped
-        if (totalBogus && rawTotal >= ANILIST_TOTAL_CAP) {
-          // AniList's total is a display cap (real pages run dry much earlier) —
-          // only claim what is proven plus one lookahead page
+        if ((totalBogus && rawTotal >= ANILIST_TOTAL_CAP) || rawCapped) {
+          // AniList caps: search/browse total at 5000, Studio connections at
+          // 500 — real pages run dry much earlier than the claimed total, so
+          // only claim what is proven plus one lookahead page (honest
+          // pagination: no "11 pages" for a ~116-title studio)
           total = offset + items.length + (hasNext ? perPage : 0);
           outHasNext = hasNext;
         } else {
@@ -1094,7 +1106,7 @@ async function runPlan(plan, f, page, perPage, warnings, sigNs = '') {
           outHasNext = false;
         } else {
           let est = rawTotal ? Math.round(rawTotal * st.rate) : 0;
-          if (totalBogus) est = Math.min(est, offset + items.length + (hasNext ? perPage : 0)); // AniList 5000-cap guard
+          if (totalBogus || rawCapped) est = Math.min(est, offset + items.length + (hasNext ? perPage : 0)); // AniList caps: 5000 search / 500 studio
           total = clampNum(Math.max(est, offset + items.length), 0, rawTotal || est || (offset + items.length));
           outHasNext = hasNext && items.length > 0 && offset + items.length < total;
         }
