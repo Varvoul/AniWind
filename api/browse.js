@@ -1101,9 +1101,18 @@ async function runPlan(plan, f, page, perPage, warnings, sigNs = '') {
       }
 
       if (items.length === 0 && rawTotal === 0) {
-        // source genuinely reports nothing for these filters — honest empty
+        // source genuinely reports nothing for these filters. t234: a CLEAN
+        // zero from an early leg must not mask richer sources further down the
+        // plan (owner rule: empty never wins over a good copy) — fall through
+        // while more legs remain; a true empty is only final on the last leg.
+        if (ordered.indexOf(leg) < ordered.length - 1) {
+          errors.push(`${leg.name}: empty(0)`);
+          console.error(`[browse] leg empty(0): ${leg.name} — falling through to next leg`);
+          if (sticky === leg.name) STICKY_LEG.delete(fSig);  // exhausted stickiness — free the ordering
+          continue;
+        }
         LAST_SERVED.set(fSig, { page, seen: lastServedSeen(fSig), at: Date.now() });
-        return { items, total, hasNext: false, lastPage, source: leg.name, approx: approx || needsWalk, moreLegs: ordered.indexOf(leg) < ordered.length - 1 };
+        return { items, total, hasNext: false, lastPage, source: leg.name, approx: approx || needsWalk, moreLegs: false };
       }
       if (items.length > 0 && (!needsWalk || items.length >= minSufficient)) {
         // remember this page for cross-leg trimming + leg stickiness
