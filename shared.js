@@ -537,7 +537,9 @@
     /* Mobile keeps the compact sizes above. Desktop (≥901px, where hamburger is hidden)
        gets a more readable layout: ~40% larger fonts, larger posters, more breathing room. */
     @media (min-width:901px){
-      .search-suggestions{max-height:440px;}
+      /* t237: grown to fit the new filter toolbar (~39px) + kbd-hints strip (~31px)
+         above the 400px scroll area and the view-all button — 440px clipped both. */
+      .search-suggestions{max-height:545px;}
       .suggestions-scroll{max-height:400px;}
       .suggestion-item{padding:12px 14px;gap:12px;}
       .suggestion-poster{width:52px;height:74px;border-radius:7px;}
