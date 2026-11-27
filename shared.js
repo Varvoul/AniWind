@@ -285,7 +285,8 @@
     settings: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`,
     upload:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>`,
     arrow:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="m9 18 6-6-6-6"/></svg>`,
-    star:     `<svg viewBox="0 0 24 24" fill="currentColor" width="10" height="10"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`
+    star:     `<svg viewBox="0 0 24 24" fill="currentColor" width="10" height="10"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`,
+    filter:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>`
   };
 
   /* ═══════════════════════════════════════════════════════════
@@ -570,6 +571,60 @@
       background:linear-gradient(180deg, rgba(66,153,225,0.18) 0%, rgba(66,153,225,0.08) 100%);
       color:#90cdf4;box-shadow:inset 0 1px 0 rgba(255,255,255,0.05);
     }
+
+    /* ── t237: SEARCH UX — clear (x) button, "/" hotkey badge, filter chip, kbd hints ── */
+    .search-clear-btn{
+      display:none;align-items:center;justify-content:center;flex-shrink:0;
+      width:26px;height:26px;margin:0 8px 0 4px;border:none;border-radius:50%;
+      background:rgba(255,255,255,0.07);color:var(--text-muted,#8892a6);
+      cursor:pointer;transition:background .18s ease,color .18s ease,transform .18s ease;
+    }
+    .search-clear-btn svg{width:12px;height:12px;}
+    .search-clear-btn.visible{display:flex;}
+    .search-clear-btn:hover{background:rgba(239,68,68,0.25);color:#f87171;transform:scale(1.1) rotate(90deg);}
+    .search-clear-btn:active{transform:scale(0.9);}
+    .search-kbd-badge{
+      display:flex;align-items:center;justify-content:center;flex-shrink:0;
+      min-width:20px;height:20px;margin:0 10px 0 4px;padding:0 6px;
+      border:1px solid rgba(255,255,255,0.18);border-bottom-width:2px;border-radius:5px;
+      color:var(--text-muted,#8892a6);font-size:11px;font-weight:700;
+      font-family:'Courier New',monospace;pointer-events:none;opacity:.8;
+    }
+    .mob-search-bar .search-clear-btn{width:28px;height:28px;margin:0 12px 0 4px;}
+    .sug-toolbar{
+      display:flex;align-items:center;justify-content:flex-end;
+      padding:6px 10px;border-bottom:1px solid rgba(255,255,255,0.07);
+      background:var(--bg-surface,#1A1D29);
+      position:sticky;top:0;z-index:2;
+    }
+    .sug-filter-btn{
+      display:inline-flex;align-items:center;gap:6px;
+      padding:4px 12px;border-radius:50px;
+      border:1px solid rgba(99,179,237,0.35);
+      background:rgba(99,179,237,0.12);color:#63b3ed;
+      font-size:0.66rem;font-weight:700;letter-spacing:.04em;
+      transition:background .18s,color .18s,box-shadow .18s,transform .18s;
+    }
+    .sug-filter-btn:hover{background:#3b82f6;border-color:#3b82f6;color:#fff;box-shadow:0 3px 14px rgba(59,130,246,.4);transform:translateY(-1px);}
+    .sug-filter-btn:active{transform:translateY(0) scale(.97);}
+    .sug-kbd-hints{
+      display:none;align-items:center;gap:12px;flex-wrap:wrap;
+      padding:7px 12px;color:var(--text-muted,#8892a6);
+      font-size:9.5px;letter-spacing:.02em;
+    }
+    .sug-kbd-hints kbd{
+      display:inline-block;padding:1px 5px;margin-right:2px;
+      border:1px solid rgba(255,255,255,0.22);border-bottom-width:2px;border-radius:4px;
+      font-family:'Courier New',monospace;font-size:9px;font-weight:700;
+      color:#cbd5e1;background:rgba(255,255,255,0.06);
+    }
+    @media (hover:hover) and (pointer:fine){ .sug-kbd-hints{display:flex;} }
+    .suggestion-item.kbd-active{
+      background:linear-gradient(90deg, rgba(66,153,225,0.18) 0%, rgba(66,153,225,0.06) 100%);
+      transform:translateX(3px);
+      border-left:2px solid #4299e1;
+    }
+    .suggestion-item.kbd-active .suggestion-poster{transform:scale(1.05);box-shadow:0 4px 12px rgba(66,153,225,0.3);}
 
     /* ── SOCIALS ── */
     .header-socials{display:flex;gap:4px;flex-shrink:0;margin-left:auto;}
@@ -1387,6 +1442,8 @@
         <span class="search-toggle-tab" data-mode="anime">Anime</span>
       </div>
       <input type="text" class="search-input-field" id="searchInput" placeholder="Search shows…" autocomplete="off">
+      <span class="search-kbd-badge" id="searchKbdBadge" title="Press / to search">/</span>
+      <button type="button" class="search-clear-btn" id="searchClearBtn" aria-label="Clear search">${SVG.close}</button>
     </div>
     <div class="search-suggestions" id="searchSuggestions"></div>
   </div>
@@ -1447,6 +1504,7 @@
       <span class="search-toggle-tab" data-mode="anime">Anime</span>
     </div>
     <input type="text" class="mob-search-input" id="mobSearchInput" placeholder="Search…" autocomplete="off">
+    <button type="button" class="search-clear-btn" id="mobSearchClearBtn" aria-label="Clear search">${SVG.close}</button>
   </div>
   <div class="mob-suggestions" id="mobSuggestions"></div>
 </div>
@@ -1943,6 +2001,110 @@
     document.addEventListener('click', e => {
       if (!e.target.closest('#desktopSearchWrap')) {
         document.getElementById('searchSuggestions').style.display = 'none';
+      }
+    });
+
+    /* ── t237: clear (x) button + "/" hotkey badge (desktop) ── */
+    const dInp = document.getElementById('searchInput');
+    const dClr = document.getElementById('searchClearBtn');
+    const dBdg = document.getElementById('searchKbdBadge');
+    const mInp = document.getElementById('mobSearchInput');
+    const mClr = document.getElementById('mobSearchClearBtn');
+
+    const syncSearchUI = (inp, clr, badge) => {
+      const hasText = !!(inp && inp.value.trim());
+      if (clr)   clr.classList.toggle('visible', hasText);
+      if (badge) badge.style.display = (hasText || document.activeElement === inp) ? 'none' : 'flex';
+    };
+    dInp?.addEventListener('input', () => syncSearchUI(dInp, dClr, dBdg));
+    dInp?.addEventListener('focus', () => syncSearchUI(dInp, dClr, dBdg));
+    dInp?.addEventListener('blur',  () => setTimeout(() => syncSearchUI(dInp, dClr, dBdg), 150));
+    mInp?.addEventListener('input', () => syncSearchUI(mInp, mClr, null));
+
+    const wireClear = (btn, inp, sugEl, badge) => {
+      btn?.addEventListener('click', e => {
+        e.preventDefault(); e.stopPropagation();
+        if (!inp) return;
+        inp.value = '';
+        if (sugEl) sugEl.style.display = 'none';
+        syncSearchUI(inp, btn, badge);
+        inp.focus();
+      });
+    };
+    wireClear(dClr, dInp, document.getElementById('searchSuggestions'), dBdg);
+    wireClear(mClr, mInp, document.getElementById('mobSuggestions'), null);
+
+    /* ── t237: global keyboard support — "/" / Ctrl+K focus, Esc exit, ↑/↓ navigate, Enter select ── */
+    document.addEventListener('keydown', e => {
+      if (e.isComposing) return;
+      const t = e.target || {};
+      const tag = (t.tagName || '').toLowerCase();
+      const typing = tag === 'input' || tag === 'textarea' || tag === 'select' || t.isContentEditable;
+
+      /* 1) "/" or Ctrl/Cmd+K → focus the search bar (only when not typing in another field,
+            and not while the auth modal is open) */
+      if (((e.key === '/' && !typing) || ((e.ctrlKey || e.metaKey) && !typing && (e.key === 'k' || e.key === 'K')))
+          && !document.body.classList.contains('rowana-modal-open')) {
+        e.preventDefault();
+        const dWrap = document.getElementById('desktopSearchWrap');
+        const desktopVisible = dWrap && getComputedStyle(dWrap).display !== 'none';
+        if (desktopVisible) {
+          dInp?.focus(); dInp?.select();
+        } else {
+          const panel = document.getElementById('mobSearchPanel');
+          if (panel && !panel.classList.contains('open')) panel.classList.add('open');
+          setTimeout(() => mInp?.focus(), 100);
+        }
+        return;
+      }
+
+      /* 2) Esc → exit search: close open suggestions / mobile panel and blur the input */
+      if (e.key === 'Escape') {
+        const dSug2  = document.getElementById('searchSuggestions');
+        const panel2 = document.getElementById('mobSearchPanel');
+        let handled = false;
+        if (dSug2 && dSug2.style.display === 'block') { dSug2.style.display = 'none'; handled = true; }
+        if (panel2 && panel2.classList.contains('open')) { panel2.classList.remove('open'); handled = true; }
+        if (!handled && document.activeElement === dInp) handled = true;
+        if (handled) {
+          e.preventDefault();
+          dInp?.blur();
+          mInp?.blur();
+        }
+        return;
+      }
+
+      /* 3) ↑/↓ navigate the open suggestion list, Enter selects (or falls through to view-all) */
+      const dSug  = document.getElementById('searchSuggestions');
+      const mSug  = document.getElementById('mobSuggestions');
+      const panel = document.getElementById('mobSearchPanel');
+      let navContainer = null;
+      if (dSug && dSug.style.display === 'block' && dSug.querySelector('.suggestion-item')) navContainer = dSug;
+      else if (mSug && panel?.classList.contains('open') && mSug.querySelector('.suggestion-item')) navContainer = mSug;
+      if (!navContainer) return;
+      const items = Array.from(navContainer.querySelectorAll('.suggestion-item'));
+      if (!items.length) return;
+
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        let idx = items.findIndex(el => el.classList.contains('kbd-active'));
+        if (e.key === 'ArrowDown') idx = (idx + 1) % items.length;
+        else idx = (idx <= 0 ? items.length : idx) - 1;
+        items.forEach((el, i) => el.classList.toggle('kbd-active', i === idx));
+        items[idx].scrollIntoView({ block: 'nearest' });
+        return;
+      }
+
+      if (e.key === 'Enter' && (document.activeElement === dInp || document.activeElement === mInp)) {
+        e.preventDefault();
+        const active = navContainer.querySelector('.suggestion-item.kbd-active');
+        if (active && active.getAttribute('href') && active.getAttribute('href') !== '#') {
+          window.location.assign(active.getAttribute('href'));
+        } else {
+          const inp = document.activeElement === dInp ? dInp : mInp;
+          const q = (inp.value || '').trim();
+          if (q.length >= 2) window.location.assign(`/latest-updates?q=${encodeURIComponent(q)}&mode=${currentSearchMode}`);
+        }
       }
     });
   }
@@ -3400,6 +3562,21 @@
     return GENRE_FIXED_RGB;
   }
 
+  /* ── t237: filter chip toolbar (top-right corner of the suggestion dropdown) ──
+     Same-tab navigation to the browse page, where the full filter set lives. */
+  const sugToolbar = () => `
+    <div class="sug-toolbar">
+      <a class="sug-filter-btn" href="https://ruristream.vercel.app/browse" title="Open the browse page with full filters" aria-label="Open browse filters">${SVG.filter}<span>Filter</span></a>
+    </div>`;
+
+  /* ── t237: keyboard hints strip (rendered for pointer+keyboard devices only) ── */
+  const sugKbdHints = () => `
+    <div class="sug-kbd-hints">
+      <span><kbd>↑</kbd><kbd>↓</kbd> navigate</span>
+      <span><kbd>Enter</kbd> select</span>
+      <span><kbd>Esc</kbd> exit</span>
+    </div>`;
+
   function renderSuggestions(results, q, container) {
     const slugify = (title) => {
       if (!title) return '';
@@ -3411,12 +3588,14 @@
 
     if (!results.length) {
       container.innerHTML = `
+        ${sugToolbar()}
         <div class="suggestions-scroll">
           <div style="padding:20px 12px;text-align:center;font-size:0.76rem;color:var(--text-muted,#888);">
             <i class="fa-regular fa-circle-xmark" style="font-size:1.8rem;color:#63b3ed;display:block;margin-bottom:10px;opacity:.6;"></i>
             No results for "<strong style="color:#63b3ed">${esc(q)}</strong>"
           </div>
         </div>
+        ${sugKbdHints()}
         <button class="view-all-btn" onclick="location.href='/latest-updates?q=${encodeURIComponent(q)}&mode=${currentSearchMode}'">${SVG.arrow} View all results</button>`;
       container.style.display = 'block';
       return;
@@ -3516,9 +3695,11 @@
       </a>`;
     }).join('');
 
-    // Structure: scrollable suggestions + always-visible "View All" button
+    // Structure: filter toolbar + scrollable suggestions + keyboard hints + always-visible "View All" button
     container.innerHTML = `
+      ${sugToolbar()}
       <div class="suggestions-scroll">${html}</div>
+      ${sugKbdHints()}
       <button class="view-all-btn" onclick="location.href='/latest-updates?q=${encodeURIComponent(q)}&mode=${currentSearchMode}'">${SVG.arrow} View all results for "${esc(q)}"</button>`;
     container.style.display = 'block';
   }
