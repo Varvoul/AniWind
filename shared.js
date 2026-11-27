@@ -608,7 +608,7 @@
     .sug-filter-btn:hover{background:#3b82f6;border-color:#3b82f6;color:#fff;box-shadow:0 3px 14px rgba(59,130,246,.4);transform:translateY(-1px);}
     .sug-filter-btn:active{transform:translateY(0) scale(.97);}
     .sug-kbd-hints{
-      display:none;align-items:center;gap:12px;flex-wrap:wrap;
+      display:flex;align-items:center;gap:12px;flex-wrap:wrap;
       padding:7px 12px;color:var(--text-muted,#8892a6);
       font-size:9.5px;letter-spacing:.02em;
     }
@@ -618,7 +618,8 @@
       font-family:'Courier New',monospace;font-size:9px;font-weight:700;
       color:#cbd5e1;background:rgba(255,255,255,0.06);
     }
-    @media (hover:hover) and (pointer:fine){ .sug-kbd-hints{display:flex;} }
+    /* Touch devices (no physical keyboard) hide the hints strip */
+    @media (pointer:coarse){ .sug-kbd-hints{display:none;} }
     .suggestion-item.kbd-active{
       background:linear-gradient(90deg, rgba(66,153,225,0.18) 0%, rgba(66,153,225,0.06) 100%);
       transform:translateX(3px);
